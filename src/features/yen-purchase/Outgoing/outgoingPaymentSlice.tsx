@@ -49,7 +49,7 @@ export const fetchOutgoings = createAsyncThunk(
       filterByStatus?: boolean | null; 
     }) => {
     try {
-      const url = 'http://192.168.1.113:8000/outgoingpayments/';
+      const url = 'http://192.168.1.122:8000/outgoingpayments/';
 
       // Prepare query parameters dynamically based on provided arguments
       const params: any = {
@@ -112,7 +112,7 @@ export const fetchVendorDetails = createAsyncThunk(
       }
 
       const response = await axios.get<VendorDetail[]>(
-        `http://192.168.1.113:8000/outgoingpayments/vendors/details?${params.toString()}`
+        `http://192.168.1.122:8000/outgoingpayments/vendors/details?${params.toString()}`
       );
       return response.data;
     } catch (error) {
@@ -121,7 +121,7 @@ export const fetchVendorDetails = createAsyncThunk(
   }
 );
 export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
-  const response = await axios.get<GRN[]>(`http://192.168.1.113:8000/grns/`);
+  const response = await axios.get<GRN[]>(`http://192.168.1.122:8000/grns/`);
   const grnData = response.data.map(item => ({
       grnId: item.grnId,
       randomId: item.randomId,
@@ -131,19 +131,19 @@ export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
 
 // Async thunk to add a new Outgoing item
 export const addOutgoing = createAsyncThunk<Outgoing, Omit<Outgoing, 'outgoingId'>>('outgoings/addOutgoing', async (outgoingData) => {
-  const response = await axios.post('http://192.168.1.113:8000/outgoingpayments/', outgoingData); // Adjust the API endpoint as needed
+  const response = await axios.post('http://192.168.1.122:8000/outgoingpayments/', outgoingData); // Adjust the API endpoint as needed
   return response.data;
 });
 
 // Async thunk to update an existing Outgoing item
 export const updateOutgoing = createAsyncThunk<Outgoing, Outgoing>('outgoings/updateOutgoing', async (outgoingData) => {
-  const response = await axios.patch(`http://192.168.1.113:8000/outgoingpayments/${outgoingData.outgoingId}`, outgoingData); // Adjust the API endpoint as needed
+  const response = await axios.patch(`http://192.168.1.122:8000/outgoingpayments/${outgoingData.outgoingId}`, outgoingData); // Adjust the API endpoint as needed
   return response.data;
 });
 
 // // Async thunk to delete an Outgoing item
 // export const deleteOutgoing = createAsyncThunk<void, string>('outgoings/deleteOutgoing', async (outgoingId) => {
-//   await axios.delete(`http://192.168.1.113:8000/outgoingpayments/${outgoingId}`); // Adjust the API endpoint as needed
+//   await axios.delete(`http://192.168.1.122:8000/outgoingpayments/${outgoingId}`); // Adjust the API endpoint as needed
 // });
 
 export const fetchBank = createAsyncThunk('bank/fetchBanks', async () => {
@@ -204,7 +204,7 @@ export const processPayment = createAsyncThunk<
       };
 
       // Send the request to the backend
-      await axios.patch(`http://192.168.1.113:8000/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`http://192.168.1.122:8000/outgoingpayments/${outgoingId}/payment`, payload);
 
     } catch (error: any) {
       // Return an error message if the request fails
@@ -223,7 +223,7 @@ export const fetchActiveDebitsVendor = createAsyncThunk<
   'debitNotes/fetchActiveDebitsVendor', // Unique action type
   async (vendorName, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`http://192.168.1.113:8000/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
+      const response = await axios.get(`http://192.168.1.122:8000/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
       if (!response.data.debits) {
         throw new Error('No debits found in response');
       }
@@ -259,7 +259,7 @@ export const processBulkPayment = createAsyncThunk<
   async ({ payments, outgoingIds }, { rejectWithValue }) => {
     try {
       const payload = { payments, outgoingIds };
-      const response = await axios.patch('http://192.168.1.113:8000/outgoingpayments/bulkpayment/bulk-payment', payload);
+      const response = await axios.patch('http://192.168.1.122:8000/outgoingpayments/bulkpayment/bulk-payment', payload);
       return response.data; // Expecting { results, errors, totalProcessed, totalFailed }
     } catch (error: any) {
       return rejectWithValue(error.response?.data || { errors: [{ error: 'Bulk payment processing failed' }] });
@@ -275,7 +275,7 @@ export const addNewPayment = createAsyncThunk<Outgoing, PaymentDetails>(
           const outgoingWithDate = {
               ...paymentData,          };
 
-          const response = await axios.post('http://192.168.1.113:8000/outgoingpayments/', outgoingWithDate);
+          const response = await axios.post('http://192.168.1.122:8000/outgoingpayments/', outgoingWithDate);
           console.log('Response from API:', response.data); // Log response from API
           return response.data;
       } catch (error: any) {
@@ -296,7 +296,7 @@ export const addNewVendorPayment = createAsyncThunk<Outgoing, PaymentDetails>(
         paymentDate: new Date().toISOString(), // Add current date in ISO 8601 format (e.g., '2024-12-17T16:33:45.712+00:00')
       };
 
-      const response = await axios.post('http://192.168.1.113:8000/outgoingpayments/', outgoingWithDate);
+      const response = await axios.post('http://192.168.1.122:8000/outgoingpayments/', outgoingWithDate);
       console.log('Response from API:', response.data); // Log response from API
       return response.data;
     } catch (error: any) {
@@ -311,7 +311,7 @@ export const addNewVendorPayment = createAsyncThunk<Outgoing, PaymentDetails>(
 export const fetchTaxDetails = createAsyncThunk<TaxDetail[], string>(
   'outgoings/fetchTaxDetails',
   async (outgoingId) => {
-    const response = await axios.get<TaxDetail[]>(`http://192.168.1.113:8000/outgoingpayments/${outgoingId}/tax-details`);
+    const response = await axios.get<TaxDetail[]>(`http://192.168.1.122:8000/outgoingpayments/${outgoingId}/tax-details`);
     return response.data; // Assuming the response is directly an array of TaxDetail
   }
 );
@@ -337,7 +337,7 @@ export const selectOutgoingPayment = createAsyncThunk<
   ) => {
     try {
       // Fetch outgoing payment details
-      const response = await axios.get<Outgoing>(`http://192.168.1.113:8000/outgoingpayments/${outgoingId}`);
+      const response = await axios.get<Outgoing>(`http://192.168.1.122:8000/outgoingpayments/${outgoingId}`);
       const outgoingData = response.data;
 
       const totalPayableAmount = outgoingData.totalPayableAmount ?? 0;
@@ -400,7 +400,7 @@ export const selectOutgoingPayment = createAsyncThunk<
       }
 
       // Send updated data to the server
-      await axios.patch(`http://192.168.1.113:8000/outgoingpayments/${outgoingId}`, updatedOutgoing);
+      await axios.patch(`http://192.168.1.122:8000/outgoingpayments/${outgoingId}`, updatedOutgoing);
 
       return updatedOutgoing;
     } catch (error: any) {

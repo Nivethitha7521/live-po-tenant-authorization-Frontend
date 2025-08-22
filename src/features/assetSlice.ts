@@ -16,7 +16,7 @@ interface Asset {
   depreciationRate: string;
   usefulLife: string;
   salvageValue: string;
-  serialNumber: string;
+  serialNumber: number; 
 }
 
 interface AssetState {

@@ -6,7 +6,7 @@ import { GrnData } from '../../../Models/grnModel';
 import { ApInvoice, ApInvoiceRandomId, ApInvoiceState, initialState } from '@/Models/apModel';
 
 
-const BASE_URL = 'http://192.168.1.113:8000';
+const BASE_URL = 'http://192.168.1.122:8000';
 
 
 // Fetch AP Invoices with pagination and advanced filtering

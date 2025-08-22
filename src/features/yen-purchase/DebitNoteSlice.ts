@@ -4,7 +4,7 @@ import axios from 'axios';
 import { RootState } from '@/redux/store';
 import { DebitCreditNote } from '@/Models/DebitCreditNote';
 
-const BASE_URL = 'http://192.168.1.113:8000';
+const BASE_URL = 'http://192.168.1.122:8000';
 
 interface DebitCreditNoteState {
   debitCreditNotes: DebitCreditNote[];
