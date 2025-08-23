@@ -71,7 +71,7 @@ const PaidPaymentComponent = () => {
   const [viewDetailsIndex, setViewDetailsIndex] = useState<number | null>(null); // Track the viewed vendor
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false); // Control details dialog visibility
   const [selectedOutgoing, setSelectedOutgoing] = useState<any>(null); // Track the selected outgoing
-  const [selectedVendorName, setSelectedVendorName] = useState<VendorDetail | null>(null); // Default is null  const [totalpayment, setTotalPayment] = useState<number>(); // Initialize totalpayment as a number
+  const [selectedVendorName, setSelectedVendorName] = useState<VendorDetail | null>(null); // Default is null
   const [filteredOutgoing, setFilteredOutgoing] = useState<Outgoing[]>([]); // Explicit type declaration
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -934,8 +934,8 @@ const PaidPaymentComponent = () => {
                         <TableCell>{payment.vendorName}</TableCell>
                         <TableCell>{payment.invoiceNo || "N/A"}</TableCell>
                         <TableCell>{payment.invoiceDate ? format(payment.invoiceDate, 'dd-MM-yyyy') : 'N/A'}</TableCell>
-                        <TableCell>{payment.totalPayableAmount?.toFixed(2) || 0.00}</TableCell>
-                        <TableCell>{totalPaid.toFixed(2)}</TableCell>
+                        <TableCell>{payment.payableAmount?.toFixed(2) || 0.00}</TableCell>
+                        <TableCell>{payment.paidAmount?.toFixed(2)}</TableCell>
                         <TableCell>{payment.paymentDate ? format(payment.paymentDate, 'dd-MM-yyyy') : 'N/A'}</TableCell>
 
                         <TableCell>

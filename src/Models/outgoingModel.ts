@@ -43,6 +43,7 @@ export interface Outgoing {
   partialAmount?: number;
   fullPaymentAmount?: number;
   chequeNo?: number;
+  paidAmount?:number;
   paymentType: string;
   onlinePayment?: number;
   intimationDays: string | null;

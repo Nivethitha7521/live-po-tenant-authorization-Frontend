@@ -274,27 +274,6 @@ const VendorPage: React.FC = () => {
             <Button variant="contained" color="primary">Purchase Return</Button>
           </Link>
         </Box>
-
-        {/* Typography
-        <Typography
-          sx={{
-            pl: 2,
-            pr: 2,
-            boxShadow: 3,
-            borderRadius: 1,
-            padding: '8px',
-            textAlign: 'left',
-            maxWidth: '450px',
-            fontWeight: 'bold',
-            flexGrow: 1,
-            ml: 2,
-          }}
-        >
-          Description:<br />
-          This is the Vendor Payment page, where you can directly process payments for
-          existing and new vendors without the need for outgoing payment processes. Simply
-          add the vendor and process the payment against the vendor immediately.
-        </Typography> */}
       </Box>
       {/* Vendor Selection and Create Button */}
       <Box mt={2} ml={2} sx={{ maxWidth: 500 }} display="flex" justifyContent="space-between" alignItems="center">
