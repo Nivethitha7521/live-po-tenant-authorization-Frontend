@@ -85,7 +85,7 @@ import authReducer from '../features/authSlice';
 // import posDeviceReducer from '../features/yen-pos/posDeviceSlice';
 import assetReducer from '../features/assetSlice';
 import debitCreditNoteReducer from '../features/yen-purchase/DebitNoteSlice'
-
+import outgoingLedgerReducer from '../features/yen-purchase/Outgoing/ledgerData'
 const store = configureStore({
   reducer: {
     // locations: locationAreaReducer,
@@ -153,7 +153,8 @@ const store = configureStore({
     vendorMaster:vendorMasterReducer,
     purchaseOrderItems:poitemRedcuer,
     csvOperations:csvOperationsReducer,
-    debitCreditNote:debitCreditNoteReducer
+    debitCreditNote:debitCreditNoteReducer,
+    outgoingLedger:outgoingLedgerReducer,
     // addOns: addOnReducer,    
     // variants: variantReducer,
 

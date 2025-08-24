@@ -1,8 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
-import { Bank, DebitNote, GRN, initialState, Outgoing,OutgoingState, PaymentDetails, PaymentDone, TaxDetail, VendorDetail } from '@/Models/outgoingModel';
-
+import { Bank, DebitNote, GRN, initialState, Outgoing,OutgoingState, PaymentDetails, PaymentDone, TaxDetail, VendorDetail} from '@/Models/outgoingModel';
 
 interface ProcessPaymentRequest {
   outgoingId: string;
@@ -284,28 +283,24 @@ export const addNewPayment = createAsyncThunk<Outgoing, PaymentDetails>(
       }
   }
 );
-export const addNewVendorPayment = createAsyncThunk<Outgoing, PaymentDetails>(
-  'outgoings/addNewvendorPayment',
-  async (paymentData, { rejectWithValue }) => {
-    console.log('addNewPayment called with data:', paymentData); // Log data received
-
+// Async thunk for adding new payment
+export const addNewVendorPayment = createAsyncThunk(
+  'outgoings/addNewVendorPayment',
+  async (paymentData: any, { rejectWithValue }) => {
+    console.log('addNewPayment called with data:', paymentData);
     try {
-      // Add current paymentDate with ISO 8601 format
-      const outgoingWithDate = {
+      const response = await axios.post('http://192.168.1.122:8000/outgoingpayments/addvendorpayment/', {
         ...paymentData,
-        paymentDate: new Date().toISOString(), // Add current date in ISO 8601 format (e.g., '2024-12-17T16:33:45.712+00:00')
-      };
-
-      const response = await axios.post('http://192.168.1.122:8000/outgoingpayments/', outgoingWithDate);
-      console.log('Response from API:', response.data); // Log response from API
+        isPreOutgoing: !paymentData.poId,
+      });
+      console.log('Response from API:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Error in addNewPayment:', error); // Log the error for further insight
-      return rejectWithValue(error.response?.data || 'An error occurred while adding payment');
+      console.error('Error in addNewPayment:', error);
+      return rejectWithValue(error.response?.data?.detail || 'An error occurred while adding payment');
     }
   }
 );
-
 
 // Async thunk to fetch tax details for a specific outgoing payment
 export const fetchTaxDetails = createAsyncThunk<TaxDetail[], string>(
@@ -438,7 +433,6 @@ const outgoingSlice = createSlice({
     state.currentPage = action.payload.page;
     state.pageSize = action.payload.size;
   },
-  
   },
   extraReducers: (builder) => {
     builder
@@ -644,7 +638,8 @@ const outgoingSlice = createSlice({
       .addCase(fetchActiveDebitsVendor.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.loading = false;
         state.error = action.payload || 'Failed to fetch active debits';
-      });
+      })
+   
   },
 });
 

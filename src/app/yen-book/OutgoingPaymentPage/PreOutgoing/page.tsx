@@ -113,73 +113,52 @@ const VendorPage: React.FC = () => {
   const handleDialogClose = () => {
     setSelectedVendor(null);
   };
-  const handleConfirmPayment = async (paymentData: any) => {
+const handleConfirmPayment = async (paymentData: any) => {
     if (!selectedVendor) {
       setSnackbarMessage('No vendor selected.');
       setSnackbarOpen(true);
       return;
     }
 
-    // Create payment data using the form values
-    const amount = parseFloat(paymentData.amount) || 0; // Use the amount from the form
+    const amount = parseFloat(paymentData.amount) || 0;
+    if (amount <= 0) {
+      setSnackbarMessage('Invalid payment amount.');
+      setSnackbarOpen(true);
+      return;
+    }
+
     const dataToPost = {
-      ...paymentData,
-      vendorName: selectedVendor.vendorName || '', // Ensure vendorName is captured
+      vendorName: selectedVendor.vendorName,
+      paymentType: paymentData.paymentType,
+      paymentMode: paymentData.paymentMode,
+      paymentMethod: paymentData.paymentMethod,
+      bankName: paymentData.bankName || '',
+      neftNo: paymentData.neftNo || '',
+      rtgsNo: paymentData.rtgsNo || '',
+      impsNo: paymentData.impsNo || '',
+      upi: paymentData.upi || '',
+      pettyCashAmount: paymentData.paymentMethod === 'pettyCash' ? amount : 0,
+      hoCash: paymentData.paymentMethod === 'hoCash' ? amount : 0,
+      fullPaymentAmount: paymentData.paymentType === 'full' ? amount : 0,
+      partialAmount: paymentData.paymentType === 'partial' ? amount : 0,
+      advanceAmount: paymentData.paymentType === 'advance' ? amount : 0,
+      poId: paymentData.poId || null,
+      grnId: paymentData.grnId || null,
+      isPreOutgoing: !paymentData.poId,
     };
-
-    // Assuming this is fetched or passed from the state
-    let updatedStatus = ''; // Initialize status variable
-    let updatedPaymentRecord = {
-      ...dataToPost,
-      partialAmount: 0,
-      fullPaymentAmount: 0,
-      advanceAmount: 0,
-    };
-    // Calculate the amounts based on payment mode and method
-    if (dataToPost.paymentMode === 'Cash') {
-      if (dataToPost.paymentMethod === 'pettyCash') {
-        updatedPaymentRecord.pettyCashAmount = amount; // Store amount in pettyCashAmount
-      } else if (dataToPost.paymentMethod === 'hoCash') {
-        updatedPaymentRecord.hoCash = amount; // Store amount in hoCashAmount
-      }
-    }
-
-    // Update payment record based on payment type
-    switch (dataToPost.paymentType) {
-      case 'full':
-        updatedPaymentRecord.fullPaymentAmount = amount; // Store full amount in fullPaymentAmount
-        updatedStatus = 'Fully Paid';
-        break;
-      case 'partial':
-        updatedPaymentRecord.partialAmount = amount; // Store partial amount
-        updatedStatus = 'Partially Paid';
-        break;
-      case 'advance':
-        updatedPaymentRecord.advanceAmount = amount; // Store advance amount
-        updatedStatus = 'Advance Paid';
-        break;
-      default:
-        setSnackbarMessage('Invalid payment type.');
-        setSnackbarOpen(true);
-        return;
-    }
-
-    // Set the dynamic status
-    updatedPaymentRecord.status = updatedStatus;
 
     try {
-      const actionResult = await dispatch(addNewVendorPayment(updatedPaymentRecord));
+      const actionResult = await dispatch(addNewVendorPayment(dataToPost));
       if (addNewVendorPayment.fulfilled.match(actionResult)) {
-        setSnackbarMessage('Payment processed successfully.');
-        // Reset payment details or perform any additional actions here if needed
+        setSnackbarMessage(`Payment processed successfully. Debit Note: ${actionResult.payload.selectedDebitNotes?.[0] || 'N/A'}`);
         setPaymentDetails({
           outgoingId: '',
           paymentType: 'full',
           amount: '',
           paymentMethod: '',
           chequeNo: 0,
-          pettyCashAmount: 0, // Reset pettyCashAmount
-          hoCash: 0, // Reset hoCashAmount
+          pettyCashAmount: 0,
+          hoCash: 0,
           neftNo: '',
           cashVoucherNo: '',
           rtgsNo: '',
@@ -190,13 +169,13 @@ const VendorPage: React.FC = () => {
         setSelectedVendor(null);
         setOpenPayDialog(false);
       } else {
-        setSnackbarMessage('Payment failed: ' + (actionResult.payload || 'Unknown error'));
+        setSnackbarMessage(`Payment failed: ${actionResult.payload || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error processing payment:', error);
-      setSnackbarMessage('An unexpected error occurred while processing the payment');
+      setSnackbarMessage(`An unexpected error occurred: ${error}`);
     }
-    setSnackbarOpen(true); // Show snackbar with message
+    setSnackbarOpen(true);
   };
 
   const handleClosePayDialog = () => {
