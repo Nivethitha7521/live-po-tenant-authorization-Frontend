@@ -34,55 +34,54 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const [selectedModule, setSelectedModule] = useState('');
 
   const isLoginRoute = useMemo(() => pathname === '/', [pathname]);
-  const isProtectedRoute = useMemo(() => 
+  const isProtectedRoute = useMemo(() =>
     PROTECTED_ROUTES.some(route => pathname?.startsWith(route)),
     [pathname]
   );
 
-  // Initialize auth and set module
+  // Initialize auth, set module, and manage tab tracking
   useEffect(() => {
     dispatch(initializeAuth());
     const modulename = pathname?.split('/')[1] || '';
     setSelectedModule(modulename);
 
-    // Initialize tab count in localStorage
-    const tabCount = parseInt(localStorage.getItem('tabCount') || '0');
-    localStorage.setItem('tabCount', (tabCount + 1).toString());
+    // Generate a unique tab ID and browser session ID
+    const tabId = crypto.randomUUID();
+    const browserSessionId = sessionStorage.getItem('browserSessionId') || crypto.randomUUID();
+    sessionStorage.setItem('browserSessionId', browserSessionId);
 
-    // Handle beforeunload for last tab or browser close
+    // Initialize or update active tabs list
+    let activeTabs = JSON.parse(sessionStorage.getItem('activeTabs') || '[]') as string[];
+    if (!activeTabs.includes(tabId)) {
+      activeTabs.push(tabId);
+      sessionStorage.setItem('activeTabs', JSON.stringify(activeTabs));
+    }
+
+    // Handle beforeunload for tab/browser close
     const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
-      const currentTabCount = parseInt(localStorage.getItem('tabCount') || '0');
-      if (currentTabCount <= 1 && isLoggedIn) {
-        // Last tab or browser close - trigger logout
+      let currentActiveTabs = JSON.parse(sessionStorage.getItem('activeTabs') || '[]') as string[];
+      currentActiveTabs = currentActiveTabs.filter(id => id !== tabId);
+      sessionStorage.setItem('activeTabs', JSON.stringify(currentActiveTabs));
+
+      // Only logout if this is the last tab and user is logged in
+      if (currentActiveTabs.length === 0 && isLoggedIn) {
         try {
           await dispatch(logout('browser_closed')).unwrap();
+          sessionStorage.removeItem('browserSessionId'); // Clean up session ID
         } catch (error) {
           console.error('Logout on browser close failed:', error);
         }
       }
-      // Update tab count
-      localStorage.setItem('tabCount', (currentTabCount - 1).toString());
-    };
-
-    // Handle page show to reset tab count if necessary
-    const handlePageShow = () => {
-      const tabCount = parseInt(localStorage.getItem('tabCount') || '0');
-      if (tabCount <= 0) {
-        localStorage.setItem('tabCount', '1');
-      }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('pageshow', handlePageShow);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('pageshow', handlePageShow);
-      // Decrease tab count on cleanup
-      const currentTabCount = parseInt(localStorage.getItem('tabCount') || '0');
-      if (currentTabCount > 0) {
-        localStorage.setItem('tabCount', (currentTabCount - 1).toString());
-      }
+      // Remove tab ID from active tabs on cleanup
+      let currentActiveTabs = JSON.parse(sessionStorage.getItem('activeTabs') || '[]') as string[];
+      currentActiveTabs = currentActiveTabs.filter(id => id !== tabId);
+      sessionStorage.setItem('activeTabs', JSON.stringify(currentActiveTabs));
     };
   }, [dispatch, pathname, isLoggedIn]);
 
@@ -103,11 +102,11 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     return (
       <div className="flex h-screen overflow-hidden">
         {isMenuOpen && (
-          <SideMenu 
+          <SideMenu
             onMenuClick={(menuItem) => {
               setSelectedModule(menuItem.text);
-              router.push(menuItem.path);
-            }} 
+              router.push(menuItem.path); // Client-side navigation
+            }}
             activePath={pathname || '/yen-purchase'}
           />
         )}
