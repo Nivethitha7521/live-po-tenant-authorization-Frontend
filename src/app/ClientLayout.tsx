@@ -3,10 +3,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../redux/store';
-import { initializeAuth } from '../features/authSlice';
+import { initializeAuth, logout } from '../features/authSlice';
 import SideMenu from '@/components/SideMenu';
 import Navbar from '@/components/Navbar';
-import { useBrowserCloseDetection } from '@/utilities/browserCloseDetection';
 
 const PROTECTED_ROUTES = [
   '/yen-purchase',
@@ -40,26 +39,58 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     [pathname]
   );
 
-  // Use the browser close detection hook
-  useBrowserCloseDetection({
-    isLoggedIn,
-    isInitialized,
-    minHiddenTime: 3000, // 3 seconds
-    maxTimeDiff: 1000, // 1 second
-  });
-
   // Initialize auth and set module
   useEffect(() => {
     dispatch(initializeAuth());
     const modulename = pathname?.split('/')[1] || '';
     setSelectedModule(modulename);
-  }, [dispatch, pathname]);
+
+    // Initialize tab count in localStorage
+    const tabCount = parseInt(localStorage.getItem('tabCount') || '0');
+    localStorage.setItem('tabCount', (tabCount + 1).toString());
+
+    // Handle beforeunload for last tab or browser close
+    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
+      const currentTabCount = parseInt(localStorage.getItem('tabCount') || '0');
+      if (currentTabCount <= 1 && isLoggedIn) {
+        // Last tab or browser close - trigger logout
+        try {
+          await dispatch(logout('browser_closed')).unwrap();
+        } catch (error) {
+          console.error('Logout on browser close failed:', error);
+        }
+      }
+      // Update tab count
+      localStorage.setItem('tabCount', (currentTabCount - 1).toString());
+    };
+
+    // Handle page show to reset tab count if necessary
+    const handlePageShow = () => {
+      const tabCount = parseInt(localStorage.getItem('tabCount') || '0');
+      if (tabCount <= 0) {
+        localStorage.setItem('tabCount', '1');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pageshow', handlePageShow);
+      // Decrease tab count on cleanup
+      const currentTabCount = parseInt(localStorage.getItem('tabCount') || '0');
+      if (currentTabCount > 0) {
+        localStorage.setItem('tabCount', (currentTabCount - 1).toString());
+      }
+    };
+  }, [dispatch, pathname, isLoggedIn]);
 
   // Handle redirects for protected routes
   useEffect(() => {
     if (!isInitialized) return;
 
-    // Only redirect to / if trying to access protected route without login
+    // Redirect to login if trying to access protected route without login
     if (!isLoggedIn && isProtectedRoute) {
       router.replace('/');
     }
@@ -67,7 +98,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   if (!isInitialized) return <LoadingSpinner />;
 
-  // Always show layout with Navbar and SideMenu for logged-in users
+  // Show layout with Navbar and SideMenu for logged-in users
   if (isLoggedIn) {
     return (
       <div className="flex h-screen overflow-hidden">

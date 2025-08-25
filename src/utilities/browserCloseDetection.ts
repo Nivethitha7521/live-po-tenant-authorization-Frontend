@@ -9,7 +9,6 @@ interface BrowserCloseDetectionOptions {
   minHiddenTime?: number; // Minimum time page must be hidden (ms)
   maxTimeDiff?: number; // Max time difference between events (ms)
 }
-
 export const useBrowserCloseDetection = ({
   isLoggedIn,
   isInitialized,

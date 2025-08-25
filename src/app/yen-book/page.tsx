@@ -15,7 +15,7 @@ const YenBookPage = () => {
     { label: 'Outlet Bank Deposit', path: '/yen-book/OutletBankDeposit' },
     { label: 'Payment Details', path: '/yen-book/PaymentDetailsPage' },
     { label: 'Outgoing Payment', path: '/yen-book/OutgoingPaymentPage' },
-    { label: 'Asset Management', path: '/yen-book/AssetManagement' },
+    // { label: 'Asset Management', path: '/yen-book/AssetManagement' },
     { label: 'Budget Management', path: '/yen-book/BudgetManagementPage' },
   ], []);
 
