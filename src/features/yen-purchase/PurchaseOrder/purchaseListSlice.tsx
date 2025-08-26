@@ -297,6 +297,7 @@ export const updateReceivedDamagedQuantities = createAsyncThunk(
     }>;
     invoiceNo: string;
     invoiceDate: Date | null;
+    grnDate: Date | null; // New field
     discountPrice: number;
   }, { rejectWithValue }) => {
     try {
@@ -305,7 +306,7 @@ export const updateReceivedDamagedQuantities = createAsyncThunk(
         throw new Error('purchaseOrderId is required');
       }
       const response = await axios.patch(
-        `https://yenerp.com/purchaseapi/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
+        `http://192.168.1.122:8000/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
         params
       );
       return response.data;

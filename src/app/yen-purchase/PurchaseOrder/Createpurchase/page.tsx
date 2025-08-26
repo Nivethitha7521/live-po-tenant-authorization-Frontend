@@ -50,7 +50,7 @@ const roundOff = (price: number): number => (price - Math.floor(price) >= 0.8 ? 
 const PurchaseOrder: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  const { purchaseOrderData, newItem, importDuplicates, importErrors, importDialogOpen, importWarnings,importSuccessMessages,importUpdatedItems, searchQuery, snackbarOpen, skip, limit, snackbarMessage } = useSelector(selectPurchaseOrderState);
+  const { purchaseOrderData, newItem, importDuplicates, importErrors, importDialogOpen, importWarnings, importSuccessMessages, importUpdatedItems, searchQuery, snackbarOpen, skip, limit, snackbarMessage } = useSelector(selectPurchaseOrderState);
   const { businesses, shippingaddress } = useSelector(selectBusinesses);
   const [open, setDialogOpen] = useState(false);
   const [openShippingDialog, setOpenShippingDialog] = useState(false);
@@ -102,7 +102,7 @@ const PurchaseOrder: React.FC = () => {
     setCountInput(newItem.pendingCount === 0 ? '' : newItem.pendingCount.toString());
     setQuantityInput(newItem.pendingQuantity === 0 ? '' : newItem.pendingQuantity.toString());
     setNewPriceTypeInput(newItem.newPrice === 0 ? '' : newItem.newPrice.toFixed(2));
-    }, [newItem.pendingCount, newItem.pendingQuantity, newItem.newPrice]);
+  }, [newItem.pendingCount, newItem.pendingQuantity, newItem.newPrice]);
 
   // Fetch data
   useEffect(() => {
@@ -231,7 +231,7 @@ const PurchaseOrder: React.FC = () => {
     }));
   };
 
-const handleItemSelection = (item: PurchaseItemSearchAdd | null) => {
+  const handleItemSelection = (item: PurchaseItemSearchAdd | null) => {
     if (item) {
       setNewItemsearch(item);
       let updatedData = { ...purchaseOrderData, itemName: item.itemName };
@@ -285,7 +285,7 @@ const handleItemSelection = (item: PurchaseItemSearchAdd | null) => {
       setNewPriceTypeInput('');
     }
   };
-  
+
   const handleClear = () => {
     dispatch(setPurchaseOrderData({
       purchaseOrderId: '',
@@ -341,7 +341,7 @@ const handleItemSelection = (item: PurchaseItemSearchAdd | null) => {
     setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, paymentTerms: false, creditLimit: false });
   };
 
-const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     // Allow empty input or numbers with up to 2 decimal places
     if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
@@ -450,7 +450,7 @@ const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
     setNewPriceTypeInput(item.newPrice.toFixed(2)); // Format to 2 decimal places
     setTotals(calculateTotals);
   };
-  
+
   const handleAddItem = useCallback(async () => {
     setErrors({
       itemName: !newItem.itemName,
@@ -542,6 +542,7 @@ const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
     }
     const dataToSubmit = {
       ...purchaseOrderData,
+      orderDate: purchaseOrderData.orderDate ? new Date(purchaseOrderData.orderDate) : null, // Convert string to Date or null
       expectedDeliveryDate: purchaseOrderData.expectedDeliveryDate ? new Date(purchaseOrderData.expectedDeliveryDate) : null,
       pendingOrderAmount: roundedTotalOrderAmount,
       pendingDiscountAmount: roundedTotalDiscount,
@@ -700,6 +701,20 @@ const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
             <Grid item xs={12} sm={3} md={2}>
               <TextField
                 fullWidth
+                label="Order Date"
+                name="orderDate"
+                type="date"
+                value={purchaseOrderData.orderDate || ''}
+                onChange={handleTextFieldChange}
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ max: formattedDate }} // Restrict to today or earlier
+                size="small"
+                variant="outlined"
+              />
+            </Grid>
+            <Grid item xs={12} sm={3} md={2}>
+              <TextField
+                fullWidth
                 label="Expected Delivery Date"
                 name="expectedDeliveryDate"
                 type="date"
@@ -842,7 +857,7 @@ const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
                     size="small"
                   />
                 </Grid>
-              <Grid item xs={12} sm={4} md={0.8}>
+                <Grid item xs={12} sm={4} md={0.8}>
                   <TextField
                     fullWidth
                     label="New Price"
@@ -856,18 +871,18 @@ const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
                     helperText={errors.newPrice ? 'New price is required' : ''}
                   />
                 </Grid>
-                 <Grid item xs={12} sm={2} md={0.8}>
-                <TextField
-                  disabled
-                  fullWidth
-                  label="Price Variance"
-                  name="priceVariance"
-                  type="number"
-                  value={newItem.priceVariance.toFixed(2)}
-                  size="small"
-                  sx={{ '& .MuiInputBase-input': { color: newItem.priceVariance > 0 ? 'green' : newItem.priceVariance < 0 ? 'red' : 'black' } }}
-                />
-              </Grid>
+                <Grid item xs={12} sm={2} md={0.8}>
+                  <TextField
+                    disabled
+                    fullWidth
+                    label="Price Variance"
+                    name="priceVariance"
+                    type="number"
+                    value={newItem.priceVariance.toFixed(2)}
+                    size="small"
+                    sx={{ '& .MuiInputBase-input': { color: newItem.priceVariance > 0 ? 'green' : newItem.priceVariance < 0 ? 'red' : 'black' } }}
+                  />
+                </Grid>
                 <Grid item xs={12} sm={4} md={0.8}>
                   <TextField
                     disabled
@@ -1028,6 +1043,7 @@ const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
                     const { pendingSgst, pendingCgst, pendingIgst } = taxDetails[taxPercentage];
                     const percentage = Number(taxPercentage);
                     const halfPercentage = percentage / 2;
+
                     return (
                       <React.Fragment key={taxPercentage}>
                         {pendingIgst > 0 && (
@@ -1294,7 +1310,7 @@ const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
       <Backdrop sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: '#fff' }} open={loading}>
         <CircularProgress color="inherit" />
       </Backdrop>
-     <Dialog open={showNavigationConfirm} onClose={() => setShowNavigationConfirm(false)}>
+      <Dialog open={showNavigationConfirm} onClose={() => setShowNavigationConfirm(false)}>
         <DialogTitle>Unsaved Changes</DialogTitle>
         <DialogContent>
           <DialogContentText>You have unsaved changes. Are you sure you want to leave this page?</DialogContentText>
@@ -1319,104 +1335,104 @@ const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
       <Backdrop sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: '#fff' }} open={loading}>
         <CircularProgress color="inherit" />
       </Backdrop>
-<Dialog open={importDialogOpen} onClose={handleCloseImportDialog}>
-  <DialogTitle>CSV Import Results</DialogTitle>
-  <DialogContent>
-    <DialogContentText component="div">
-      <Typography variant="body1" sx={{ color: importErrors.length > 0 ? 'red' : 'green' }}>
-        {snackbarMessage || 'No message provided.'}
-      </Typography>
-      {importSuccessMessages?.length > 0 && (
-        <>
-          <Typography variant="h6" sx={{ mt: 2, color: 'green' }}>
-            Successfully Imported Items:
-          </Typography>
-          <ul>
-            {importSuccessMessages.map((message, index) => (
-              <li key={index}>
-                <Typography variant="body2"  sx={{ color: 'green' }}>
-                  {message}
+      <Dialog open={importDialogOpen} onClose={handleCloseImportDialog}>
+        <DialogTitle>CSV Import Results</DialogTitle>
+        <DialogContent>
+          <DialogContentText component="div">
+            <Typography variant="body1" sx={{ color: importErrors.length > 0 ? 'red' : 'green' }}>
+              {snackbarMessage || 'No message provided.'}
+            </Typography>
+            {importSuccessMessages?.length > 0 && (
+              <>
+                <Typography variant="h6" sx={{ mt: 2, color: 'green' }}>
+                  Successfully Imported Items:
                 </Typography>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {importDuplicates?.length > 0 && (
-        <>
-          <Typography variant="h6" sx={{ mt: 2, color: 'orange' }}>
-            Merged Duplicates:
-          </Typography>
-          <ul>
-            {importDuplicates.map((duplicate, index) => (
-              <li key={index}>
-                <Typography variant="body2" sx={{ color: 'orange' }}>
-                  {duplicate}
+                <ul>
+                  {importSuccessMessages.map((message, index) => (
+                    <li key={index}>
+                      <Typography variant="body2" sx={{ color: 'green' }}>
+                        {message}
+                      </Typography>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {importDuplicates?.length > 0 && (
+              <>
+                <Typography variant="h6" sx={{ mt: 2, color: 'orange' }}>
+                  Merged Duplicates:
                 </Typography>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {importUpdatedItems?.length > 0 && (
-        <>
-          <Typography variant="h6" sx={{ mt: 2, color: 'orange' }}>
-            Updated Master Items:
-          </Typography>
-          <ul>
-            {importUpdatedItems.map((updatedItem, index) => (
-              <li key={index}>
-                <Typography variant="body2" sx={{ color: 'orange' }}>
-                  {updatedItem}
+                <ul>
+                  {importDuplicates.map((duplicate, index) => (
+                    <li key={index}>
+                      <Typography variant="body2" sx={{ color: 'orange' }}>
+                        {duplicate}
+                      </Typography>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {importUpdatedItems?.length > 0 && (
+              <>
+                <Typography variant="h6" sx={{ mt: 2, color: 'orange' }}>
+                  Updated Master Items:
                 </Typography>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {importWarnings?.length > 0 && (
-        <>
-          <Typography variant="h6" sx={{ mt: 2, color: 'orange' }}>
-            Warnings:
-          </Typography>
-          <ul>
-            {importWarnings.map((warning, index) => (
-              <li key={index}>
-                <Typography variant="body2" sx={{ color: 'orange' }}>
-                  {warning}
+                <ul>
+                  {importUpdatedItems.map((updatedItem, index) => (
+                    <li key={index}>
+                      <Typography variant="body2" sx={{ color: 'orange' }}>
+                        {updatedItem}
+                      </Typography>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {importWarnings?.length > 0 && (
+              <>
+                <Typography variant="h6" sx={{ mt: 2, color: 'orange' }}>
+                  Warnings:
                 </Typography>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {importErrors?.length > 0 && (
-        <>
-          <Typography variant="h6" component="h6" sx={{ mt: 2, color: 'red' }}>
-            Errors:
-          </Typography>
-          <ul>
-            {importErrors.map((error, index) => (
-              <li key={index}>
-                <Typography variant="body2" component="span" sx={{ color: 'red' }}>
-                  {error}
+                <ul>
+                  {importWarnings.map((warning, index) => (
+                    <li key={index}>
+                      <Typography variant="body2" sx={{ color: 'orange' }}>
+                        {warning}
+                      </Typography>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {importErrors?.length > 0 && (
+              <>
+                <Typography variant="h6" component="h6" sx={{ mt: 2, color: 'red' }}>
+                  Errors:
                 </Typography>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {!snackbarMessage && !importDuplicates?.length && !importErrors?.length && !importWarnings?.length && !importSuccessMessages?.length && !importUpdatedItems?.length && (
-        <Typography variant="body1" component="div" sx={{ color: 'red' }}>
-          An unexpected error occurred during import.
-        </Typography>
-      )}
-    </DialogContentText>
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={handleCloseImportDialog} color="primary">Close</Button>
-  </DialogActions>
-</Dialog>
+                <ul>
+                  {importErrors.map((error, index) => (
+                    <li key={index}>
+                      <Typography variant="body2" component="span" sx={{ color: 'red' }}>
+                        {error}
+                      </Typography>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {!snackbarMessage && !importDuplicates?.length && !importErrors?.length && !importWarnings?.length && !importSuccessMessages?.length && !importUpdatedItems?.length && (
+              <Typography variant="body1" component="div" sx={{ color: 'red' }}>
+                An unexpected error occurred during import.
+              </Typography>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseImportDialog} color="primary">Close</Button>
+        </DialogActions>
+      </Dialog>
       {/* Snackbar */}
       <Snackbar
         open={snackbarOpen}

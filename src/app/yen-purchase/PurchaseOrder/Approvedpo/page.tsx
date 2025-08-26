@@ -117,6 +117,7 @@ interface PurchaseOrderWithItems {
   invoiceNo?: string;
   invoiceDate?: Date | null;
   gstNumber?: string;
+  grnDate?: Date | null;
   address?: string;
   city?: string;
   state?: string;
@@ -235,23 +236,23 @@ const TableRowMemo = React.memo(
       </TableCell>
       <TableCell>{item.taxPercentage}%</TableCell>
       <TableCell>
-  <TextField
-    label="Expiry Date"
-    type="date"
-    value={item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''}
-    onChange={(e) =>
-      handleExpiryDateChange(
-        item.itemId,
-        e.target.value ? new Date(e.target.value) : null
-      )
-    }
-    sx={{ mt: 1 }}
-    InputLabelProps={{ shrink: true }}
-    inputProps={{
-      min: new Date().toISOString().split('T')[0], // Restrict to current date or earlier
-    }}
-  />
-</TableCell>
+        <TextField
+          label="Expiry Date"
+          type="date"
+          value={item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''}
+          onChange={(e) =>
+            handleExpiryDateChange(
+              item.itemId,
+              e.target.value ? new Date(e.target.value) : null
+            )
+          }
+          sx={{ mt: 1 }}
+          InputLabelProps={{ shrink: true }}
+          inputProps={{
+            min: new Date().toISOString().split('T')[0], // Restrict to current date or earlier
+          }}
+        />
+      </TableCell>
       <TableCell>{(item.calculatedTotalPrice || 0).toFixed(2)}</TableCell>
     </TableRow>
   )
@@ -267,6 +268,8 @@ interface OrderDetailsDialogProps {
   setInvoiceNumber: React.Dispatch<React.SetStateAction<string>>;
   invoiceDate: Date | null;
   setInvoiceDate: React.Dispatch<React.SetStateAction<Date | null>>;
+  grnDate :Date | null;
+  setGrnDate: React.Dispatch<React.SetStateAction<Date | null>>;
   isInvoiceDuplicate: boolean;
   isTouched: boolean;
   setIsTouched: React.Dispatch<React.SetStateAction<boolean>>;
@@ -297,6 +300,7 @@ interface OrderDetailsDialogProps {
   setInvoiceNumber: React.Dispatch<React.SetStateAction<string>>;
   invoiceDate: Date | null;
   setInvoiceDate: React.Dispatch<React.SetStateAction<Date | null>>;
+  setGrnDate: React.Dispatch<React.SetStateAction<Date | null>>;
   isInvoiceDuplicate: boolean;
   isTouched: boolean;
   setIsTouched: React.Dispatch<React.SetStateAction<boolean>>;
@@ -327,6 +331,8 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   setInvoiceNumber,
   invoiceDate,
   setInvoiceDate,
+  grnDate,
+  setGrnDate,
   isInvoiceDuplicate,
   isTouched,
   setIsTouched,
@@ -482,6 +488,19 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                 }}
                 InputLabelProps={{ shrink: true }}
               />
+              <TextField
+                label="GRN Date"
+                type="date"
+                value={grnDate ? grnDate.toISOString().split("T")[0] : ""}
+                onChange={(e) => setGrnDate(e.target.value ? new Date(e.target.value) : null)}
+                disabled={!selectedOrder?.orderDate || isProcessing}
+                inputProps={{
+                  min: selectedOrder?.orderDate
+                    ? format(startOfDay(new Date(selectedOrder.orderDate)), "yyyy-MM-dd")
+                    : undefined,
+                }}
+                InputLabelProps={{ shrink: true }}
+              />
             </Box>
           </Box>
           <TableContainer component={Paper} sx={{ maxHeight: '400px', overflowY: 'auto' }}>
@@ -595,6 +614,7 @@ const CreatePurchase: React.FC = () => {
   const [isInvoiceDuplicate, setIsInvoiceDuplicate] = useState(false);
   const [isTouched, setIsTouched] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState<Date | null>(null);
+  const [grnDate, setGrnDate] = useState<Date | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectionRange, setSelectionRange] = useState({
     startDate: new Date(),
@@ -634,6 +654,7 @@ const CreatePurchase: React.FC = () => {
     setUpdatedItems([]);
     setInvoiceNumber("");
     setInvoiceDate(null);
+    setGrnDate(null);
     setIsTouched(false);
     setIsInvoiceDuplicate(false);
     setTouched({});
@@ -741,40 +762,41 @@ const CreatePurchase: React.FC = () => {
       ),
     [calculatedItems]
   );
-useEffect(() => {
-  if (selectedOrder) {
-    setInvoiceNumber(selectedOrder.invoiceNo || "");
-    setInvoiceDate(selectedOrder.invoiceDate ? new Date(selectedOrder.invoiceDate) : null);
-    const initializedItems = selectedOrder.items.map((item) => {
-      const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
-      const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
-      return {
-        ...item,
-        receivedQuantity: pendingTotalQuantity, // Set to pendingTotalQuantity
-        befTaxDiscount: item.befTaxDiscount || 0,
-        afTaxDiscount: item.afTaxDiscount || 0,
-        expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
-      };
-    });
-    setUpdatedItems(initializedItems);
-    const initialTouched = initializedItems.reduce(
-      (acc, _, index) => ({
-        ...acc,
-        [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
-      }),
-      {}
-    );
-    const initialErrors = initializedItems.reduce(
-      (acc, _, index) => ({
-        ...acc,
-        [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
-      }),
-      {}
-    );
-    setTouched(initialTouched);
-    setErrors(initialErrors);
-  }
-}, [selectedOrder]);
+  useEffect(() => {
+    if (selectedOrder) {
+      setInvoiceNumber(selectedOrder.invoiceNo || "");
+      setInvoiceDate(selectedOrder.invoiceDate ? new Date(selectedOrder.invoiceDate) : null);
+      setGrnDate(selectedOrder.grnDate ? new Date(selectedOrder.grnDate) : new Date())
+      const initializedItems = selectedOrder.items.map((item) => {
+        const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
+        const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
+        return {
+          ...item,
+          receivedQuantity: pendingTotalQuantity, // Set to pendingTotalQuantity
+          befTaxDiscount: item.befTaxDiscount || 0,
+          afTaxDiscount: item.afTaxDiscount || 0,
+          expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
+        };
+      });
+      setUpdatedItems(initializedItems);
+      const initialTouched = initializedItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
+        }),
+        {}
+      );
+      const initialErrors = initializedItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
+        }),
+        {}
+      );
+      setTouched(initialTouched);
+      setErrors(initialErrors);
+    }
+  }, [selectedOrder]);
   useEffect(() => {
     dispatch(fetchBusinesses());
     dispatch(fetchInvoiceNumbers());
@@ -990,7 +1012,7 @@ useEffect(() => {
       receivedQuantity: Number(item.receivedQuantity) || 0,
       befTaxDiscount: Number(item.befTaxDiscount) || 0,
       afTaxDiscount: Number(item.afTaxDiscount) || 0,
-  expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
+      expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
     }));
 
     try {
@@ -1001,6 +1023,7 @@ useEffect(() => {
           items,
           invoiceNo: invoiceNumber,
           invoiceDate: invoiceDate,
+          grnDate: grnDate,
           discountPrice: totalDiscountAmount,
         })
       ).unwrap();
@@ -2327,6 +2350,8 @@ useEffect(() => {
         setInvoiceNumber={setInvoiceNumber}
         invoiceDate={invoiceDate}
         setInvoiceDate={setInvoiceDate}
+        grnDate={grnDate}
+        setGrnDate={setGrnDate}
         isInvoiceDuplicate={isInvoiceDuplicate}
         isTouched={isTouched}
         setIsTouched={setIsTouched}
