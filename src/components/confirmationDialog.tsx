@@ -6,19 +6,29 @@ interface ConfirmationDialogProps {
   onClose: () => void;
   onConfirm: () => void;
   title: string;
-  description: string;
-  confirmText: string;
-  cancelText: string;
+  description: string | React.ReactNode; // Allow string or ReactNode
+  confirmText?: string; // Optional with default value
+  cancelText?: string;  // Optional with default value
 }
 
 const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
-  open, onClose, onConfirm, title, description, confirmText, cancelText
+  open,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmText = 'Confirm', // Default value
+  cancelText = 'Cancel',   // Default value
 }) => {
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
-        <DialogContentText>{description}</DialogContentText>
+        {typeof description === 'string' ? (
+          <DialogContentText>{description}</DialogContentText>
+        ) : (
+          <>{description}</> // Render JSX directly
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="primary">

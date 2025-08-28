@@ -153,9 +153,7 @@ export const fetchBank = createAsyncThunk('bank/fetchBanks', async () => {
 export const processPayment = createAsyncThunk<
   void,
   ProcessPaymentRequest,
-  {
-    rejectValue: string;
-  }
+  { rejectValue: string }
 >(
   'outgoings/processPayment',
   async (
@@ -176,12 +174,11 @@ export const processPayment = createAsyncThunk<
       pettyCashAmount,
       hoCash,
       bankName,
-      selectedDebitNotes = [],
+      selectedDebitNotes = [], // Already supports array
     },
     { rejectWithValue }
   ) => {
     try {
-      // Prepare the payload
       const payload = {
         outgoingId,
         paymentMode,
@@ -199,19 +196,15 @@ export const processPayment = createAsyncThunk<
         pettyCashAmount,
         hoCash,
         bankName,
-        selectedDebitNotes, // Pass selected debit notes
+        selectedDebitNotes, // Pass the array as-is
       };
 
-      // Send the request to the backend
-      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
-
+      await axios.patch(`http://192.168.1.122:8000/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
-      // Return an error message if the request fails
       return rejectWithValue(error.response?.data?.detail || error.response?.data || 'Payment processing failed');
     }
   }
 );
-
 export const fetchActiveDebitsVendor = createAsyncThunk<
   DebitNote[],
   string, // vendorName

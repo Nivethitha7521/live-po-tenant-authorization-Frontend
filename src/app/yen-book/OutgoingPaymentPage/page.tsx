@@ -33,6 +33,9 @@ import {
   Autocomplete,
   AutocompleteChangeReason,
   AutocompleteChangeDetails,
+  List,
+  FormControlLabel,
+  ListItem,
 } from '@mui/material';
 import YenBookPage from '../page';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -76,6 +79,7 @@ import ApInvoiceDialog from '@/components/yen-purchase/OutgoingComponent/APDialo
 import { fetchPoById, selectPurchaseListState, setPoDialogOpen, setSelectedPo } from '@/features/yen-purchase/PurchaseOrder/purchaseListSlice';
 import { ItemDetailResponsePO, PoResponse } from '@/Models/purchaseModel';
 import PODialog from '@/components/yen-purchase/OutgoingComponent/PODialog';
+import ConfirmationDialog from '@/components/confirmationDialog';
 
 const OutgoingPaymentComponent = React.memo(() => {
   const dispatch = useDispatch<AppDispatch>();
@@ -92,14 +96,14 @@ const OutgoingPaymentComponent = React.memo(() => {
     cashVoucherNo: string;
     amount: string;
     bankName: string;
-    paymentType: "full" | "partial" | "advance";
+    paymentType: 'full' | 'partial' | 'advance';
     rtgsNo: string;
-    paymentMode: "Cash" | "Bank";
+    paymentMode: 'Cash' | 'Bank';
     pettyCashAmount: number;
     hoCash: number;
     upi: string;
     impsNo: string;
-    selectedDebitNote?: string; // Added as optional property
+    selectedDebitNotes: string[]; // Changed to array
   }>({
     paymentMethod: '',
     neftNo: '',
@@ -113,7 +117,7 @@ const OutgoingPaymentComponent = React.memo(() => {
     hoCash: 0,
     upi: '',
     impsNo: '',
-    selectedDebitNote: '', // Default to empty string
+    selectedDebitNotes: [], // Initialize as empty array
   });
   const [activeDebits, setActiveDebits] = useState<any[]>([]); // Added state for active debit notes
 
@@ -160,6 +164,15 @@ const OutgoingPaymentComponent = React.memo(() => {
     selectedOutgoing?.totalPayableAmount || 0
   );
   const [isFilterActive, setIsFilterActive] = useState(false);
+const [confirmDialogProps, setConfirmDialogProps] = useState<{
+    title: string;
+    description: string | JSX.Element;
+    onConfirm: () => void;
+  }>({
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
   const [isSinglePaymentLoading, setIsSinglePaymentLoading] = useState(false);
   const [isMultiplePaymentLoading, setIsMultiplePaymentLoading] = useState(false);
   const debitCreditNotes = useSelector((state: RootState) => selectDebitCreditNote(state).debitCreditNotes);
@@ -253,16 +266,42 @@ useEffect(() => {
       return 0; // Default return value if no sorting happens
     });
   }, [outgoings, sortOrder, sortColumn]);
-  // Update your validateAmount function
-  const validateAmount = (amount: string): string => {
-    if (!amount) return 'Please enter an amount';
+  const totalDebitAmount = useMemo(() => {
+    return paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
+      const debit = activeDebits.find((d) => d.randomId === debitId);
+      return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
+    }, 0);
+  }, [paymentDetails.selectedDebitNotes, activeDebits]);
+const validateAmount = (amount: string, maxAllowed: number): string => {
+  if (!amount) return 'Please enter an amount';
+  const numAmount = parseFloat(amount);
+  if (isNaN(numAmount)) return 'Invalid amount format';
+  if (numAmount < 0) return 'Amount cannot be negative';
 
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount)) return 'Invalid amount format';
-    if (numAmount <= 0) return 'Amount must be greater than 0';
+  // Calculate total debit amount from selected debit notes
+  const totalDebitAmount = paymentDetails.selectedDebitNotes.reduce(
+    (sum, debitId) => {
+      const debit = activeDebits.find((d) => d.randomId === debitId);
+      return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
+    },
+    0
+  );
 
-    return '';
-  };
+  // Check if total debit amount exceeds maxAllowed
+  if (totalDebitAmount > maxAllowed) {
+    return `Total debit notes (₹${totalDebitAmount.toFixed(2)}) cannot exceed total payable amount (₹${maxAllowed.toFixed(2)})`;
+  }
+
+  // Calculate remaining payable after debit notes
+  const remainingPayable = maxAllowed - totalDebitAmount;
+
+  // Check if payment amount exceeds remaining payable
+  if (numAmount > remainingPayable) {
+    return `Payment amount (₹${numAmount.toFixed(2)}) cannot exceed remaining payable amount (₹${remainingPayable.toFixed(2)}) after applying debit notes`;
+  }
+
+  return '';
+};
   const handleApClick = (invoiceId: string | undefined) => {
     if (!invoiceId) {
       dispatch(setSnackbarMessage('Invalid AP Invoice ID'));
@@ -444,6 +483,43 @@ useEffect(() => {
   const handleDaysChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedDays(Number(event.target.value));
   };
+  // Handle debit note selection
+const handleDebitNoteChange = (debitId: string) => {
+  setPaymentDetails((prev) => {
+    const newSelectedDebitNotes = prev.selectedDebitNotes.includes(debitId)
+      ? prev.selectedDebitNotes.filter((id) => id !== debitId)
+      : [...prev.selectedDebitNotes, debitId];
+
+    // Calculate total debit amount
+    const totalDebitAmount = newSelectedDebitNotes.reduce((sum, id) => {
+      const debit = activeDebits.find((d) => d.randomId === id);
+      return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
+    }, 0);
+
+    // Calculate remaining payable amount
+    const remainingPayable = selectedOutgoing?.totalPayableAmount
+      ? selectedOutgoing.totalPayableAmount - totalDebitAmount
+      : 0;
+
+    // Validate total debit amount
+    const validationError = totalDebitAmount > (selectedOutgoing?.totalPayableAmount || 0)
+      ? `Total debit notes (₹${totalDebitAmount.toFixed(2)}) cannot exceed total payable amount (₹${selectedOutgoing?.totalPayableAmount.toFixed(2)})`
+      : '';
+
+    setError(validationError);
+
+    // If error, revert to previous selection; else update amount to remaining
+    return {
+      ...prev,
+      selectedDebitNotes: validationError ? prev.selectedDebitNotes : newSelectedDebitNotes,
+      amount: validationError
+        ? prev.amount
+        : remainingPayable > 0
+        ? remainingPayable.toFixed(2)
+        : '0.00', // Auto-fill amount with remaining
+    };
+  });
+};
   const handleClosePayDialog = () => {
     setOpenDetailsDialog(false);
     resetPaymentDetails();
@@ -559,6 +635,7 @@ const handleFilterClick = () => {
       hoCash: 0, // Default value for hoCash
       upi: '', // Default value for upi
       impsNo: '', // Default value for impsNo
+      selectedDebitNotes:[]
     });
   };
 
@@ -577,26 +654,29 @@ const handleFilterClick = () => {
     setDialogOpen(true);  // Close the first dialog
     setPaymentDialogOpen(true);  // Open the second dialog for payment method
   };
+const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { name, value } = e.target;
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-
-    if (name === 'amount') {
-      // Only allow numbers and decimal point
-      if (!/^\d*\.?\d*$/.test(value)) {
-        return;
-      }
-
-      const validationError = validateAmount(value);
-      setError(validationError);
+  if (name === 'amount') {
+    // Only allow numbers and decimal point
+    if (!/^\d*\.?\d*$/.test(value)) {
+      return;
     }
 
-    setPaymentDetails(prevDetails => ({
-      ...prevDetails,
-      [name]: value,
-    }));
-  };
+    // Only validate if selectedOutgoing exists
+    if (selectedOutgoing?.totalPayableAmount) {
+      const validationError = validateAmount(value, selectedOutgoing.totalPayableAmount);
+      setError(validationError);
+    } else {
+      setError('No payable amount available for validation');
+    }
+  }
 
+  setPaymentDetails(prevDetails => ({
+    ...prevDetails,
+    [name]: value,
+  }));
+};
 
   const getRandomId = (grnId: string): string | undefined => {
     const grn = itemwise.find(grn => grn.grnId === grnId);
@@ -625,79 +705,155 @@ const handleConfirmPayment = async () => {
     dispatch(setSnackbarOpen(true));
     return;
   }
-
-  const validationError = validateAmount(paymentDetails.amount);
+  const validationError = validateAmount(
+    paymentDetails.amount,
+    selectedOutgoing.totalPayableAmount
+  );
   if (validationError) {
     setError(validationError);
     dispatch(setSnackbarMessage(validationError));
     dispatch(setSnackbarOpen(true));
     return;
   }
-
   const paymentAmount = parseFloat(paymentDetails.amount);
-  const maxAllowed = selectedOutgoing.totalPayableAmount;
-  let adjustedPaymentAmount = paymentAmount;
-  let selectedDebitNotes: string[] = []; // Fixed this line
+  const totalDebitAmount = paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
+    const debit = activeDebits.find((d) => d.randomId === debitId);
+    return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
+  }, 0);
+  const remainingPayable = selectedOutgoing.totalPayableAmount - totalDebitAmount - paymentAmount;
 
-  // If a debit note is selected, adjust the payment amount
-  if (paymentDetails.selectedDebitNote) {
-    const selectedDebit = activeDebits.find((d) => d.randomId === paymentDetails.selectedDebitNote);
-    if (selectedDebit) {
-      const debitAmount = parseFloat(selectedDebit.finalAmount || '0');
-      adjustedPaymentAmount = paymentAmount - debitAmount; // Reduce payment by debit amount
-      selectedDebitNotes = [paymentDetails.selectedDebitNote]; // Send as array
-    }
-  }
-
-  if (adjustedPaymentAmount < 0) {
-    setError('Payment amount cannot be negative after applying debit note');
-    dispatch(setSnackbarMessage('Payment amount cannot be negative after applying debit note'));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-
-  if (paymentDetails.paymentType === 'partial' && adjustedPaymentAmount > maxAllowed) {
-    setError(`Partial payment cannot exceed ${maxAllowed.toFixed(2)}`);
-    dispatch(setSnackbarMessage(`Partial payment cannot exceed ${maxAllowed.toFixed(2)}`));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-  if (paymentDetails.paymentType === 'advance' && adjustedPaymentAmount > maxAllowed) {
-    setError(`Advance payment cannot exceed ${maxAllowed.toFixed(2)}`);
-    dispatch(setSnackbarMessage(`Advance payment cannot exceed ${maxAllowed.toFixed(2)}`));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-
-  const updatedPaymentDetails = {
-    ...paymentDetails,
-    pettyCashAmount: paymentDetails.paymentMode === 'Cash' && paymentDetails.paymentMethod === 'pettyCash' ? adjustedPaymentAmount : 0,
-    hoCash: paymentDetails.paymentMode === 'Cash' && paymentDetails.paymentMethod === 'hoCash' ? adjustedPaymentAmount : 0,
+  const paymentDetailsToSend = {
+    outgoingId: selectedOutgoing.outgoingId,
+    paymentType: paymentDetails.paymentType,
+    totalPayableAmount: selectedOutgoing.totalPayableAmount || 0,
+    fullPaymentAmount: paymentDetails.paymentType === 'full' ? (selectedOutgoing.totalPayableAmount - totalDebitAmount) : 0,
+    partialAmount: paymentDetails.paymentType === 'partial' ? paymentAmount : 0,
+    advanceAmount: paymentDetails.paymentType === 'advance' ? paymentAmount : 0,
+    paymentMethod: paymentDetails.paymentMethod,
+    paymentMode: paymentDetails.paymentMode,
+    pettyCashAmount: paymentDetails.paymentMode === 'Cash' && paymentDetails.paymentMethod === 'pettyCash' ? paymentAmount : 0,
+    hoCash: paymentDetails.paymentMode === 'Cash' && paymentDetails.paymentMethod === 'hoCash' ? paymentAmount : 0,
+    upi: paymentDetails.paymentMethod === 'upi' ? paymentDetails.upi : '',
+    bankName: paymentDetails.paymentMode === 'Bank' ? paymentDetails.bankName : '',
+    impsNo: paymentDetails.paymentMethod === 'imps' ? paymentDetails.impsNo : '',
+    neftNo: paymentDetails.paymentMethod === 'neft' ? paymentDetails.neftNo : '',
+    rtgsNo: paymentDetails.paymentMethod === 'rtgs' ? paymentDetails.rtgsNo : '',
+    chequeNo: '',
+    selectedDebitNotes: paymentDetails.selectedDebitNotes,
   };
 
-const paymentDetailsToSend = {
-  outgoingId: selectedOutgoing.outgoingId,
-  paymentType: updatedPaymentDetails.paymentType,
-  totalPayableAmount: selectedOutgoing.totalPayableAmount || 0,
-  fullPaymentAmount: updatedPaymentDetails.paymentType === 'full' ? adjustedPaymentAmount : 0,
-  partialAmount: updatedPaymentDetails.paymentType === 'partial' ? adjustedPaymentAmount : 0,
-  advanceAmount: updatedPaymentDetails.paymentType === 'advance' ? adjustedPaymentAmount : 0,
-  paymentMethod: updatedPaymentDetails.paymentMethod,
-  paymentMode: updatedPaymentDetails.paymentMode,
-  pettyCashAmount: updatedPaymentDetails.pettyCashAmount,
-  hoCash: updatedPaymentDetails.hoCash,
-  upi: updatedPaymentDetails.upi,
-  bankName: updatedPaymentDetails.bankName,
-  impsNo: updatedPaymentDetails.impsNo,
-  neftNo: updatedPaymentDetails.paymentMethod === 'neft' ? updatedPaymentDetails.neftNo : '',
-  rtgsNo: updatedPaymentDetails.paymentMethod === 'rtgs' ? updatedPaymentDetails.rtgsNo : '',
-  chequeNo: '', // ADD THIS FIELD - it's required by your backend
-  selectedDebitNotes,
-};
+  const proceedWithPayment = async () => {
+    try {
+      setIsSinglePaymentLoading(true);
+      await dispatch(processPayment(paymentDetailsToSend)).unwrap();
+      resetPaymentDetails();
+      setOpenDetailsDialog(false);
+      dispatch(fetchOutgoings({
+        page: newPage,
+        size: pageSize,
+        filterBy: dateField,
+        filterByAmount: true,
+      }));
+      setConfirmDialogOpen(false);
+      dispatch(setSnackbarMessage('Payment processed successfully'));
+      dispatch(setSnackbarOpen(true));
+    } catch (error) {
+      console.error('Failed to process payment:', error);
+      dispatch(setSnackbarMessage('Failed to process payment. Please try again.'));
+      dispatch(setSnackbarOpen(true));
+    } finally {
+      setIsSinglePaymentLoading(false);
+    }
+  };
 
-  console.log('Sending payment details:', paymentDetailsToSend);
-  setPaymentDetailsToSend(paymentDetailsToSend);
-  setConfirmDialogOpen(true);
+  // Check for existing debit notes or no debit notes selected
+  const hasExistingDebitNotes = selectedOutgoing.hasDebitCreditNotes || paymentDetails.selectedDebitNotes.length > 0;
+
+  if (hasExistingDebitNotes && paymentDetails.selectedDebitNotes.length === 0) {
+    setConfirmDialogProps({
+      title: 'Confirm Payment Without Debit Note',
+      description: (
+        <Box>
+          <Typography>
+            This invoice already has debit notes applied. Are you sure you want to proceed with the payment without applying additional debit notes?
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Vendor: {selectedOutgoing?.vendorName} <br />
+            Invoice No: {selectedOutgoing?.invoiceNo} <br />
+            Total Payable: {selectedOutgoing?.totalPayableAmount.toFixed(2)} <br />
+            Debit Notes Applied: {totalDebitAmount.toFixed(2)} <br />
+            Payment Amount: {paymentAmount.toFixed(2)} <br />
+            Remaining Payable: {remainingPayable.toFixed(2)}
+          </Typography>
+        </Box>
+      ),
+      onConfirm: proceedWithPayment,
+    });
+    setConfirmDialogOpen(true);
+  } else if (paymentDetails.selectedDebitNotes.length === 0 && activeDebits.length > 0) {
+    setConfirmDialogProps({
+      title: 'Confirm Payment Without Debit Note',
+      description: (
+        <Box>
+          <Typography>
+            There are available debit notes for this vendor. Are you sure you want to proceed with the payment without applying any debit notes?
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Vendor: {selectedOutgoing?.vendorName} <br />
+            Invoice No: {selectedOutgoing?.invoiceNo} <br />
+            Total Payable: {selectedOutgoing?.totalPayableAmount.toFixed(2)} <br />
+            Debit Notes Applied: {totalDebitAmount.toFixed(2)} <br />
+            Payment Amount: {paymentAmount.toFixed(2)} <br />
+            Remaining Payable: {remainingPayable.toFixed(2)}
+          </Typography>
+        </Box>
+      ),
+      onConfirm: proceedWithPayment,
+    });
+    setConfirmDialogOpen(true);
+  } else if (totalDebitAmount > 0 && paymentDetails.paymentType === 'full' && totalDebitAmount + paymentAmount > selectedOutgoing.totalPayableAmount) {
+    setConfirmDialogProps({
+      title: 'Confirm Full Payment with Debit Notes',
+      description: (
+        <Box>
+          <Typography>
+            You have selected debit notes totaling {totalDebitAmount.toFixed(2)}, and for full payment, the amount will be adjusted to { (selectedOutgoing.totalPayableAmount - totalDebitAmount).toFixed(2) }. Are you sure you want to proceed? You may not have paid the full amount yet.
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Vendor: {selectedOutgoing?.vendorName} <br />
+            Invoice No: {selectedOutgoing?.invoiceNo} <br />
+            Total Payable: {selectedOutgoing?.totalPayableAmount.toFixed(2)} <br />
+            Debit Notes Applied: {totalDebitAmount.toFixed(2)} <br />
+            Adjusted Payment Amount: {(selectedOutgoing.totalPayableAmount - totalDebitAmount).toFixed(2)} <br />
+            Remaining Payable: {remainingPayable.toFixed(2)}
+          </Typography>
+        </Box>
+      ),
+      onConfirm: proceedWithPayment,
+    });
+    setConfirmDialogOpen(true);
+  } else {
+    setConfirmDialogProps({
+      title: 'Confirm Payment',
+      description: (
+        <Box>
+          <Typography>
+            Are you sure you want to process the payment for this outgoing?
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Vendor: {selectedOutgoing?.vendorName} <br />
+            Invoice No: {selectedOutgoing?.invoiceNo} <br />
+            Total Payable: {selectedOutgoing?.totalPayableAmount.toFixed(2)} <br />
+            Debit Notes Applied: {totalDebitAmount.toFixed(2)} <br />
+            Payment Amount: {paymentAmount.toFixed(2)} <br />
+            Remaining Payable: {remainingPayable.toFixed(2)}
+          </Typography>
+        </Box>
+      ),
+      onConfirm: proceedWithPayment,
+    });
+    setConfirmDialogOpen(true);
+  }
 };
   console.log(filteredPayments);
 
@@ -723,31 +879,22 @@ const paymentDetailsToSend = {
   };
 
   const handlePartialAmountChangeMultiple = (outgoingId: string, value: string, totalPayableAmount: number) => {
-    if (!outgoingId) return;
-
-    // Allow empty input to clear the field without setting an error
-    if (value === '') {
-      setPartialAmount(prev => ({ ...prev, [outgoingId]: '' }));
-      setErrors(prev => ({ ...prev, [outgoingId]: '' }));
-      return;
-    }
-
-    const numericValue = parseFloat(value);
-
-    if (isNaN(numericValue) || numericValue <= 0) {
-      setErrors(prev => ({ ...prev, [outgoingId]: 'Please enter a valid positive amount' }));
-      setPartialAmount(prev => ({ ...prev, [outgoingId]: value })); // Keep the input for correction
-    } else if (numericValue > totalPayableAmount) {
-      setErrors(prev => ({
-        ...prev,
-        [outgoingId]: `Amount cannot exceed ${totalPayableAmount.toFixed(2)}`,
-      }));
-      setPartialAmount(prev => ({ ...prev, [outgoingId]: value })); // Keep the input for correction
-    } else {
-      setErrors(prev => ({ ...prev, [outgoingId]: '' }));
-      setPartialAmount(prev => ({ ...prev, [outgoingId]: numericValue.toString() }));
-    }
-  };
+  if (!outgoingId) return;
+  // Allow empty input to clear the field without setting an error
+  if (value === '') {
+    setPartialAmount(prev => ({ ...prev, [outgoingId]: '' }));
+    setErrors(prev => ({ ...prev, [outgoingId]: '' }));
+    return;
+  }
+  const validationError = validateAmount(value, totalPayableAmount); // Pass totalPayableAmount
+  if (validationError) {
+    setErrors(prev => ({ ...prev, [outgoingId]: validationError }));
+    setPartialAmount(prev => ({ ...prev, [outgoingId]: value }));
+  } else {
+    setErrors(prev => ({ ...prev, [outgoingId]: '' }));
+    setPartialAmount(prev => ({ ...prev, [outgoingId]: value }));
+  }
+};
 
   const handlePartialAmountChange = (outgoingId: string, value: string) => {
     setPartialAmount((prev) => ({
@@ -1872,186 +2019,186 @@ Description:<br />
 
           </Grid>
 <Dialog open={openDetailsDialog} onClose={() => setOpenDetailsDialog(false)}>
-        <DialogTitle>Payment Details</DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" gutterBottom>
-            Total Amount: {selectedOutgoing?.totalPayableAmount?.toFixed(2) || 'N/A'}
-          </Typography>
-
-          {/* Existing Payment Type Selector */}
-          <TextField
-            select
-            name="paymentType"
-            label="Payment Type"
-            value={paymentDetails.paymentType}
-            onChange={handlePaymentTypeChange}
-            fullWidth
-            margin="normal"
-          >
-            <MenuItem value="full">Full Payment</MenuItem>
-            <MenuItem value="partial">Partial Payment</MenuItem>
-            <MenuItem value="advance">Advance Payment</MenuItem>
-          </TextField>
+  <DialogTitle>Payment Details</DialogTitle>
+  <DialogContent>
+    <Typography variant="body1" gutterBottom>
+      Total Amount: ₹{selectedOutgoing?.totalPayableAmount?.toFixed(2) || 'N/A'}
+    </Typography>
+    <Typography variant="body2" color="textSecondary">
+      Total Debit Amount: ₹{totalDebitAmount.toFixed(2)}
+    </Typography>
+    <Typography variant="body2" color="textSecondary">
+      Remaining Payable: ₹{(selectedOutgoing?.totalPayableAmount - totalDebitAmount).toFixed(2)}
+    </Typography>
+    <TextField
+      select
+      name="paymentType"
+      label="Payment Type"
+      value={paymentDetails.paymentType}
+      onChange={handlePaymentTypeChange}
+      fullWidth
+      margin="normal"
+    >
+      <MenuItem value="full">Full Payment</MenuItem>
+      <MenuItem value="partial">Partial Payment</MenuItem>
+      <MenuItem value="advance">Advance Payment</MenuItem>
+    </TextField>
+    <TextField
+      autoComplete="off"
+      name="amount"
+      label="Amount"
+      value={paymentDetails.amount}
+      onChange={handleInputChange}
+      fullWidth
+      margin="normal"
+      required
+      error={!!error}
+      helperText={error}
+      disabled={paymentDetails.paymentType === 'full'}
+      inputProps={{ type: 'number', step: '0.01' }}
+    />
+    <TextField
+      select
+      name="paymentMode"
+      label="Payment Mode"
+      value={paymentDetails.paymentMode}
+      onChange={handlePaymentModeChange}
+      fullWidth
+      margin="normal"
+    >
+      <MenuItem value="Cash">Cash</MenuItem>
+      <MenuItem value="Bank">Bank</MenuItem>
+    </TextField>
+    {paymentDetails.paymentMode === 'Cash' && (
+      <TextField
+        select
+        name="paymentMethod"
+        label="Payment Method"
+        value={paymentDetails.paymentMethod}
+        onChange={handleInputChange}
+        fullWidth
+        margin="normal"
+        required
+      >
+        <MenuItem value="pettyCash">Petty Cash</MenuItem>
+        <MenuItem value="hoCash">HO Cash</MenuItem>
+      </TextField>
+    )}
+    {paymentDetails.paymentMode === 'Bank' && (
+      <>
+        <TextField
+          select
+          name="bankName"
+          label="Bank Name"
+          value={paymentDetails.bankName}
+          onChange={handleInputChange}
+          fullWidth
+          margin="normal"
+        >
+          {banks.map((bank) => (
+            <MenuItem key={bank.bankMasterId} value={bank.bankName}>
+              {bank.bankName}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          name="paymentMethod"
+          label="Payment Method"
+          value={paymentDetails.paymentMethod}
+          onChange={handlePaymentMethodChange}
+          fullWidth
+          margin="normal"
+        >
+          <MenuItem value="neft">NEFT</MenuItem>
+          <MenuItem value="rtgs">RTGS</MenuItem>
+          <MenuItem value="imps">IMPS</MenuItem>
+          <MenuItem value="upi">UPI</MenuItem>
+        </TextField>
+        {paymentDetails.paymentMethod === 'neft' && (
           <TextField
             autoComplete="off"
-            name="amount"
-            label="Amount"
-            value={paymentDetails.amount}
+            name="neftNo"
+            label="NEFT Number"
+            value={paymentDetails.neftNo}
             onChange={handleInputChange}
             fullWidth
             margin="normal"
             required
-            error={!!error}
-            helperText={error}
-            disabled={paymentDetails.paymentType === 'full'}
           />
-
-          {/* Existing Payment Mode Selector */}
+        )}
+        {paymentDetails.paymentMethod === 'rtgs' && (
           <TextField
-            select
-            name="paymentMode"
-            label="Payment Mode"
-            value={paymentDetails.paymentMode}
-            onChange={handlePaymentModeChange}
+            autoComplete="off"
+            name="rtgsNo"
+            label="RTGS Number"
+            value={paymentDetails.rtgsNo}
+            onChange={handleInputChange}
             fullWidth
             margin="normal"
-          >
-            <MenuItem value="Cash">Cash</MenuItem>
-            <MenuItem value="Bank">Bank</MenuItem>
-          </TextField>
-
-          {/* Existing Payment Method Fields based on Mode */}
-          {paymentDetails.paymentMode === 'Cash' && (
-            <TextField
-              select
-              name="paymentMethod"
-              label="Payment Method"
-              value={paymentDetails.paymentMethod}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-              required
-            >
-              <MenuItem value="pettyCash">Petty Cash</MenuItem>
-              <MenuItem value="hoCash">HO Cash</MenuItem>
-            </TextField>
-          )}
-          {paymentDetails.paymentMode === 'Bank' && (
-            <>
-              <TextField
-                select
-                name="bankName"
-                label="Bank Name"
-                value={paymentDetails.bankName}
-                onChange={handleInputChange}
-                fullWidth
-                margin="normal"
-              >
-                {banks.map((bank) => (
-                  <MenuItem key={bank.bankMasterId} value={bank.bankName}>
-                    {bank.bankName}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                name="paymentMethod"
-                label="Payment Method"
-                value={paymentDetails.paymentMethod}
-                onChange={handlePaymentMethodChange}
-                fullWidth
-                margin="normal"
-              >
-                <MenuItem value="neft">NEFT</MenuItem>
-                <MenuItem value="rtgs">RTGS</MenuItem>
-                <MenuItem value="imps">IMPS</MenuItem>
-                <MenuItem value="upi">UPI</MenuItem>
-              </TextField>
-              {paymentDetails.paymentMethod === 'neft' && (
-                <TextField
-                  autoComplete="off"
-                  name="neftNo"
-                  label="NEFT Number"
-                  value={paymentDetails.neftNo}
-                  onChange={handleInputChange}
-                  fullWidth
-                  margin="normal"
-                  required
-                />
-              )}
-              {paymentDetails.paymentMethod === 'rtgs' && (
-                <TextField
-                  autoComplete="off"
-                  name="rtgsNo"
-                  label="RTGS Number"
-                  value={paymentDetails.rtgsNo}
-                  onChange={handleInputChange}
-                  fullWidth
-                  margin="normal"
-                  required
-                />
-              )}
-              {paymentDetails.paymentMethod === 'imps' && (
-                <TextField
-                  autoComplete="off"
-                  name="impsNo"
-                  label="IMPS Number"
-                  value={paymentDetails.impsNo}
-                  onChange={handleInputChange}
-                  fullWidth
-                  margin="normal"
-                  required
-                />
-              )}
-              {paymentDetails.paymentMethod === 'upi' && (
-                <TextField
-                  autoComplete="off"
-                  name="upi"
-                  label="UPI ID"
-                  value={paymentDetails.upi}
-                  onChange={handleInputChange}
-                  fullWidth
-                  margin="normal"
-                  required
-                />
-              )}
-            </>
-          )}
-
-        {activeDebits.length > 0 && (
-  <TextField
-    select
-    name="selectedDebitNote"
-    label="Apply Debit Note"
-    value={paymentDetails.selectedDebitNote || ''}
-    onChange={handleInputChange}
-    fullWidth
-    margin="normal"
-  >
-    <MenuItem value="">None</MenuItem>
-    {activeDebits.map((debit: any) => (
-      <MenuItem key={debit.randomId} value={debit.randomId}>
-        {`Note No:${debit.randomId} - Rs ${(debit.finalAmount || 0).toFixed(2)}`}
-      </MenuItem>
-    ))}
-  </TextField>
-)}
-          {paymentDetails.selectedDebitNote && (
-            <Typography variant="body2" color="textSecondary">
-              Debit Amount: Rs {activeDebits.find((d: any) => d._id === paymentDetails.selectedDebitNote)?.finalAmount.toFixed(2) || 0}
-            </Typography>
-          )}
-        </DialogContent>
-
-        <DialogActions>
-          <Button onClick={handleClosePayDialog} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmPayment} color="primary">
-            Confirm Payment
-          </Button>
-        </DialogActions>
-      </Dialog>
+            required
+          />
+        )}
+        {paymentDetails.paymentMethod === 'imps' && (
+          <TextField
+            autoComplete="off"
+            name="impsNo"
+            label="IMPS Number"
+            value={paymentDetails.impsNo}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+            required
+          />
+        )}
+        {paymentDetails.paymentMethod === 'upi' && (
+          <TextField
+            autoComplete="off"
+            name="upi"
+            label="UPI ID"
+            value={paymentDetails.upi}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+            required
+          />
+        )}
+      </>
+    )}
+    {activeDebits.length > 0 && (
+      <Box sx={{ mt: 2 }}>
+        <Typography variant="subtitle1">Apply Debit Notes</Typography>
+        <List dense>
+          {activeDebits.map((debit) => (
+            <ListItem key={debit.randomId}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={paymentDetails.selectedDebitNotes.includes(debit.randomId)}
+                    onChange={() => handleDebitNoteChange(debit.randomId)}
+                  />
+                }
+                label={`Note No: ${debit.randomId} - Rs ${(debit.finalAmount || 0).toFixed(2)}`}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleClosePayDialog} color="primary">
+      Cancel
+    </Button>
+    <Button
+      onClick={handleConfirmPayment}
+      color="primary"
+      disabled={isSinglePaymentLoading || !!error}
+    >
+      {isSinglePaymentLoading ? <CircularProgress size={24} /> : 'Confirm Payment'}
+    </Button>
+  </DialogActions>
+</Dialog>
           <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} PaperProps={{
             sx: {
               width: '700px', // Set the width of the Dialog to 700px
@@ -2462,6 +2609,13 @@ Description:<br />
             autoHideDuration={3000}
             onClose={() => dispatch(clearSnackbarMessage())} // Manually close the snackbar when clicked
           />
+          <ConfirmationDialog
+        open={confirmDialogOpen}
+        onClose={() => setConfirmDialogOpen(false)}
+        onConfirm={confirmDialogProps.onConfirm}
+        title={confirmDialogProps.title}
+        description={confirmDialogProps.description}
+      />
         </Grid>
       </Box>
     </Box>

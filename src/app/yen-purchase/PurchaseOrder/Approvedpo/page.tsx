@@ -2162,7 +2162,7 @@ const CreatePurchase: React.FC = () => {
                 options={allItems}
                 getOptionLabel={(option: PurchaseItemSearch) => option.itemName || ""}
                 isOptionEqualToValue={(option: PurchaseItemSearch, value: PurchaseItemSearch | null) =>
-                  option.purchaseitemId === value?.purchaseitemId
+                  option.purchaseitemId === value?.purchaseitemId 
                 }
                 value={newItem}
                 onInputChange={(event, newInputValue) => {

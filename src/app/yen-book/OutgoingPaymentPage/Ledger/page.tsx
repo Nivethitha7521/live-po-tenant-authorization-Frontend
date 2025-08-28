@@ -263,9 +263,11 @@ const LedgerPage = () => {
   }
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box>
+            <YenBookPage />
+<Box sx={{ px: 1 }}>
       {/* Header Controls */}
-      <YenBookPage />
+
       <Box sx={{ p: 1, backgroundColor: "white" }}>
           <Grid container alignItems="center" justifyContent="flex-start">
             {/* Navigation Buttons */}
@@ -555,6 +557,8 @@ const LedgerPage = () => {
       </Dialog>
     </Box>
     </Box>
+    </Box>
+    
   );
 };
 
