@@ -1,0 +1,2114 @@
+"use client";
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch } from '@/redux/store';
+import { toWords } from 'number-to-words'; // Import the library
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DownloadIcon from '@mui/icons-material/Download';
+import DescriptionIcon from '@mui/icons-material/Description';  // CSV icon
+import Image from 'next/image'; // Import the next/image component
+import { Add as AddIcon, GetApp as GetAppIcon, Upload as UploadIcon } from '@mui/icons-material';
+import FilterAltIcon from '@mui/icons-material/FilterAlt'; // Import the filter icon
+import ClearIcon from "@mui/icons-material/Clear"; // Clear icon
+import {
+  selectPurchaseListState, fetchImageByIndex,
+  updateMultipleItemQuantities, approvePurchaseOrder, uploadPurchaseOrderPhotos, editPhotoByIndex,
+  rejectPurchaseOrder, fetchPurchaseOrders, clearSnackbarMessage, setPagination,
+  selectCurrentPage,
+  selectPageSize,
+  selectTotalItems,
+  setRandomQueryItem,
+  resetPurchaseOrderState,
+  fetchPurchaseOrderRandomIds,
+  fetchAllImages,
+  setOrderImageUrls
+} from '../../../features/yen-purchase/PurchaseOrder/purchaseListSlice';
+import {
+  Box, Button, Typography, Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
+  TextField, Paper, IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
+  CircularProgress, Tooltip,
+  Input,
+  Grid,
+  Snackbar,
+  Alert,
+  DialogContentText,
+  Menu,
+  MenuItem,
+  Popover,
+  Chip,
+  Autocomplete
+} from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import '../../../components/common.css';
+import { Item, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseRandomId, TaxDetails, Vendor } from '@/Models/purchaseModel';
+import { ChevronLeft, ChevronRight, PhotoCamera } from '@mui/icons-material';
+import YenPurchasePage from '../page';
+import jsPDF from "jspdf";
+import "jspdf-autotable";  // Ensure this is imported
+import { PurchaseItemSearch, selectPurchaseOrderState, setSnackbarMessage, setSnackbarOpen } from '@/features/yen-purchase/PurchaseOrder/purchaseOrderSlice';
+import { fetchBusinesses, fetchPhoto, selectBusinesses } from '@/features/account-setting/businessSlice';
+import { format, parse, toDate } from 'date-fns';
+import Papa from 'papaparse';
+import { id } from 'date-fns/locale';
+import 'react-date-range/dist/styles.css'; // main style file
+import 'react-date-range/dist/theme/default.css'; // theme css file
+import DateRangeDialog from '@/components/dateRange';
+import moment from 'moment';
+import { POsearchPurchaseItems } from '@/features/yen-purchase/PurchaseMaster/purchaseItemSlice';
+import VendorSearchAutocomplete from '../../../components/vendorsearchautocomplete';
+import PurchaseOrderRandomIdSearch from '../../../components/yen-purchase/pendingpo/infiniteScroll';
+import PhotoDisplay from '../../../components/yen-purchase/pendingpo/photoDisplay';
+import { VendorSearch } from '@/Models/vendor';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+// Add the TypeScript declaration for autoTable (if necessary)
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: any;
+  }
+}
+interface AutoTableHookData {
+  cursor?: { x: number; y: number };
+  settings?: any;
+  pageNumber?: number;
+  doc: jsPDF;
+}
+
+const customRound = (value: number): number => {
+  return Math.round(value); // Rounds to the nearest integer (e.g., 45.45 -> 45, 45.67 -> 46)
+};
+const customRounddigit = (value: number): number => {
+  return Math.round(value * 2) / 2;
+};
+const Polist: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
+  const { purchaseList, loading, error, randomIds, poRandomIds, snackbarMessage, snackbarOpen } = useSelector(selectPurchaseListState);
+  const { businesses } = useSelector(selectBusinesses);
+  const [selectedOrder, setSelectedOrderState] = useState<any | null>(null);
+  const [updatedItems, setUpdatedItems] = useState<any[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [randomIdFilter, setRandomIdFilter] = useState('');
+  const [files, setFiles] = useState<File[]>([]); // Use an array to store multiple files
+  const [pendingOrderAmount, setPendingOrderAmount] = useState(selectedOrder ? selectedOrder.
+    pendingOrderAmount : '');
+  const [pendingDiscountAmount, setPendingDiscountAmount] = useState(selectedOrder ? selectedOrder.
+    pendingDiscountAmount : '');
+  const [pendingTaxAmount, setPendingTaxAmount] = useState<number>(0); // New state for total tax
+  const [taxDetails, setTaxDetails] = useState<TaxDetails>({});
+  const [openPhotoDialog, setOpenPhotoDialog] = useState(false); // State to control dialog
+  const [openImageDialog, setOpenImageDialog] = useState<boolean>(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState(['Pending for Approve', 'CreditLimit for Approve']);
+  const [filteredOrder, setFilteredOrders] = useState<PurchaseOrderData[]>([]); // Explicit type declaration
+  const [file, setFile] = useState<File | null>(null);
+  const [fetchedPurchaseOrderIds, setFetchedPurchaseOrderIds] = useState<Set<string>>(new Set());
+  const [dialogDownloadOpen, setDialogDownloadOpen] = useState(false);
+  const [dialogSummaryOpen, setDialogSummaryOpen] = useState(false);
+  const currentPage = useSelector(selectCurrentPage);
+  const pageSize = useSelector(selectPageSize);
+  const totalItems = useSelector(selectTotalItems);
+  const newPage = useSelector(selectCurrentPage);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null); // Allow anchorEl to be null or an HTMLElement
+  const [selectionRange, setSelectionRange] = useState({
+    startDate: new Date(),
+    endDate: new Date(),
+    key: 'selection',
+  });
+  const [anchorElDate, setAnchorElDate] = useState<null | HTMLElement>(null);
+  const [selectedVendor, setSelectedVendor] = useState<VendorSearch | null>(null);
+  const [selectedVendorName, setSelectedVendorName] = useState('');
+  const [selectedRandomId, setSelectedRandomId] = useState('');
+  const [open, setOpen] = useState(false);
+  const fromDate = moment().utc().startOf('day').toDate(); // Start of the day (in UTC)
+  const toDate = moment().utc().endOf('day').toDate(); // End of the day (in UTC)
+  const [newItem, setNewItem] = useState<PurchaseItemSearch | null>(null);
+  const [newItemId, setNewItemId] = useState<string>('');
+  const [searchQueryItem, setSearchQueryItem] = useState<string>('');
+  const [skip, setSkip] = useState<number>(0);
+  const [limit, setLimit] = useState<number>(50);
+  const [allItems, setAllItems] = useState<PurchaseItemSearch[]>([]);
+  const [selectedPORandomId, setSelectedPORandomId] = useState<PurchaseRandomId | null>(null);
+  const { imageUrls } = useSelector(selectPurchaseListState);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
+  const [shouldFetch, setShouldFetch] = useState(true);
+  const [touched, setTouched] = useState<Record<number, Record<string, boolean>>>({}); // Tracks touched fields by item index and field name
+  const [errors, setErrors] = useState<Record<number, Record<string, string>>>({}); // Tracks errors by item index and field name
+  const [isFullScreen, setIsFullScreen] = useState(false);
+useEffect(() => {
+    if (shouldFetch && !loading) {
+      const action = fetchPurchaseOrders({
+        page: newPage,
+        size: pageSize,
+        fromDate, // Pass fromDate
+        toDate,   // Pass toDate
+      });
+      dispatch(action);
+      setShouldFetch(false);
+    }
+  }, [dispatch, newPage, pageSize, shouldFetch, loading, fromDate, toDate]);
+  useEffect(() => {
+    dispatch(fetchBusinesses());
+  }, [dispatch]);
+  useEffect(() => {
+    dispatch(POsearchPurchaseItems({ searchQuery: searchQueryItem, skip, limit }))
+  }, [dispatch, skip, limit, searchQueryItem]);
+  useEffect(() => {
+    if (businesses.length > 0 && businesses[0].businessId && !fetchedBusinessIds.has(businesses[0].businessId)) {
+      dispatch(fetchPhoto(businesses[0].businessId));
+      setFetchedBusinessIds((prev) => new Set(prev).add(businesses[0].businessId));
+    }
+  }, [businesses, dispatch, fetchedBusinessIds]);
+  useEffect(() => {
+    // Load initial data when component mounts
+    dispatch(fetchPurchaseOrderRandomIds({ skip: 0, query: '' }));
+
+    // Reset state when component unmounts
+    return () => {
+      dispatch(resetPurchaseOrderState());
+    };
+  }, [dispatch]);
+  const toggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
+  // To fetch a specific vendor by name
+  useEffect(() => {
+    if (selectedOrder) {
+      setPendingOrderAmount(selectedOrder.pendingOrderAmount || '');
+      setPendingDiscountAmount(selectedOrder.pendingDiscountAmount || '');
+    }
+  }, [selectedOrder]);
+
+  useEffect(() => {
+    if (updatedItems.length > 0) {
+      const taxDetails: Record<string, { amount: number; percentage: number; type: string }> = {};
+      let newTotalOrderAmount = 0;
+      let totalDiscountBeforeTax = 0;
+      let totalDiscountAfterTax = 0;
+
+      updatedItems.forEach(item => {
+        const totalPrice = item.pendingTotalQuantity * item.newPrice;
+
+        // Before Tax Discount Calculation
+        const discountAmountBeforeTax = (totalPrice * (item.befTaxDiscount / 100)) || 0;
+        const discountedPriceBeforeTax = totalPrice - discountAmountBeforeTax;
+
+        const taxPercentage = item.taxPercentage || 0;
+        const taxType = item.taxType;
+
+        let sgst = 0, cgst = 0, igst = 0;
+
+        // Calculate tax based on the type
+        if (taxType === 'igst') {
+          // Calculate IGST
+          igst = (taxPercentage / 100) * discountedPriceBeforeTax;
+
+          igst = customRounddigit(igst);
+
+          // Store IGST separately based on its percentage
+          const igstKey = `igst-${taxPercentage}`;
+          if (taxDetails[igstKey]) {
+            taxDetails[igstKey].amount += igst; // Accumulate same IGST amounts
+          } else {
+            taxDetails[igstKey] = {
+              amount: igst,
+              percentage: taxPercentage,
+              type: 'IGST'
+            };
+          }
+        } else if (taxType === 'cgst_sgst') {
+          // Calculate total tax amount and split between SGST and CGST
+          const totalTaxAmount = (taxPercentage / 100) * discountedPriceBeforeTax;
+          sgst = totalTaxAmount / 2;
+          cgst = totalTaxAmount / 2;
+          // Round SGST and CGST to 2 decimal places
+          sgst = customRounddigit(sgst);
+          cgst = customRounddigit(cgst);
+          // Store SGST
+          const sgstKey = `sgst-${taxPercentage / 2}`;
+          if (taxDetails[sgstKey]) {
+            taxDetails[sgstKey].amount += sgst; // Accumulate same SGST amounts
+          } else {
+            taxDetails[sgstKey] = {
+              amount: sgst,
+              percentage: taxPercentage / 2,
+              type: 'SGST'
+            };
+          }
+
+          // Store CGST
+          const cgstKey = `cgst-${taxPercentage / 2}`;
+          if (taxDetails[cgstKey]) {
+            taxDetails[cgstKey].amount += cgst; // Accumulate same CGST amounts
+          } else {
+            taxDetails[cgstKey] = {
+              amount: cgst,
+              percentage: taxPercentage / 2,
+              type: 'CGST'
+            };
+          }
+        }
+
+        // After Tax Discount Calculation
+        const finalPriceBeforeAfterTaxDiscount = discountedPriceBeforeTax + igst + sgst + cgst;
+        const discountAmountAfterTax = (finalPriceBeforeAfterTaxDiscount * (item.afTaxDiscount / 100)) || 0;
+        const finalPriceAfterTaxDiscount = finalPriceBeforeAfterTaxDiscount - discountAmountAfterTax;
+
+        // Accumulate final amounts
+        newTotalOrderAmount += finalPriceAfterTaxDiscount;
+        totalDiscountBeforeTax += discountAmountBeforeTax;
+        totalDiscountAfterTax += discountAmountAfterTax;
+      });
+
+      const roundedOrderAmount = customRound(newTotalOrderAmount); // Using customRound here
+      setPendingOrderAmount((roundedOrderAmount));
+      setTaxDetails(taxDetails);
+
+      const totalDiscountAmount = totalDiscountBeforeTax + totalDiscountAfterTax;
+      setPendingDiscountAmount(customRounddigit(totalDiscountAmount));
+
+      const totalTaxAmount =
+        Object.values(taxDetails).reduce((acc, tax) => acc + tax.amount, 0);
+      setPendingTaxAmount(customRounddigit(totalTaxAmount));
+    }
+  }, [updatedItems]);
+
+  const handleClose = () => {
+    setDialogSummaryOpen(false);
+  };
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget as HTMLElement); // Cast event.currentTarget to HTMLElement
+  };
+
+  const handleCloseAnchor = () => {
+    setAnchorEl(null); // Close the dropdown menu
+  };
+  const handleVendorwiseClick = () => {
+    setDialogDownloadOpen(true); // Perform vendorwise action
+    handleCloseAnchor(); // Close the dropdown after the action
+  };
+
+  const handleItemwiseClick = () => {
+    handleOpen(); // Perform itemwise action
+    handleCloseAnchor(); // Close the dropdown after the action
+  };
+
+  const handleVendorChange = (vendor: VendorSearch | null) => {
+    setSelectedVendor(vendor);
+    setSelectedVendorName(vendor ? vendor.vendorName : '');
+  };
+
+  // Handle input change and update the search query for items
+  const handleSearchChangeItem = (newInputValue: string) => {
+    setSearchQueryItem(newInputValue);
+    setSkip(0); // Reset skip when search query changes
+    setAllItems([]); // Clear all items when search query changes
+
+    // Immediately fetch items with the new search query
+    dispatch(POsearchPurchaseItems({ searchQuery: newInputValue, skip: 0, limit }))
+      .unwrap()
+      .then((newItems) => {
+        setAllItems(newItems);
+        setSkip(limit); // Set skip to limit for next fetch
+      });
+  };
+
+  const handleItemSelect = (item: PurchaseItemSearch | null) => {
+    if (item) {
+      setNewItem(item);
+      setNewItemId(item.purchaseitemId);
+      // Set open state to false after selection
+      setOpen(false);
+    } else {
+      setNewItem(null);
+      setNewItemId('');
+    }
+  };
+
+  const loadMoreItems = () => {
+    dispatch(POsearchPurchaseItems({ searchQuery: searchQueryItem, skip, limit }))
+      .unwrap()
+      .then((newItems) => {
+        if (newItems.length > 0) {
+          setAllItems((prevItems) => [...prevItems, ...newItems]);
+          setSkip((prevSkip) => prevSkip + limit);
+        }
+      });
+  };
+  // Scroll handler (unchanged)
+  const handleScroll = (event: React.UIEvent<HTMLUListElement>) => {
+    const target = event.currentTarget;
+    if (target.scrollHeight - target.scrollTop === target.clientHeight) {
+      loadMoreItems();
+    }
+  };
+
+  const handleRandomIdChange = (randomId: string) => {
+    setSelectedRandomId(randomId);
+  };
+
+  const filteredOrders = purchaseList.filter(order =>
+    (order.poStatus === 'CreditLimit for Approve' || order.poStatus === 'Pending for Approve' ||
+      (order.poStatus !== 'Approved' && order.poStatus !== 'Rejected')) &&
+    order.items.some(item => item.pendingTotalQuantity > 0)
+  );
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
+      return;
+    }
+    // Use either the selected range if available or default date range
+    const appliedFromDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : fromDate;
+    const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;
+
+    // Dispatch pagination with the current filters or default date range
+    dispatch(setPagination({ page: newPage, size: pageSize }));
+
+    // Fetch the purchase orders with correct date range and filters
+    dispatch(fetchPurchaseOrders({
+      page: newPage,
+      size: pageSize,
+      fromDate: appliedFromDate,  // Pass Date object directly, starting at 00:00:00
+      toDate: appliedToDate,      // Pass Date object directly, ending at 23:59:59
+      vendorName: selectedVendorName || '',
+      status: status || '',
+      itemName: searchQueryItem || '',
+      randomId: randomIdFilter // This will now work correctly
+    }));
+  };
+
+  const handleNextPage = () => {
+    if (currentPage * pageSize) {
+      handlePageChange(currentPage + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      handlePageChange(currentPage - 1);
+    }
+  };
+  const handleCloseSnackbar = () => {
+    dispatch(setSnackbarOpen(false));  // Close snackbar when user dismisses
+  };
+  useEffect(() => {
+    filteredOrders.forEach(order => {
+      const orderId = order.purchaseOrderId;
+
+      // Only fetch if we haven't already fetched images for this order
+      if (!fetchedPurchaseOrderIds.has(orderId)) {
+        // Fetch all images for this purchase order
+        dispatch(fetchAllImages(orderId))
+          .unwrap()
+          .then(() => {
+            // Mark this order as fetched
+            setFetchedPurchaseOrderIds(prev => new Set(prev).add(orderId));
+          })
+          .catch((error: any) => {
+            console.error('Failed to fetch images for order:', orderId, error);
+          });
+      }
+    });
+  }, [filteredOrders, dispatch, fetchedPurchaseOrderIds]);
+
+  // Alternative: If you want to fetch images one by one with indices
+  useEffect(() => {
+    filteredOrders.forEach(order => {
+      const orderId = order.purchaseOrderId;
+
+      // Check if we've already fetched images for this order
+      if (!fetchedPurchaseOrderIds.has(orderId)) {
+        // Fetch up to 3 images (indices 0, 1, 2)
+        [1, 2, 3].forEach(index => {
+          dispatch(fetchImageByIndex({ purchaseOrderId: orderId, index }))
+            .unwrap()
+            .catch(error => {
+              console.error(`Failed to fetch image ${index} for order ${orderId}:`, error);
+            });
+        });
+
+        // Mark this order as fetched
+        setFetchedPurchaseOrderIds(prev => new Set(prev).add(orderId));
+      }
+    });
+  }, [filteredOrders, dispatch, fetchedPurchaseOrderIds]);
+
+  // In your file input change handler:
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, orderId: string, displayIndex: number) => {
+    const file = e.target.files?.[0];
+    if (!file || !orderId) return;
+
+    try {
+      const backendIndex = displayIndex; // 1-based for backend
+      const frontendIndex = displayIndex - 1; // 0-based for frontend state
+
+      // Prepare form data
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('index', backendIndex.toString());
+
+      // Determine if we're replacing an existing image
+      const isReplacing = imageUrls[orderId]?.[frontendIndex];
+
+      let action;
+      if (isReplacing) {
+        action = dispatch(editPhotoByIndex({
+          purchaseOrderId: orderId,
+          index: backendIndex,
+          file: file
+        }));
+      } else {
+        action = dispatch(uploadPurchaseOrderPhotos({
+          purchaseOrderId: orderId,
+          files: [file],
+          index: backendIndex
+        }));
+      }
+
+      await action.unwrap();
+
+      // Create a separate copy of the current imageUrls for this order
+      const currentOrderUrls = [...(imageUrls[orderId] || [])];
+
+      // Update only the specific index in our local state
+      currentOrderUrls[frontendIndex] = URL.createObjectURL(file);
+
+      // Update the state with the new URL array
+      dispatch(setOrderImageUrls({
+        orderId,
+        urls: currentOrderUrls
+      }));
+
+      // Now fetch from the server to update with real URL
+      dispatch(fetchImageByIndex({
+        purchaseOrderId: orderId,
+        index: frontendIndex // 0-based for frontend
+      }));
+
+      // Show success message
+      dispatch(setSnackbarMessage('Photo uploaded successfully!'));
+      dispatch(setSnackbarOpen(true));
+
+    } catch (error) {
+      console.error('Upload failed:', error);
+      dispatch(setSnackbarMessage('Failed to upload photo'));
+      dispatch(setSnackbarOpen(true));
+    } finally {
+      // Reset file input
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  // Handle Upload function to be explicit about index conversion
+  const handleUpload = async () => {
+    if (!files.length || !selectedOrderId || selectedImageIndex === null) return;
+
+    try {
+      // selectedImageIndex is already 0-based from our state
+      const backendIndex = selectedImageIndex + 1; // Convert to 1-based for backend
+      const frontendIndex = selectedImageIndex; // Keep 0-based for frontend
+
+      if (imageUrls[selectedOrderId]?.[frontendIndex]) {
+        // Editing existing photo
+        await dispatch(editPhotoByIndex({
+          purchaseOrderId: selectedOrderId,
+          index: backendIndex, // Pass 1-based to backend
+          file: files[0]
+        })).unwrap();
+      } else {
+        // Uploading new photo
+        await dispatch(uploadPurchaseOrderPhotos({
+          purchaseOrderId: selectedOrderId,
+          files,
+          index: backendIndex // Pass 1-based to backend
+        })).unwrap();
+      }
+
+      // Create temporary local URL for immediate UI update
+      const tempUrl = URL.createObjectURL(files[0]);
+
+      // Create a copy of current URLs and update only the specific index
+      const currentUrls = [...(imageUrls[selectedOrderId] || [])];
+      currentUrls[frontendIndex] = tempUrl;
+
+      // Update state with specific index only
+      dispatch(setOrderImageUrls({
+        orderId: selectedOrderId,
+        urls: currentUrls
+      }));
+
+      // Then refresh from server
+      await dispatch(fetchImageByIndex({
+        purchaseOrderId: selectedOrderId,
+        index: frontendIndex // Pass 0-based for frontend
+      })).unwrap();
+
+    } catch (error) {
+      console.error('Upload failed', error);
+    } finally {
+      setFiles([]);
+      setSelectedOrderId(null);
+      setSelectedImageIndex(null);
+      setOpenPhotoDialog(false);
+    }
+  };
+
+  const handleConfirmUpload = () => {
+    handleUpload(); // Call the upload function
+    setOpenPhotoDialog(false); // Close the dialog
+  };
+
+  const handleViewDetailsClick = (orderId: string) => {
+    const selectedOrder = purchaseList.find(order => order.purchaseOrderId === orderId);
+    if (selectedOrder) {
+      // Filter items to only include those with pendingTotalQuantity > 0
+      const filteredItems = selectedOrder.items.filter(item => item.pendingTotalQuantity > 0);
+
+      // Update state with the filtered items
+      setSelectedOrderState({ ...selectedOrder, items: filteredItems });
+      setUpdatedItems(filteredItems.map(item => ({ ...item })));
+
+      // Initialize touched and errors
+      const initialTouched = filteredItems.reduce((acc, _, index) => ({
+        ...acc,
+        [index]: { pendingCount: false, pendingQuantity: false, newPrice: false }
+      }), {});
+      const initialErrors = filteredItems.reduce((acc, _, index) => ({
+        ...acc,
+        [index]: { pendingCount: '', pendingQuantity: '', newPrice: '' }
+      }), {});
+      setTouched(initialTouched);
+      setErrors(initialErrors);
+
+      setDialogOpen(true);
+    }
+  };
+  const handleOpen = () => {
+    setDialogSummaryOpen(true);
+  };
+
+  const handleApproveDialogOpen = () => {
+    setApproveOpen(true);
+  };
+
+  const handleApproveDialogClose = () => {
+    setApproveOpen(false);
+    setSelectedOrderId(null);
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+  };
+  const handleRejectDialogOpen = () => {
+    setRejectOpen(true);
+  };
+
+  const handleRejectDialogClose = () => {
+    setRejectOpen(false);
+    setSelectedOrderId(null);
+  };
+
+  const handleInputChange = (index: number, field: string, value: string | number) => {
+    console.log(`Updating item at index ${index}: ${field} = ${value}`);
+
+    setTouched(prev => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: true }
+    }));
+
+    // Validate input
+    let errorMessage = '';
+    if (value === '') {
+      errorMessage = `required`;
+    } else if (!/^\d*\.?\d*$/.test(String(value))) {
+      errorMessage = 'Invalid number';
+    }
+
+    setErrors(prev => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: errorMessage }
+    }));
+
+    setUpdatedItems((prevItems) => {
+      const newItems = prevItems.map((item, i) => {
+        if (i === index) {
+          const updatedItem = { ...item };
+
+          // Update the specific field based on the input field
+          if (field === 'pendingCount') {
+            updatedItem.pendingCount = value;
+          } else if (field === 'pendingQuantity') {
+            updatedItem.pendingQuantity = value;
+          } else if (field === 'newPrice') {
+            updatedItem.newPrice = value;
+          } else {
+            console.warn(`Unknown field: ${field}`);
+            return item;
+          }
+
+          // Convert values for calculations (empty string to 0)
+          const count = updatedItem.pendingCount === '' ? 0 : Number(updatedItem.pendingCount);
+          const quantity = updatedItem.pendingQuantity === '' ? 0 : Number(updatedItem.pendingQuantity);
+          const price = updatedItem.newPrice === '' ? 0 : Number(updatedItem.newPrice);
+
+          // Calculate pending total quantity
+          updatedItem.pendingTotalQuantity = count * quantity;
+          console.log(`Updated pendingTotalQuantity for item ${item.itemId}: ${updatedItem.pendingTotalQuantity}`);
+
+          // Explicitly update poQuantity
+          updatedItem.poQuantity = updatedItem.pendingTotalQuantity;
+          console.log(`Updated poQuantity for item ${item.itemId}: ${updatedItem.poQuantity}`);
+
+          // Calculate total price
+          updatedItem.pendingTotalPrice = updatedItem.pendingTotalQuantity * price;
+
+          // Calculate discounts and tax
+          const discountBeforeTax = updatedItem.pendingTotalPrice * (updatedItem.befTaxDiscount / 100);
+          const priceAfterBefTaxDiscount = updatedItem.pendingTotalPrice - discountBeforeTax;
+          const taxAmount = priceAfterBefTaxDiscount * (updatedItem.taxPercentage / 100);
+          const sgst = updatedItem.taxType === 'cgst_sgst' ? taxAmount / 2 : 0;
+          const cgst = updatedItem.taxType === 'cgst_sgst' ? taxAmount / 2 : 0;
+          const igst = updatedItem.taxType === 'igst' ? taxAmount : 0;
+
+          const finalPriceBeforeAfterTaxDiscount = priceAfterBefTaxDiscount + taxAmount;
+          const discountAfterTax = finalPriceBeforeAfterTaxDiscount * (updatedItem.afTaxDiscount / 100);
+          const finalPriceAfterTaxDiscount = finalPriceBeforeAfterTaxDiscount - discountAfterTax;
+
+          updatedItem.pendingBefTaxDiscountAmount = discountBeforeTax;
+          updatedItem.pendingAfTaxDiscountAmount = discountAfterTax;
+          updatedItem.pendingTaxAmount = taxAmount;
+          updatedItem.pendingSgst = sgst;
+          updatedItem.pendingCgst = cgst;
+          updatedItem.pendingIgst = igst;
+          updatedItem.pendingFinalPrice = finalPriceAfterTaxDiscount;
+
+          console.log(`Updated item ${item.itemId}:`, updatedItem);
+          return updatedItem;
+        }
+        return item;
+      });
+
+      console.log('New items array:', newItems);
+      return newItems;
+    });
+  };
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    let yOffset = 7; // Starting y-offset for content
+    let pageCount = 1; // Track current page for footer
+
+    const business = businesses.length > 0 ? businesses[0] : null;
+
+    if (!business) {
+      console.error('Business info not found!');
+      return;
+    }
+
+    // Function to add page number footer
+    const addPageFooter = (currentPage: number, totalPages: number) => {
+      const pageWidth = doc.internal.pageSize.width;
+      doc.setFontSize(8);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - 30, doc.internal.pageSize.height - 10, { align: 'right' });
+    };
+
+    // Add business image on the left side
+    if (business.imageUrl) {
+      doc.addImage(business.imageUrl, 'JPEG', 14, yOffset, 20, 20); // Adjust image size and position
+    }
+
+    yOffset += 7; // Move down after image to create space for the title
+
+    // Add "Purchase Order Summary" title at the top
+    doc.setFontSize(12); // Title font size
+    const title = "Purchase Order Summary";
+    const pageWidth = doc.internal.pageSize.width; // Get page width directly
+    const fontSize = doc.getFontSize(); // Access font size
+    const titleWidth = doc.getStringUnitWidth(title) * fontSize / doc.internal.scaleFactor;
+    const titleX = (pageWidth - titleWidth) / 2;
+    doc.text(title, titleX, yOffset); // Centered title
+    doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2); // Draw the underline
+    yOffset += 13; // Move yOffset down after the title
+
+    // Calculate the total ordered amount
+    const totalOrderedAmount = (filteredOrders || []).reduce((sum, order) => {
+      const pendingOrderAmount = order.pendingOrderAmount || 0;
+      return sum + pendingOrderAmount;
+    }, 0);
+
+    // Format the current date
+    const today = new Date();
+    const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+
+    // Display "Total Ordered Amount" and "Date" on the same row with proper alignment
+    doc.setFontSize(10); // Smaller font size for these details
+    const totalText = `Total Ordered Amount: ${totalOrderedAmount.toFixed(2)}`;
+    const dateText = `Date: ${currentDate}`;
+
+    // Calculate widths for proper alignment
+    const totalWidth = doc.getStringUnitWidth(totalText) * 10 / doc.internal.scaleFactor;
+    const dateWidth = doc.getStringUnitWidth(dateText) * 10 / doc.internal.scaleFactor;
+
+    // Position the texts
+    doc.text(totalText, 14, yOffset); // Total on the left
+    doc.text(dateText, pageWidth - dateWidth - 14, yOffset); // Date on the right
+
+    yOffset += 5; // Add space before table for better readability
+
+    // Table headers for summary data (added S.No)
+    const headers = [["S.No", "PoId", "Vendor Name", "Total Items", "Ordered Date", "Total Order Amount"]];
+
+    // Prepare rows for purchase order summary (filter only valid orders and add S.No)
+    const rows = (filteredOrders || []).map((order, index) => {
+      const totalItemsQuantity = Array.isArray(order.items) && order.items.length > 0
+        ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
+        : 0;
+
+      const pendingOrderAmount = order.pendingOrderAmount || 0;
+      const pendingDiscountAmount = order.pendingDiscountAmount || 0;
+      const finalAmount = pendingOrderAmount - pendingDiscountAmount;
+
+      if (!order.randomId || !order.vendorName || !order.orderDate || pendingOrderAmount <= 0) {
+        return null;
+      }
+
+      return [
+        (index + 1).toString(), // S.No
+        order.randomId.toString(),
+        order.vendorName.toString(),
+        totalItemsQuantity.toString(),
+        order.orderDate ? format(new Date(order.orderDate), 'dd-MM-yyyy') : '',
+        finalAmount.toFixed(2).toString(),
+      ];
+    }).filter(row => row !== null);
+
+    // Add the table to the PDF with custom styles and proper column alignment
+    doc.autoTable({
+      head: headers,
+      body: rows,
+      startY: yOffset, // Start the table below the "Total Ordered Amount"
+      styles: {
+        fillColor: [255, 255, 255], // White background
+        textColor: [0, 0, 0], // Black text color
+        lineColor: [0, 0, 0], // Black table borders
+        fontSize: 8,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [0, 0, 128], // DodgerBlue background for the header
+        textColor: [255, 255, 255], // White text color for header
+        fontSize: 8,
+        halign: 'center', // Center-align header text
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255], // White background for rows
+        textColor: [0, 0, 0], // Black text color for rows
+      },
+
+      columnStyles: {
+        0: { cellWidth: 17, halign: 'center' }, // S.No - narrow and centered
+        1: { cellWidth: 28, halign: 'center' }, // PoId
+        2: { cellWidth: 46, halign: 'center' }, // Vendor Name
+        3: { cellWidth: 28, halign: 'right' }, // Total Items - centered
+        4: { cellWidth: 28, halign: 'center' }, // Ordered Date - centered
+        5: { cellWidth: 35, halign: 'right' }, // Total Order Amount - right-aligned
+      },
+      margin: { left: 14, right: 14 },
+      tableWidth: 182, // Explicitly set table width to available space (210mm - 14mm left - 14mm right)
+      didDrawPage: (data: AutoTableHookData) => {
+        // Add page footer after each page is drawn
+        addPageFooter(pageCount++, doc.getNumberOfPages());
+      },
+    });
+
+    // Update page numbers after all content is added
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      addPageFooter(i, totalPages);
+    }
+
+    // Save the PDF with a dynamic name
+    const pdfFilename = `PoPendingVendorwise.pdf`;
+    doc.save(pdfFilename);
+    setDialogDownloadOpen(false);
+  };
+  const handleExportCSV = (): void => {
+    const csvContent = generateCSVContent();
+    downloadCSV(csvContent, 'PoPendingVendorwise.csv');  // Name your CSV file
+  };
+
+  const generateCSVContent = (): string => {
+    // Define the headers for the CSV
+    const headers = 'SNO,PoId,Vendor Name,Total Items,Ordered Date,Total Order Amount\n';
+
+    // Prepare the rows for purchase order summary (filter only valid orders)
+    const rows = (filteredOrders || []).map((order, index) => {
+      const totalItemsQuantity = Array.isArray(order.items) && order.items.length > 0
+        ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
+        : 0;
+
+      const pendingOrderAmount = order.pendingOrderAmount || 0;
+      const pendingDiscountAmount = order.pendingDiscountAmount || 0;
+      const finalAmount = pendingOrderAmount - pendingDiscountAmount;
+
+      // Skip invalid rows
+      if (!order.randomId || !order.vendorName || !order.orderDate || pendingOrderAmount <= 0) {
+        return null;
+      }
+
+      // Create CSV row for the current order
+      return [
+        (index + 1),
+        order.randomId,
+        order.vendorName,
+        totalItemsQuantity,
+        order.orderDate ? format(new Date(order.orderDate), 'dd-MM-yyyy') : '',
+        finalAmount.toFixed(2)
+      ].join(',');  // Join each value with a comma to create a CSV row
+    }).filter(row => row !== null).join('\n');  // Filter out null rows and join with newline
+
+    // Combine headers and rows into the final CSV content
+    return `${headers}${rows}`;
+  };
+
+  const downloadCSV = (csvContent: string, fileName: string): void => {
+    // Create a Blob from the CSV content
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    // Create a download link and trigger the CSV download
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup after the download is triggered
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setDialogDownloadOpen(false);
+  };
+
+
+  const handleSaveChanges = () => {
+    setConfirmDialogOpen(true); // Open confirmation dialog
+  };
+  const generateSummaryPDF = () => {
+    const doc = new jsPDF();
+    let yOffset = 10; // Starting y-offset for content
+    let pageCount = 1; // Track current page for footer
+
+    const business = businesses.length > 0 ? businesses[0] : null;
+
+    if (!business) {
+      console.error('Business info not found!');
+      return;
+    }
+
+    // Function to add page number footer
+    const addPageFooter = (currentPage: number, totalPages: number) => {
+      const pageWidth = doc.internal.pageSize.width;
+      doc.setFontSize(8);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - 30, doc.internal.pageSize.height - 10, { align: 'right' });
+    };
+
+    // Add business image on the left side
+    if (business.imageUrl) {
+      doc.addImage(business.imageUrl, 'JPEG', 14, yOffset, 20, 20); // Adjust image size and position
+    }
+
+    yOffset += 10; // Move down after image to create space for the title
+
+    // Add "Purchase Order Detailed Summary" title at the top
+    doc.setFontSize(12); // Title font size
+    const title = "Purchase Order Detailed Summary";
+    const pageWidth = doc.internal.pageSize.width; // Get page width directly
+    const fontSize = doc.getFontSize(); // Access font size
+    const titleWidth = doc.getStringUnitWidth(title) * fontSize / doc.internal.scaleFactor;
+    const titleX = (pageWidth - titleWidth) / 2;
+    doc.text(title, titleX, yOffset); // Centered title
+    doc.setLineWidth(0.1); // Set line width for the underline
+    doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2); // Draw the underline
+    yOffset += 15; // Move yOffset down after the title
+
+    // Calculate the total ordered amount
+    const totalOrderedAmount = (filteredOrders || []).reduce((sum, order) => {
+      const pendingOrderAmount = order.pendingOrderAmount || 0;
+      return sum + pendingOrderAmount;
+    }, 0);
+
+    // Format the current date
+    const today = new Date();
+    const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+
+    // Display "Total Ordered Amount" and "Date" on the same row
+    doc.setFontSize(10); // Smaller font size for these details
+    const totalText = `Total Ordered Amount: ${totalOrderedAmount.toFixed(2)}`;
+    const dateText = `Date: ${currentDate}`;
+    // Calculate widths for proper alignment
+    const dateWidth = doc.getStringUnitWidth(dateText) * 10 / doc.internal.scaleFactor;
+    doc.text(totalText, 14, yOffset); // Total on the left
+    doc.text(dateText, pageWidth - dateWidth - 14, yOffset); // Date on the right
+
+    yOffset += 5; // Add space before table for better readability
+
+    // Table headers for purchase items
+    const headers = [
+      ["S.No", "Purchase Order No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Final Price"],
+    ];
+
+    // Safely handle purchaseList being null or undefined
+    const rows = (filteredOrders || []).map((order, index) => {
+      return (order.items || []).map((item: Item) => [
+        (index + 1).toString(), // S.No
+        order.randomId, // Purchase order number
+        order.vendorName, // Vendor name
+        item.itemName, // Item name
+        item.pendingTotalQuantity, // Quantity
+        item.pendingTotalPrice, // Price
+        `${item.taxPercentage}%`, // Tax percentage
+        item.discountAmount, // Discount
+        item.pendingFinalPrice?.toFixed(2), // Final price
+      ]);
+    }).flat(); // Flatten the array to a single-level array of rows
+
+    // Add the table to the PDF with custom styles
+    doc.autoTable({
+      head: headers,
+      body: rows,
+      startY: yOffset, // Start the table below the "Date"
+      styles: {
+        fillColor: [255, 255, 255], // White background (corrected from DodgerBlue)
+        textColor: [0, 0, 0], // Black text color
+        lineColor: [0, 0, 0], // Black table borders
+        fontSize: 8,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [0, 0, 128], // DodgerBlue background for the header
+        textColor: [255, 255, 255], // White text color for header
+        fontSize: 8,
+        halign: 'center', // Center-align header text
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255], // White background for rows
+        textColor: [0, 0, 0], // Black text color for rows
+      },
+      columnStyles: {
+        4: { halign: 'center' }, // Center-align "Quantity"
+        5: { halign: 'center' }, // Center-align "Price"
+      },
+      didDrawPage: (data: AutoTableHookData) => {
+        // Add page footer after each page is drawn
+        addPageFooter(pageCount++, doc.getNumberOfPages());
+      },
+    });
+
+    // Update page numbers after all content is added
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      addPageFooter(i, totalPages);
+    }
+
+    // Save the PDF with a dynamic name
+    const pdfFilename = `POPendingItemwise.pdf`;
+    doc.save(pdfFilename);
+    handleClose();
+  };
+  const generateSummaryCSV = () => {
+    const headers = ["S.No", "Purchase Order No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Final Price"];
+
+    const rows = (filteredOrders || []).map((order, index) => {
+      return (order.items || []).map((item) => [
+        (index + 1),
+        order.randomId,
+        order.vendorName,
+        item.itemName,
+        item.pendingTotalQuantity,
+        item.pendingTotalPrice,
+        `${item.taxPercentage}%`,
+        item.discountAmount,
+        item.pendingFinalPrice?.toFixed(2),
+      ]);
+    }).flat();
+
+    const csvData = [headers, ...rows];  // Combine headers and rows
+
+    // Use PapaParse to convert array to CSV string and trigger download
+    const csv = Papa.unparse(csvData);
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "POPendingItemwise.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    handleClose();
+  };
+
+  const handleConfirmSave = () => {
+    if (updatedItems.length > 0) {
+      console.log('Updated Items:', updatedItems);
+
+      if (!selectedOrder?.purchaseOrderId) {
+        console.error('No purchase order selected.');
+        dispatch(setSnackbarMessage('No purchase order selected.'));
+        dispatch(setSnackbarOpen(true));
+        return;
+      }
+
+      // Check for validation errors
+      const hasErrors = updatedItems.some((item, index) =>
+        errors[index]?.pendingCount || errors[index]?.pendingQuantity || errors[index]?.newPrice
+      );
+
+      if (hasErrors) {
+        dispatch(setSnackbarMessage('Please fix all validation errors before saving.'));
+        dispatch(setSnackbarOpen(true));
+        return;
+      }
+
+      // Sanitize items by converting empty strings to 0
+      const items = updatedItems.map(item => ({
+        itemId: item.itemId,
+        updatedItem: {
+          newPrice: item.newPrice === '' ? 0 : Number(item.newPrice),
+          discount: item.discount ?? null,
+          pendingCount: item.pendingCount === '' ? 0 : Number(item.pendingCount),
+          pendingQuantity: item.pendingQuantity === '' ? 0 : Number(item.pendingQuantity),
+          pendingTotalQuantity: item.pendingTotalQuantity ?? null,
+          poQuantity: item.pendingTotalQuantity, // Use pendingTotalQuantity
+          taxPercentage: item.taxPercentage ?? null,
+          pendingSgst: item.pendingSgst ?? null,
+          pendingCgst: item.pendingCgst ?? null,
+          pendingIgst: item.pendingIgst ?? null,
+          befTaxDiscount: item.befTaxDiscount ?? null,
+          afTaxDiscount: item.afTaxDiscount ?? null,
+          pendingTotalPrice: item.pendingTotalPrice ?? null,
+          pendingFinalPrice: item.pendingFinalPrice ?? null,
+          pendingDiscountAmount: item.pendingDiscountAmount ?? null,
+          pendingTaxAmount: item.pendingTaxAmount ?? null,
+          taxType: item.taxType ?? null,
+          pendingBefTaxDiscountAmount: item.pendingBefTaxDiscountAmount ?? null,
+          pendingAfTaxDiscountAmount: item.pendingAfTaxDiscountAmount ?? null,
+        }
+      }));
+
+      console.log('Payload:', { items });
+
+      // Dispatch to update items
+      dispatch(updateMultipleItemQuantities({
+        purchaseOrderId: selectedOrder.purchaseOrderId,
+        updatedItems: items
+      }))
+        .then(response => {
+          console.log('Response:', response);
+          dispatch(setSnackbarMessage('Changes saved successfully!'));
+          dispatch(setSnackbarOpen(true));
+          // Re-fetch the updated purchase orders to refresh the UI
+          dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize,fromDate,toDate, status }));
+        })
+        .catch(error => {
+          console.error('Failed to save changes:', error);
+          dispatch(setSnackbarMessage('Failed to save changes. Please try again.'));
+          dispatch(setSnackbarOpen(true));
+        });
+    } else {
+      dispatch(setSnackbarMessage('No items to save.'));
+      dispatch(setSnackbarOpen(true));
+    }
+    setConfirmDialogOpen(false);
+    setDialogOpen(false);
+  };
+  const handleFilterClick = () => {
+    let filtered = purchaseList;
+
+    // Ensure proper date handling with Date objects
+    const formattedStartDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : fromDate;
+    const formattedEndDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;
+
+    // Apply frontend filters before the API call
+    if (selectedVendorName) {
+      filtered = filtered.filter(purchase =>
+        purchase.vendorName?.toLowerCase().includes(selectedVendorName.toLowerCase())
+      );
+    }
+
+    if (formattedStartDate) {
+      filtered = filtered.filter(purchase => {
+        const orderDateParsed = purchase.orderDate ? new Date(purchase.orderDate) : null;
+        return orderDateParsed && orderDateParsed >= formattedStartDate;
+      });
+    }
+
+    if (formattedEndDate) {
+      filtered = filtered.filter(purchase => {
+        const orderDateParsed = purchase.orderDate ? new Date(purchase.orderDate) : null;
+        return orderDateParsed && orderDateParsed <= formattedEndDate;
+      });
+    }
+
+    if (status) {
+      filtered = filtered.filter(purchase => purchase.poStatus === status);
+    }
+    if (selectedRandomId) {
+      filtered = filtered.filter(purchase => purchase.randomId == randomIdFilter);
+    }
+    console.log('Filtered Orders (Frontend):', filtered);
+
+    // After frontend filters, dispatch the fetchPurchaseOrders action to fetch filtered data from the backend
+    dispatch(fetchPurchaseOrders({
+      page: 1,                    // Assuming page is 1 for this example
+      size: pageSize,                   // Example page size
+      fromDate: formattedStartDate,  // Pass Date object directly
+      toDate: formattedEndDate,      // Pass Date object directly
+      vendorName: selectedVendorName || '',
+      status: status || '',
+      itemName: searchQueryItem || '', // Pass itemName filter if necessary
+      randomId: selectedRandomId || ''
+    }))
+      .then(response => {
+        const data = response.payload || [];
+        if (data.length === 0) {
+          console.log('No matching orders found.');
+          setSnackbarMessage('No matching orders found.');
+          setSnackbarOpen(true);
+        } else {
+          setFilteredOrders(data); // Assuming you want to set the filtered data
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching purchase orders:', error);
+        setSnackbarMessage(error.message || 'Error fetching purchase orders');
+        setSnackbarOpen(true);
+      });
+  };
+
+  const handleFilterClose = () => {
+    // Reset filter states (except for the date)
+    setSelectionRange({
+      startDate: new Date(),  // Set to current date
+      endDate: new Date(),    // Set to current date
+      key: 'selection',       // Retain the key
+    });
+    setSelectedVendor(null); // Clear vendor selection
+    setNewItem(null); // Clear item search query
+    setSelectedRandomId(''); // Clear randomId
+    setStatusFilter([]); // Clear all selected statuses
+    dispatch(fetchPurchaseOrders({
+      page: 1, size: pageSize,fromDate,toDate
+    }));
+  }
+
+  const handleRejectOrder = async (orderId: string) => {
+    const selectedOrder = purchaseList.find(order => order.purchaseOrderId === orderId);
+    if (selectedOrder) {
+      try {
+        await dispatch(rejectPurchaseOrder(selectedOrder.purchaseOrderId));
+        dispatch(fetchPurchaseOrders({
+          page: newPage, size: pageSize,fromDate,toDate
+        }));
+      } catch (error) {
+        console.error('Failed to update order status:', error);
+      }
+      setRejectOpen(false);
+    }
+  };
+
+  const handleApproveOrder = async (orderId: string) => {
+    const selectedOrder = purchaseList.find(order => order.purchaseOrderId === orderId);
+    if (selectedOrder) {
+      try {
+        await dispatch(approvePurchaseOrder(selectedOrder.purchaseOrderId));
+        dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize,fromDate,toDate, status }));
+      } catch (error) {
+        console.error('Failed to update order status:', error);
+      }
+      setApproveOpen(false);
+    }
+  };
+
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return <Typography>Error: {error}</Typography>;
+  }
+
+  return (
+    <Box>
+      <YenPurchasePage />
+      <Box sx={{ px: 2, py: 1 }}>
+        <Grid container spacing={2} sx={{ mb: 1 }}>
+          <Grid item xs={12} display="flex" alignItems="center">
+            <Link href="/yen-purchase/PurchaseOrder" passHref>
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: 'white',
+                  color: 'black',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  },
+                }}
+              >
+                Pending
+              </Button>
+            </Link>
+
+            <Link href="/yen-purchase/PurchaseOrder/Approvedpo" passHref>
+              <Button variant="contained" sx={{ marginLeft: '10px' }} color="primary">
+                Approved
+              </Button>
+            </Link>
+
+            <Button
+              variant="contained"
+              color="primary"
+              sx={{ marginLeft: '10px', marginRight: '10px' }}
+              onClick={() => router.push('/yen-purchase/PurchaseOrder/RejectedPo')}
+            >
+              Rejected
+            </Button>
+            {/* <Grid container justifyContent="flex-end">
+              <Grid item>
+                <Typography
+                  sx={{
+                    textAlign: 'left', // Align the text inside the box
+                    color: '#333', // Text color
+                    pl: 2,
+                    pr: 2,
+                    boxShadow: 3,
+                    borderRadius: 1,
+                    padding: '6px', // Padding to give it a message box feel
+                    border: '1px solid #ccc', // Light border around the box
+                    marginBottom: '16px', // Space from other elements
+                    maxWidth: '600px', // Limit width for better message box look
+                    whiteSpace: 'normal', // Allows the text to wrap into multiple lines
+                    fontWeight: 'bold' // Use 'fontWeight' instead of 'fontStyle' for bold text
+                  }}
+                >
+                  Description:<br />
+                  Create PO. All the purchase orders that are currently Pending processing.
+                  You can Approve or Reject them here.
+                </Typography>
+              </Grid>
+            </Grid> */}
+          </Grid>
+        </Grid>
+        <Grid
+          container
+          spacing={1}
+          alignItems="center"
+          justifyContent="flex-start"
+          wrap="nowrap"
+          sx={{
+            display: 'inline-flex', // Ensure single row with intrinsic width
+            minWidth: '100%', // Force content to exceed viewport on small screens
+          }}
+        >
+          {/* Date Range Dialog */}
+          <Grid item xs="auto">
+            <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+              <DateRangeDialog
+                selectionRange={selectionRange}
+                setSelectionRange={setSelectionRange}
+              />
+            </Box>
+          </Grid>
+
+          {/* Vendor Search */}
+          <Grid item xs={6} sm={4} md={2}>
+            <VendorSearchAutocomplete
+              value={selectedVendor}
+              onChange={handleVendorChange}
+              label="All Vendors"
+            />
+          </Grid>
+
+          {/* Item Search */}
+          <Grid item xs={6} sm={4} md={2}>
+            <Autocomplete
+              fullWidth
+              options={allItems}
+              getOptionLabel={(option: any) => option.itemName || ''} // Replace with PurchaseItemSearch
+              isOptionEqualToValue={(option: any, value: any) =>
+                option.purchaseitemId === value?.purchaseitemId
+              }
+              value={newItem}
+              onInputChange={(event, newInputValue) => {
+                handleSearchChangeItem(newInputValue);
+              }}
+              onChange={(_, value) => handleItemSelect(value)}
+              open={open}
+              onOpen={() => {
+                setOpen(true);
+                if (allItems.length === 0) {
+                  dispatch(POsearchPurchaseItems({ searchQuery: '', skip: 0, limit }))
+                    .unwrap()
+                    .then((newItems) => {
+                      setAllItems(newItems);
+                      setSkip(limit);
+                    });
+                }
+              }}
+              onClose={() => setOpen(false)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="All Items"
+                  variant="outlined"
+                  size="small"
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.purchaseitemId}>
+                  {option.itemName}
+                </li>
+              )}
+              ListboxProps={{
+                onScroll: handleScroll as React.UIEventHandler<HTMLUListElement>,
+              }}
+            />
+          </Grid>
+
+          {/* PO ID Search */}
+          <Grid item xs={6} sm={4} md={1}>
+            <PurchaseOrderRandomIdSearch
+              value={selectedRandomId}
+              onChange={handleRandomIdChange}
+              label="PO ID"
+            />
+          </Grid>
+
+          {/* Filter Button */}
+          <Grid item xs="auto">
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <IconButton
+                onClick={handleFilterClick}
+                className="icon-button-outline"
+                color="primary"
+                size="small"
+                sx={{ p: 0.3 }}
+              >
+                <FilterAltIcon fontSize="small" />
+              </IconButton>
+              <Typography
+                variant="caption"
+                align="center"
+                sx={{
+                  maxWidth: 60,
+                  wordBreak: 'break-word',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  lineHeight: 1.1,
+                  mt: 0.2,
+                }}
+              >
+                Filter
+              </Typography>
+            </Box>
+          </Grid>
+
+          {/* Filter Clear Button */}
+          <Grid item xs="auto">
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <IconButton
+                onClick={handleFilterClose}
+                className="icon-button-outline"
+                color="primary"
+                size="small"
+                sx={{ p: 0.3 }}
+              >
+                <ClearIcon fontSize="small" />
+              </IconButton>
+              <Typography
+                variant="caption"
+                align="center"
+                sx={{
+                  maxWidth: 60,
+                  wordBreak: 'break-word',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  lineHeight: 1.1,
+                  mt: 0.2,
+                }}
+              >
+                Clear
+              </Typography>
+            </Box>
+          </Grid>
+
+          {/* Spacer to Push Create PO and Download to the End */}
+          <Grid item xs sx={{ flexGrow: 1 }} />
+
+          {/* Create PO Button */}
+          <Grid item xs="auto">
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <IconButton
+                className="icon-button-outline"
+                color="primary"
+                size="small"
+                sx={{ p: 0.3 }}
+                onClick={() => router.push('/yen-purchase/PurchaseOrder/Createpurchase')}
+              >
+                <AddIcon fontSize="small" />
+              </IconButton>
+              <Typography
+                variant="caption"
+                align="center"
+                sx={{
+                  maxWidth: 60,
+                  wordBreak: 'break-word',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  lineHeight: 1.1,
+                  mt: 0.2,
+                }}
+              >
+                Create PO
+              </Typography>
+            </Box>
+          </Grid>
+
+          {/* Download Button */}
+          <Grid item xs="auto">
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <IconButton
+                onClick={handleClick}
+                color="primary"
+                className="icon-button-outline"
+                size="small"
+                sx={{ p: 0.3 }}
+                disabled={!filteredOrders || Object.keys(filteredOrders).length === 0}
+              >
+                {loading ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+              </IconButton>
+              <Typography
+                variant="caption"
+                align="center"
+                sx={{
+                  maxWidth: 60,
+                  wordBreak: 'break-word',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  lineHeight: 1.1,
+                  mt: 0.2,
+                }}
+              >
+                Download
+              </Typography>
+              <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleCloseAnchor}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              >
+                <MenuItem onClick={handleVendorwiseClick}>Vendorwise</MenuItem>
+                <MenuItem onClick={handleItemwiseClick}>Itemwise</MenuItem>
+              </Menu>
+            </Box>
+          </Grid>
+        </Grid>
+
+        <Dialog
+          open={dialogOpen}
+          onClose={handleDialogClose}
+          maxWidth={false}
+          fullWidth={true}
+          fullScreen={isFullScreen}
+          container={document.body} // Always render in document.body
+          disablePortal={false} // Use portal to break out of parent containers
+          sx={isFullScreen ? {
+            '& .MuiDialog-container': {
+              position: 'fixed !important',
+              top: '0 !important',
+              left: '0 !important',
+              right: '0 !important',
+              bottom: '0 !important',
+              width: '100vw !important',
+              height: '100vh !important',
+              maxWidth: 'none !important',
+              maxHeight: 'none !important',
+              margin: '0 !important',
+              zIndex: 9999,
+            },
+            '& .MuiDialog-paper': {
+              width: '100vw !important',
+              height: '100vh !important',
+              maxWidth: 'none !important',
+              maxHeight: 'none !important',
+              margin: '0 !important',
+              borderRadius: '0 !important',
+            }
+          } : {}}
+          PaperProps={{
+            style: {
+              height: isFullScreen ? '100vh' : 'auto',
+              width: isFullScreen ? '100vw' : '90vw',
+              maxWidth: isFullScreen ? 'none' : 'none',
+              margin: isFullScreen ? 0 : 'auto',
+              borderRadius: isFullScreen ? 0 : undefined,
+            },
+          }}
+        >
+          <DialogTitle sx={{
+            fontWeight: 'bold',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: isFullScreen ? '16px 24px' : '16px' // Adjust padding for fullscreen
+          }}>
+            <span>Pending Order Details {selectedOrder?.randomId ? `${selectedOrder.randomId}` : ''}</span>
+            <span>Vendor Name:{selectedOrder?.vendorName || 'Unknown Vendor'}</span>
+            <IconButton onClick={toggleFullScreen} color="primary" edge="end">
+              {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+            </IconButton>
+          </DialogTitle>
+
+          <DialogContent sx={{
+            padding: isFullScreen ? '0 24px' : '20px', // Adjust content padding
+            height: isFullScreen ? 'calc(100vh - 120px)' : 'auto', // Account for header/footer height
+            overflow: 'auto'
+          }}>
+
+            {/* Details of the selected order */}
+            <TableContainer component={Paper}>
+              <Table stickyHeader sx={{ minWidth: 500, fontSize: '0.600rem' }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>ItemId</TableCell>
+                    <TableCell>Item Name</TableCell>
+                    <TableCell>Uom</TableCell>
+                    <TableCell>Count</TableCell>
+                    <TableCell>Quantity</TableCell>
+                    <TableCell>Total Quantity</TableCell>
+                    <TableCell>UnitPrice</TableCell>
+                    <TableCell>BefTax Dis(%)</TableCell>
+                    <TableCell>AfTax Dis(%)</TableCell>
+                    <TableCell>Tax(%)</TableCell>
+                    <TableCell>TotalPrice</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {updatedItems.map((item, index) => (
+                    <TableRow key={item.itemId}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{item.itemName}</TableCell>
+                      <TableCell>{item.uom}</TableCell>
+                      <TableCell>
+                        <TextField
+                          type="text"
+                          value={item.pendingCount === 0 ? '' : item.pendingCount}
+                          onChange={e => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              handleInputChange(index, 'pendingCount', value);
+                            }
+                          }}
+                          onBlur={() => {
+                            setTouched(prev => ({
+                              ...prev,
+                              [index]: { ...prev[index], pendingCount: true }
+                            }));
+                            // Validate on blur
+                            if (item.pendingCount === '') {
+                              setErrors(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], pendingCount: 'required' }
+                              }));
+                            } else if (!/^\d*\.?\d*$/.test(String(item.pendingCount))) {
+                              setErrors(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], pendingCount: 'Invalid number' }
+                              }));
+                            } else {
+                              setErrors(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], pendingCount: '' }
+                              }));
+                            }
+                          }}
+                          error={touched[index]?.pendingCount && !!errors[index]?.pendingCount}
+                          helperText={touched[index]?.pendingCount && errors[index]?.pendingCount ? errors[index].pendingCount : ''}
+                          inputProps={{ step: '0.01' }}
+                          sx={{ width: '100px' }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          type="text"
+                          value={item.pendingQuantity === 0 ? '' : item.pendingQuantity}
+                          onChange={e => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              handleInputChange(index, 'pendingQuantity', value);
+                            }
+                          }}
+                          onBlur={() => {
+                            setTouched(prev => ({
+                              ...prev,
+                              [index]: { ...prev[index], pendingQuantity: true }
+                            }));
+                            if (item.pendingQuantity === '') {
+                              setErrors(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], pendingQuantity: 'required' }
+                              }));
+                            } else if (!/^\d*\.?\d*$/.test(String(item.pendingQuantity))) {
+                              setErrors(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], pendingQuantity: 'Invalid number' }
+                              }));
+                            } else {
+                              setErrors(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], pendingQuantity: '' }
+                              }));
+                            }
+                          }}
+                          error={touched[index]?.pendingQuantity && !!errors[index]?.pendingQuantity}
+                          helperText={touched[index]?.pendingQuantity && errors[index]?.pendingQuantity ? errors[index].pendingQuantity : ''}
+                          inputProps={{ step: '0.01' }}
+                          sx={{ width: '100px' }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          type="number"
+                          value={item.pendingTotalQuantity}
+                          InputProps={{
+                            readOnly: true,
+                          }}
+                          inputProps={{ min: 0 }}
+                          disabled
+                          sx={{ width: '100px' }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          type="text"
+                          value={item.newPrice === 0 ? '' : item.newPrice}
+                          onChange={e => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              handleInputChange(index, 'newPrice', value);
+                            }
+                          }}
+                          onBlur={() => {
+                            setTouched(prev => ({
+                              ...prev,
+                              [index]: { ...prev[index], newPrice: true }
+                            }));
+                            if (item.newPrice === '') {
+                              setErrors(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], newPrice: 'required' }
+                              }));
+                            } else if (!/^\d*\.?\d*$/.test(String(item.newPrice))) {
+                              setErrors(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], newPrice: 'Invalid number' }
+                              }));
+                            } else {
+                              setErrors(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], newPrice: '' }
+                              }));
+                            }
+                          }}
+                          error={touched[index]?.newPrice && !!errors[index]?.newPrice}
+                          helperText={touched[index]?.newPrice && errors[index]?.newPrice ? errors[index].newPrice : ''}
+                          inputProps={{ step: '0.01' }}
+                          sx={{ width: '100px' }}
+                        />
+                      </TableCell>
+                      <TableCell>{item.befTaxDiscount}</TableCell>
+                      <TableCell>{item.afTaxDiscount}</TableCell>
+                      <TableCell>{item.taxPercentage}</TableCell>
+                      <TableCell>{(item.pendingTotalPrice || 0).toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={10} align="right">
+                      <strong>Discount Amount:</strong>
+                    </TableCell>
+                    <TableCell>{pendingDiscountAmount}</TableCell>
+                  </TableRow>
+                  {Object.entries(taxDetails).map(([key, tax]) => (
+                    <TableRow key={key}>
+                      <TableCell colSpan={9}></TableCell>
+                      <TableCell>
+                        <strong>{tax.type} ({tax.percentage}%):</strong>
+                      </TableCell>
+                      <TableCell>{tax.amount}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={9}></TableCell>
+                    <TableCell><strong>Total Order Amount:</strong></TableCell>
+                    <TableCell>{pendingOrderAmount}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDialogClose} color="primary">Close</Button>
+            <Button onClick={handleSaveChanges} color="primary">Save Changes</Button>
+          </DialogActions>
+        </Dialog>
+        {/* Pdf Excel */}
+        <Dialog open={dialogDownloadOpen} onClose={() => setDialogDownloadOpen(false)}>
+          <DialogTitle>Select Export Format</DialogTitle>
+          <DialogContent>
+            Choose whether you want to download the report as an Excel (CSV) file or generate a PDF.
+          </DialogContent>
+          <DialogActions>
+            {/* Button to download CSV */}
+            <Button
+              onClick={handleExportCSV}
+              variant="contained"
+              color="primary"
+              startIcon={<DescriptionIcon />}
+            >
+              Download CSV
+            </Button>
+
+            {/* Button to generate PDF */}
+            <Button
+              onClick={generatePDF}
+              variant="contained"
+              color="secondary"
+              startIcon={<PictureAsPdfIcon />}
+            >
+              Generate PDF
+            </Button>
+            <Button
+              onClick={() => setDialogDownloadOpen(false)} // Close the dialog on cancel
+              variant="outlined"
+            >
+              Cancel
+            </Button>
+          </DialogActions>
+        </Dialog>
+        {/* Approve Order Dialog */}
+        <Dialog open={approveOpen} onClose={handleApproveDialogClose}>
+          <DialogTitle>Approve Purchase Order</DialogTitle>
+          <DialogContent>
+            <Typography>Are you sure you want to approve this order?</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleApproveDialogClose} color="primary">Cancel</Button>
+            <Button onClick={() => handleApproveOrder(selectedOrderId!)} color="primary">Approve</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Reject Order Dialog */}
+        <Dialog open={rejectOpen} onClose={handleRejectDialogClose}>
+          <DialogTitle>Reject Purchase Order</DialogTitle>
+          <DialogContent>
+            <Typography>Are you sure you want to reject this order?</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleRejectDialogClose} color="primary">Cancel</Button>
+            <Button onClick={() => handleRejectOrder(selectedOrderId!)} color="primary">Reject</Button>
+          </DialogActions>
+        </Dialog>
+        {/* Display filtered orders */}
+        <TableContainer
+          component={Paper}
+          sx={{
+            maxHeight: 'calc(100vh - 205px)', // Dynamic height based on viewport
+            overflowY: 'auto',
+            width: '100%',
+            mt: 0.7
+          }}
+        >
+          <Table
+            stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell>S.No</TableCell>
+                <TableCell>Order ID</TableCell>
+                <TableCell>Vendor Name</TableCell>
+                <TableCell>Uploaded Photo</TableCell>
+                <TableCell>Total PO Items</TableCell>
+                <TableCell>Total Price</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredOrders.length === 0 ? (
+                // Display message when no data is found
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    No orders found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                // Display filtered orders when data is available
+                filteredOrders.map((order, index) => {
+                  const totalQuantity = Array.isArray(order.items)
+                    ? order.items.reduce((acc, item) => acc + item.pendingTotalQuantity, 0)
+                    : 0;
+
+                  return (
+                    <TableRow key={order.purchaseOrderId}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{order.randomId}</TableCell>
+                      <TableCell>{order.vendorName}</TableCell>
+                      <TableCell>
+                        <PhotoDisplay
+                          orderId={order.purchaseOrderId}
+                          imageUrls={imageUrls[order.purchaseOrderId] || []}
+                          onImageClick={(url, displayIndex) => {
+                            setSelectedImage(url);
+                            setSelectedImageIndex(displayIndex - 1); // Store as 0-based in state
+                            setOpenImageDialog(true);
+                          }}
+                          onUploadClick={(orderId, backendIndex) => {
+                            // Trigger file input click with 1-based index
+                            document.getElementById(`file-input-${orderId}-${backendIndex}`)?.click();
+                          }}
+                        />
+
+                        {[1, 2, 3].map((displayIndex) => (
+                          <input
+                            key={displayIndex}
+                            id={`file-input-${order.purchaseOrderId}-${displayIndex}`}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileChange(e, order.purchaseOrderId, displayIndex)}
+                            style={{ display: 'none' }}
+                          />
+                        ))}
+                      </TableCell>
+                      <TableCell>{totalQuantity}</TableCell>
+                      <TableCell>{order.pendingOrderAmount}</TableCell>
+                      <TableCell>{order.poStatus}</TableCell>
+                      <TableCell>
+                        <Box display="flex" alignItems="center">
+                          {/* View Button with Eye Icon */}
+                          <Tooltip title="View Details">
+                            <IconButton
+                              onClick={() => handleViewDetailsClick(order.purchaseOrderId)}
+                              color='primary'
+                              sx={{ mr: 1 }} // margin right to separate icons
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          </Tooltip>
+
+                          {/* Approve Button with Check Icon */}
+                          <Tooltip title="Approve Order">
+                            <IconButton
+                              onClick={() => {
+                                setSelectedOrderId(order.purchaseOrderId);
+                                handleApproveDialogOpen();
+                              }}
+                              sx={{ mr: 1 }} // margin right to separate icons
+                              color='primary'
+                            >
+                              <CheckIcon />
+                            </IconButton>
+                          </Tooltip>
+
+                          {/* Reject Button with Close (X) Icon */}
+                          <Tooltip title="Reject Order">
+                            <IconButton
+                              onClick={() => {
+                                setSelectedOrderId(order.purchaseOrderId);
+                                handleRejectDialogOpen();
+                              }}
+                              sx={{ mr: 1 }} // margin right to separate icons
+                              color='primary'
+                            >
+                              <CloseIcon />
+                            </IconButton>
+                          </Tooltip>
+
+                          {/* Download Button with PDF Icon
+                          <Tooltip title="Download PDF">
+                            <IconButton
+                              color="primary"
+                              onClick={() => handleDownload(order.purchaseOrderId)}
+                            >
+                              <PictureAsPdfIcon />
+                            </IconButton>
+                          </Tooltip> */}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <Grid item xs={12}>
+          <Box sx={{ display: 'flex', justifyContent: 'end', alignItems: 'center', mt: 0 }}>
+            <IconButton
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+              aria-label="Previous Page"
+            >
+              <ChevronLeft />
+            </IconButton>
+            <Typography variant="body1" sx={{ mx: 2, fontSize: '2.2rem' }}>
+              Page {currentPage}
+            </Typography>
+            <IconButton
+              onClick={handleNextPage}
+              disabled={currentPage * pageSize >= totalItems}
+              aria-label="Next Page"
+            >
+              <ChevronRight />
+            </IconButton>
+          </Box>
+        </Grid>
+        {/* Confirmation dialog */}
+        <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
+          <DialogTitle>Confirm Changes</DialogTitle>
+          <DialogContent>
+            <Typography>Are you sure you want to save the changes?</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmDialogOpen(false)} color="primary" >Cancel</Button>
+            <Button onClick={handleConfirmSave} color="primary" >Confirm</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={openPhotoDialog} onClose={() => setOpenPhotoDialog(false)}>
+          <DialogTitle>Confirm Upload</DialogTitle>
+          <DialogContent>
+            Are you sure you want to upload this photo?
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenPhotoDialog(false)} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmUpload} color="primary">
+              Upload
+            </Button>
+          </DialogActions>
+        </Dialog>
+        {/* Dialog for choosing export options */}
+        <Dialog open={dialogSummaryOpen} onClose={handleClose}>
+          <DialogTitle>Export Options</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Please choose whether you want to export the data as a CSV or generate a PDF.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            {/* Export CSV Button */}
+            <Button
+              onClick={generateSummaryCSV}
+              variant="contained"
+              color="secondary"
+              startIcon={<DescriptionIcon />}
+            >
+              Export Excel
+            </Button>
+            {/* Generate PDF Button */}
+            <Button
+              onClick={generateSummaryPDF}
+              variant="contained"
+              color="primary"
+              startIcon={<PictureAsPdfIcon />}
+            >
+              Generate PDF
+            </Button>
+            {/* Cancel Button */}
+            <Button variant='outlined' onClick={handleClose}>
+              Cancel
+            </Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog open={openImageDialog} onClose={() => setOpenImageDialog(false)} maxWidth="md">
+          <DialogTitle>
+            Photo {selectedImageIndex !== null ? selectedImageIndex + 1 : ''}
+          </DialogTitle>
+          <DialogContent>
+            {selectedImage && (
+              <Image
+                src={selectedImage}
+                alt="Full size receipt"
+                width={800}
+                height={600}
+                style={{ maxWidth: '100%', height: 'auto' }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={openPhotoDialog} onClose={() => setOpenPhotoDialog(false)}>
+          <DialogTitle>
+            {selectedImageIndex !== null && imageUrls[selectedOrderId || '']?.[selectedImageIndex]
+              ? 'Replace Photo'
+              : 'Upload Photo'}
+          </DialogTitle>
+          <DialogContent>
+            {files[0] && (
+              <Typography>File: {files[0].name}</Typography>
+            )}
+            <Typography>Are you sure you want to proceed?</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenPhotoDialog(false)}>Cancel</Button>
+            <Button onClick={handleUpload} color="primary">
+              Confirm
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar
+          open={snackbarOpen}
+          message={snackbarMessage}
+          autoHideDuration={3000}
+          onClose={() => dispatch(clearSnackbarMessage())} // Manually close the snackbar when clicked
+        />
+      </Box>
+    </Box>
+  );
+};
+
+export default React.memo(Polist);
