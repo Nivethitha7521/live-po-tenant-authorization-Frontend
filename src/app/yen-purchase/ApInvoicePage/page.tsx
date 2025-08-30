@@ -590,7 +590,7 @@ const VerifiedApInvoicePage: React.FC = () => {
 
     handleClose(); // Close any modal/dialog if used
   };
-const toggleFullScreen = () => {
+  const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
   const handleFilterClick = () => {
@@ -848,7 +848,7 @@ const toggleFullScreen = () => {
 
     yOffset += 45;
 
-    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Count','Qty','Stock Qty', 'Unit Price', 'Tax', 'Amount'];
+    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Count', 'Qty', 'Stock Qty', 'Unit Price', 'Tax', 'Amount'];
     const tableRows = apinvoice.itemDetails.map((item, index) => {
       const unitPrice = item.unitPrice || 0;
       const quantity = item.quantity || 0;
@@ -1276,7 +1276,7 @@ const toggleFullScreen = () => {
           </Grid>
         </Grid>
 
-        <Dialog open={detailsDialogOpen} onClose={handleCloseDetailsDialog}   maxWidth={false}
+        <Dialog open={detailsDialogOpen} onClose={handleCloseDetailsDialog} maxWidth={false}
           fullWidth={true}
           fullScreen={isFullScreen}
           container={document.body} // Always render in document.body
@@ -1328,22 +1328,25 @@ const toggleFullScreen = () => {
           }}>
             {selectedInvoice && (
               <Box>
-                {/* Single row for all IDs */}
-                <Box sx={{ display: 'flex', gap: 3, mb: 2, flexWrap: 'wrap' }}>
-                  <Typography variant="h6">
-                    <strong>PO ID:</strong> {selectedInvoice.poRandomId}
-                  </Typography>
-                  <Typography variant="h6">
-                    <strong>GRN ID:</strong> {selectedInvoice.grnRandomId}
-                  </Typography>
-                  <Typography variant="h6">
-                    <strong>AP ID:</strong> {selectedInvoice.randomId}
-                  </Typography>
+                <Box sx={{ display: 'flex', gap: 3, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', flex: 1 }}>
+                    <Typography variant="h6">
+                      <strong>PO ID:</strong> {selectedInvoice.poRandomId}
+                    </Typography>
+                    <Typography variant="h6">
+                      <strong>GRN ID:</strong> {selectedInvoice.grnRandomId}
+                    </Typography>
+                    <Typography variant="h6">
+                      <strong>AP ID:</strong> {selectedInvoice.randomId}
+                    </Typography>
                     <IconButton onClick={toggleFullScreen} color="primary" edge="end">
-              {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-            </IconButton>
+                      {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                    </IconButton>
+                  </Box>
+                  <IconButton onClick={toggleFullScreen} color="primary" edge="end">
+                    {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                  </IconButton>
                 </Box>
-
                 {/* Vendor and date in a single row */}
                 <Box sx={{ display: 'flex', gap: 3, mb: 2, flexWrap: 'wrap' }}>
                   <Typography variant="h6">

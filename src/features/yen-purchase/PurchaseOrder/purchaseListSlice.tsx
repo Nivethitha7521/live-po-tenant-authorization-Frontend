@@ -306,7 +306,7 @@ export const updateReceivedDamagedQuantities = createAsyncThunk(
         throw new Error('purchaseOrderId is required');
       }
       const response = await axios.patch(
-        `http://192.168.1.122:8000/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
+        `http://192.168.1.125:8000/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
         params
       );
       return response.data;

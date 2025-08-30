@@ -48,7 +48,7 @@ export const fetchOutgoings = createAsyncThunk(
       filterByStatus?: boolean | null;
     }) => {
     try {
-      const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
+      const url = 'http://192.168.1.125:8000/outgoingpayments/';
 
       // Prepare query parameters dynamically based on provided arguments
       const params: any = {
@@ -199,7 +199,7 @@ export const processPayment = createAsyncThunk<
         selectedDebitNotes, // Pass the array as-is
       };
 
-      await axios.patch(`http://192.168.1.122:8000/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`http://192.168.1.125:8000/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.response?.data || 'Payment processing failed');
     }
@@ -225,6 +225,41 @@ export const fetchActiveDebitsVendor = createAsyncThunk<
     }
   }
 );
+export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
+  DebitNote[],
+  string[], // vendorNames array
+  {
+    rejectValue: string;
+  }
+>(
+  'debitNotes/fetchActiveDebitsMultipleVendor',
+  async (vendorNames, { rejectWithValue }) => {
+    try {
+      // Fetch debits for each vendor sequentially
+      const allDebits: DebitNote[] = [];
+      
+      for (const vendorName of vendorNames) {
+        try {
+          const response = await axios.get(`http://192.168.1.125:8000/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
+          if (response.data.debits) {
+            allDebits.push(...response.data.debits);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch debits for ${vendorName}:`, error);
+          // Continue with other vendors even if one fails
+        }
+      }
+      
+      if (allDebits.length === 0) {
+        throw new Error('No debits found for any vendor');
+      }
+      
+      return allDebits;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to fetch active debits');
+    }
+  }
+);
 export const processBulkPayment = createAsyncThunk<
   BulkPaymentResponse,
   BulkPaymentRequest,
@@ -234,7 +269,7 @@ export const processBulkPayment = createAsyncThunk<
   async (bulkPaymentRequest, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        'http://192.168.1.122:8000/outgoingpayments/bulkpayment/bulk-payment',
+        'http://192.168.1.125:8000/outgoingpayments/bulkpayment/bulk-payment',
         bulkPaymentRequest
       );
       return response.data;
@@ -614,7 +649,19 @@ const outgoingSlice = createSlice({
         state.loading = false;
         state.error = action.payload || 'Failed to fetch active debits';
       })
-
+  .addCase(fetchActiveDebitsMultipleVendor.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchActiveDebitsMultipleVendor.fulfilled, (state, action) => {
+        state.loading = false;
+        // Replace all debits with the new ones
+        state.debits = action.payload;
+      })
+      .addCase(fetchActiveDebitsMultipleVendor.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch debit notes';
+      })
   },
 });
 

@@ -65,7 +65,7 @@ export const fetchLedgerData = createAsyncThunk(
   async (vendorName: string, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        `https://yenerp.com/purchaseapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`
+        `http://192.168.1.125:8000/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`
       );
       return response.data as VendorLedgerResponse;
     } catch (error: any) {

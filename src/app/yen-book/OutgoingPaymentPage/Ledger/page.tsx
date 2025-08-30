@@ -61,6 +61,7 @@ const LedgerPage = () => {
     endDate: new Date(),
     key: 'selection',
   });
+
   // Format date helper
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return 'N/A';
@@ -90,6 +91,7 @@ const LedgerPage = () => {
     };
     return typeMap[type] || type;
   };
+
   // Initial data fetching including vendors
   useEffect(() => {
     if (isInitialLoad.current) {
@@ -136,7 +138,6 @@ const LedgerPage = () => {
     fetchData();
   }, [dispatch, selectedVendorName, selectionRange.startDate, selectionRange.endDate]);
 
-
   // Get status color
   const getStatusColor = (status: string): string => {
     switch (status.toLowerCase()) {
@@ -168,17 +169,17 @@ const LedgerPage = () => {
     const doc = new jsPDF();
 
     // Header
-    doc.setFontSize(16);
+    doc.setFontSize(18); // Increased from 16
     doc.text('Vendor Ledger Report', 105, 20, { align: 'center' });
 
     if (selectedVendorName) {
-      doc.setFontSize(12);
+      doc.setFontSize(14); // Increased from 12
       doc.text(`Vendor: ${selectedVendorName}`, 20, 30);
     }
 
     // Summary section
     if (ledgerData) {
-      doc.setFontSize(10);
+      doc.setFontSize(12); // Increased from 10
       doc.text(`Total Payable: ${formatCurrency(ledgerData.totalPayableAmount)}`, 20, 40);
       doc.text(`Total Paid: ${formatCurrency(ledgerData.totalPaidAmount)}`, 20, 45);
       doc.text(`Outstanding: ${formatCurrency(ledgerData.outstandingAmount)}`, 20, 50);
@@ -205,10 +206,13 @@ const LedgerPage = () => {
       headStyles: {
         fillColor: [0, 0, 128],
         textColor: [255, 255, 255],
-        fontSize: 8,
+        fontSize: 11, // Increased from 8
         fontStyle: "bold"
       },
-      bodyStyles: { fontSize: 7, textColor: [0, 0, 0] },
+      bodyStyles: { 
+        fontSize: 10, // Increased from 7
+        textColor: [0, 0, 0] 
+      },
     });
 
     doc.save(`${selectedVendorName || 'Vendor'}_Ledger_Report.pdf`);
@@ -254,8 +258,8 @@ const LedgerPage = () => {
   if (error) {
     return (
       <Box p={2}>
-        <Typography color="error">Error: {error}</Typography>
-        <Button onClick={() => dispatch(resetLedgerData())} sx={{ mt: 1 }}>
+        <Typography color="error" variant="h6">Error: {error}</Typography>
+        <Button onClick={() => dispatch(resetLedgerData())} sx={{ mt: 1 }} size="large">
           Reset
         </Button>
       </Box>
@@ -263,45 +267,44 @@ const LedgerPage = () => {
   }
 
   return (
-    <Box>
-            <YenBookPage />
-<Box sx={{ px: 1 }}>
-      {/* Header Controls */}
-
-      <Box sx={{ p: 1, backgroundColor: "white" }}>
+    <Box sx={{ fontSize: '16px' }}> {/* Added base font size */}
+      <YenBookPage />
+      <Box sx={{ px: 1 }}>
+        {/* Header Controls */}
+        <Box sx={{ p: 1, backgroundColor: "white" }}>
           <Grid container alignItems="center" justifyContent="flex-start">
-            {/* Navigation Buttons */}
+            {/* Navigation Buttons - Increased size */}
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage" passHref>
-                <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+                <Button variant="contained" color="primary" sx={{ mr: 1 }} size="large">
                   Outgoing Payment
                 </Button>
               </Link>
             </Grid>
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
-                <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+                <Button variant="contained" color="primary" sx={{ mr: 1 }} size="large">
                   Pre Outgoing
                 </Button>
               </Link>
             </Grid>
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>
-                <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+                <Button variant="contained" color="primary" sx={{ mr: 1 }} size="large">
                   Advance Payment
                 </Button>
               </Link>
             </Grid>
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
-                <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+                <Button variant="contained" color="primary" sx={{ mr: 1 }} size="large">
                   Partial Payment
                 </Button>
               </Link>
             </Grid>
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
-                <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+                <Button variant="contained" color="primary" sx={{ mr: 1 }} size="large">
                   Payment Done
                 </Button>
               </Link>
@@ -312,253 +315,268 @@ const LedgerPage = () => {
                   backgroundColor: 'white',
                   color: 'black',
                   '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.8)' },
-                  mr: 1
-                }}>
+                  mr: 1,
+                  fontSize: '14px' // Added explicit font size
+                }} size="large">
                   Ledger
                 </Button>
               </Link>
             </Grid>
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
-                <Button variant="contained" color="primary">Purchase Return</Button>
+                <Button variant="contained" color="primary" size="large">Purchase Return</Button>
               </Link>
             </Grid>
-</Grid>
-      <Grid container spacing={2} alignItems="center" sx={{ mb: 2,mt:2}}>
-        <Grid item xs={12} md={4}>
-          <FormControl fullWidth>
-            <Autocomplete
-              value={outgoingVendor.find(v => v.vendorName === selectedVendorName) || null}
-              onChange={handleVendorChange}
-              options={outgoingVendor}
-              getOptionLabel={(option: VendorDetail) => option.vendorName || ''}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Select Vendor"
-                  variant="outlined"
-                  size="small"
+          </Grid>
+
+          <Grid container spacing={2} alignItems="center" sx={{ mb: 2, mt: 2 }}>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <Autocomplete
+                  value={outgoingVendor.find(v => v.vendorName === selectedVendorName) || null}
+                  onChange={handleVendorChange}
+                  options={outgoingVendor}
+                  getOptionLabel={(option: VendorDetail) => option.vendorName || ''}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Select Vendor"
+                      variant="outlined"
+                      size="medium" // Changed from small
+                      sx={{ '& .MuiInputBase-input': { fontSize: '16px' } }} // Explicit font size
+                    />
+                  )}
                 />
-              )}
-            />
-          </FormControl>
-        </Grid>
+              </FormControl>
+            </Grid>
 
-        <Grid item>
-          <Button
-            variant="contained"
-            startIcon={<FilterAltIcon />}
-            onClick={handleFilterClick}
-            disabled={!selectedVendorName}
-          >
-            Filter
-          </Button>
-        </Grid>
+            <Grid item>
+              <Button
+                variant="contained"
+                startIcon={<FilterAltIcon />}
+                onClick={handleFilterClick}
+                disabled={!selectedVendorName}
+                size="large" // Added size
+                sx={{ fontSize: '14px' }} // Explicit font size
+              >
+                Filter
+              </Button>
+            </Grid>
 
-        <Grid item>
-          <Button
-            variant="outlined"
-            startIcon={<ClearIcon />}
-            onClick={handleFilterClose}
-          >
-            Clear
-          </Button>
-        </Grid>
+            <Grid item>
+              <Button
+                variant="outlined"
+                startIcon={<ClearIcon />}
+                onClick={handleFilterClose}
+                size="large" // Added size
+                sx={{ fontSize: '14px' }} // Explicit font size
+              >
+                Clear
+              </Button>
+            </Grid>
 
-        <Grid item sx={{ ml: 'auto' }}>
-          <Button
-            variant="contained"
-            startIcon={<DownloadIcon />}
-            onClick={() => setOpenDialog(true)}
-            disabled={!transactions || transactions.length === 0}
-          >
-            Download
-          </Button>
-        </Grid>
-      </Grid>
-
-      {/* Summary Cards */}
-      {ledgerData && (
-        <Grid container spacing={2} sx={{ mb: 2 }}>
-          <Grid item xs={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" color="primary">
-                  {formatCurrency(ledgerData.totalPayableAmount)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Total Payable
-                </Typography>
-              </CardContent>
-            </Card>
+            <Grid item sx={{ ml: 'auto' }}>
+              <Button
+                variant="contained"
+                startIcon={<DownloadIcon />}
+                onClick={() => setOpenDialog(true)}
+                disabled={!transactions || transactions.length === 0}
+                size="large" // Added size
+                sx={{ fontSize: '14px' }} // Explicit font size
+              >
+                Download
+              </Button>
+            </Grid>
           </Grid>
-          <Grid item xs={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" color="success.main">
-                  {formatCurrency(ledgerData.totalPaidAmount)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Total Paid
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" color="info.main">
-                  {formatCurrency(ledgerData.totalDebitAmount)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Total Debit Notes
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" color="warning.main">
-                  {formatCurrency(ledgerData.outstandingAmount)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Outstanding
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
 
-      {/* Transactions Table */}
-      <TableContainer component={Paper} sx={{ maxHeight: '60vh' }}>
-        <Table stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell>S.No</TableCell>
-              <TableCell>Date & Time</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Reference</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell align="right">Debit (₹)</TableCell>
-              <TableCell align="right">Credit (₹)</TableCell>
-              <TableCell align="right">Balance (₹)</TableCell>
-              <TableCell>Status</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {transactions && transactions.length > 0 ? (
-              transactions.map((transaction: Transaction, index: number) => (
-                <TableRow key={`${transaction.reference_id}-${index}`} hover>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {formatDate(transaction.date)}
+          {/* Summary Cards with larger text */}
+          {ledgerData && (
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              <Grid item xs={6} md={3}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h5" color="primary" sx={{ fontSize: '20px' }}> {/* Increased size */}
+                      {formatCurrency(ledgerData.totalPayableAmount)}
                     </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="medium">
-                      {getTransactionTypeDisplay(transaction.type)}
+                    <Typography variant="body1" color="textSecondary" sx={{ fontSize: '14px' }}> {/* Increased from body2 */}
+                      Total Payable
                     </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="primary">
-                      {transaction.reference_id || 'N/A'}
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h5" color="success.main" sx={{ fontSize: '20px' }}>
+                      {formatCurrency(ledgerData.totalPaidAmount)}
                     </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {transaction.description || 'N/A'}
+                    <Typography variant="body1" color="textSecondary" sx={{ fontSize: '14px' }}>
+                      Total Paid
                     </Typography>
-                    {transaction.notes && (
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        {transaction.notes}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography
-                      variant="body2"
-                      color={transaction.debit_amount > 0 ? "error.main" : "textSecondary"}
-                      fontWeight={transaction.debit_amount > 0 ? "medium" : "normal"}
-                    >
-                      {transaction.debit_amount > 0 ? formatCurrency(transaction.debit_amount) : '-'}
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h5" color="info.main" sx={{ fontSize: '20px' }}>
+                      {formatCurrency(ledgerData.totalDebitAmount)}
                     </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography
-                      variant="body2"
-                      color={transaction.credit_amount > 0 ? "success.main" : "textSecondary"}
-                      fontWeight={transaction.credit_amount > 0 ? "medium" : "normal"}
-                    >
-                      {transaction.credit_amount > 0 ? formatCurrency(transaction.credit_amount) : '-'}
+                    <Typography variant="body1" color="textSecondary" sx={{ fontSize: '14px' }}>
+                      Total Debit Notes
                     </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" fontWeight="medium">
-                      {formatCurrency(transaction.balance)}
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h5" color="warning.main" sx={{ fontSize: '20px' }}>
+                      {formatCurrency(ledgerData.outstandingAmount)}
                     </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: getStatusColor(transaction.status),
-                        fontWeight: 'medium'
-                      }}
-                    >
-                      {transaction.status}
+                    <Typography variant="body1" color="textSecondary" sx={{ fontSize: '14px' }}>
+                      Outstanding
                     </Typography>
-                  </TableCell>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Transactions Table with larger text */}
+          <TableContainer component={Paper} sx={{ maxHeight: '60vh' }}>
+            <Table stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>S.No</TableCell> {/* Increased font size */}
+                  <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>Date & Time</TableCell>
+                  <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>Type</TableCell>
+                  <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>Reference</TableCell>
+                  <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>Description</TableCell>
+                  <TableCell align="right" sx={{ fontSize: '16px', fontWeight: 'bold' }}>Debit (₹)</TableCell>
+                  <TableCell align="right" sx={{ fontSize: '16px', fontWeight: 'bold' }}>Credit (₹)</TableCell>
+                  <TableCell align="right" sx={{ fontSize: '16px', fontWeight: 'bold' }}>Balance (₹)</TableCell>
+                  <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>Status</TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={9} align="center">
-                  <Typography variant="body2" color="textSecondary">
-                    {selectedVendorName
-                      ? 'No transactions found for the selected vendor'
-                      : 'Please select a vendor to view ledger data'
-                    }
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              </TableHead>
+              <TableBody>
+                {transactions && transactions.length > 0 ? (
+                  transactions.map((transaction: Transaction, index: number) => (
+                    <TableRow key={`${transaction.reference_id}-${index}`} hover>
+                      <TableCell sx={{ fontSize: '14px' }}>{index + 1}</TableCell> {/* Increased font size */}
+                      <TableCell>
+                        <Typography variant="body1" sx={{ fontSize: '14px' }}> {/* Changed from body2 */}
+                          {formatDate(transaction.date)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body1" fontWeight="medium" sx={{ fontSize: '14px' }}>
+                          {getTransactionTypeDisplay(transaction.type)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body1" color="primary" sx={{ fontSize: '14px' }}>
+                          {transaction.reference_id || 'N/A'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body1" sx={{ fontSize: '14px' }}>
+                          {transaction.description || 'N/A'}
+                        </Typography>
+                        {transaction.notes && (
+                          <Typography variant="body2" color="textSecondary" display="block" sx={{ fontSize: '12px' }}> {/* Increased from caption */}
+                            {transaction.notes}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body1" // Changed from body2
+                          color={transaction.debit_amount > 0 ? "error.main" : "textSecondary"}
+                          fontWeight={transaction.debit_amount > 0 ? "medium" : "normal"}
+                          sx={{ fontSize: '14px' }}
+                        >
+                          {transaction.debit_amount > 0 ? formatCurrency(transaction.debit_amount) : '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body1" // Changed from body2
+                          color={transaction.credit_amount > 0 ? "success.main" : "textSecondary"}
+                          fontWeight={transaction.credit_amount > 0 ? "medium" : "normal"}
+                          sx={{ fontSize: '14px' }}
+                        >
+                          {transaction.credit_amount > 0 ? formatCurrency(transaction.credit_amount) : '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body1" fontWeight="medium" sx={{ fontSize: '14px' }}>
+                          {formatCurrency(transaction.balance)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="body2" // Changed from caption
+                          sx={{
+                            color: getStatusColor(transaction.status),
+                            fontWeight: 'medium',
+                            fontSize: '13px' // Added explicit size
+                          }}
+                        >
+                          {transaction.status}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={9} align="center">
+                      <Typography variant="body1" color="textSecondary" sx={{ fontSize: '16px' }}> {/* Increased from body2 */}
+                        {selectedVendorName
+                          ? 'No transactions found for the selected vendor'
+                          : 'Please select a vendor to view ledger data'
+                        }
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-      {/* Download Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>Choose Download Format</DialogTitle>
-        <DialogContent>
-          <Typography>Select the file format you want to download:</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={generateLedgerPDF}
-            variant="contained"
-            color="primary"
-            startIcon={<PictureAsPdfIcon />}
-          >
-            Download PDF
-          </Button>
-          <Button
-            onClick={generateLedgerCSV}
-            variant="contained"
-            color="secondary"
-            startIcon={<DescriptionIcon />}
-          >
-            Download CSV
-          </Button>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
+          {/* Download Dialog */}
+          <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+            <DialogTitle sx={{ fontSize: '18px' }}>Choose Download Format</DialogTitle> {/* Added font size */}
+            <DialogContent>
+              <Typography sx={{ fontSize: '16px' }}>Select the file format you want to download:</Typography> {/* Added font size */}
+            </DialogContent>
+            <DialogActions>
+              <Button
+                onClick={generateLedgerPDF}
+                variant="contained"
+                color="primary"
+                startIcon={<PictureAsPdfIcon />}
+                size="large" // Added size
+                sx={{ fontSize: '14px' }} // Added font size
+              >
+                Download PDF
+              </Button>
+              <Button
+                onClick={generateLedgerCSV}
+                variant="contained"
+                color="secondary"
+                startIcon={<DescriptionIcon />}
+                size="large" // Added size
+                sx={{ fontSize: '14px' }} // Added font size
+              >
+                Download CSV
+              </Button>
+              <Button onClick={() => setOpenDialog(false)} size="large" sx={{ fontSize: '14px' }}>Cancel</Button>
+            </DialogActions>
+          </Dialog>
+        </Box>
+      </Box>
     </Box>
-    </Box>
-    </Box>
-    
   );
 };
 
