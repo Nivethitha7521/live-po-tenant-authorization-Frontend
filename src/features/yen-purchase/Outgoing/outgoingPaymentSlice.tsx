@@ -48,7 +48,7 @@ export const fetchOutgoings = createAsyncThunk(
       filterByStatus?: boolean | null;
     }) => {
     try {
-      const url = 'http://192.168.1.125:8000/outgoingpayments/';
+      const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
 
       // Prepare query parameters dynamically based on provided arguments
       const params: any = {
@@ -199,7 +199,7 @@ export const processPayment = createAsyncThunk<
         selectedDebitNotes, // Pass the array as-is
       };
 
-      await axios.patch(`http://192.168.1.125:8000/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.response?.data || 'Payment processing failed');
     }
@@ -240,7 +240,7 @@ export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
       
       for (const vendorName of vendorNames) {
         try {
-          const response = await axios.get(`http://192.168.1.125:8000/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
+          const response = await axios.get(`https://yenerp.com/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
           if (response.data.debits) {
             allDebits.push(...response.data.debits);
           }
@@ -269,7 +269,7 @@ export const processBulkPayment = createAsyncThunk<
   async (bulkPaymentRequest, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        'http://192.168.1.125:8000/outgoingpayments/bulkpayment/bulk-payment',
+        'https://yenerp.com/purchaseapi/outgoingpayments/bulkpayment/bulk-payment',
         bulkPaymentRequest
       );
       return response.data;
