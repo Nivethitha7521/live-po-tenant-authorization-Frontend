@@ -93,7 +93,7 @@ interface ItemWithCalculations {
   status?: string;
   pendingTotalPrice?: number;
   totalDiscount?: number;
-  receivedQuantity?: number;
+  receivedQuantity?: number | string;
   befTaxDiscount?: number;
   afTaxDiscount?: number;
   expiryDate?: Date | null;
@@ -169,69 +169,41 @@ const TableRowMemo = React.memo(
       <TableCell>{item.itemName}</TableCell>
       <TableCell>{item.uom}</TableCell>
       <TableCell>{item.pendingTotalQuantity}</TableCell>
-      {/* <TableCell>
-        <TextField
-          type="text"
-          value={item.calculatedPendingCount === 0 || item.calculatedPendingCount === undefined ? '' : item.calculatedPendingCount}
-          disabled
-          sx={{ width: '70px' }}
-        />
-      </TableCell>
-      <TableCell>
-        <TextField
-          type="text"
-          value={item.calculatedPendingQuantity === 0 || item.calculatedPendingQuantity === undefined ? '' : item.calculatedPendingQuantity}
-          disabled
-          sx={{ width: '80px' }}
-        />
-      </TableCell> */}
       <TableCell>{item.poQuantity}</TableCell>
       <TableCell>
         <TextField
           type="number"
-          value={item.receivedQuantity === 0 || item.receivedQuantity === undefined ? item.pendingTotalQuantity : item.receivedQuantity}
-          onChange={(e) => handleQuantityChange(item.itemId, 'receivedQuantity', e.target.value)}
-          onBlur={(e) => handleQuantityBlur(item.itemId, 'receivedQuantity', e.target.value)}
+          value={item.receivedQuantity === undefined || item.receivedQuantity === null ? "" : item.receivedQuantity}
+          onChange={(e) => handleQuantityChange(item.itemId, "receivedQuantity", e.target.value)}
+          onBlur={(e) => handleQuantityBlur(item.itemId, "receivedQuantity", e.target.value)}
+          inputProps={{ step: "0.01" }}
+          sx={{ width: "80px" }}
+          disabled={item.pendingTotalQuantity === 0 || item.status === "Received"}
           error={touched[index]?.receivedQuantity && !!errors[index]?.receivedQuantity}
-          helperText={
-            touched[index]?.receivedQuantity && errors[index]?.receivedQuantity
-              ? errors[index].receivedQuantity
-              : ''
-          }
-          inputProps={{ step: '0.01' }}
-          sx={{ width: '80px' }}
-          disabled={item.pendingTotalQuantity === 0 && item.receivedQuantity === 0}
+          helperText={touched[index]?.receivedQuantity && errors[index]?.receivedQuantity}
         />
       </TableCell>
       <TableCell>{item.newPrice.toFixed(2)}</TableCell>
       <TableCell>
         <TextField
           type="number"
-          value={item.befTaxDiscount === 0 || item.befTaxDiscount === undefined ? '' : item.befTaxDiscount}
-          onChange={(e) => handleDiscountChange(item.itemId, 'befTaxDiscount', e.target.value)}
+          value={item.befTaxDiscount === 0 || item.befTaxDiscount === undefined ? "" : item.befTaxDiscount}
+          onChange={(e) => handleDiscountChange(item.itemId, "befTaxDiscount", e.target.value)}
           error={touched[index]?.befTaxDiscount && !!errors[index]?.befTaxDiscount}
-          helperText={
-            touched[index]?.befTaxDiscount && errors[index]?.befTaxDiscount
-              ? errors[index].befTaxDiscount
-              : ''
-          }
-          inputProps={{ step: '0.01' }}
-          sx={{ width: '80px' }}
+          helperText={touched[index]?.befTaxDiscount && errors[index]?.befTaxDiscount}
+          inputProps={{ step: "0.01" }}
+          sx={{ width: "80px" }}
         />
       </TableCell>
       <TableCell>
         <TextField
           type="number"
-          value={item.afTaxDiscount === 0 || item.afTaxDiscount === undefined ? '' : item.afTaxDiscount}
-          onChange={(e) => handleDiscountChange(item.itemId, 'afTaxDiscount', e.target.value)}
+          value={item.afTaxDiscount === 0 || item.afTaxDiscount === undefined ? "" : item.afTaxDiscount}
+          onChange={(e) => handleDiscountChange(item.itemId, "afTaxDiscount", e.target.value)}
           error={touched[index]?.afTaxDiscount && !!errors[index]?.afTaxDiscount}
-          helperText={
-            touched[index]?.afTaxDiscount && errors[index]?.afTaxDiscount
-              ? errors[index].afTaxDiscount
-              : ''
-          }
-          inputProps={{ step: '0.01' }}
-          sx={{ width: '80px' }}
+          helperText={touched[index]?.afTaxDiscount && errors[index]?.afTaxDiscount}
+          inputProps={{ step: "0.01" }}
+          sx={{ width: "80px" }}
         />
       </TableCell>
       <TableCell>{item.taxPercentage}%</TableCell>
@@ -239,7 +211,7 @@ const TableRowMemo = React.memo(
         <TextField
           label="Expiry Date"
           type="date"
-          value={item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''}
+          value={item.expiryDate ? new Date(item.expiryDate).toISOString().split("T")[0] : ""}
           onChange={(e) =>
             handleExpiryDateChange(
               item.itemId,
@@ -249,7 +221,7 @@ const TableRowMemo = React.memo(
           sx={{ mt: 1 }}
           InputLabelProps={{ shrink: true }}
           inputProps={{
-            min: new Date().toISOString().split('T')[0], // Restrict to current date or earlier
+            min: new Date().toISOString().split("T")[0],
           }}
         />
       </TableCell>
@@ -257,6 +229,7 @@ const TableRowMemo = React.memo(
     </TableRow>
   )
 );
+TableRowMemo.displayName = "TableRowMemo";
 TableRowMemo.displayName = 'TableRowMemo';
 interface OrderDetailsDialogProps {
   open: boolean;
@@ -268,7 +241,7 @@ interface OrderDetailsDialogProps {
   setInvoiceNumber: React.Dispatch<React.SetStateAction<string>>;
   invoiceDate: Date | null;
   setInvoiceDate: React.Dispatch<React.SetStateAction<Date | null>>;
-  grnDate :Date | null;
+  grnDate: Date | null;
   setGrnDate: React.Dispatch<React.SetStateAction<Date | null>>;
   isInvoiceDuplicate: boolean;
   isTouched: boolean;
@@ -359,26 +332,62 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
+const handleQuantityBlur = useCallback(
+  (itemId: string, field: "receivedQuantity", value: string | number) => {
+    const index = updatedItems.findIndex((item) => item.itemId === itemId);
+    const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
+    const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
 
-  const handleQuantityBlur = useCallback(
-    (itemId: string, field: "receivedQuantity", value: string | number) => {
-      const index = updatedItems.findIndex((item) => item.itemId === itemId);
-      let errorMessage = '';
-      if (value !== '' && !/^\d*\.?\d*$/.test(String(value))) {
-        errorMessage = 'Invalid number';
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: errorMessage },
-        }));
-      } else {
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: '' },
-        }));
-      }
-    },
-    [updatedItems, setErrors]
-  );
+    // Allow empty string
+    if (value === "") {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "" },
+      }));
+      return;
+    }
+
+    // Validate non-empty input
+    if (!/^\d*\.?\d*$/.test(String(value))) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "Invalid number" },
+      }));
+      return;
+    }
+
+    const received = Number(value);
+    if (received < 0) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "Received quantity cannot be negative" },
+      }));
+      return;
+    }
+
+    if (originalPendingTotalQuantity === 0) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "Item is already fully received" },
+      }));
+      return;
+    }
+
+    if (received > originalPendingTotalQuantity) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: `Cannot exceed pending quantity of ${originalPendingTotalQuantity}` },
+      }));
+      return;
+    }
+
+    setErrors((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: "" },
+    }));
+  },
+  [updatedItems, selectedOrder]
+);
 
   // Function to open the confirmation dialog
   const handleOpenConfirmDialog = () => {
@@ -461,6 +470,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
             <Box display="flex" gap={2} mt={1} mb={2}>
               <TextField
                 label="Invoice Number"
+                autoComplete="off"
                 value={invoiceNumber}
                 onChange={(e) => {
                   setInvoiceNumber(e.target.value);
@@ -661,45 +671,41 @@ const CreatePurchase: React.FC = () => {
     setErrors({});
     console.log("Dialogs closed, states reset");
   }, []);
-  const calculatedItems = useMemo(() => {
-    if (!selectedOrder || updatedItems.length === 0) return [];
-    return updatedItems.map((item) => {
-      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
-      if (!originalItem) return item;
-
-      const receivedQuantity = Number(item.receivedQuantity) || 0;
-      const poQuantity = originalItem.poQuantity || 0;
-      const pendingTotalQuantity = originalItem.pendingTotalQuantity || poQuantity;
-      const pendingCount = originalItem.pendingCount || 1;
-      const pendingQuantity = originalItem.pendingQuantity || poQuantity;
-      const newPrice = originalItem.newPrice || 0;
-      const taxPercentage = originalItem.taxPercentage || 0;
-      const befTaxDiscount = Number(item.befTaxDiscount) || 0;
-      const afTaxDiscount = Number(item.afTaxDiscount) || 0;
-
-      // Display pendingQuantity as receivedQuantity for UI reference when entered, else backend value
-      const calculatedPendingQuantity = receivedQuantity > 0 ? receivedQuantity : pendingQuantity;
-      const calculatedPendingCount = pendingTotalQuantity > 0 ? pendingCount : 0;
-
-      const totalPrice = receivedQuantity * newPrice; // Use receivedQuantity for total price
-      const discountAmountBeforeTax = totalPrice * (befTaxDiscount / 100);
-      const discountedPriceBeforeTax = totalPrice - discountAmountBeforeTax;
-      const taxAmount = discountedPriceBeforeTax * (taxPercentage / 100);
-      let finalPrice = discountedPriceBeforeTax + taxAmount;
-      const discountAmountAfterTax = finalPrice * (afTaxDiscount / 100);
-      finalPrice = finalPrice - discountAmountAfterTax;
-
-      return {
-        ...item,
-        calculatedPendingCount,
-        calculatedPendingQuantity,
-        calculatedTotalPrice: totalPrice,
-        calculatedTaxAmount: taxAmount,
-        calculatedFinalPrice: finalPrice,
-        status: pendingTotalQuantity === 0 ? "Received" : item.status || "Pending",
-      };
-    });
-  }, [updatedItems, selectedOrder]);
+ const calculatedItems = useMemo(() => {
+  if (!selectedOrder || updatedItems.length === 0) return [];
+  return updatedItems.map((item) => {
+    const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+    if (!originalItem) return item;
+    const receivedQuantity = item.receivedQuantity === "" ? 0 : Number(item.receivedQuantity) || 0;
+    const poQuantity = originalItem.poQuantity || 0;
+    const pendingTotalQuantity = originalItem.pendingTotalQuantity || poQuantity;
+    const pendingCount = originalItem.pendingCount || 1;
+    const pendingQuantity = originalItem.pendingQuantity || poQuantity;
+    const newPrice = originalItem.newPrice || 0;
+    const taxPercentage = originalItem.taxPercentage || 0;
+    const befTaxDiscount = Number(item.befTaxDiscount) || 0;
+    const afTaxDiscount = Number(item.afTaxDiscount) || 0;
+    // Use receivedQuantity for display and calculations
+    const calculatedPendingQuantity = receivedQuantity > 0 ? receivedQuantity : pendingQuantity;
+    const calculatedPendingCount = pendingTotalQuantity > 0 ? pendingCount : 0;
+    const totalPrice = receivedQuantity * newPrice;
+    const discountAmountBeforeTax = totalPrice * (befTaxDiscount / 100);
+    const discountedPriceBeforeTax = totalPrice - discountAmountBeforeTax;
+    const taxAmount = discountedPriceBeforeTax * (taxPercentage / 100);
+    let finalPrice = discountedPriceBeforeTax + taxAmount;
+    const discountAmountAfterTax = finalPrice * (afTaxDiscount / 100);
+    finalPrice = finalPrice - discountAmountAfterTax;
+    return {
+      ...item,
+      calculatedPendingCount,
+      calculatedPendingQuantity,
+      calculatedTotalPrice: totalPrice,
+      calculatedTaxAmount: taxAmount,
+      calculatedFinalPrice: finalPrice,
+      status: pendingTotalQuantity === 0 ? "Received" : item.status || "Pending",
+    };
+  });
+}, [updatedItems, selectedOrder]);
 
   const taxDetails = useMemo(() => {
     const details: Record<string, { amount: number; percentage: number; type: string }> = {};
@@ -762,41 +768,41 @@ const CreatePurchase: React.FC = () => {
       ),
     [calculatedItems]
   );
-  useEffect(() => {
-    if (selectedOrder) {
-      setInvoiceNumber(selectedOrder.invoiceNo || "");
-      setInvoiceDate(selectedOrder.invoiceDate ? new Date(selectedOrder.invoiceDate) : null);
-      setGrnDate(selectedOrder.grnDate ? new Date(selectedOrder.grnDate) : new Date())
-      const initializedItems = selectedOrder.items.map((item) => {
-        const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
-        const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
-        return {
-          ...item,
-          receivedQuantity: pendingTotalQuantity, // Set to pendingTotalQuantity
-          befTaxDiscount: item.befTaxDiscount || 0,
-          afTaxDiscount: item.afTaxDiscount || 0,
-          expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
-        };
-      });
-      setUpdatedItems(initializedItems);
-      const initialTouched = initializedItems.reduce(
-        (acc, _, index) => ({
-          ...acc,
-          [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
-        }),
-        {}
-      );
-      const initialErrors = initializedItems.reduce(
-        (acc, _, index) => ({
-          ...acc,
-          [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
-        }),
-        {}
-      );
-      setTouched(initialTouched);
-      setErrors(initialErrors);
-    }
-  }, [selectedOrder]);
+useEffect(() => {
+  if (selectedOrder) {
+    setInvoiceNumber(selectedOrder.invoiceNo || "");
+    setInvoiceDate(selectedOrder.invoiceDate ? new Date(selectedOrder.invoiceDate) : null);
+    setGrnDate(selectedOrder.grnDate ? new Date(selectedOrder.grnDate) : new Date());
+    const initializedItems = selectedOrder.items.map((item) => {
+      const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
+      const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
+      return {
+        ...item,
+        receivedQuantity: "", // Initialize as empty string
+        befTaxDiscount: item.befTaxDiscount || 0,
+        afTaxDiscount: item.afTaxDiscount || 0,
+        expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
+      };
+    });
+    setUpdatedItems(initializedItems);
+    const initialTouched = initializedItems.reduce(
+      (acc, _, index) => ({
+        ...acc,
+        [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
+      }),
+      {}
+    );
+    const initialErrors = initializedItems.reduce(
+      (acc, _, index) => ({
+        ...acc,
+        [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
+      }),
+      {}
+    );
+    setTouched(initialTouched);
+    setErrors(initialErrors);
+  }
+}, [selectedOrder]);
   useEffect(() => {
     dispatch(fetchBusinesses());
     dispatch(fetchInvoiceNumbers());
@@ -830,79 +836,86 @@ const CreatePurchase: React.FC = () => {
     dispatch(fetchBusinesses());
   }, [dispatch]);
 
-  const handleQuantityChange = useCallback(
-    (itemId: string, field: "receivedQuantity", value: string | number) => {
-      console.log("Quantity Change:", { itemId, field, value });
-      const index = updatedItems.findIndex((item) => item.itemId === itemId);
-      const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
-      const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+ const handleQuantityChange = useCallback(
+  (itemId: string, field: "receivedQuantity", value: string | number) => {
+    console.log("Quantity Change:", { itemId, field, value });
+    const index = updatedItems.findIndex((item) => item.itemId === itemId);
+    const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
+    const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
 
-      setTouched((prev) => ({
-        ...prev,
-        [index]: { ...prev[index], [field]: true },
-      }));
+    setTouched((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: true },
+    }));
 
-      let errorMessage = "";
-      if (value !== "" && !/^\d*\.?\d*$/.test(String(value))) {
-        errorMessage = "Invalid number";
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: errorMessage },
-        }));
-        return;
-      }
-
-      const received = value === "" ? 0 : Number(value);
-
-      if (received < 0) {
-        errorMessage = "Received quantity cannot be negative";
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: errorMessage },
-        }));
-        return;
-      }
-
-      if (originalPendingTotalQuantity === 0) {
-        errorMessage = "Item is already fully received";
-        setExcessDialogMessage(
-          `Item "${updatedItems[index].itemName}" is already fully received (pending total quantity = 0).`
-        );
-        setExcessDialogOpen(true);
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: errorMessage },
-        }));
-        return;
-      }
-
-      if (received > originalPendingTotalQuantity) {
-        errorMessage = `Cannot exceed pending quantity of ${originalPendingTotalQuantity}`;
-        setExcessDialogMessage(
-          `Received quantity for item "${updatedItems[index].itemName}" (${received}) exceeds the pending total quantity (${originalPendingTotalQuantity}).`
-        );
-        setExcessDialogOpen(true);
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: errorMessage },
-        }));
-        return;
-      }
-
+    // Allow empty string
+    if (value === "") {
       setUpdatedItems((prevItems) =>
         prevItems.map((item) =>
-          item.itemId === itemId
-            ? { ...item, receivedQuantity: received }
-            : item
+          item.itemId === itemId ? { ...item, receivedQuantity: "" } : item
         )
       );
       setErrors((prev) => ({
         ...prev,
         [index]: { ...prev[index], [field]: "" },
       }));
-    },
-    [updatedItems, selectedOrder, setExcessDialogMessage, setExcessDialogOpen]
-  );
+      return;
+    }
+
+    // Validate non-empty input
+    if (!/^\d*\.?\d*$/.test(String(value))) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "Invalid number" },
+      }));
+      return;
+    }
+
+    const received = Number(value);
+    if (received < 0) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "Received quantity cannot be negative" },
+      }));
+      return;
+    }
+
+    if (originalPendingTotalQuantity === 0) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "Item is already fully received" },
+      }));
+      setExcessDialogMessage(
+        `Item "${updatedItems[index].itemName}" is already fully received (pending total quantity = 0).`
+      );
+      setExcessDialogOpen(true);
+      return;
+    }
+
+    if (received > originalPendingTotalQuantity) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: `Cannot exceed pending quantity of ${originalPendingTotalQuantity}` },
+      }));
+      setExcessDialogMessage(
+        `Received quantity for item "${updatedItems[index].itemName}" (${received}) exceeds the pending total quantity (${originalPendingTotalQuantity}).`
+      );
+      setExcessDialogOpen(true);
+      return;
+    }
+
+    setUpdatedItems((prevItems) =>
+      prevItems.map((item) =>
+        item.itemId === itemId ? { ...item, receivedQuantity: received } : item
+      )
+    );
+    setErrors((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: "" },
+    }));
+  },
+  [updatedItems, selectedOrder, setExcessDialogMessage, setExcessDialogOpen]
+);
 
   const handleDiscountChange = useCallback(
     (itemId: string, field: "befTaxDiscount" | "afTaxDiscount", value: string) => {
@@ -944,120 +957,119 @@ const CreatePurchase: React.FC = () => {
     },
     []
   );
-  const handleSaveChanges = useCallback(async () => {
-    console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate });
-    if (!selectedOrder?.purchaseOrderId) {
-      setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
-      setSnackbarInvoiceOpen(true);
-      return;
+const handleSaveChanges = useCallback(async () => {
+  console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate });
+  if (!selectedOrder?.purchaseOrderId) {
+    setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+  if (!invoiceNumber) {
+    setSnackbarInvoiceMessage("Invoice number is required.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+  if (!invoiceDate) {
+    setSnackbarInvoiceMessage("Invoice date is required.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+  if (isInvoiceDuplicate) {
+    setSnackbarInvoiceMessage("Duplicate invoice number detected. Please enter a unique invoice number.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  // Filter valid items (non-empty receivedQuantity and within pendingTotalQuantity)
+  const validItems = updatedItems.filter((item) => {
+    const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+    const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+    const receivedQuantity = item.receivedQuantity === "" ? 0 : Number(item.receivedQuantity);
+    return receivedQuantity > 0 && pendingTotalQuantity > 0;
+  });
+
+  if (validItems.length === 0) {
+    setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0 and pending quantity.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  const hasErrors = Object.values(errors).some((errorObj) =>
+    Object.values(errorObj).some((error) => error)
+  );
+  if (hasErrors) {
+    setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  const hasExcessQuantity = validItems.some((item) => {
+    const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
+    const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+    const receivedQuantity = Number(item.receivedQuantity);
+    if (receivedQuantity > backendPendingTotalQuantity) {
+      setExcessDialogMessage(
+        `Received quantity for item "${item.itemName}" (${receivedQuantity}) exceeds the pending total quantity (${backendPendingTotalQuantity}).`
+      );
+      setExcessDialogOpen(true);
+      return true;
     }
+    return false;
+  });
+  if (hasExcessQuantity) return;
 
-    if (!invoiceNumber) {
-      setSnackbarInvoiceMessage("Invoice number is required.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    if (!invoiceDate) {
-      setSnackbarInvoiceMessage("Invoice date is required.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    if (isInvoiceDuplicate) {
-      setSnackbarInvoiceMessage("Duplicate invoice number detected. Please enter a unique invoice number.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    const validItems = updatedItems.filter((item) => {
-      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
-      const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      return Number(item.receivedQuantity) > 0 && pendingTotalQuantity > 0;
-    });
-
-    if (validItems.length === 0) {
-      setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0 and pending quantity.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    const hasErrors = validItems.some((item, index) =>
-      Object.values(errors[index] || {}).some((error) => error)
-    );
-    if (hasErrors) {
-      setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    const hasExcessQuantity = validItems.some((item) => {
-      const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
-      const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      const receivedQuantity = Number(item.receivedQuantity);
-      if (receivedQuantity > backendPendingTotalQuantity) {
-        setExcessDialogMessage(
-          `Received quantity for item "${item.itemName}" (${receivedQuantity}) exceeds the pending total quantity (${backendPendingTotalQuantity}).`
-        );
-        setExcessDialogOpen(true);
-        return true;
-      }
-      return false;
-    });
-
-    if (hasExcessQuantity) return;
-
-    const items = validItems.map((item) => ({
+  const items = updatedItems
+    .filter((item) => item.receivedQuantity !== "" && Number(item.receivedQuantity) > 0)
+    .map((item) => ({
       itemId: item.itemId,
-      receivedQuantity: Number(item.receivedQuantity) || 0,
+      receivedQuantity: Number(item.receivedQuantity),
       befTaxDiscount: Number(item.befTaxDiscount) || 0,
       afTaxDiscount: Number(item.afTaxDiscount) || 0,
       expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
     }));
 
-    try {
-      setIsProcessing(true);
-      const updateResult = await dispatch(
-        updateReceivedDamagedQuantities({
-          purchaseOrderId: selectedOrder.purchaseOrderId,
-          items,
-          invoiceNo: invoiceNumber,
-          invoiceDate: invoiceDate,
-          grnDate: grnDate,
-          discountPrice: totalDiscountAmount,
-        })
-      ).unwrap();
-      console.log("Update Result:", updateResult);
+  try {
+    setIsProcessing(true);
+    const updateResult = await dispatch(
+      updateReceivedDamagedQuantities({
+        purchaseOrderId: selectedOrder.purchaseOrderId,
+        items,
+        invoiceNo: invoiceNumber,
+        invoiceDate: invoiceDate,
+        grnDate: grnDate,
+        discountPrice: totalDiscountAmount,
+      })
+    ).unwrap();
+    console.log("Update Result:", updateResult);
 
-      // Update selectedOrder with new backend state
-      const updatedOrderItems = selectedOrder.items.map((originalItem) => {
-        const updatedItem = items.find((item) => item.itemId === originalItem.itemId);
-        if (updatedItem) {
-          const newPendingTotalQuantity = Math.max(
-            0,
-            (originalItem.pendingTotalQuantity || 0) - updatedItem.receivedQuantity
-          );
-          const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
-          const newPendingQuantity = newPendingTotalQuantity;
+    // Update selectedOrder with new backend state
+    const updatedOrderItems = selectedOrder.items.map((originalItem) => {
+      const updatedItem = items.find((item) => item.itemId === originalItem.itemId);
+      if (updatedItem) {
+        const newPendingTotalQuantity = Math.max(
+          0,
+          (originalItem.pendingTotalQuantity || 0) - updatedItem.receivedQuantity
+        );
+        const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
+        const newPendingQuantity = newPendingTotalQuantity;
+        return {
+          ...originalItem,
+          pendingTotalQuantity: newPendingTotalQuantity,
+          pendingCount: newPendingCount,
+          pendingQuantity: newPendingQuantity,
+          status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
+          receivedQuantity:Number (originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+          befTaxDiscount: updatedItem.befTaxDiscount,
+          afTaxDiscount: updatedItem.afTaxDiscount,
+          expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
+        };
+      }
+      return originalItem;
+    });
 
-          return {
-            ...originalItem,
-            pendingTotalQuantity: newPendingTotalQuantity,
-            pendingCount: newPendingCount,
-            pendingQuantity: newPendingQuantity,
-            status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
-            receivedQuantity: (originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
-            befTaxDiscount: updatedItem.befTaxDiscount,
-            afTaxDiscount: updatedItem.afTaxDiscount,
-            expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
-          };
-        }
-        return originalItem;
-      });
-
-      setSelectedOrder((prev) =>
-        prev
-          ? {
+    setSelectedOrder((prev) =>
+      prev
+        ? {
             ...prev,
             items: updatedOrderItems,
             pendingOrderAmount: updatedOrderItems.reduce(
@@ -1068,23 +1080,71 @@ const CreatePurchase: React.FC = () => {
               0
             ),
           }
-          : null
-      );
+        : null
+    );
 
-      // Keep all items in updatedItems for UI display, reset receivedQuantity
+    // Reset updatedItems for next session
+    setUpdatedItems(
+      updatedOrderItems.map((item) => ({
+        ...item,
+        receivedQuantity: "", // Reset to empty string
+        befTaxDiscount: item.befTaxDiscount || 0,
+        afTaxDiscount: item.afTaxDiscount || 0,
+        expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime()) ? new Date(item.expiryDate) : null,
+      }))
+    );
+
+    // Reset touched and errors
+    setTouched(
+      updatedOrderItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
+        }),
+        {}
+      )
+    );
+    setErrors(
+      updatedOrderItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
+        }),
+        {}
+      )
+    );
+
+    await dispatch(
+      fetchPurchaseOrders({
+        page: currentPage,
+        size: pageSize,
+        dateField: "approvedDate",
+        fromDate: moment().utc().startOf("day").toDate(),
+        toDate: moment().utc().endOf("day").toDate(),
+        status: "Approved",
+      })
+    ).unwrap();
+
+    setSnackbarInvoiceMessage("Changes saved successfully!");
+    setSnackbarInvoiceOpen(true);
+    handleCloseDialogs();
+  } catch (error) {
+    console.error("Save Error:", error);
+    setSnackbarInvoiceMessage("Failed to save changes. Reverting UI to match backend state.");
+    setSnackbarInvoiceOpen(true);
+    // Revert updatedItems to original selectedOrder.items state
+    if (selectedOrder) {
       setUpdatedItems(
-        updatedOrderItems.map((item) => ({
+        selectedOrder.items.map((item) => ({
           ...item,
-          receivedQuantity: 0, // Reset for next session
+          receivedQuantity: "", // Reset to empty string
           befTaxDiscount: item.befTaxDiscount || 0,
           afTaxDiscount: item.afTaxDiscount || 0,
           expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime()) ? new Date(item.expiryDate) : null,
         }))
       );
-
-      // Update touched and errors for all items
       setTouched(
-        updatedOrderItems.reduce(
+        selectedOrder.items.reduce(
           (acc, _, index) => ({
             ...acc,
             [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
@@ -1093,7 +1153,7 @@ const CreatePurchase: React.FC = () => {
         )
       );
       setErrors(
-        updatedOrderItems.reduce(
+        selectedOrder.items.reduce(
           (acc, _, index) => ({
             ...acc,
             [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
@@ -1101,75 +1161,24 @@ const CreatePurchase: React.FC = () => {
           {}
         )
       );
-
-      await dispatch(
-        fetchPurchaseOrders({
-          page: currentPage,
-          size: pageSize,
-          dateField: "approvedDate",
-          fromDate: moment().utc().startOf("day").toDate(),
-          toDate: moment().utc().endOf("day").toDate(),
-          status: "Approved",
-        })
-      ).unwrap();
-
-      setSnackbarInvoiceMessage("Changes saved successfully!");
-      setSnackbarInvoiceOpen(true);
-
-      handleCloseDialogs();
-
-    } catch (error) {
-      console.error("Save Error:", error);
-      setSnackbarInvoiceMessage("Failed to save changes. Reverting UI to match backend state.");
-      setSnackbarInvoiceOpen(true);
-
-      // Revert updatedItems to original selectedOrder.items state
-      if (selectedOrder) {
-        setUpdatedItems(
-          selectedOrder.items.map((item) => ({
-            ...item,
-            receivedQuantity: 0,
-            befTaxDiscount: item.befTaxDiscount || 0,
-            afTaxDiscount: item.afTaxDiscount || 0,
-            expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime()) ? new Date(item.expiryDate) : null,
-          }))
-        );
-
-        setTouched(
-          selectedOrder.items.reduce(
-            (acc, _, index) => ({
-              ...acc,
-              [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
-            }),
-            {}
-          )
-        );
-        setErrors(
-          selectedOrder.items.reduce(
-            (acc, _, index) => ({
-              ...acc,
-              [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
-            }),
-            {}
-          )
-        );
-      }
-    } finally {
-      setIsProcessing(false);
     }
-  }, [
-    selectedOrder,
-    invoiceNumber,
-    isInvoiceDuplicate,
-    updatedItems,
-    invoiceDate,
-    totalDiscountAmount,
-    errors,
-    dispatch,
-    currentPage,
-    pageSize,
-    handleCloseDialogs,
-  ]);
+  } finally {
+    setIsProcessing(false);
+  }
+}, [
+  selectedOrder,
+  invoiceNumber,
+  isInvoiceDuplicate,
+  updatedItems,
+  invoiceDate,
+  grnDate,
+  totalDiscountAmount,
+  errors,
+  dispatch,
+  currentPage,
+  pageSize,
+  handleCloseDialogs,
+]);
   const filteredOrders = useMemo(() => purchaseList.filter((order) => order.poStatus === "Approved"), [purchaseList]);
   const handleViewDetailsClick = (orderId: string) => {
     const selectedOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
@@ -2113,14 +2122,15 @@ const CreatePurchase: React.FC = () => {
       status: "Approved",
     }));
   }, [dispatch, pageSize]);
-  const isReceivedQuantityValid = useCallback(
-    () => updatedItems.some((item) => {
-      const originalItem = selectedOrder?.items.find((orig) => orig.itemId === item.itemId);
-      const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      return Number(item.receivedQuantity) > 0 && pendingTotalQuantity > 0;
-    }),
-    [updatedItems, selectedOrder]
-  );
+const isReceivedQuantityValid = useCallback(
+  () => updatedItems.some((item) => {
+    const originalItem = selectedOrder?.items.find((orig) => orig.itemId === item.itemId);
+    const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+    const receivedQuantity = item.receivedQuantity === "" ? 0 : Number(item.receivedQuantity);
+    return receivedQuantity > 0 && pendingTotalQuantity > 0;
+  }),
+  [updatedItems, selectedOrder]
+);
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -2162,7 +2172,7 @@ const CreatePurchase: React.FC = () => {
                 options={allItems}
                 getOptionLabel={(option: PurchaseItemSearch) => option.itemName || ""}
                 isOptionEqualToValue={(option: PurchaseItemSearch, value: PurchaseItemSearch | null) =>
-                  option.purchaseitemId === value?.purchaseitemId 
+                  option.purchaseitemId === value?.purchaseitemId
                 }
                 value={newItem}
                 onInputChange={(event, newInputValue) => {

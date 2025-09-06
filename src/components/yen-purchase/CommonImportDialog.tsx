@@ -41,13 +41,13 @@ const moduleConfig: Record<
   },
   itemType: {
     entityName: 'Item Type',
-    idField: 'Item Type ID',
+    idField: 'randomId',
     nameField: 'itemtypeName',
     nameLabel: 'Item Type Name',
   },
   itemGroup: {
     entityName: 'Item Group',
-    idField: 'Item Group ID',
+    idField: 'randomId',
     nameField: 'itemgroupName',
     nameLabel: 'Item Group Name',
   },

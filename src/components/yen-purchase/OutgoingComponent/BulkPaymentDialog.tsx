@@ -1,34 +1,17 @@
+"use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  MenuItem,
-  Typography,
-  Box,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  CircularProgress,
-  Select,
-  FormControl,
-  InputLabel,
-  Chip,
-  Alert,
-  Checkbox,
-  ListItemText
+  Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem,
+  Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Paper, CircularProgress, Select, FormControl, InputLabel, Chip, Alert, Checkbox,
+  ListItemText, Snackbar,
 } from '@mui/material';
 import { Outgoing, PaymentInfo } from '@/Models/outgoingModel';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch } from '@/redux/store';
-import { fetchActiveDebitsMultipleVendor, processBulkPayment, selectOutgoings } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
+import {
+  fetchActiveDebitsMultipleVendor, processBulkPayment, selectOutgoings, fetchOutgoings,
+} from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import type { SelectChangeEvent } from '@mui/material/Select';
 
 interface PaymentDialogProps {
@@ -46,57 +29,63 @@ interface DebitNote {
   totalAmount: number;
 }
 
+interface PaymentDetailsState {
+  paymentMode: 'Bank' | 'Cash' | '';
+  paymentMethod: string;
+  bankName: string;
+  pettyCashAmount: number;
+  hoCash: number;
+}
+
 const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
-  open,
-  onClose,
-  selectedOutgoings
+  open, onClose, selectedOutgoings
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { banks, debits, loading, error } = useSelector(selectOutgoings);
-  
-  const [paymentDetails, setPaymentDetails] = useState({
-    paymentMode: '' as 'Bank' | 'Cash' | '',
+
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetailsState>({
+    paymentMode: '',
     paymentMethod: '',
     bankName: '',
-    neftNo: '',
-    rtgsNo: '',
-    impsNo: '',
-    upi: '',
     pettyCashAmount: 0,
     hoCash: 0,
-    cashVoucherNo: ''
   });
-
   const [paymentTypeMultiple, setPaymentTypeMultiple] = useState<Record<string, 'full' | 'partial'>>({});
   const [partialAmount, setPartialAmount] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedDebitNotes, setSelectedDebitNotes] = useState<Record<string, string[]>>({});
   const [isLoadingDebits, setIsLoadingDebits] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showPaymentModeDialog, setShowPaymentModeDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Fetch debit notes when dialog opens
   useEffect(() => {
     if (open && selectedOutgoings.length > 0) {
-      console.log('Fetching debit notes for vendors...');
       setIsLoadingDebits(true);
-      // Get unique vendor names from selected outgoings
-      const vendorNames = [...new Set(selectedOutgoings.map(outgoing => outgoing.vendorName || 'Unknown Vendor'))].filter(
-        name => name && name !== 'Unknown Vendor'
-      );
-      console.log('Vendor names:', vendorNames);
+      setErrors((prev) => ({ ...prev, _general: '' }));
+
+      const vendorNames = [
+        ...new Set(
+          selectedOutgoings.map((outgoing) => outgoing.vendorName || 'Unknown Vendor')
+        ),
+      ].filter((name) => name && name !== 'Unknown Vendor');
+
       if (vendorNames.length > 0) {
         dispatch(fetchActiveDebitsMultipleVendor(vendorNames))
           .unwrap()
-          .then(debits => {
-            console.log(`Fetched ${debits.length} debits for all vendors`);
+          .then(() => {
+            console.log(`Fetched debits for all vendors`);
           })
-          .catch(error => {
+          .catch((error) => {
             console.error('Error fetching debits:', error);
+            setErrors((prev) => ({ ...prev, _general: 'Failed to load debit notes' }));
           })
           .finally(() => {
             setIsLoadingDebits(false);
           });
       } else {
         setIsLoadingDebits(false);
+        setErrors((prev) => ({ ...prev, _general: 'No vendors selected' }));
       }
     }
   }, [open, selectedOutgoings, dispatch]);
@@ -113,7 +102,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     }, {} as Record<string, Outgoing[]>);
   }, [selectedOutgoings]);
 
-  // Calculate totals
+  // Calculate total overall amount
   const totalOverallAmount = useMemo(() => {
     return selectedOutgoings.reduce(
       (total, outgoing) => total + (outgoing.totalPayableAmount || 0),
@@ -124,10 +113,9 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
   // Get vendor-specific debit notes
   const getVendorDebitNotes = (vendorName: string) => {
     return debits.filter(
-      (debit) =>
-        debit.vendorName === vendorName &&
-        debit.status !== 'Cleared' &&
-        debit.status !== 'Applied'
+      (debit) => debit.vendorName === vendorName &&
+                debit.status !== 'Cleared' &&
+                debit.status !== 'Applied'
     );
   };
 
@@ -135,7 +123,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
   const calculateVendorDebitAmount = (vendorName: string) => {
     const debitNotes = selectedDebitNotes[vendorName] || [];
     return debitNotes.reduce((sum, debitId) => {
-      const debit = debits.find(d => d.randomId === debitId);
+      const debit = debits.find((d) => d.randomId === debitId);
       return sum + (debit ? debit.finalAmount : 0);
     }, 0);
   };
@@ -150,11 +138,15 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
   };
 
   // Validate amount for individual outgoing
-  const validateAmount = (outgoingId: string, amount: string, maxAllowed: number): string => {
+  const validateAmount = (
+    outgoingId: string,
+    amount: string,
+    maxAllowed: number
+  ): string => {
     if (!amount && paymentTypeMultiple[outgoingId] === 'partial') {
       return 'Please enter an amount';
     }
-    
+
     const numAmount = parseFloat(amount || '0');
     if (isNaN(numAmount)) return 'Invalid amount format';
     if (numAmount < 0) return 'Amount cannot be negative';
@@ -163,104 +155,128 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     return '';
   };
 
-  const handlePaymentModeChange = (event: SelectChangeEvent<'Bank' | 'Cash'>) => {
-    const value = event.target.value as 'Bank' | 'Cash';
-    setPaymentDetails(prev => ({
-      ...prev,
-      paymentMode: value,
-      paymentMethod: value === 'Bank' ? 'neft' : 'pettyCash'
-    }));
-  };
-
-  const handleBankNameChange = (event: SelectChangeEvent<string>) => {
-    setPaymentDetails(prev => ({ ...prev, bankName: event.target.value }));
-  };
-
-  const handlePaymentMethodChange = (event: SelectChangeEvent<string>) => {
-    setPaymentDetails(prev => ({ ...prev, paymentMethod: event.target.value }));
-  };
-
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = event.target;
-    setPaymentDetails(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handlePaymentTypeChangeMultiple = (outgoingId: string, event: SelectChangeEvent<'full' | 'partial'>) => {
+  // Handle payment type change for individual outgoing
+  const handlePaymentTypeChangeMultiple = (
+    outgoingId: string,
+    event: SelectChangeEvent<'full' | 'partial'>
+  ) => {
     const value = event.target.value as 'full' | 'partial';
-    setPaymentTypeMultiple(prev => ({ ...prev, [outgoingId]: value }));
-    
+    setPaymentTypeMultiple((prev) => ({ ...prev, [outgoingId]: value }));
+
     if (value === 'full') {
-      setPartialAmount(prev => ({ ...prev, [outgoingId]: '' }));
-      setErrors(prev => ({ ...prev, [outgoingId]: '' }));
+      setPartialAmount((prev) => ({ ...prev, [outgoingId]: '' }));
+      setErrors((prev) => ({ ...prev, [outgoingId]: '' }));
     }
   };
 
-  const handlePartialAmountChange = (outgoingId: string, value: string, maxAmount: number) => {
+  // Handle payment mode change
+  const handlePaymentModeChange = (event: SelectChangeEvent<'Bank' | 'Cash'>) => {
+    const value = event.target.value as 'Bank' | 'Cash';
+    setPaymentDetails((prev) => ({
+      ...prev,
+      paymentMode: value,
+      paymentMethod: value === 'Bank' ? 'neft' : 'pettyCash',
+      bankName: value === 'Bank' ? prev.bankName : '',
+      pettyCashAmount: 0,
+      hoCash: 0,
+    }));
+    setErrors((prev) => ({ ...prev, _paymentMode: '' }));
+  };
+
+  // Handle bank name change
+  const handleBankNameChange = (event: SelectChangeEvent) => {
+    setPaymentDetails((prev) => ({ ...prev, bankName: event.target.value }));
+    setErrors((prev) => ({ ...prev, _paymentMode: '' }));
+  };
+
+  // Handle payment method change
+  const handlePaymentMethodChange = (event: SelectChangeEvent) => {
+    setPaymentDetails((prev) => ({ ...prev, paymentMethod: event.target.value }));
+    setErrors((prev) => ({ ...prev, _paymentMode: '' }));
+  };
+
+  // Handle partial amount change
+  const handlePartialAmountChange = (
+    outgoingId: string,
+    value: string,
+    maxAmount: number
+  ) => {
     if (value === '') {
-      setPartialAmount(prev => ({ ...prev, [outgoingId]: '' }));
-      setErrors(prev => ({ ...prev, [outgoingId]: '' }));
+      setPartialAmount((prev) => ({ ...prev, [outgoingId]: '' }));
+      setErrors((prev) => ({ ...prev, [outgoingId]: '' }));
       return;
     }
 
     const validationError = validateAmount(outgoingId, value, maxAmount);
-    setErrors(prev => ({ ...prev, [outgoingId]: validationError }));
-    setPartialAmount(prev => ({ ...prev, [outgoingId]: value }));
+    setErrors((prev) => ({ ...prev, [outgoingId]: validationError }));
+    setPartialAmount((prev) => ({ ...prev, [outgoingId]: value }));
   };
 
-  const handleDebitNoteSelection = (vendorName: string, event: SelectChangeEvent<string[]>) => {
+  // Handle debit note selection
+  const handleDebitNoteSelection = (
+    vendorName: string,
+    event: SelectChangeEvent<string[]>
+  ) => {
     const selectedDebitIds = event.target.value as string[];
-    
-    // Validate that selected debit notes belong to the correct vendor
-    const validDebitIds = selectedDebitIds.filter(debitId => {
-      const debit = debits.find(d => d.randomId === debitId);
+    const validDebitIds = selectedDebitIds.filter((debitId) => {
+      const debit = debits.find((d) => d.randomId === debitId);
       return debit && debit.vendorName === vendorName;
     });
 
-    setSelectedDebitNotes(prev => ({
+    setSelectedDebitNotes((prev) => ({
       ...prev,
-      [vendorName]: validDebitIds
+      [vendorName]: validDebitIds,
     }));
 
-    // Revalidate all amounts for this vendor after debit note selection
+    // Revalidate amounts after debit note selection
     const vendorOutgoings = groupedOutgoings[vendorName] || [];
-    vendorOutgoings.forEach(outgoing => {
+    vendorOutgoings.forEach((outgoing) => {
       const outgoingId = outgoing.outgoingId as string;
       const currentAmount = partialAmount[outgoingId] || '';
+
       if (currentAmount) {
-        const validationError = validateAmount(outgoingId, currentAmount, outgoing.totalPayableAmount || 0);
-        setErrors(prev => ({ ...prev, [outgoingId]: validationError }));
+        const validationError = validateAmount(
+          outgoingId,
+          currentAmount,
+          outgoing.totalPayableAmount || 0
+        );
+        setErrors((prev) => ({ ...prev, [outgoingId]: validationError }));
       }
     });
   };
 
+  // Validate the main form
   const validateForm = (): boolean => {
     let isValid = true;
     const newErrors: Record<string, string> = {};
 
-    if (!paymentDetails.paymentMode) {
-      newErrors._general = 'Payment mode is required';
+    if (Object.keys(groupedOutgoings).length === 0) {
+      newErrors._general = 'No vendors selected';
       isValid = false;
     }
 
-    // Validate vendor-level debit notes
-    Object.keys(groupedOutgoings).forEach(vendorName => {
+    Object.keys(groupedOutgoings).forEach((vendorName) => {
       const vendorDebitAmount = calculateVendorDebitAmount(vendorName);
       const vendorPayableAmount = calculateVendorPayableAmount(vendorName);
-      
+
       if (vendorDebitAmount > vendorPayableAmount) {
         newErrors[vendorName] = `Debit notes exceed vendor's total payable amount`;
         isValid = false;
       }
     });
 
-    // Validate each outgoing
     for (const outgoing of selectedOutgoings) {
       const outgoingId = outgoing.outgoingId as string;
       const paymentType = paymentTypeMultiple[outgoingId] || 'full';
-      
+
       if (paymentType === 'partial') {
         const amount = partialAmount[outgoingId] || '';
-        const validationError = validateAmount(outgoingId, amount, outgoing.totalPayableAmount || 0);
+        const validationError = validateAmount(
+          outgoingId,
+          amount,
+          outgoing.totalPayableAmount || 0
+        );
+
         if (validationError) {
           newErrors[outgoingId] = validationError;
           isValid = false;
@@ -268,312 +284,233 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       }
     }
 
-    setErrors(newErrors);
+    setErrors((prev) => ({ ...prev, ...newErrors }));
     return isValid;
   };
 
-  const handleProcessPayment = () => {
-    if (!validateForm()) return;
-    setShowConfirmation(true);
+  // Validate payment mode dialog inputs
+  const validatePaymentMode = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!paymentDetails.paymentMode) {
+      newErrors._paymentMode = 'Payment mode is required';
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return false;
+    }
+
+    if (paymentDetails.paymentMode === 'Bank' && !paymentDetails.bankName) {
+      newErrors._paymentMode = 'Please select a bank';
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return false;
+    }
+
+    setErrors((prev) => ({ ...prev, _paymentMode: '' }));
+    return true;
   };
 
-  const handleConfirmYes = async () => {
-    setShowConfirmation(false);
+  // Handle opening the payment mode dialog
+  const handleProcessPayment = () => {
+    if (!validateForm()) return;
+    setShowPaymentModeDialog(true);
+  };
+
+  // Handle final payment confirmation
+  const handleConfirmPayment = async () => {
+    if (!validatePaymentMode()) return;
+
     try {
       const payments: PaymentInfo[] = selectedOutgoings.map((outgoing) => {
         const outgoingId = outgoing.outgoingId as string;
         const vendorName = outgoing.vendorName || 'Unknown Vendor';
         const paymentType = paymentTypeMultiple[outgoingId] || 'full';
         const vendorSelectedDebitNotes = selectedDebitNotes[vendorName] || [];
-        
+
         const amount = paymentType === 'partial'
           ? parseFloat(partialAmount[outgoingId] || '0')
-          : (outgoing.totalPayableAmount || 0);
+          : outgoing.totalPayableAmount || 0;
 
         return {
+          outgoingId,
           paymentMode: paymentDetails.paymentMode as 'Bank' | 'Cash',
           paymentType,
           fullPaymentAmount: paymentType === 'full' ? amount : 0,
           partialAmount: paymentType === 'partial' ? amount : 0,
           paymentMethod: paymentDetails.paymentMethod,
-          neftNo: paymentDetails.neftNo,
-          rtgsNo: paymentDetails.rtgsNo,
-          impsNo: paymentDetails.impsNo,
-          upi: paymentDetails.upi,
-          pettyCashAmount: paymentDetails.pettyCashAmount,
-          hoCash: paymentDetails.hoCash,
+          pettyCashAmount: paymentDetails.paymentMode === 'Cash' &&
+                           paymentDetails.paymentMethod === 'pettyCash' ? amount : 0,
+          hoCash: paymentDetails.paymentMode === 'Cash' &&
+                  paymentDetails.paymentMethod === 'hoCash' ? amount : 0,
           bankName: paymentDetails.bankName,
-          selectedDebitNotes: vendorSelectedDebitNotes // Send the selected debit note IDs
+          selectedDebitNotes: vendorSelectedDebitNotes,
         };
       });
 
-      const outgoingIds = selectedOutgoings.map(outgoing => outgoing.outgoingId as string);
+      const outgoingIds = selectedOutgoings.map(
+        (outgoing) => outgoing.outgoingId as string
+      );
 
+      // Process the bulk payment
       await dispatch(processBulkPayment({ payments, outgoingIds })).unwrap();
-      
-      // Reset form and close dialog on success
+
+      // Immediately fetch updated outgoings data
+      await dispatch(fetchOutgoings({
+        page: 1, // Start from page 1
+        size: 50, // Fetch 50 records
+        filterByAmount: true,
+        filterBy: 'invoiceDate',
+      })).unwrap();
+
+      // Show success notification
+      setSuccessMessage('Payment processed and data updated successfully');
+
+      // Reset state
       setPaymentDetails({
         paymentMode: '',
         paymentMethod: '',
         bankName: '',
-        neftNo: '',
-        rtgsNo: '',
-        impsNo: '',
-        upi: '',
         pettyCashAmount: 0,
         hoCash: 0,
-        cashVoucherNo: ''
       });
       setPaymentTypeMultiple({});
       setPartialAmount({});
       setSelectedDebitNotes({});
       setErrors({});
-      
+      setShowPaymentModeDialog(false);
       onClose();
-      
     } catch (error) {
       console.error('Payment processing failed:', error);
+      setErrors((prev) => ({
+        ...prev,
+        _general: 'Failed to process payment. Please try again.'
+      }));
     }
   };
 
+  // Handle closing the dialog
   const handleClose = () => {
-    // Reset all states when closing
     setPaymentDetails({
       paymentMode: '',
       paymentMethod: '',
       bankName: '',
-      neftNo: '',
-      rtgsNo: '',
-      impsNo: '',
-      upi: '',
       pettyCashAmount: 0,
       hoCash: 0,
-      cashVoucherNo: ''
     });
     setPaymentTypeMultiple({});
     setPartialAmount({});
     setSelectedDebitNotes({});
     setErrors({});
+    setShowPaymentModeDialog(false);
+    setSuccessMessage(null);
     onClose();
   };
 
   return (
     <>
-      <Dialog 
-        open={open} 
-        onClose={handleClose}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{ sx: { maxHeight: '90vh' } }}
+      {/* Success Notification */}
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={6000}
+        onClose={() => setSuccessMessage(null)}
       >
-        <DialogTitle>
-          Bulk Payment Processing
-          <Typography variant="h6" color="primary" sx={{ mt: 1 }}>
-            Total Amount: ₹{totalOverallAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </Typography>
-        </DialogTitle>
+        <Alert
+          onClose={() => setSuccessMessage(null)}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          {successMessage}
+        </Alert>
+      </Snackbar>
 
-        <DialogContent dividers>
+      {/* Main Bulk Payment Dialog */}
+      <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
+        <DialogTitle>Bulk Payment Processing</DialogTitle>
+        <DialogContent>
+          <Typography variant="h6" gutterBottom>
+            Total Amount: ₹{totalOverallAmount.toLocaleString('en-IN', {
+              minimumFractionDigits: 2
+            })}
+          </Typography>
+
           {errors._general && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {errors._general}
             </Alert>
           )}
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              Error loading debit notes: {error}
-            </Alert>
-          )}
+
           {(isLoadingDebits || loading) && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 2 }}>
-              <CircularProgress size={24} />
-              <Typography variant="body2" sx={{ ml: 2 }}>
-                Loading debit notes...
-              </Typography>
+            <Box display="flex" alignItems="center" gap={1} mb={2}>
+              <CircularProgress size={20} />
+              <Typography>Loading debit notes...</Typography>
             </Box>
           )}
-
-          {/* Payment Details Section */}
-          <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-            <Typography variant="h6" gutterBottom>
-              Payment Details
-            </Typography>
-            
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <FormControl sx={{ minWidth: 120 }}>
-                <InputLabel>Payment Mode</InputLabel>
-                <Select
-                  value={paymentDetails.paymentMode}
-                  onChange={handlePaymentModeChange}
-                  label="Payment Mode"
-                >
-                  <MenuItem value="Cash">Cash</MenuItem>
-                  <MenuItem value="Bank">Bank</MenuItem>
-                </Select>
-              </FormControl>
-
-              {paymentDetails.paymentMode === 'Bank' && (
-                <>
-                  <FormControl sx={{ minWidth: 120 }}>
-                    <InputLabel>Bank</InputLabel>
-                    <Select
-                      name="bankName"
-                      value={paymentDetails.bankName}
-                      onChange={handleBankNameChange}
-                      label="Bank"
-                    >
-                      {banks.map((bank) => (
-                        <MenuItem key={bank.bankMasterId} value={bank.bankName}>
-                          {bank.bankName}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-
-                  <FormControl sx={{ minWidth: 120 }}>
-                    <InputLabel>Method</InputLabel>
-                    <Select
-                      name="paymentMethod"
-                      value={paymentDetails.paymentMethod}
-                      onChange={handlePaymentMethodChange}
-                      label="Method"
-                    >
-                      <MenuItem value="neft">NEFT</MenuItem>
-                      <MenuItem value="rtgs">RTGS</MenuItem>
-                      <MenuItem value="imps">IMPS</MenuItem>
-                      <MenuItem value="upi">UPI</MenuItem>
-                    </Select>
-                  </FormControl>
-
-                  {paymentDetails.paymentMethod === 'neft' && (
-                    <TextField
-                      name="neftNo"
-                      label="NEFT Number"
-                      value={paymentDetails.neftNo}
-                      onChange={handleInputChange}
-                      sx={{ minWidth: 200 }}
-                    />
-                  )}
-                  {paymentDetails.paymentMethod === 'rtgs' && (
-                    <TextField
-                      name="rtgsNo"
-                      label="RTGS Number"
-                      value={paymentDetails.rtgsNo}
-                      onChange={handleInputChange}
-                      sx={{ minWidth: 200 }}
-                    />
-                  )}
-                  {paymentDetails.paymentMethod === 'imps' && (
-                    <TextField
-                      name="impsNo"
-                      label="IMPS Number"
-                      value={paymentDetails.impsNo}
-                      onChange={handleInputChange}
-                      sx={{ minWidth: 200 }}
-                    />
-                  )}
-                  {paymentDetails.paymentMethod === 'upi' && (
-                    <TextField
-                      name="upi"
-                      label="UPI ID"
-                      value={paymentDetails.upi}
-                      onChange={handleInputChange}
-                      sx={{ minWidth: 200 }}
-                    />
-                  )}
-                </>
-              )}
-
-              {paymentDetails.paymentMode === 'Cash' && (
-                <FormControl sx={{ minWidth: 120 }}>
-                  <InputLabel>Method</InputLabel>
-                  <Select
-                    name="paymentMethod"
-                    value={paymentDetails.paymentMethod}
-                    onChange={handlePaymentMethodChange}
-                    label="Method"
-                  >
-                    <MenuItem value="pettyCash">Petty Cash</MenuItem>
-                    <MenuItem value="hoCash">HO Cash</MenuItem>
-                  </Select>
-                </FormControl>
-              )}
-            </Box>
-          </Box>
 
           {/* Vendor Sections */}
           {Object.entries(groupedOutgoings).map(([vendorName, vendorOutgoings]) => {
             const vendorDebitNotes = getVendorDebitNotes(vendorName);
             const vendorTotal = calculateVendorPayableAmount(vendorName);
+            const vendorDebitAmount = calculateVendorDebitAmount(vendorName);
+
             return (
-              <Box key={vendorName} sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom color="primary">
+              <Paper key={vendorName} sx={{ p: 2, mb: 2 }}>
+                <Typography variant="h6" gutterBottom>
                   {vendorName}
-                  <Chip
-                    label={`Total: ₹${vendorTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-                    color="primary"
-                    sx={{
-                      ml: 2,
-                      color: 'white',
-                      fontWeight: 'bold',
-                      borderRadius: '16px',
-                      '& .MuiChip-label': { color: 'white' }
-                    }}
-                  />
                 </Typography>
+
+                {vendorDebitAmount > 0 && (
+                  <Chip
+                    label={`Debit Applied: ₹${vendorDebitAmount.toLocaleString('en-IN')}`}
+                    color="primary"
+                    sx={{ mb: 2 }}
+                  />
+                )}
+
                 {errors[vendorName] && (
                   <Alert severity="error" sx={{ mb: 2 }}>
                     {errors[vendorName]}
                   </Alert>
                 )}
-                {vendorDebitNotes.length > 0 ? (
-                  <Box sx={{ mb: 2, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Available Debit Notes for {vendorName}:
-                    </Typography>
-                    <FormControl fullWidth>
-                      <InputLabel>Select Debit Notes</InputLabel>
-                      <Select
-                        multiple
-                        value={selectedDebitNotes[vendorName] || []}
-                        onChange={(e) => handleDebitNoteSelection(vendorName, e as SelectChangeEvent<string[]>)}
-                        renderValue={(selected) => (
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {selected.map((value) => {
-                              const debit = vendorDebitNotes.find(d => d.randomId === value);
-                              return debit ? (
-                                <Chip
-                                  key={value}
-                                  label={`${debit.noteId} - ₹${debit.finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-                                  size="small"
-                                />
-                              ) : null;
-                            })}
-                          </Box>
-                        )}
-                      >
-                        {vendorDebitNotes.map((debit) => (
-                          <MenuItem key={debit.randomId} value={debit.randomId}>
-                            <Checkbox
-                              checked={(selectedDebitNotes[vendorName] || []).includes(debit.randomId)}
-                            />
-                            <ListItemText
-                              primary={`${debit.noteId} - ₹${debit.finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-                              secondary={`Status: ${debit.status}`}
-                            />
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Box>
-                ) : (
-                  !isLoadingDebits && (
-                    <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-                      No active debit notes available for {vendorName}
-                    </Typography>
-                  )
+
+                {vendorDebitNotes.length > 0 && (
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel>Available Debit Notes for {vendorName}</InputLabel>
+                    <Select
+                      multiple
+                      value={selectedDebitNotes[vendorName] || []}
+                      label={`Available Debit Notes for ${vendorName}`}
+                      onChange={(e) =>
+                        handleDebitNoteSelection(vendorName, e as SelectChangeEvent<string[]>)
+                      }
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selected.map((value) => {
+                            const debit = vendorDebitNotes.find((d) => d.randomId === value);
+                            return debit ? (
+                              <Chip
+                                key={value}
+                                label={`${debit.noteId} (₹${debit.finalAmount})`}
+                                size="small"
+                              />
+                            ) : null;
+                          })}
+                        </Box>
+                      )}
+                    >
+                      {vendorDebitNotes.map((debit) => (
+                        <MenuItem key={debit.randomId} value={debit.randomId}>
+                          <Checkbox
+                            checked={(selectedDebitNotes[vendorName] || []).includes(debit.randomId)}
+                          />
+                          <ListItemText
+                            primary={`${debit.noteId} - ₹${debit.finalAmount.toLocaleString('en-IN')}`}
+                            secondary={`Status: ${debit.status}`}
+                          />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 )}
-                <TableContainer component={Paper}>
+
+                <TableContainer>
                   <Table>
                     <TableHead>
                       <TableRow>
@@ -590,49 +527,66 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                         const paymentType = paymentTypeMultiple[outgoingId] || 'full';
                         const payableAmount = outgoing.totalPayableAmount || 0;
                         const currentError = errors[outgoingId] || '';
+
                         return (
                           <TableRow key={outgoingId}>
                             <TableCell>{outgoing.invoiceNo}</TableCell>
                             <TableCell>
-                              ₹{payableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              ₹{payableAmount.toLocaleString('en-IN', {
+                                minimumFractionDigits: 2
+                              })}
                             </TableCell>
                             <TableCell>
-                              <Select
-                                value={paymentType}
-                                onChange={(e) => handlePaymentTypeChangeMultiple(outgoingId, e as SelectChangeEvent<'full' | 'partial'>)}
-                                size="small"
-                                sx={{ minWidth: 100 }}
-                              >
-                                <MenuItem value="full">Full</MenuItem>
-                                <MenuItem value="partial">Partial</MenuItem>
-                              </Select>
+                              <FormControl size="small">
+                                <Select
+                                  value={paymentType}
+                                  onChange={(e) =>
+                                    handlePaymentTypeChangeMultiple(
+                                      outgoingId,
+                                      e as SelectChangeEvent<'full' | 'partial'>
+                                    )
+                                  }
+                                  size="small"
+                                  sx={{ minWidth: 100 }}
+                                >
+                                  <MenuItem value="full">Full</MenuItem>
+                                  <MenuItem value="partial">Partial</MenuItem>
+                                </Select>
+                              </FormControl>
                             </TableCell>
                             <TableCell>
                               {paymentType === 'partial' && (
                                 <TextField
-                                  size="small"
                                   type="number"
                                   value={partialAmount[outgoingId] || ''}
-                                  onChange={(e) => handlePartialAmountChange(outgoingId, e.target.value, payableAmount)}
+                                  onChange={(e) =>
+                                    handlePartialAmountChange(
+                                      outgoingId,
+                                      e.target.value,
+                                      payableAmount
+                                    )
+                                  }
                                   error={!!currentError}
                                   helperText={currentError}
                                   sx={{ width: 120 }}
                                   inputProps={{
                                     min: 0,
                                     max: payableAmount,
-                                    step: '0.01'
+                                    step: '0.01',
                                   }}
                                 />
                               )}
                               {paymentType === 'full' && (
-                                <Typography variant="body2">
-                                  ₹{payableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                <Typography>
+                                  ₹{payableAmount.toLocaleString('en-IN', {
+                                    minimumFractionDigits: 2
+                                  })}
                                 </Typography>
                               )}
                             </TableCell>
                             <TableCell>
                               {currentError && (
-                                <Typography variant="caption" color="error">
+                                <Typography color="error" variant="caption">
                                   {currentError}
                                 </Typography>
                               )}
@@ -643,20 +597,24 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </Box>
+              </Paper>
             );
           })}
         </DialogContent>
-
         <DialogActions>
           <Button onClick={handleClose} color="inherit">
             Cancel
           </Button>
           <Button
             onClick={handleProcessPayment}
-            color="primary"
             variant="contained"
-            disabled={loading || isLoadingDebits || Object.keys(errors).some(key => key !== '_general' && errors[key])}
+            disabled={
+              isLoadingDebits ||
+              loading ||
+              Object.keys(errors).some(key =>
+                key !== '_general' && key !== '_paymentMode' && errors[key]
+              )
+            }
             startIcon={loading ? <CircularProgress size={20} /> : null}
           >
             {loading ? 'Processing...' : 'Confirm Payment'}
@@ -664,18 +622,96 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         </DialogActions>
       </Dialog>
 
-      {/* Confirmation Dialog */}
-      <Dialog open={showConfirmation} onClose={() => setShowConfirmation(false)}>
-        <DialogTitle>Confirm Payment</DialogTitle>
+      {/* Payment Mode Confirmation Dialog */}
+      <Dialog
+        open={showPaymentModeDialog}
+        onClose={() => setShowPaymentModeDialog(false)}
+        maxWidth="sm"
+      >
+        <DialogTitle>Confirm Payment Details</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to process this bulk payment?</Typography>
+          {errors._paymentMode && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {errors._paymentMode}
+            </Alert>
+          )}
+
+          <Typography variant="h6" gutterBottom>
+            Total Amount: ₹{totalOverallAmount.toLocaleString('en-IN', {
+              minimumFractionDigits: 2
+            })}
+          </Typography>
+
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Payment Mode</InputLabel>
+            <Select
+              value={paymentDetails.paymentMode}
+              label="Payment Mode"
+              onChange={handlePaymentModeChange}
+            >
+              <MenuItem value="Cash">Cash</MenuItem>
+              <MenuItem value="Bank">Bank</MenuItem>
+            </Select>
+          </FormControl>
+
+          {paymentDetails.paymentMode === 'Cash' && (
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Payment Method</InputLabel>
+              <Select
+                value={paymentDetails.paymentMethod}
+                label="Payment Method"
+                onChange={handlePaymentMethodChange}
+              >
+                <MenuItem value="pettyCash">Petty Cash</MenuItem>
+                <MenuItem value="hoCash">HO Cash</MenuItem>
+              </Select>
+            </FormControl>
+          )}
+
+          {paymentDetails.paymentMode === 'Bank' && (
+            <>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Bank Name</InputLabel>
+                <Select
+                  value={paymentDetails.bankName}
+                  label="Bank Name"
+                  onChange={handleBankNameChange}
+                >
+                  {banks.map((bank) => (
+                    <MenuItem key={bank.bankName} value={bank.bankName}>
+                      {bank.bankName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Payment Method</InputLabel>
+                <Select
+                  value={paymentDetails.paymentMethod}
+                  label="Payment Method"
+                  onChange={handlePaymentMethodChange}
+                >
+                  <MenuItem value="neft">NEFT</MenuItem>
+                  <MenuItem value="rtgs">RTGS</MenuItem>
+                  <MenuItem value="imps">IMPS</MenuItem>
+                  <MenuItem value="upi">UPI</MenuItem>
+                </Select>
+              </FormControl>
+            </>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowConfirmation(false)} color="inherit">
-            No
+          <Button onClick={() => setShowPaymentModeDialog(false)} color="inherit">
+            Cancel
           </Button>
-          <Button onClick={handleConfirmYes} color="primary" variant="contained" disabled={loading}>
-            Yes
+          <Button
+            onClick={handleConfirmPayment}
+            variant="contained"
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : null}
+          >
+            {loading ? 'Processing...' : 'Confirm Payment'}
           </Button>
         </DialogActions>
       </Dialog>

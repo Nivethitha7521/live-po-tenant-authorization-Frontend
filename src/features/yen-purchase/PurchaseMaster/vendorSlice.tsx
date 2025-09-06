@@ -2,12 +2,12 @@ import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
 import { format } from 'date-fns'; // Import date-fns for date formatting
-import { CsvImportResponse, initialState, Vendor, VendorNameGet, VendorSearch, VendorSummary, VendorTypeItem } from '@/Models/vendor';
+import {  CsvImportResponse, initialState, Vendor, VendorNameGet, VendorSearch, VendorSummary, VendorTypeItem } from '@/Models/vendor';
 
 
 // Async thunk to fetch vendors
 export const fetchVendors = createAsyncThunk('vendors/fetch', async () => {
-  const response = await axios.get<Vendor[]>('https://yenerp.com/purchaseapi/vendors/');
+  const response = await axios.get<Vendor[]>('http://192.168.29.117:8000/purchaseapi/vendors/');
   return response.data;
 });
 
@@ -34,7 +34,7 @@ export const fetchVendorAll = createAsyncThunk(
     console.log("Params being sent to backend:", params);
 
     try {
-      const response = await axios.get('https://yenerp.com/purchaseapi/vendors/limit', { params });
+      const response = await axios.get('http://192.168.29.117:8000/purchaseapi/vendors/limit', { params });
 
       // With the updated backend, the response structure will be:
       // { vendors: [...], totalVendors: number }
@@ -57,7 +57,7 @@ export const fetchVendorNames = createAsyncThunk(
   'vendors/fetchNames',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('https://yenerp.com/purchaseapi/vendors/vendorname');
+      const response = await axios.get('http://192.168.29.117:8000/purchaseapi/vendors/vendorname');
       return response.data as VendorNameGet[]; // Assuming the response is a list of VendorName objects
     } catch (error: any) {
       console.error('Failed to fetch vendor names:', error);
@@ -75,7 +75,7 @@ export const addVendor = createAsyncThunk(
         ...vendor,
         status: 'active',
       };
-      const response = await axios.post<Vendor>('https://yenerp.com/purchaseapi/vendors', vendorToAdd);
+      const response = await axios.post<Vendor>('http://192.168.29.117:8000/purchaseapi/vendors', vendorToAdd);
       clearAllVendorCaches();
       return response.data;
     } catch (error: any) {
@@ -127,7 +127,7 @@ export const searchVendorsByExactName = createAsyncThunk<
     }
 
     // Fetch fresh data from the API if no valid cache is found
-    const response = await axios.get<VendorSearch[]>(`https://yenerp.com/purchaseapi/vendors/exact-name/`, {
+    const response = await axios.get<VendorSearch[]>(`http://192.168.29.117:8000/purchaseapi/vendors/exact-name/`, {
       params: { vendor_name, skip, limit },
     });
 
@@ -170,7 +170,7 @@ export const searchVendors = createAsyncThunk<VendorSummary[], { searchQuery: st
     }
 
     // Fetch fresh data from the API
-    const response = await axios.get<VendorSummary[]>(`https://yenerp.com/purchaseapi/vendors/vendor-names/`, {
+    const response = await axios.get<VendorSummary[]>(`http://192.168.29.117:8000/purchaseapi/vendors/vendor-names/`, {
       params: { vendor_name: searchQuery, skip, limit },
       headers: {
         'Cache-Control': 'no-cache',
@@ -203,7 +203,7 @@ export const updateVendor = createAsyncThunk(
       // Try the API first with a shorter timeout to fail faster
       try {
         const response = await axios.patch<Vendor>(
-          `https://yenerp.com/purchaseapi/vendors/${vendorId}`,
+          `http://192.168.29.117:8000/purchaseapi/vendors/${vendorId}`,
           vendorToUpdate,
           {
             headers: {
@@ -241,7 +241,7 @@ export const updateVendor = createAsyncThunk(
 // Async thunk to deactivate a vendor
 export const deactivateVendor = createAsyncThunk('vendors/deactivate', async (vendorId: string) => {
   try {
-    await axios.patch<Vendor>(`https://yenerp.com/purchaseapi/vendors/${vendorId}`, { status: 'deactivated' });
+    await axios.patch<Vendor>(`http://192.168.29.117:8000/purchaseapi/vendors/${vendorId}`, { status: 'deactivated' });
     return vendorId;
   } catch (error: any) {
     console.error('Failed to deactivate vendor:', error);
@@ -252,31 +252,24 @@ export const deactivateVendor = createAsyncThunk('vendors/deactivate', async (ve
 // Async thunk to activate a vendor
 export const activateVendor = createAsyncThunk('vendors/activate', async (vendorId: string) => {
   try {
-    const response = await axios.patch<Vendor>(`https://yenerp.com/purchaseapi/vendors/${vendorId}`, { status: 'active' });
+    const response = await axios.patch<Vendor>(`http://192.168.29.117:8000/purchaseapi/vendors/${vendorId}`, { status: 'active' });
     return vendorId;
   } catch (error: any) {
     console.error('Failed to activate vendor:', error);
     throw new Error(`Failed to activate vendor: ${error.message}`);
   }
 });
-
 export const importVendorsCsv = createAsyncThunk(
   'vendors/importCsv',
   async (file: File, { rejectWithValue }) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-
       const response = await axios.post<CsvImportResponse>(
-        'https://yenerp.com/purchaseapi/vendors/import-csv',
+        'http://192.168.29.117:8000/purchaseapi/vendors/import-csv',
         formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
+        { headers: { 'Content-Type': 'multipart/form-data' } }
       );
-
       clearAllVendorCaches();
       return response.data;
     } catch (error: any) {
@@ -290,7 +283,7 @@ export const exportVendorsCsv = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get<Blob>(
-        'https://yenerp.com/purchaseapi/vendors/exportvendor/export-csv',
+        'http://192.168.29.117:8000/purchaseapi/vendors/exportvendor/export-csv',
         {
           responseType: 'blob', // Important for file downloads
         }
@@ -314,7 +307,7 @@ export const exportVendorsCsv = createAsyncThunk(
 
 export const fetchVendorTypeItems = createAsyncThunk('vendorTypes/fetch', async (_, { rejectWithValue }) => {
   try {
-    const response = await axios.get<VendorTypeItem[]>('https://yenerp.com/purchaseapi/vendortypes/');
+    const response = await axios.get<VendorTypeItem[]>('http://192.168.29.117:8000/purchaseapi/vendortypes/');
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data || 'Failed to fetch vendor types');
@@ -506,10 +499,12 @@ const vendorSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch vendor types';
       })
-      .addCase(importVendorsCsv.pending, (state) => {
+.addCase(importVendorsCsv.pending, (state) => {
         state.loading = true;
-        state.importErrors = []; // Clear previous errors
-        state.importDuplicates = []; // Clear previous duplicates
+        state.importErrors = [];
+        state.importDuplicates = [];
+        state.insertedCount = 0;
+        state.updatedCount = 0;
       })
       .addCase(importVendorsCsv.fulfilled, (state, action) => {
         state.loading = false;
@@ -519,8 +514,22 @@ const vendorSlice = createSlice({
         state.error = null;
         state.insertedCount = action.payload.inserted_count;
         state.updatedCount = action.payload.updated_count;
-        state.importErrors = action.payload.errors || []; // Store errors
-        state.importDuplicates = action.payload.duplicates || []; // Store duplicates
+        state.importErrors = action.payload.failed.map((item: any) => ({
+          row: item.row,
+          error: item.error,
+          vendorName: item.data?.vendorName || 'N/A',
+          randomId: item.data?.randomId || 'N/A',
+        }));
+        state.importDuplicates = action.payload.updated.map((item: any) => ({
+          row: item.row,
+          vendorName: item.vendorName,
+          contactpersonPhone: item.contactpersonPhone,
+          existingId: item.existingId,
+          error: item.error,
+        }));
+        // Update items with successful imports
+        state.items.push(...action.payload.successful.map((item: any) => item.data).filter((vendor: Vendor) => vendor.status === 'active'));
+        state.deactivatedItems.push(...action.payload.successful.map((item: any) => item.data).filter((vendor: Vendor) => vendor.status === 'deactivated'));
       })
       .addCase(importVendorsCsv.rejected, (state, action) => {
         state.loading = false;

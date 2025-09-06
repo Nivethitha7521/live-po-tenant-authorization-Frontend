@@ -175,9 +175,7 @@ const ItemGroupForm: React.FC<ItemGroupFormProps> = ({
                   }}
                   error={touched.itemgroupName && !!errors.itemgroupName}
                   helperText={
-                    (touched.itemgroupName && errors.itemgroupName) ||
-                    'Spaces allowed between words, but not at start or end'
-                  }
+                    (touched.itemgroupName && errors.itemgroupName)}
                   InputLabelProps={{
                     sx: {
                       '&::after': {

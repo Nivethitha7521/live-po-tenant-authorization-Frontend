@@ -160,9 +160,6 @@ const [isBulkPaymentOpen, setIsBulkPaymentOpen] = useState(false);
   const [error, setError] = useState<string>('');
   const [errors, setErrors] = useState<{ [outgoingId: string]: string }>({});
   // Add this to your component's state
-  const [totalAmount, setTotalAmount] = useState<number>(
-    selectedOutgoing?.totalPayableAmount || 0
-  );
   const [isFilterActive, setIsFilterActive] = useState(false);
 const [confirmDialogProps, setConfirmDialogProps] = useState<{
     title: string;
