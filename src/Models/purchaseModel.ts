@@ -44,6 +44,8 @@ export interface Item {
   pendingFinalPrice: number;
   pendingBefTaxDiscountAmount?: number;
   pendingAfTaxDiscountAmount?: number;
+  befTaxDiscountType?:string;
+  afTaxDiscountType?:string;
   pendingDiscountAmount: number;
   taxType: 'cgst_sgst' | 'igst';
   additionalTaxes?: { [key: string]: number }; // Optional additional taxes
@@ -88,6 +90,9 @@ export interface PurchaseOrderData {
   poCreatedPerson: string;
   poApprovedPerson: string;
   poRejectedPerson: string;
+  discountMode: 'percentage' | 'amount'; // Added to track discount type
+  roundOffValue:number;
+  overallDiscountValue:number;
 }
 
 export type TaxDetails = Record<string, {
@@ -146,6 +151,7 @@ export interface PurchaseOrderState {
   importErrors: string[];
   importSuccessMessages: string[]; // Added for success messages
   importUpdatedItems: string[]; // Added for updated items
+  discountMode:string;
 }
 
 export interface PurchaseRandomId {

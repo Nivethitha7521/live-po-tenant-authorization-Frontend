@@ -1175,7 +1175,7 @@ const handleSaveChanges = useCallback(async () => {
   totalDiscountAmount,
   errors,
   dispatch,
-  currentPage,
+  currentPage,  
   pageSize,
   handleCloseDialogs,
 ]);
