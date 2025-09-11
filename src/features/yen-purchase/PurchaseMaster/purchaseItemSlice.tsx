@@ -9,7 +9,7 @@ import { PurchaseItemType } from '@/Models/itemType';
 import { PurchaseGroupItem } from '@/Models/itemgroup';
 
 
-const EXPORT_CSV_URL = 'http://192.168.29.117:8000/purchaseapi/purchaseitems/export_csv'; // Make sure this URL is correct
+const EXPORT_CSV_URL = 'https://yenerp.com/purchaseapi/rawMaterials/export_csv'; // Make sure this URL is correct
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
 // Define an async thunk to handle the export of purchase items to CSV
@@ -74,7 +74,7 @@ export const fetchPurchaseItems = createAsyncThunk(
     });
 
     try {
-      const response = await axios.get('http://192.168.29.117:8000/purchaseapi/purchaseitems/', { params });
+      const response = await axios.get('https://yenerp.com/purchaseapi/rawMaterials/', { params });
       return {
         items: response.data.items || [],
         totalItems: response.data.totalItems || 0
@@ -86,13 +86,13 @@ export const fetchPurchaseItems = createAsyncThunk(
 );
 // Fetch all purchase subcategory
 export const fetchPurchaseCategories = createAsyncThunk('purchaseSubcategory/fetch', async () => {
-  const response = await axios.get<PurchaseCategory[]>('http://192.168.29.117:8000/purchaseapi/purchasecategories/');
+  const response = await axios.get<PurchaseCategory[]>('https://yenerp.com/purchaseapi/purchasecategories/');
   return response.data;
 });
 
 // Fetch all purchase uoms
 export const fetchUom = createAsyncThunk('uom/fetch', async () => {
-  const response = await axios.get<UOM[]>('http://192.168.29.117:8000/purchaseapi/purchaseuoms/');
+  const response = await axios.get<UOM[]>('https://yenerp.com/purchaseapi/purchaseuoms/');
   // Transform the response to only include the uom field
   const uoms = response.data.map(item => ({ uom: item.uom }));
   return uoms;
@@ -100,7 +100,7 @@ export const fetchUom = createAsyncThunk('uom/fetch', async () => {
 
 //fetch all itemtypes
 export const fetchPurchaseItemtype = createAsyncThunk('itemtype/fetch', async () => {
-  const response = await axios.get<PurchaseItemType[]>('http://192.168.29.117:8000/purchaseapi/itemtypes/');
+  const response = await axios.get<PurchaseItemType[]>('https://yenerp.com/purchaseapi/itemtypes/');
   // Transform the response to match the PurchaseItemType structure
   const itemtypes = response.data.map(item => ({ itemtypeName: item.itemtypeName }));
   return itemtypes;
@@ -109,28 +109,28 @@ export const fetchPurchaseItemtype = createAsyncThunk('itemtype/fetch', async ()
 
 // Fetch all purchase taxes
 export const fetchPurchaseTaxes = createAsyncThunk('purchaseTaxes/fetch', async () => {
-  const response = await axios.get<PurchaseTax[]>('http://192.168.29.117:8000/purchaseapi/purchasetaxes/');
+  const response = await axios.get<PurchaseTax[]>('https://yenerp.com/purchaseapi/purchasetaxes/');
   const tax = response.data.map(item => ({ purchasetaxPercentage: item.purchasetaxPercentage }));
   return tax;
 });
 
 // Fetch all storage location items
 export const fetchStorageLocationItems = createAsyncThunk('storageLocations/fetch', async () => {
-  const response = await axios.get<StorageLocationItem[]>('http://192.168.29.117:8000/purchaseapi/storagelocations/');
+  const response = await axios.get<StorageLocationItem[]>('https://yenerp.com/purchaseapi/storagelocations/');
   const location = response.data.map(item => ({ locationName: item.locationName }));
   return location;
 });
 
 // Fetch all purchase group items
 export const fetchPurchaseGroupItems = createAsyncThunk('groupItems/fetch', async () => {
-  const response = await axios.get<PurchaseGroupItem[]>('http://192.168.29.117:8000/purchaseapi/itemgroups/');
+  const response = await axios.get<PurchaseGroupItem[]>('https://yenerp.com/purchaseapi/itemgroups/');
   const groupitem = response.data.map(item => ({ itemgroupName: item.itemgroupName }));
   return groupitem;
 });
 
 // Fetch all vendors
 export const fetchAllVendors = createAsyncThunk('vendors/fetch', async () => {
-  const response = await axios.get<Vendor[]>('http://192.168.29.117:8000/purchaseapi/vendors/');
+  const response = await axios.get<Vendor[]>('https://yenerp.com/purchaseapi/vendors/');
   // Transform the response to include both vendorId and vendorName
   const vendorData = response.data.map(item => ({
     vendorId: item.vendorId,
@@ -148,7 +148,7 @@ export const addPurchaseItem = createAsyncThunk(
       };
 
       const response = await axios.post<PurchaseItem>(
-        'http://192.168.29.117:8000/purchaseapi/purchaseitems/', // Ensure the endpoint matches your backend route
+        'https://yenerp.com/purchaseapi/rawMaterials/', // Ensure the endpoint matches your backend route
         purchaseToAdd
       );
 
@@ -188,7 +188,7 @@ export const POsearchPurchaseItems = createAsyncThunk<PurchaseItemSearch[], { se
     }
 
     // Fetch fresh data from the API if no valid cache is found
-    const response = await axios.get<PurchaseItemSearch[]>(`http://192.168.29.117:8000/purchaseapi/purchaseitems/exact-name/`, {
+    const response = await axios.get<PurchaseItemSearch[]>(`https://yenerp.com/purchaseapi/rawMaterials/exact-name/`, {
       params: {
         item_name: searchQuery,
         skip,
@@ -244,7 +244,7 @@ export const searchPurchaseItems = createAsyncThunk<PurchaseItemSearchAdd[], { s
 
     try {
       // Fetch fresh data from the API if no valid cache is found
-      const response = await axios.get<SearchResponse>(`http://192.168.29.117:8000/purchaseapi/purchaseitems/search`, {
+      const response = await axios.get<SearchResponse>(`https://yenerp.com/purchaseapi/rawMaterials/search`, {
         params: { itemName: searchQuery, skip, limit },
       });
 
@@ -283,7 +283,7 @@ export const updatePurchaseItem = createAsyncThunk(
         ...purchase,
       };
       const response = await axios.patch<PurchaseItem>(
-        `http://192.168.29.117:8000/purchaseapi/purchaseitems/${purchase.purchaseitemId}`,
+        `https://yenerp.com/purchaseapi/rawMaterials/${purchase.purchaseitemId}`,
         purchaseToUpdate
       );
 
@@ -304,7 +304,7 @@ export const deactivatePurchaseItem = createAsyncThunk(
   'purchaseItems/deactivate',
   async (id: string) => {
     const response = await axios.patch<PurchaseItem>(
-      `http://192.168.29.117:8000/purchaseapi/purchaseitems/${id}`,
+      `https://yenerp.com/purchaseapi/rawMaterials/${id}`,
       { status: 'deactivated' }
     );
     return id; // Return the ID directly since the status update is handled in the extraReducers
@@ -316,7 +316,7 @@ export const activatePurchaseItem = createAsyncThunk(
   'purchaseItems/activate',
   async (id: string) => {
     const response = await axios.patch<PurchaseItem>(
-      `http://192.168.29.117:8000/purchaseapi/purchaseitems/${id}`,
+      `https://yenerp.com/purchaseapi/rawMaterials/${id}`,
       { status: 'active' }
     );
     return id; // Return the ID directly since the status update is handled in the extraReducers
@@ -331,7 +331,7 @@ export const importPurchaseItems = createAsyncThunk(
       formData.append('mode', mode);
 
       const response = await axios.post(
-        'http://192.168.29.117:8000/purchaseapi/purchaseitems/import_csv', 
+        'https://yenerp.com/purchaseapi/rawMaterials/import_csv', 
         formData, 
         {
           headers: {
@@ -391,7 +391,7 @@ export const exportPurchaseItems = createAsyncThunk(
   'purchaseItems/export',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('http://192.168.29.117:8000/purchaseapi/purchaseitems/purchaseitemexport/export_csv', {
+      const response = await axios.get('https://yenerp.com/purchaseapi/rawMaterials/purchaseitemexport/export_csv', {
         responseType: 'blob',
       });
 

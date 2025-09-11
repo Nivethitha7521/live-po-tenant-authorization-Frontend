@@ -48,7 +48,7 @@ export const fetchOutgoings = createAsyncThunk(
       filterByStatus?: boolean | null;
     }) => {
     try {
-      const url = 'http://192.168.29.117:8000/purchaseapi/outgoingpayments/';
+      const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
 
       // Prepare query parameters dynamically based on provided arguments
       const params: any = {
@@ -111,7 +111,7 @@ export const fetchVendorDetails = createAsyncThunk(
       }
 
       const response = await axios.get<VendorDetail[]>(
-        `http://192.168.29.117:8000/purchaseapi/outgoingpayments/vendors/details?${params.toString()}`
+        `https://yenerp.com/purchaseapi/outgoingpayments/vendors/details?${params.toString()}`
       );
       return response.data;
     } catch (error) {
@@ -120,7 +120,7 @@ export const fetchVendorDetails = createAsyncThunk(
   }
 );
 export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
-  const response = await axios.get<GRN[]>(`http://192.168.29.117:8000/purchaseapi/grns/`);
+  const response = await axios.get<GRN[]>(`https://yenerp.com/purchaseapi/grns/`);
   const grnData = response.data.map(item => ({
     grnId: item.grnId,
     randomId: item.randomId,
@@ -130,19 +130,19 @@ export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
 
 // Async thunk to add a new Outgoing item
 export const addOutgoing = createAsyncThunk<Outgoing, Omit<Outgoing, 'outgoingId'>>('outgoings/addOutgoing', async (outgoingData) => {
-  const response = await axios.post('http://192.168.29.117:8000/purchaseapi/outgoingpayments/', outgoingData); // Adjust the API endpoint as needed
+  const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/', outgoingData); // Adjust the API endpoint as needed
   return response.data;
 });
 
 // Async thunk to update an existing Outgoing item
 export const updateOutgoing = createAsyncThunk<Outgoing, Outgoing>('outgoings/updateOutgoing', async (outgoingData) => {
-  const response = await axios.patch(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingData.outgoingId}`, outgoingData); // Adjust the API endpoint as needed
+  const response = await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingData.outgoingId}`, outgoingData); // Adjust the API endpoint as needed
   return response.data;
 });
 
 // // Async thunk to delete an Outgoing item
 // export const deleteOutgoing = createAsyncThunk<void, string>('outgoings/deleteOutgoing', async (outgoingId) => {
-//   await axios.delete(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingId}`); // Adjust the API endpoint as needed
+//   await axios.delete(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}`); // Adjust the API endpoint as needed
 // });
 
 export const fetchBank = createAsyncThunk('bank/fetchBanks', async () => {
@@ -199,7 +199,7 @@ export const processPayment = createAsyncThunk<
         selectedDebitNotes, // Pass the array as-is
       };
 
-      await axios.patch(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.response?.data || 'Payment processing failed');
     }
@@ -215,7 +215,7 @@ export const fetchActiveDebitsVendor = createAsyncThunk<
   'debitNotes/fetchActiveDebitsVendor', // Unique action type
   async (vendorName, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`http://192.168.29.117:8000/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
+      const response = await axios.get(`https://yenerp.com/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
       if (!response.data.debits) {
         throw new Error('No debits found in response');
       }
@@ -240,7 +240,7 @@ export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
       
       for (const vendorName of vendorNames) {
         try {
-          const response = await axios.get(`http://192.168.29.117:8000/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
+          const response = await axios.get(`https://yenerp.com/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
           if (response.data.debits) {
             allDebits.push(...response.data.debits);
           }
@@ -269,7 +269,7 @@ export const processBulkPayment = createAsyncThunk<
   async (bulkPaymentRequest, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        'http://192.168.29.117:8000/purchaseapi/outgoingpayments/bulkpayment/bulk-payment',
+        'https://yenerp.com/purchaseapi/outgoingpayments/bulkpayment/bulk-payment',
         bulkPaymentRequest
       );
       return response.data;
@@ -291,7 +291,7 @@ export const addNewPayment = createAsyncThunk<Outgoing, PaymentDetails>(
         ...paymentData,
       };
 
-      const response = await axios.post('http://192.168.29.117:8000/purchaseapi/outgoingpayments/', outgoingWithDate);
+      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/', outgoingWithDate);
       console.log('Response from API:', response.data); // Log response from API
       return response.data;
     } catch (error: any) {
@@ -306,7 +306,7 @@ export const addNewVendorPayment = createAsyncThunk(
   async (paymentData: any, { rejectWithValue }) => {
     console.log('addNewPayment called with data:', paymentData);
     try {
-      const response = await axios.post('http://192.168.29.117:8000/purchaseapi/outgoingpayments/addvendorpayment/', {
+      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/addvendorpayment/', {
         ...paymentData,
         isPreOutgoing: !paymentData.poId,
       });
@@ -323,7 +323,7 @@ export const addNewVendorPayment = createAsyncThunk(
 export const fetchTaxDetails = createAsyncThunk<TaxDetail[], string>(
   'outgoings/fetchTaxDetails',
   async (outgoingId) => {
-    const response = await axios.get<TaxDetail[]>(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingId}/tax-details`);
+    const response = await axios.get<TaxDetail[]>(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/tax-details`);
     return response.data; // Assuming the response is directly an array of TaxDetail
   }
 );
@@ -349,7 +349,7 @@ export const selectOutgoingPayment = createAsyncThunk<
   ) => {
     try {
       // Fetch outgoing payment details
-      const response = await axios.get<Outgoing>(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingId}`);
+      const response = await axios.get<Outgoing>(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}`);
       const outgoingData = response.data;
 
       const totalPayableAmount = outgoingData.totalPayableAmount ?? 0;
@@ -412,7 +412,7 @@ export const selectOutgoingPayment = createAsyncThunk<
       }
 
       // Send updated data to the server
-      await axios.patch(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingId}`, updatedOutgoing);
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}`, updatedOutgoing);
 
       return updatedOutgoing;
     } catch (error: any) {
