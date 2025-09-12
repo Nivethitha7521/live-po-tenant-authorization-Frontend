@@ -1339,9 +1339,6 @@ const VerifiedApInvoicePage: React.FC = () => {
                     <Typography variant="h6">
                       <strong>AP ID:</strong> {selectedInvoice.randomId}
                     </Typography>
-                    <IconButton onClick={toggleFullScreen} color="primary" edge="end">
-                      {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-                    </IconButton>
                   </Box>
                   <IconButton onClick={toggleFullScreen} color="primary" edge="end">
                     {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}

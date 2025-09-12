@@ -10,7 +10,7 @@ export interface Item {
   count: number;
   expiryDate: Date | null;
   eachQuantity: number;
-  receivedQuantity?: number;
+  receivedQuantity?: string | number;
   damagedQuantity: number;
   purchasecategoryName: string;
   purchasesubcategoryName: any;
