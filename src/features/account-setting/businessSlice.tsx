@@ -5,19 +5,19 @@ import { Business,initialState, Photo, ShippingAddress } from '@/Models/business
 
 // Async thunk to fetch all Business items
 export const fetchBusinesses = createAsyncThunk('businesses/fetchBusinesses', async () => {
-  const response = await axios.get('http://192.168.29.116:8000/purchaseapi/pobusiness/'); // Adjust API endpoint as needed
+  const response = await axios.get('https://yenerp.com/purchaseapi/pobusiness/'); // Adjust API endpoint as needed
   return response.data;
 });
 
 // Async thunk to add a new Business item
 export const addBusiness = createAsyncThunk<Business, Business>('businesses/addBusiness', async (businessData) => {
-  const response = await axios.post('http://192.168.29.116:8000/purchaseapi/pobusiness/', businessData); // Adjust API endpoint as needed
+  const response = await axios.post('https://yenerp.com/purchaseapi/pobusiness/', businessData); // Adjust API endpoint as needed
   return response.data;
 });
 
 // Async thunk to update an existing Business item
 export const updateBusiness = createAsyncThunk<Business, Business>('businesses/updateBusiness', async (businessData) => {
-  const response = await axios.patch(`http://192.168.29.116:8000/purchaseapi/pobusiness/${businessData.businessId}`, businessData); // Adjust API endpoint as needed
+  const response = await axios.patch(`https://yenerp.com/purchaseapi/pobusiness/${businessData.businessId}`, businessData); // Adjust API endpoint as needed
   return response.data;
 });
 
@@ -34,7 +34,7 @@ export const uploadBusinessPhoto = createAsyncThunk<
       console.log('Uploading file:', file); // Log the file being uploaded
 
       const response = await axios.post(
-        `http://192.168.29.116:8000/purchaseapi/pobusiness/upload?custom_id=${businessId}`, // Use the business ID in the URL
+        `https://yenerp.com/purchaseapi/pobusiness/upload?custom_id=${businessId}`, // Use the business ID in the URL
         formData,
         {
           headers: {
@@ -57,7 +57,7 @@ export const fetchPhoto = createAsyncThunk(
   'photos/fetchPhoto',
   async (businessId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`http://192.168.29.116:8000/purchaseapi/pobusiness/view/${businessId}`, { responseType: 'blob' });
+      const response = await axios.get(`https://yenerp.com/purchaseapi/pobusiness/view/${businessId}`, { responseType: 'blob' });
       const imageUrl = URL.createObjectURL(response.data); // Convert blob to object URL
       return { imageUrl, businessId };
     } catch (error: any) {
@@ -68,19 +68,19 @@ export const fetchPhoto = createAsyncThunk(
 
 // Async thunk to fetch all Business items
 export const fetchShipping = createAsyncThunk('shipping/fetchShipping', async () => {
-  const response = await axios.get('http://192.168.29.116:8000/purchaseapi/poshippingaddress/'); // Adjust API endpoint as needed
+  const response = await axios.get('https://yenerp.com/purchaseapi/poshippingaddress/'); // Adjust API endpoint as needed
   return response.data;
 });
 
 // Async thunk to add a new Business item
 export const addShipping = createAsyncThunk<ShippingAddress, ShippingAddress>('shipping/addShipping', async (shippingaddress) => {
-  const response = await axios.post('http://192.168.29.116:8000/purchaseapi/poshippingaddress/', shippingaddress); // Adjust API endpoint as needed
+  const response = await axios.post('https://yenerp.com/purchaseapi/poshippingaddress/', shippingaddress); // Adjust API endpoint as needed
   return response.data;
 });
 
 // Async thunk to update an existing Business item
 export const updateShipping = createAsyncThunk<ShippingAddress, ShippingAddress>('shipping/updateBusiness', async (shippingaddress) => {
-  const response = await axios.patch(`http://192.168.29.116:8000/purchaseapi/poshippingaddress/${shippingaddress.shippingId}`, shippingaddress); // Adjust API endpoint as needed
+  const response = await axios.patch(`https://yenerp.com/purchaseapi/poshippingaddress/${shippingaddress.shippingId}`, shippingaddress); // Adjust API endpoint as needed
   return response.data;
 });
 

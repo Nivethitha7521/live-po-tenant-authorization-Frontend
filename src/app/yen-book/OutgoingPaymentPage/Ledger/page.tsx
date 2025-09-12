@@ -1,6 +1,6 @@
-'use client'
-import React, { useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+'use client';
+import React, { useEffect, useRef, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Grid,
   Typography,
@@ -18,36 +18,35 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   Autocomplete,
   TextField,
   FormControl,
   Card,
   CardContent,
-} from "@mui/material";
+} from '@mui/material';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import { ClearIcon } from "@mui/x-date-pickers/icons";
+import { ClearIcon } from '@mui/x-date-pickers/icons';
 import {
   setSelectedVendorName,
   resetLedgerData,
   fetchLedgerData,
   selectLedger,
   Transaction,
-} from "../../../../features/yen-purchase/Outgoing/ledgerData";
-import { AppDispatch } from "@/redux/store";
-import { VendorDetail } from "@/Models/outgoingModel";
-import { format, parseISO } from "date-fns";
-import Papa from "papaparse";
-import { jsPDF } from "jspdf";
-import "jspdf-autotable";
-import YenBookPage from "../../page";
-import { fetchVendorDetails } from "@/features/yen-purchase/Outgoing/outgoingPaymentSlice";
-import { fetchBusinesses } from "@/features/account-setting/businessSlice";
-import moment from "moment";
-import Link from "next/link";
+} from '../../../../features/yen-purchase/Outgoing/ledgerData';
+import { AppDispatch } from '@/redux/store';
+import { VendorDetail } from '@/Models/outgoingModel';
+import { format, parseISO } from 'date-fns';
+import Papa from 'papaparse';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import YenBookPage from '../../page';
+import { fetchVendorDetails } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
+import { fetchBusinesses } from '@/features/account-setting/businessSlice';
+import moment from 'moment';
+import Link from 'next/link';
 
 const LedgerPage = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -66,9 +65,9 @@ const LedgerPage = () => {
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return 'N/A';
     try {
-      return format(parseISO(dateString), 'dd-MM-yyyy HH:mm:ss a');
+      return format(parseISO(dateString), 'dd-MM-yyyy hh:mm:ss a');
     } catch (error) {
-      return format(new Date(dateString), 'dd-MM-yyyy HH:mm:ss a');
+      return format(new Date(dateString), 'dd-MM-yyyy hh:mm:ss a');
     }
   };
 
@@ -77,17 +76,18 @@ const LedgerPage = () => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
-      minimumFractionDigits: 2
+      minimumFractionDigits: 2,
     }).format(amount);
   };
 
   // Get transaction type display
   const getTransactionTypeDisplay = (type: string): string => {
     const typeMap: { [key: string]: string } = {
-      'invoice': 'Invoice',
-      'payment': 'Payment',
-      'debit_note': 'Debit Note',
-      'advance_payment': 'Advance Payment'
+      invoice: 'Invoice',
+      payment: 'Payment',
+      debit_note: 'Debit Note',
+      advance_payment: 'Advance Payment',
+      opening_balance: 'Opening Balance',
     };
     return typeMap[type] || type;
   };
@@ -112,19 +112,16 @@ const LedgerPage = () => {
       selectedVendorName,
       selectionRange,
     });
-
     const fetchData = async () => {
       if (isFetchingRef.current || !selectedVendorName) {
         console.log('Fetch skipped: Already fetching or no vendor selected');
         return;
       }
-
       isFetchingRef.current = true;
       try {
         console.log('Starting fetchLedgerData for vendor:', selectedVendorName);
         const formattedStartDate = moment(selectionRange.startDate).startOf('day').toDate();
         const formattedEndDate = moment(selectionRange.endDate).endOf('day').toDate();
-
         await dispatch(fetchLedgerData(selectedVendorName));
         console.log('fetchLedgerData completed');
       } catch (error) {
@@ -134,18 +131,22 @@ const LedgerPage = () => {
         console.log('isFetchingRef reset');
       }
     };
-
     fetchData();
   }, [dispatch, selectedVendorName, selectionRange.startDate, selectionRange.endDate]);
 
   // Get status color
   const getStatusColor = (status: string): string => {
     switch (status.toLowerCase()) {
-      case 'paid': return '#4caf50';
-      case 'open': return '#ff9800';
-      case 'partially paid': return '#2196f3';
-      case 'fully paid': return '#4caf50';
-      default: return '#757575';
+      case 'paid':
+        return '#4caf50';
+      case 'open':
+        return '#ff9800';
+      case 'partially paid':
+        return '#2196f3';
+      case 'fully paid':
+        return '#4caf50';
+      default:
+        return '#757575';
     }
   };
 
@@ -167,28 +168,23 @@ const LedgerPage = () => {
 
   const generateLedgerPDF = () => {
     const doc = new jsPDF();
-
     // Header
-    doc.setFontSize(18); // Increased from 16
+    doc.setFontSize(18);
     doc.text('Vendor Ledger Report', 105, 20, { align: 'center' });
-
     if (selectedVendorName) {
-      doc.setFontSize(14); // Increased from 12
+      doc.setFontSize(14);
       doc.text(`Vendor: ${selectedVendorName}`, 20, 30);
     }
-
     // Summary section
     if (ledgerData) {
-      doc.setFontSize(12); // Increased from 10
+      doc.setFontSize(12);
       doc.text(`Total Payable: ${formatCurrency(ledgerData.totalPayableAmount)}`, 20, 40);
       doc.text(`Total Paid: ${formatCurrency(ledgerData.totalPaidAmount)}`, 20, 45);
       doc.text(`Outstanding: ${formatCurrency(ledgerData.outstandingAmount)}`, 20, 50);
     }
-
     // Transaction table
-    const columns = ["S.No", "Date", "Type", "Reference", "Description", "Debit", "Credit", "Balance"];
-
-    const rows = transactions.map((transaction: Transaction, index: number) => [
+    const columns = ['S.No', 'Date', 'Type', 'Reference', 'Description', 'Debit', 'Credit', 'Balance'];
+    const rows = transactions?.map((transaction: Transaction, index: number) => [
       `${index + 1}`,
       formatDate(transaction.date),
       getTransactionTypeDisplay(transaction.type),
@@ -197,8 +193,7 @@ const LedgerPage = () => {
       transaction.debit_amount ? formatCurrency(transaction.debit_amount) : '-',
       transaction.credit_amount ? formatCurrency(transaction.credit_amount) : '-',
       formatCurrency(transaction.balance),
-    ]);
-
+    ]) || [];
     doc.autoTable({
       head: [columns],
       body: rows,
@@ -206,23 +201,21 @@ const LedgerPage = () => {
       headStyles: {
         fillColor: [0, 0, 128],
         textColor: [255, 255, 255],
-        fontSize: 11, // Increased from 8
-        fontStyle: "bold"
+        fontSize: 11,
+        fontStyle: 'bold',
       },
-      bodyStyles: { 
-        fontSize: 10, // Increased from 7
-        textColor: [0, 0, 0] 
+      bodyStyles: {
+        fontSize: 10,
+        textColor: [0, 0, 0],
       },
     });
-
     doc.save(`${selectedVendorName || 'Vendor'}_Ledger_Report.pdf`);
     setOpenDialog(false);
   };
 
   const generateLedgerCSV = () => {
-    const columns = ["S.No", "Date", "Type", "Reference", "Description", "Debit", "Credit", "Balance"];
-
-    const rows = transactions.map((transaction: Transaction, index: number) => [
+    const columns = ['S.No', 'Date', 'Type', 'Reference', 'Description', 'Debit', 'Credit', 'Balance'];
+    const rows = transactions?.map((transaction: Transaction, index: number) => [
       `${index + 1}`,
       formatDate(transaction.date),
       getTransactionTypeDisplay(transaction.type),
@@ -231,19 +224,17 @@ const LedgerPage = () => {
       transaction.debit_amount || 0,
       transaction.credit_amount || 0,
       transaction.balance,
-    ]);
-
+    ]) || [];
     const csvData = [columns, ...rows];
     const csv = Papa.unparse(csvData);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${selectedVendorName || 'Vendor'}_Ledger_Report.csv`);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${selectedVendorName || 'Vendor'}_Ledger_Report.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
     setOpenDialog(false);
   };
 
@@ -258,7 +249,9 @@ const LedgerPage = () => {
   if (error) {
     return (
       <Box p={2}>
-        <Typography color="error" variant="h6">Error: {error}</Typography>
+        <Typography color="error" variant="h6">
+          Error: {error}
+        </Typography>
         <Button onClick={() => dispatch(resetLedgerData())} sx={{ mt: 1 }} size="large">
           Reset
         </Button>
@@ -267,13 +260,12 @@ const LedgerPage = () => {
   }
 
   return (
-    <Box sx={{ fontSize: '16px' }}> {/* Added base font size */}
+    <Box sx={{ fontSize: '16px' }}>
       <YenBookPage />
       <Box sx={{ px: 1 }}>
         {/* Header Controls */}
-        <Box sx={{ p: 1, backgroundColor: "white" }}>
+        <Box sx={{ p: 1, backgroundColor: 'white' }}>
           <Grid container alignItems="center" justifyContent="flex-start">
-            {/* Navigation Buttons - Increased size */}
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage" passHref>
                 <Button variant="contained" color="primary" sx={{ mr: 1 }} size="large">
@@ -311,29 +303,34 @@ const LedgerPage = () => {
             </Grid>
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
-                <Button variant="contained" sx={{
-                  backgroundColor: 'white',
-                  color: 'black',
-                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.8)' },
-                  mr: 1,
-                  fontSize: '14px' // Added explicit font size
-                }} size="large">
+                <Button
+                  variant="contained"
+                  sx={{
+                    backgroundColor: 'white',
+                    color: 'black',
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.8)' },
+                    mr: 1,
+                    fontSize: '14px',
+                  }}
+                  size="large"
+                >
                   Ledger
                 </Button>
               </Link>
             </Grid>
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
-                <Button variant="contained" color="primary" size="large">Purchase Return</Button>
+                <Button variant="contained" color="primary" size="large">
+                  Purchase Return
+                </Button>
               </Link>
             </Grid>
           </Grid>
-
           <Grid container spacing={2} alignItems="center" sx={{ mb: 2, mt: 2 }}>
             <Grid item xs={12} md={4}>
               <FormControl fullWidth>
                 <Autocomplete
-                  value={outgoingVendor.find(v => v.vendorName === selectedVendorName) || null}
+                  value={outgoingVendor.find((v) => v.vendorName === selectedVendorName) || null}
                   onChange={handleVendorChange}
                   options={outgoingVendor}
                   getOptionLabel={(option: VendorDetail) => option.vendorName || ''}
@@ -342,63 +339,59 @@ const LedgerPage = () => {
                       {...params}
                       label="Select Vendor"
                       variant="outlined"
-                      size="medium" // Changed from small
-                      sx={{ '& .MuiInputBase-input': { fontSize: '16px' } }} // Explicit font size
+                      size="medium"
+                      sx={{ '& .MuiInputBase-input': { fontSize: '16px' } }}
                     />
                   )}
                 />
               </FormControl>
             </Grid>
-
             <Grid item>
               <Button
                 variant="contained"
                 startIcon={<FilterAltIcon />}
                 onClick={handleFilterClick}
                 disabled={!selectedVendorName}
-                size="large" // Added size
-                sx={{ fontSize: '14px' }} // Explicit font size
+                size="large"
+                sx={{ fontSize: '14px' }}
               >
                 Filter
               </Button>
             </Grid>
-
             <Grid item>
               <Button
                 variant="outlined"
                 startIcon={<ClearIcon />}
                 onClick={handleFilterClose}
-                size="large" // Added size
-                sx={{ fontSize: '14px' }} // Explicit font size
+                size="large"
+                sx={{ fontSize: '14px' }}
               >
                 Clear
               </Button>
             </Grid>
-
             <Grid item sx={{ ml: 'auto' }}>
               <Button
                 variant="contained"
                 startIcon={<DownloadIcon />}
                 onClick={() => setOpenDialog(true)}
                 disabled={!transactions || transactions.length === 0}
-                size="large" // Added size
-                sx={{ fontSize: '14px' }} // Explicit font size
+                size="large"
+                sx={{ fontSize: '14px' }}
               >
                 Download
               </Button>
             </Grid>
           </Grid>
-
-          {/* Summary Cards with larger text */}
+          {/* Summary Cards */}
           {ledgerData && (
             <Grid container spacing={2} sx={{ mb: 2 }}>
               <Grid item xs={6} md={3}>
                 <Card>
                   <CardContent>
-                    <Typography variant="h5" color="primary" sx={{ fontSize: '20px' }}> {/* Increased size */}
+                    <Typography variant="h5" color="primary" sx={{ fontSize: '20px' }}>
                       {formatCurrency(ledgerData.totalPayableAmount)}
                     </Typography>
-                    <Typography variant="body1" color="textSecondary" sx={{ fontSize: '14px' }}> {/* Increased from body2 */}
+                    <Typography variant="body1" color="textSecondary" sx={{ fontSize: '14px' }}>
                       Total Payable
                     </Typography>
                   </CardContent>
@@ -442,20 +435,24 @@ const LedgerPage = () => {
               </Grid>
             </Grid>
           )}
-
-          {/* Transactions Table with larger text */}
           <TableContainer component={Paper} sx={{ maxHeight: '60vh' }}>
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>S.No</TableCell> {/* Increased font size */}
+                  <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>S.No</TableCell>
                   <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>Date & Time</TableCell>
                   <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>Type</TableCell>
                   <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>Reference</TableCell>
                   <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>Description</TableCell>
-                  <TableCell align="right" sx={{ fontSize: '16px', fontWeight: 'bold' }}>Debit (₹)</TableCell>
-                  <TableCell align="right" sx={{ fontSize: '16px', fontWeight: 'bold' }}>Credit (₹)</TableCell>
-                  <TableCell align="right" sx={{ fontSize: '16px', fontWeight: 'bold' }}>Balance (₹)</TableCell>
+                  <TableCell align="right" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
+                    Debit (₹)
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
+                    Credit (₹)
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
+                    Balance (₹)
+                  </TableCell>
                   <TableCell sx={{ fontSize: '16px', fontWeight: 'bold' }}>Status</TableCell>
                 </TableRow>
               </TableHead>
@@ -463,9 +460,9 @@ const LedgerPage = () => {
                 {transactions && transactions.length > 0 ? (
                   transactions.map((transaction: Transaction, index: number) => (
                     <TableRow key={`${transaction.reference_id}-${index}`} hover>
-                      <TableCell sx={{ fontSize: '14px' }}>{index + 1}</TableCell> {/* Increased font size */}
+                      <TableCell sx={{ fontSize: '14px' }}>{index + 1}</TableCell>
                       <TableCell>
-                        <Typography variant="body1" sx={{ fontSize: '14px' }}> {/* Changed from body2 */}
+                        <Typography variant="body1" sx={{ fontSize: '14px' }}>
                           {formatDate(transaction.date)}
                         </Typography>
                       </TableCell>
@@ -484,16 +481,21 @@ const LedgerPage = () => {
                           {transaction.description || 'N/A'}
                         </Typography>
                         {transaction.notes && (
-                          <Typography variant="body2" color="textSecondary" display="block" sx={{ fontSize: '12px' }}> {/* Increased from caption */}
+                          <Typography
+                            variant="body2"
+                            color="textSecondary"
+                            display="block"
+                            sx={{ fontSize: '12px' }}
+                          >
                             {transaction.notes}
                           </Typography>
                         )}
                       </TableCell>
                       <TableCell align="right">
                         <Typography
-                          variant="body1" // Changed from body2
-                          color={transaction.debit_amount > 0 ? "error.main" : "textSecondary"}
-                          fontWeight={transaction.debit_amount > 0 ? "medium" : "normal"}
+                          variant="body1"
+                          color={transaction.debit_amount > 0 ? 'error.main' : 'textSecondary'}
+                          fontWeight={transaction.debit_amount > 0 ? 'medium' : 'normal'}
                           sx={{ fontSize: '14px' }}
                         >
                           {transaction.debit_amount > 0 ? formatCurrency(transaction.debit_amount) : '-'}
@@ -501,9 +503,9 @@ const LedgerPage = () => {
                       </TableCell>
                       <TableCell align="right">
                         <Typography
-                          variant="body1" // Changed from body2
-                          color={transaction.credit_amount > 0 ? "success.main" : "textSecondary"}
-                          fontWeight={transaction.credit_amount > 0 ? "medium" : "normal"}
+                          variant="body1"
+                          color={transaction.credit_amount > 0 ? 'success.main' : 'textSecondary'}
+                          fontWeight={transaction.credit_amount > 0 ? 'medium' : 'normal'}
                           sx={{ fontSize: '14px' }}
                         >
                           {transaction.credit_amount > 0 ? formatCurrency(transaction.credit_amount) : '-'}
@@ -516,11 +518,11 @@ const LedgerPage = () => {
                       </TableCell>
                       <TableCell>
                         <Typography
-                          variant="body2" // Changed from caption
+                          variant="body2"
                           sx={{
                             color: getStatusColor(transaction.status),
                             fontWeight: 'medium',
-                            fontSize: '13px' // Added explicit size
+                            fontSize: '13px',
                           }}
                         >
                           {transaction.status}
@@ -531,11 +533,8 @@ const LedgerPage = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={9} align="center">
-                      <Typography variant="body1" color="textSecondary" sx={{ fontSize: '16px' }}> {/* Increased from body2 */}
-                        {selectedVendorName
-                          ? 'No transactions found for the selected vendor'
-                          : 'Please select a vendor to view ledger data'
-                        }
+                      <Typography variant="body1" color="textSecondary" sx={{ fontSize: '16px' }}>
+                        {selectedVendorName ? 'No ledger found for this vendor' : 'Please select a vendor to view ledger data'}
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -543,12 +542,13 @@ const LedgerPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
-
           {/* Download Dialog */}
           <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-            <DialogTitle sx={{ fontSize: '18px' }}>Choose Download Format</DialogTitle> {/* Added font size */}
+            <DialogTitle sx={{ fontSize: '18px' }}>Choose Download Format</DialogTitle>
             <DialogContent>
-              <Typography sx={{ fontSize: '16px' }}>Select the file format you want to download:</Typography> {/* Added font size */}
+              <Typography sx={{ fontSize: '16px' }}>
+                Select the file format you want to download:
+              </Typography>
             </DialogContent>
             <DialogActions>
               <Button
@@ -556,8 +556,8 @@ const LedgerPage = () => {
                 variant="contained"
                 color="primary"
                 startIcon={<PictureAsPdfIcon />}
-                size="large" // Added size
-                sx={{ fontSize: '14px' }} // Added font size
+                size="large"
+                sx={{ fontSize: '14px' }}
               >
                 Download PDF
               </Button>
@@ -566,12 +566,14 @@ const LedgerPage = () => {
                 variant="contained"
                 color="secondary"
                 startIcon={<DescriptionIcon />}
-                size="large" // Added size
-                sx={{ fontSize: '14px' }} // Added font size
+                size="large"
+                sx={{ fontSize: '14px' }}
               >
                 Download CSV
               </Button>
-              <Button onClick={() => setOpenDialog(false)} size="large" sx={{ fontSize: '14px' }}>Cancel</Button>
+              <Button onClick={() => setOpenDialog(false)} size="large" sx={{ fontSize: '14px' }}>
+                Cancel
+              </Button>
             </DialogActions>
           </Dialog>
         </Box>
