@@ -100,14 +100,9 @@ const Polist: React.FC = () => {
   const [files, setFiles] = useState<File[]>([]); // Use an array to store multiple files
   const [pendingOrderAmount, setPendingOrderAmount] = useState(selectedOrder ? selectedOrder.
     pendingOrderAmount : '');
-<<<<<<< HEAD
-  const [pendingDiscountAmount, setPendingDiscountAmount] = useState(selectedOrder ? selectedOrder.
-    pendingDiscountAmount : '');
-=======
  const [pendingDiscountAmount, setPendingDiscountAmount] = useState<number>(
   selectedOrder ? selectedOrder.pendingDiscountAmount || 0 : 0
 );
->>>>>>> recover-branch
   const [pendingTaxAmount, setPendingTaxAmount] = useState<number>(0); // New state for total tax
   const [taxDetails, setTaxDetails] = useState<TaxDetails>({});
   const [openPhotoDialog, setOpenPhotoDialog] = useState(false); // State to control dialog
@@ -152,12 +147,8 @@ const Polist: React.FC = () => {
   const [touched, setTouched] = useState<Record<number, Record<string, boolean>>>({}); // Tracks touched fields by item index and field name
   const [errors, setErrors] = useState<Record<number, Record<string, string>>>({}); // Tracks errors by item index and field name
   const [isFullScreen, setIsFullScreen] = useState(false);
-<<<<<<< HEAD
-useEffect(() => {
-=======
   const [overallDiscount, setOverallDiscount] = useState<number>(0); // New state for overall discount
   useEffect(() => {
->>>>>>> recover-branch
     if (shouldFetch && !loading) {
       const action = fetchPurchaseOrders({
         page: newPage,
@@ -169,10 +160,7 @@ useEffect(() => {
       setShouldFetch(false);
     }
   }, [dispatch, newPage, pageSize, shouldFetch, loading, fromDate, toDate]);
-<<<<<<< HEAD
-=======
 
->>>>>>> recover-branch
   useEffect(() => {
     dispatch(fetchBusinesses());
   }, [dispatch]);
@@ -204,103 +192,6 @@ useEffect(() => {
       setPendingDiscountAmount(selectedOrder.pendingDiscountAmount || '');
     }
   }, [selectedOrder]);
-<<<<<<< HEAD
-
-  useEffect(() => {
-    if (updatedItems.length > 0) {
-      const taxDetails: Record<string, { amount: number; percentage: number; type: string }> = {};
-      let newTotalOrderAmount = 0;
-      let totalDiscountBeforeTax = 0;
-      let totalDiscountAfterTax = 0;
-
-      updatedItems.forEach(item => {
-        const totalPrice = item.pendingTotalQuantity * item.newPrice;
-
-        // Before Tax Discount Calculation
-        const discountAmountBeforeTax = (totalPrice * (item.befTaxDiscount / 100)) || 0;
-        const discountedPriceBeforeTax = totalPrice - discountAmountBeforeTax;
-
-        const taxPercentage = item.taxPercentage || 0;
-        const taxType = item.taxType;
-
-        let sgst = 0, cgst = 0, igst = 0;
-
-        // Calculate tax based on the type
-        if (taxType === 'igst') {
-          // Calculate IGST
-          igst = (taxPercentage / 100) * discountedPriceBeforeTax;
-
-          igst = customRounddigit(igst);
-
-          // Store IGST separately based on its percentage
-          const igstKey = `igst-${taxPercentage}`;
-          if (taxDetails[igstKey]) {
-            taxDetails[igstKey].amount += igst; // Accumulate same IGST amounts
-          } else {
-            taxDetails[igstKey] = {
-              amount: igst,
-              percentage: taxPercentage,
-              type: 'IGST'
-            };
-          }
-        } else if (taxType === 'cgst_sgst') {
-          // Calculate total tax amount and split between SGST and CGST
-          const totalTaxAmount = (taxPercentage / 100) * discountedPriceBeforeTax;
-          sgst = totalTaxAmount / 2;
-          cgst = totalTaxAmount / 2;
-          // Round SGST and CGST to 2 decimal places
-          sgst = customRounddigit(sgst);
-          cgst = customRounddigit(cgst);
-          // Store SGST
-          const sgstKey = `sgst-${taxPercentage / 2}`;
-          if (taxDetails[sgstKey]) {
-            taxDetails[sgstKey].amount += sgst; // Accumulate same SGST amounts
-          } else {
-            taxDetails[sgstKey] = {
-              amount: sgst,
-              percentage: taxPercentage / 2,
-              type: 'SGST'
-            };
-          }
-
-          // Store CGST
-          const cgstKey = `cgst-${taxPercentage / 2}`;
-          if (taxDetails[cgstKey]) {
-            taxDetails[cgstKey].amount += cgst; // Accumulate same CGST amounts
-          } else {
-            taxDetails[cgstKey] = {
-              amount: cgst,
-              percentage: taxPercentage / 2,
-              type: 'CGST'
-            };
-          }
-        }
-
-        // After Tax Discount Calculation
-        const finalPriceBeforeAfterTaxDiscount = discountedPriceBeforeTax + igst + sgst + cgst;
-        const discountAmountAfterTax = (finalPriceBeforeAfterTaxDiscount * (item.afTaxDiscount / 100)) || 0;
-        const finalPriceAfterTaxDiscount = finalPriceBeforeAfterTaxDiscount - discountAmountAfterTax;
-
-        // Accumulate final amounts
-        newTotalOrderAmount += finalPriceAfterTaxDiscount;
-        totalDiscountBeforeTax += discountAmountBeforeTax;
-        totalDiscountAfterTax += discountAmountAfterTax;
-      });
-
-      const roundedOrderAmount = customRound(newTotalOrderAmount); // Using customRound here
-      setPendingOrderAmount((roundedOrderAmount));
-      setTaxDetails(taxDetails);
-
-      const totalDiscountAmount = totalDiscountBeforeTax + totalDiscountAfterTax;
-      setPendingDiscountAmount(customRounddigit(totalDiscountAmount));
-
-      const totalTaxAmount =
-        Object.values(taxDetails).reduce((acc, tax) => acc + tax.amount, 0);
-      setPendingTaxAmount(customRounddigit(totalTaxAmount));
-    }
-  }, [updatedItems]);
-
-=======
 useEffect(() => {
   if (updatedItems.length > 0) {
     const taxDetails: Record<string, { amount: number; percentage: number; type: string }> = {};
@@ -387,7 +278,6 @@ useEffect(() => {
     setTaxDetails({});
   }
 }, [updatedItems, overallDiscount]);
->>>>>>> recover-branch
   const handleClose = () => {
     setDialogSummaryOpen(false);
   };
@@ -672,34 +562,6 @@ useEffect(() => {
     handleUpload(); // Call the upload function
     setOpenPhotoDialog(false); // Close the dialog
   };
-<<<<<<< HEAD
-
-  const handleViewDetailsClick = (orderId: string) => {
-    const selectedOrder = purchaseList.find(order => order.purchaseOrderId === orderId);
-    if (selectedOrder) {
-      // Filter items to only include those with pendingTotalQuantity > 0
-      const filteredItems = selectedOrder.items.filter(item => item.pendingTotalQuantity > 0);
-
-      // Update state with the filtered items
-      setSelectedOrderState({ ...selectedOrder, items: filteredItems });
-      setUpdatedItems(filteredItems.map(item => ({ ...item })));
-
-      // Initialize touched and errors
-      const initialTouched = filteredItems.reduce((acc, _, index) => ({
-        ...acc,
-        [index]: { pendingCount: false, pendingQuantity: false, newPrice: false }
-      }), {});
-      const initialErrors = filteredItems.reduce((acc, _, index) => ({
-        ...acc,
-        [index]: { pendingCount: '', pendingQuantity: '', newPrice: '' }
-      }), {});
-      setTouched(initialTouched);
-      setErrors(initialErrors);
-
-      setDialogOpen(true);
-    }
-  };
-=======
 const handleViewDetailsClick = (orderId: string) => {
   const selectedOrder = purchaseList.find(order => order.purchaseOrderId === orderId);
   if (selectedOrder) {
@@ -737,7 +599,6 @@ const handleViewDetailsClick = (orderId: string) => {
     setDialogOpen(true);
   }
 };
->>>>>>> recover-branch
   const handleOpen = () => {
     setDialogSummaryOpen(true);
   };
@@ -1267,11 +1128,7 @@ const handleViewDetailsClick = (orderId: string) => {
           dispatch(setSnackbarMessage('Changes saved successfully!'));
           dispatch(setSnackbarOpen(true));
           // Re-fetch the updated purchase orders to refresh the UI
-<<<<<<< HEAD
-          dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize,fromDate,toDate, status }));
-=======
           dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize, fromDate, toDate, status }));
->>>>>>> recover-branch
         })
         .catch(error => {
           console.error('Failed to save changes:', error);
@@ -1361,11 +1218,7 @@ const handleViewDetailsClick = (orderId: string) => {
     setSelectedRandomId(''); // Clear randomId
     setStatusFilter([]); // Clear all selected statuses
     dispatch(fetchPurchaseOrders({
-<<<<<<< HEAD
-      page: 1, size: pageSize,fromDate,toDate
-=======
       page: 1, size: pageSize, fromDate, toDate
->>>>>>> recover-branch
     }));
   }
 
@@ -1375,11 +1228,7 @@ const handleViewDetailsClick = (orderId: string) => {
       try {
         await dispatch(rejectPurchaseOrder(selectedOrder.purchaseOrderId));
         dispatch(fetchPurchaseOrders({
-<<<<<<< HEAD
-          page: newPage, size: pageSize,fromDate,toDate
-=======
           page: newPage, size: pageSize, fromDate, toDate
->>>>>>> recover-branch
         }));
       } catch (error) {
         console.error('Failed to update order status:', error);
@@ -1393,11 +1242,7 @@ const handleViewDetailsClick = (orderId: string) => {
     if (selectedOrder) {
       try {
         await dispatch(approvePurchaseOrder(selectedOrder.purchaseOrderId));
-<<<<<<< HEAD
-        dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize,fromDate,toDate, status }));
-=======
         dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize, fromDate, toDate, status }));
->>>>>>> recover-branch
       } catch (error) {
         console.error('Failed to update order status:', error);
       }
@@ -1706,257 +1551,6 @@ const handleViewDetailsClick = (orderId: string) => {
             </Box>
           </Grid>
         </Grid>
-<<<<<<< HEAD
-
-        <Dialog
-          open={dialogOpen}
-          onClose={handleDialogClose}
-          maxWidth={false}
-          fullWidth={true}
-          fullScreen={isFullScreen}
-          container={document.body} // Always render in document.body
-          disablePortal={false} // Use portal to break out of parent containers
-          sx={isFullScreen ? {
-            '& .MuiDialog-container': {
-              position: 'fixed !important',
-              top: '0 !important',
-              left: '0 !important',
-              right: '0 !important',
-              bottom: '0 !important',
-              width: '100vw !important',
-              height: '100vh !important',
-              maxWidth: 'none !important',
-              maxHeight: 'none !important',
-              margin: '0 !important',
-              zIndex: 9999,
-            },
-            '& .MuiDialog-paper': {
-              width: '100vw !important',
-              height: '100vh !important',
-              maxWidth: 'none !important',
-              maxHeight: 'none !important',
-              margin: '0 !important',
-              borderRadius: '0 !important',
-            }
-          } : {}}
-          PaperProps={{
-            style: {
-              height: isFullScreen ? '100vh' : 'auto',
-              width: isFullScreen ? '100vw' : '90vw',
-              maxWidth: isFullScreen ? 'none' : 'none',
-              margin: isFullScreen ? 0 : 'auto',
-              borderRadius: isFullScreen ? 0 : undefined,
-            },
-          }}
-        >
-          <DialogTitle sx={{
-            fontWeight: 'bold',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: isFullScreen ? '16px 24px' : '16px' // Adjust padding for fullscreen
-          }}>
-            <span>Pending Order Details {selectedOrder?.randomId ? `${selectedOrder.randomId}` : ''}</span>
-            <span>Vendor Name:{selectedOrder?.vendorName || 'Unknown Vendor'}</span>
-            <IconButton onClick={toggleFullScreen} color="primary" edge="end">
-              {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-            </IconButton>
-          </DialogTitle>
-
-          <DialogContent sx={{
-            padding: isFullScreen ? '0 24px' : '20px', // Adjust content padding
-            height: isFullScreen ? 'calc(100vh - 120px)' : 'auto', // Account for header/footer height
-            overflow: 'auto'
-          }}>
-
-            {/* Details of the selected order */}
-            <TableContainer component={Paper}>
-              <Table stickyHeader sx={{ minWidth: 500, fontSize: '0.600rem' }}>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>ItemId</TableCell>
-                    <TableCell>Item Name</TableCell>
-                    <TableCell>Uom</TableCell>
-                    <TableCell>Count</TableCell>
-                    <TableCell>Quantity</TableCell>
-                    <TableCell>Total Quantity</TableCell>
-                    <TableCell>UnitPrice</TableCell>
-                    <TableCell>BefTax Dis(%)</TableCell>
-                    <TableCell>AfTax Dis(%)</TableCell>
-                    <TableCell>Tax(%)</TableCell>
-                    <TableCell>TotalPrice</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {updatedItems.map((item, index) => (
-                    <TableRow key={item.itemId}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell>{item.itemName}</TableCell>
-                      <TableCell>{item.uom}</TableCell>
-                      <TableCell>
-                        <TextField
-                          type="text"
-                          value={item.pendingCount === 0 ? '' : item.pendingCount}
-                          onChange={e => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              handleInputChange(index, 'pendingCount', value);
-                            }
-                          }}
-                          onBlur={() => {
-                            setTouched(prev => ({
-                              ...prev,
-                              [index]: { ...prev[index], pendingCount: true }
-                            }));
-                            // Validate on blur
-                            if (item.pendingCount === '') {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingCount: 'required' }
-                              }));
-                            } else if (!/^\d*\.?\d*$/.test(String(item.pendingCount))) {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingCount: 'Invalid number' }
-                              }));
-                            } else {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingCount: '' }
-                              }));
-                            }
-                          }}
-                          error={touched[index]?.pendingCount && !!errors[index]?.pendingCount}
-                          helperText={touched[index]?.pendingCount && errors[index]?.pendingCount ? errors[index].pendingCount : ''}
-                          inputProps={{ step: '0.01' }}
-                          sx={{ width: '100px' }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          type="text"
-                          value={item.pendingQuantity === 0 ? '' : item.pendingQuantity}
-                          onChange={e => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              handleInputChange(index, 'pendingQuantity', value);
-                            }
-                          }}
-                          onBlur={() => {
-                            setTouched(prev => ({
-                              ...prev,
-                              [index]: { ...prev[index], pendingQuantity: true }
-                            }));
-                            if (item.pendingQuantity === '') {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingQuantity: 'required' }
-                              }));
-                            } else if (!/^\d*\.?\d*$/.test(String(item.pendingQuantity))) {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingQuantity: 'Invalid number' }
-                              }));
-                            } else {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingQuantity: '' }
-                              }));
-                            }
-                          }}
-                          error={touched[index]?.pendingQuantity && !!errors[index]?.pendingQuantity}
-                          helperText={touched[index]?.pendingQuantity && errors[index]?.pendingQuantity ? errors[index].pendingQuantity : ''}
-                          inputProps={{ step: '0.01' }}
-                          sx={{ width: '100px' }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          type="number"
-                          value={item.pendingTotalQuantity}
-                          InputProps={{
-                            readOnly: true,
-                          }}
-                          inputProps={{ min: 0 }}
-                          disabled
-                          sx={{ width: '100px' }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          type="text"
-                          value={item.newPrice === 0 ? '' : item.newPrice}
-                          onChange={e => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              handleInputChange(index, 'newPrice', value);
-                            }
-                          }}
-                          onBlur={() => {
-                            setTouched(prev => ({
-                              ...prev,
-                              [index]: { ...prev[index], newPrice: true }
-                            }));
-                            if (item.newPrice === '') {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], newPrice: 'required' }
-                              }));
-                            } else if (!/^\d*\.?\d*$/.test(String(item.newPrice))) {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], newPrice: 'Invalid number' }
-                              }));
-                            } else {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], newPrice: '' }
-                              }));
-                            }
-                          }}
-                          error={touched[index]?.newPrice && !!errors[index]?.newPrice}
-                          helperText={touched[index]?.newPrice && errors[index]?.newPrice ? errors[index].newPrice : ''}
-                          inputProps={{ step: '0.01' }}
-                          sx={{ width: '100px' }}
-                        />
-                      </TableCell>
-                      <TableCell>{item.befTaxDiscount}</TableCell>
-                      <TableCell>{item.afTaxDiscount}</TableCell>
-                      <TableCell>{item.taxPercentage}</TableCell>
-                      <TableCell>{(item.pendingTotalPrice || 0).toFixed(2)}</TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell colSpan={10} align="right">
-                      <strong>Discount Amount:</strong>
-                    </TableCell>
-                    <TableCell>{pendingDiscountAmount}</TableCell>
-                  </TableRow>
-                  {Object.entries(taxDetails).map(([key, tax]) => (
-                    <TableRow key={key}>
-                      <TableCell colSpan={9}></TableCell>
-                      <TableCell>
-                        <strong>{tax.type} ({tax.percentage}%):</strong>
-                      </TableCell>
-                      <TableCell>{tax.amount}</TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell colSpan={9}></TableCell>
-                    <TableCell><strong>Total Order Amount:</strong></TableCell>
-                    <TableCell>{pendingOrderAmount}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleDialogClose} color="primary">Close</Button>
-            <Button onClick={handleSaveChanges} color="primary">Save Changes</Button>
-          </DialogActions>
-        </Dialog>
-        {/* Pdf Excel */}
-=======
 <Dialog
   open={dialogOpen}
   onClose={handleDialogClose}
@@ -2219,7 +1813,6 @@ const handleViewDetailsClick = (orderId: string) => {
     <Button onClick={handleSaveChanges} color="primary">Save Changes</Button>
   </DialogActions>
 </Dialog> {/* Pdf Excel */}
->>>>>>> recover-branch
         <Dialog open={dialogDownloadOpen} onClose={() => setDialogDownloadOpen(false)}>
           <DialogTitle>Select Export Format</DialogTitle>
           <DialogContent>

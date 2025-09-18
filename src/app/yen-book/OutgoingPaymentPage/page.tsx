@@ -36,10 +36,7 @@ import {
   List,
   FormControlLabel,
   ListItem,
-<<<<<<< HEAD
-=======
   ListItemText,
->>>>>>> recover-branch
 } from '@mui/material';
 import YenBookPage from '../page';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -57,10 +54,6 @@ import {
   selectPageSize,
   selectTotalItems,
   setPagination,
-<<<<<<< HEAD
-  processBulkPayment,
-=======
->>>>>>> recover-branch
   fetchActiveDebitsVendor,
 } from '../../../features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import { fetchGrnById, fetchItemwiseGrns, selectGrn } from '@/features/yen-purchase/GRN/grnSlice';
@@ -87,10 +80,7 @@ import { fetchPoById, selectPurchaseListState, setPoDialogOpen, setSelectedPo } 
 import { ItemDetailResponsePO, PoResponse } from '@/Models/purchaseModel';
 import PODialog from '@/components/yen-purchase/OutgoingComponent/PODialog';
 import ConfirmationDialog from '@/components/confirmationDialog';
-<<<<<<< HEAD
-=======
 import BulkPaymentDialog from '@/components/yen-purchase/OutgoingComponent/BulkPaymentDialog';
->>>>>>> recover-branch
 
 const OutgoingPaymentComponent = React.memo(() => {
   const dispatch = useDispatch<AppDispatch>();
@@ -134,21 +124,13 @@ const OutgoingPaymentComponent = React.memo(() => {
 
   const [selectedVendorName, setSelectedVendorName] = useState<VendorDetail | null>(null); // Default is null
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
-<<<<<<< HEAD
-  const [dialogOpen, setDialogOpen] = useState(false);
-=======
->>>>>>> recover-branch
   const [selectedOutgoings, setSelectedOutgoings] = useState<Outgoing[]>([]);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false); // Controls the second dialog
   const [viewItemsDialogOpen, setViewItemsDialogOpen] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState<GrnResponse | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [paymentDetailsToSend, setPaymentDetailsToSend] = useState<any>(null);
-<<<<<<< HEAD
-  const [confirmMultipleDialogOpen, setConfirmMultipleDialogOpen] = useState(false);
-=======
 const [isBulkPaymentOpen, setIsBulkPaymentOpen] = useState(false);
->>>>>>> recover-branch
   const [paymentTypeMultiple, setPaymentTypeMultiple] = useState<{ [outgoingId: string]: 'full' | 'partial' }>({});
   const [partialAmount, setPartialAmount] = useState<{ [outgoingId: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false); // To track loading state
@@ -178,12 +160,6 @@ const [isBulkPaymentOpen, setIsBulkPaymentOpen] = useState(false);
   const [error, setError] = useState<string>('');
   const [errors, setErrors] = useState<{ [outgoingId: string]: string }>({});
   // Add this to your component's state
-<<<<<<< HEAD
-  const [totalAmount, setTotalAmount] = useState<number>(
-    selectedOutgoing?.totalPayableAmount || 0
-  );
-=======
->>>>>>> recover-branch
   const [isFilterActive, setIsFilterActive] = useState(false);
 const [confirmDialogProps, setConfirmDialogProps] = useState<{
     title: string;
@@ -232,10 +208,7 @@ useEffect(() => {
     fetchActiveDebits();
   }
 }, [selectedOutgoing, openDetailsDialog, dispatch]);
-<<<<<<< HEAD
-=======
 
->>>>>>> recover-branch
   useEffect(() => {
     if (loadingState === 'idle') {
       dispatch(fetchItemwiseGrns());
@@ -508,48 +481,13 @@ const validateAmount = (amount: string, maxAllowed: number): string => {
   const handleDaysChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedDays(Number(event.target.value));
   };
-<<<<<<< HEAD
-  // Handle debit note selection
-const handleDebitNoteChange = (debitId: string) => {
-  setPaymentDetails((prev) => {
-    const newSelectedDebitNotes = prev.selectedDebitNotes.includes(debitId)
-      ? prev.selectedDebitNotes.filter((id) => id !== debitId)
-      : [...prev.selectedDebitNotes, debitId];
-
-    // Calculate total debit amount
-    const totalDebitAmount = newSelectedDebitNotes.reduce((sum, id) => {
-=======
   const handleDebitNoteChange = (selectedValues: string[]) => {
   setPaymentDetails((prev) => {
     const totalDebitAmount = selectedValues.reduce((sum, id) => {
->>>>>>> recover-branch
       const debit = activeDebits.find((d) => d.randomId === id);
       return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
     }, 0);
 
-<<<<<<< HEAD
-    // Calculate remaining payable amount
-    const remainingPayable = selectedOutgoing?.totalPayableAmount
-      ? selectedOutgoing.totalPayableAmount - totalDebitAmount
-      : 0;
-
-    // Validate total debit amount
-    const validationError = totalDebitAmount > (selectedOutgoing?.totalPayableAmount || 0)
-      ? `Total debit notes (₹${totalDebitAmount.toFixed(2)}) cannot exceed total payable amount (₹${selectedOutgoing?.totalPayableAmount.toFixed(2)})`
-      : '';
-
-    setError(validationError);
-
-    // If error, revert to previous selection; else update amount to remaining
-    return {
-      ...prev,
-      selectedDebitNotes: validationError ? prev.selectedDebitNotes : newSelectedDebitNotes,
-      amount: validationError
-        ? prev.amount
-        : remainingPayable > 0
-        ? remainingPayable.toFixed(2)
-        : '0.00', // Auto-fill amount with remaining
-=======
     const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
     const validationError =
       totalDebitAmount > totalPayable
@@ -564,7 +502,6 @@ const handleDebitNoteChange = (debitId: string) => {
       amount: validationError
         ? prev.amount
         : (totalPayable - totalDebitAmount).toFixed(2),
->>>>>>> recover-branch
     };
   });
 };
@@ -698,14 +635,7 @@ const handleFilterClick = () => {
     }));
     setError('');
   };
-<<<<<<< HEAD
-  const handleProcessPayment = () => {
-    setDialogOpen(true);  // Close the first dialog
-    setPaymentDialogOpen(true);  // Open the second dialog for payment method
-  };
-=======
 
->>>>>>> recover-branch
 const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   const { name, value } = e.target;
 
@@ -827,11 +757,7 @@ const handleConfirmPayment = async () => {
       description: (
         <Box>
           <Typography>
-<<<<<<< HEAD
-            This invoice already has debit notes applied. Are you sure you want to proceed with the payment without applying additional debit notes?
-=======
           Are you sure you want to proceed with the payment without applying additional debit notes?
->>>>>>> recover-branch
           </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
             Vendor: {selectedOutgoing?.vendorName} <br />
@@ -852,11 +778,7 @@ const handleConfirmPayment = async () => {
       description: (
         <Box>
           <Typography>
-<<<<<<< HEAD
-            There are available debit notes for this vendor. Are you sure you want to proceed with the payment without applying any debit notes?
-=======
             Are you sure you want to proceed with the payment without applying any debit notes?
->>>>>>> recover-branch
           </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
             Vendor: {selectedOutgoing?.vendorName} <br />
@@ -1209,82 +1131,6 @@ const totalPages = doc.getNumberOfPages();
     setOpenDialog(false);
   };
 
-<<<<<<< HEAD
-  const handlePayClick = () => {
-    // Gather selected data and make sure outgoingId is defined
-    const selectedData = outgoings.filter(outgoing =>
-      outgoing.outgoingId !== undefined && selectedRows.includes(outgoing.outgoingId)
-    );
-
-    // Set the selected data and open the dialog
-    setSelectedOutgoings(selectedData);
-    setDialogOpen(true);
-  };
-  const handleConfirmMultiplePayment = async () => {
-    try {
-      setIsMultiplePaymentLoading(true);
-      if (!paymentDetails.paymentMode) {
-        dispatch(setSnackbarMessage('Payment mode is required.'));
-        dispatch(setSnackbarOpen(true));
-        return;
-      }
-      // Prepare payments array for processBulkPayment
-      const payments = selectedOutgoings.map((outgoing) => {
-        const paymentType = paymentTypeMultiple[outgoing.outgoingId as string] || 'full';
-        const paymentAmount = paymentType === 'partial' ? parseFloat(partialAmount[outgoing.outgoingId as string] || '0') : outgoing.totalPayableAmount || 0;
-
-        // Validate payment amount
-        if (paymentType === 'partial' && (isNaN(paymentAmount) || paymentAmount <= 0 || paymentAmount > (outgoing.totalPayableAmount || 0))) {
-          throw new Error(`Invalid partial amount for outgoing ${outgoing.outgoingId}`);
-        }
-
-        return {
-          paymentMode: paymentDetails.paymentMode,
-          paymentType,
-          fullPaymentAmount: paymentType === 'full' ? paymentAmount : 0,
-          partialAmount: paymentType === 'partial' ? paymentAmount : 0,
-          paymentMethod: paymentDetails.paymentMethod || undefined,
-          chequeNo: paymentDetails.paymentMethod === 'cheque' ? paymentDetails.cashVoucherNo : undefined,
-          neftNo: paymentDetails.paymentMethod === 'neft' ? paymentDetails.neftNo : undefined,
-          rtgsNo: paymentDetails.paymentMethod === 'rtgs' ? paymentDetails.rtgsNo : undefined,
-          impsNo: paymentDetails.paymentMethod === 'imps' ? paymentDetails.impsNo : undefined,
-          upi: paymentDetails.paymentMethod === 'upi' ? paymentDetails.upi : undefined,
-          pettyCashAmount: paymentDetails.paymentMode === 'Cash' && paymentDetails.paymentMethod === 'pettyCash' ? paymentAmount : 0,
-          hoCash: paymentDetails.paymentMode === 'Cash' && paymentDetails.paymentMethod === 'hoCash' ? paymentAmount : 0,
-          bankName: paymentDetails.paymentMode === 'Bank' ? paymentDetails.bankName : undefined,
-        };
-      });
-
-      // Prepare outgoingIds
-      const outgoingIds = selectedOutgoings.map((outgoing) => outgoing.outgoingId as string);
-
-      // Dispatch processBulkPayment
-      await dispatch(processBulkPayment({ payments, outgoingIds })).unwrap();
-
-      // Reset state and refresh data
-      setSelectedRows([]);
-      dispatch(fetchOutgoings({
-        page: newPage,
-        size: pageSize,
-        filterBy: dateField,
-        filterByAmount: true,
-        fromDate,
-        toDate
-      }));
-      setPaymentDialogOpen(false);
-      setConfirmMultipleDialogOpen(false);
-      setDialogOpen(false);
-      resetPaymentDetails();
-    } catch (error: any) {
-      console.error('Error processing bulk payments:', error);
-      dispatch(setSnackbarMessage(error.message || 'Failed to process bulk payments.'));
-      dispatch(setSnackbarOpen(true));
-    } finally {
-      setIsMultiplePaymentLoading(false);
-    }
-  };
-
-=======
 const handlePayClick = () => {
   // Gather selected data and make sure outgoingId is defined
   const selectedData = outgoings.filter(outgoing =>
@@ -1302,7 +1148,6 @@ const handlePayClick = () => {
   setSelectedOutgoings(selectedData);
   setIsBulkPaymentOpen(true); // Open the bulk payment dialog
 };
->>>>>>> recover-branch
   const handleDownload = async (outgoingId: string) => {
     const outgoingdetail = outgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
 
@@ -2248,23 +2093,6 @@ Description:<br />
     {activeDebits.length > 0 && (
       <Box sx={{ mt: 2 }}>
         <Typography variant="subtitle1">Apply Debit Notes</Typography>
-<<<<<<< HEAD
-        <List dense>
-          {activeDebits.map((debit) => (
-            <ListItem key={debit.randomId}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={paymentDetails.selectedDebitNotes.includes(debit.randomId)}
-                    onChange={() => handleDebitNoteChange(debit.randomId)}
-                  />
-                }
-                label={`Note No: ${debit.randomId} - Rs ${(debit.finalAmount || 0).toFixed(2)}`}
-              />
-            </ListItem>
-          ))}
-        </List>
-=======
        <FormControl fullWidth sx={{ mb: 2 }}>
   <InputLabel>Apply Debit Notes</InputLabel>
   <Select
@@ -2296,7 +2124,6 @@ Description:<br />
     ))}
   </Select>
 </FormControl>
->>>>>>> recover-branch
       </Box>
     )}
   </DialogContent>
@@ -2313,282 +2140,8 @@ Description:<br />
     </Button>
   </DialogActions>
 </Dialog>
-<<<<<<< HEAD
-          <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} PaperProps={{
-            sx: {
-              width: '700px', // Set the width of the Dialog to 700px
-              maxWidth: '700px', // Optional: prevent the dialog from exceeding 700px on larger screens
-            },
-          }}>
-            <DialogTitle>
-              Confirm Payment for Selected Vendors
-              {selectedOutgoings.length > 0 && (
-                <Typography variant="h6" style={{ marginTop: 16 }}>
-                  <strong>Overall Total Payable Amount: </strong>
-                  {totalOverallAmount.toFixed(2)} {/* Display total with two decimal places */}
-                </Typography>
-              )}
-            </DialogTitle>
-            <DialogContent>
-              {selectedOutgoings.length === 0 ? (
-                <Typography>No Vendors selected</Typography>
-              ) : (
-                <>
-                  {Object.entries(groupedOutgoingsByVendor(selectedOutgoings)).map(([vendorName, outgoings]) => {
-                    const totalAmountForVendor = outgoings.reduce(
-                      (total, outgoing) => total + (outgoing.totalPayableAmount ?? 0),
-                      0
-                    ).toFixed(2);
-
-                    return (
-
-                      <Box key={vendorName}>
-                        <Typography style={{ marginBottom: 16 }}>
-                          <strong>{vendorName}</strong>
-                        </Typography>
-                        <TableContainer component={Paper} style={{ marginBottom: 16 }}>
-                          <Table>
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>Invoice No</TableCell>
-                                <TableCell>Invoice Date</TableCell>
-                                <TableCell>GRN No</TableCell>
-                                <TableCell>Total Payable Amount</TableCell>
-                                <TableCell>Payment Type</TableCell>
-                                <TableCell>Partial Amount</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {outgoings.map((outgoing) => (
-                                <TableRow key={outgoing.outgoingId}>
-                                  <TableCell>{outgoing.invoiceNo}</TableCell>
-                                  <TableCell>{outgoing.invoiceDate ? format(outgoing.invoiceDate, 'dd-MM-yyyy') : ''}</TableCell>
-                                  <TableCell>{getRandomId(outgoing.grnId || '')} {/* Display the random ID */}
-                                  </TableCell>
-                                  <TableCell>{outgoing.totalPayableAmount?.toFixed(2)}</TableCell>
-                                  <TableCell>
-                                    <Select
-                                      value={paymentTypeMultiple[outgoing.outgoingId as string] || 'full'}
-                                      onChange={(e) => handlePaymentTypeChangeMultiple(outgoing.outgoingId as string, e.target.value as 'full' | 'partial')}
-                                      fullWidth
-                                    >
-                                      <MenuItem value="full">Full</MenuItem>
-                                      <MenuItem value="partial">Partial</MenuItem>
-                                    </Select>
-                                  </TableCell>
-                                  <TableCell>
-                                    {paymentTypeMultiple[outgoing.outgoingId as string] === 'partial' && (
-                                      <TextField
-                                        autoComplete="off"
-                                        value={partialAmount[outgoing.outgoingId as string] || ''}
-                                        onChange={(e) =>
-                                          handlePartialAmountChangeMultiple(
-                                            outgoing.outgoingId as string,
-                                            e.target.value,
-                                            outgoing.totalPayableAmount || 0
-                                          )
-                                        }
-                                        label="Amount"
-                                        fullWidth
-                                        type="number"
-                                        error={!!errors[outgoing.outgoingId as string]}
-                                        helperText={errors[outgoing.outgoingId as string]}
-                                        inputProps={{ min: 0, step: '0.01' }} // Prevent negative numbers and allow decimals
-                                      />
-                                    )}
-                                  </TableCell>
-
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-                        <Box style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-                          <Typography variant="body1" style={{ fontWeight: 'bold' }}>
-                            Total Amount for {vendorName}: {totalAmountForVendor}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    );
-                  })}
-                </>
-              )}
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setDialogOpen(false)} variant="contained" color="primary" >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleProcessPayment}
-                variant="contained"
-                color="primary"
-                disabled={selectedRows.length === 0 || isMultiplePaymentLoading}
-              >
-                {isMultiplePaymentLoading ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  "Process Payment"
-                )}
-              </Button>
-            </DialogActions>
-          </Dialog>
-
-          <Dialog open={paymentDialogOpen} onClose={() => setOpenDetailsDialog(false)}>
-            <DialogTitle>Payment Details</DialogTitle>
-            <DialogContent>
-              <Typography variant="body1" gutterBottom>
-                Total Amount: {selectedOutgoing?.totalPayableAmount?.toFixed(2) || 'N/A'}
-              </Typography>
-
-              {/* Payment Mode Selector (Cash or Bank) */}
-              <TextField
-                select
-                name="paymentMode"
-                label="Payment Mode"
-                value={paymentDetails.paymentMode}
-                onChange={handlePaymentModeChange}
-                fullWidth
-                margin="normal"
-              >
-                <MenuItem value="Cash">Cash</MenuItem>
-                <MenuItem value="Bank">Bank</MenuItem>
-              </TextField>
-
-              {/* Payment Method Selector (Petty Cash, HO Cash, etc.) */}
-              {paymentDetails.paymentMode === 'Cash' && (
-                <TextField
-                  select
-                  name="paymentMethod"
-                  label="Payment Method"
-                  value={paymentDetails.paymentMethod}
-                  onChange={handleInputChange}
-                  fullWidth
-                  margin="normal"
-                  required
-                >
-                  <MenuItem value="pettyCash">Petty Cash</MenuItem>
-                  <MenuItem value="hoCash">HO Cash</MenuItem>
-                </TextField>
-              )}
-
-
-              {/* Bank Payment Mode */}
-              {paymentDetails.paymentMode === 'Bank' && (
-                <>
-                  {/* Bank Name Selector */}
-                  <TextField
-                    select
-                    name="bankName"
-                    label="Bank Name"
-                    value={paymentDetails.bankName}
-                    onChange={handleInputChange}
-                    fullWidth
-                    margin="normal"
-                  >
-                    {banks.map((bank) => (
-                      <MenuItem key={bank.bankMasterId} value={bank.bankName}>
-                        {bank.bankName}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-
-                  {/* Payment Method (e.g., NEFT, RTGS, IMPS, UPI) */}
-                  <TextField
-                    select
-                    name="paymentMethod"
-                    label="Payment Method"
-                    value={paymentDetails.paymentMethod}
-                    onChange={handlePaymentMethodChange}
-                    fullWidth
-                    margin="normal"
-                  >
-                    <MenuItem value="neft">NEFT</MenuItem>
-                    <MenuItem value="rtgs">RTGS</MenuItem>
-                    <MenuItem value="imps">IMPS</MenuItem>
-                    <MenuItem value="upi">UPI</MenuItem>
-                  </TextField>
-
-                  {/* Conditional Fields for Bank Payment Methods */}
-                  {paymentDetails.paymentMethod === 'neft' && (
-                    <TextField
-                      autoComplete="off"
-                      name="neftNo"
-                      label="NEFT Number"
-                      value={paymentDetails.neftNo}
-                      onChange={handleInputChange}
-                      fullWidth
-                      margin="normal"
-                      required
-                    />
-                  )}
-                  {paymentDetails.paymentMethod === 'rtgs' && (
-                    <TextField
-                      autoComplete="off"
-                      name="rtgsNo"
-                      label="RTGS Number"
-                      value={paymentDetails.rtgsNo}
-                      onChange={handleInputChange}
-                      fullWidth
-                      margin="normal"
-                      required
-                    />
-                  )}
-                  {paymentDetails.paymentMethod === 'imps' && (
-                    <TextField
-                      autoComplete="off"
-                      name="impsNo"
-                      label="IMPS Number"
-                      value={paymentDetails.impsNo}
-                      onChange={handleInputChange}
-                      fullWidth
-                      margin="normal"
-                      required
-                    />
-                  )}
-                  {paymentDetails.paymentMethod === 'upi' && (
-                    <TextField
-                      autoComplete="off"
-                      name="upi"
-                      label="UPI ID"
-                      value={paymentDetails.upi}
-                      onChange={handleInputChange}
-                      fullWidth
-                      margin="normal"
-                      required
-                    />
-                  )}
-                </>
-              )}
-            </DialogContent>
-
-            <DialogActions>
-              <Button onClick={handleCloseMultipleDialog} color="primary">
-                Cancel
-              </Button>
-              <Button
-                onClick={handleConfirmMultiplePayment}
-                color="primary"
-                disabled={isMultiplePaymentLoading}
-              >
-                {isMultiplePaymentLoading ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  'Confirm'
-                )}
-              </Button>
-            </DialogActions>
-          </Dialog>
-          {/* Snackbar for feedback
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={6000}
-        onClose={() => setOpenSnackbar(false)}
-        message={snackbarMessage}
-      /> */}
-=======
        
    
->>>>>>> recover-branch
           <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} >
             <DialogTitle>Confirm Payment</DialogTitle>
             <DialogContent>
@@ -2623,57 +2176,7 @@ Description:<br />
               }} variant="contained" color="primary">Confirm</Button>
             </DialogActions>
           </Dialog>
-<<<<<<< HEAD
-          <Dialog open={confirmMultipleDialogOpen} onClose={() => setConfirmMultipleDialogOpen(false)}>
-            <DialogTitle>Confirm Multiple Payments</DialogTitle>
-            <DialogContent>
-              {isLoading ? (
-                <Box display="flex" justifyContent="center" alignItems="center" height="200px">
-                  <CircularProgress size={50} color="inherit" />
-                </Box>
-              ) : (
-                <Typography variant="body1">
-                  <Tooltip
-                    title={
-                      <Box>
-                        {selectedOutgoings.map((outgoing, index) => (
-                          <Typography key={index} variant="body2">
-                            {outgoing.vendorName}
-                          </Typography>
-                        ))}
-                      </Box>
-                    }
-                    arrow
-                    placement="top"
-                  >
-                    <span tabIndex={0} style={{ cursor: 'pointer' }}>
-                      Are you sure you want to process payments for {selectedOutgoings.length} vendors?
-                    </span>
-                  </Tooltip>
-                </Typography>
-              )}
-            </DialogContent>
-            <DialogActions>
-              {!isLoading && (
-                <>
-                  <Button onClick={() => setConfirmMultipleDialogOpen(false)} variant="contained" color="primary">
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleConfirmMultiplePayment}
-                    variant="contained"
-                    color="primary"
-                    disabled={isLoading || !paymentDetails.paymentMode}
-                  >
-                    {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm Payment'}
-                  </Button>
-                </>
-              )}
-            </DialogActions>
-          </Dialog>
-=======
        
->>>>>>> recover-branch
           <DebitCreditNoteDialog />
           <PODialog
             open={poDialogOpen}
@@ -2693,15 +2196,12 @@ Description:<br />
             onClose={handleCloseApDialog}
             apInvoice={selectedApInvoice}
           />
-<<<<<<< HEAD
-=======
           <BulkPaymentDialog
   open={isBulkPaymentOpen}
   onClose={() => setIsBulkPaymentOpen(false)}
   selectedOutgoings={selectedOutgoings}
 />
 
->>>>>>> recover-branch
           {/* Dialog for choosing PDF or CSV */}
           <Dialog open={openDialog} onClose={handleCloseDialog}>
             <DialogTitle>Choose a file format</DialogTitle>
@@ -2748,10 +2248,7 @@ Description:<br />
         title={confirmDialogProps.title}
         description={confirmDialogProps.description}
       />
-<<<<<<< HEAD
-=======
       
->>>>>>> recover-branch
         </Grid>
       </Box>
     </Box>
