@@ -138,7 +138,7 @@ export const fetchAllVendors = createAsyncThunk(
 // Add a new function to invalidate cache when there are updates
 export const invalidatePurchaseItemsCache = () => {
   purchaseItemsCache.clear();
-  console.log('Purchase items cache invalidated');
+  console.log('Purchase items cache invalidated'); 
 };
 
 export const updatePurchaseItem = createAsyncThunk<PurchaseItemSearchAdd, { id: string; data: Partial<PurchaseItemSearch> }>(
