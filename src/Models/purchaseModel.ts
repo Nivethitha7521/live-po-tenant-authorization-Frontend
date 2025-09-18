@@ -292,8 +292,11 @@ export const initialState: PurchaseListState = {
   selectedPo: null,
   poDialogOpen: false,
 <<<<<<< HEAD
+<<<<<<< HEAD
 };
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
 };
 // Add this interface to your slice types
 export interface ItemInput {
@@ -344,4 +347,7 @@ export interface OverallDiscountResponse {
   };
   error?: string;
 }
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)

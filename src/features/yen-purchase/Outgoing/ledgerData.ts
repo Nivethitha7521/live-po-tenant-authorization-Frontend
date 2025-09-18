@@ -6,10 +6,14 @@ import { RootState } from '../../../redux/store';
 export interface Transaction {
   date: string | null;
 <<<<<<< HEAD
+<<<<<<< HEAD
   type: string; // "invoice", "payment", "debit_note", "advance_payment"
 =======
   type: string; // "invoice", "payment", "debit_note", "advance_payment", "opening_balance"
 >>>>>>> recover-branch
+=======
+  type: string; // "invoice", "payment", "debit_note", "advance_payment", "opening_balance"
+>>>>>>> d185c94 (Overall disocunt amount)
   reference_id: string;
   description: string;
   debit_amount: number;
@@ -19,10 +23,14 @@ export interface Transaction {
   payment_method?: string;
   notes?: string;
 <<<<<<< HEAD
+<<<<<<< HEAD
   formatted_date?: string; // Add this if your API includes formatted dates
 =======
   formatted_date?: string;
 >>>>>>> recover-branch
+=======
+  formatted_date?: string;
+>>>>>>> d185c94 (Overall disocunt amount)
 }
 
 export interface InvoiceDetail {
@@ -49,10 +57,14 @@ export interface VendorLedgerResponse {
   outstandingAmount: number;
   invoices: InvoiceDetail[];
 <<<<<<< HEAD
+<<<<<<< HEAD
   transactions: Transaction[]; // This should come from your API
 =======
   transactions: Transaction[];
 >>>>>>> recover-branch
+=======
+  transactions: Transaction[];
+>>>>>>> d185c94 (Overall disocunt amount)
   lastTransactionDate: string | null;
 }
 
@@ -63,12 +75,18 @@ interface LedgerState {
   error: string | null;
   selectedVendorName: string | null;
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
   dateRange: {
     startDate: Date | null;
     endDate: Date | null;
   };
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
 }
 
 const initialState: LedgerState = {
@@ -78,16 +96,23 @@ const initialState: LedgerState = {
   error: null,
   selectedVendorName: null,
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
   dateRange: {
     startDate: null,
     endDate: null,
   },
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
 };
 
 export const fetchLedgerData = createAsyncThunk(
   'ledger/fetchLedgerData',
+<<<<<<< HEAD
 <<<<<<< HEAD
   async (vendorName: string, { rejectWithValue }) => {
     try {
@@ -97,6 +122,10 @@ export const fetchLedgerData = createAsyncThunk(
 =======
   async ({ vendorName, startDate, endDate }: { vendorName: string; startDate?: string; endDate?: string }, { rejectWithValue }) => {
     try {
+=======
+  async ({ vendorName, startDate, endDate }: { vendorName: string; startDate?: string; endDate?: string }, { rejectWithValue }) => {
+    try {
+>>>>>>> d185c94 (Overall disocunt amount)
       let url = `https://yenerp.com/purchaseapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`;
       
       // Add date parameters if provided
@@ -109,7 +138,10 @@ export const fetchLedgerData = createAsyncThunk(
       }
       
       const response = await axios.get(url);
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
       return response.data as VendorLedgerResponse;
     } catch (error: any) {
       console.error('API Error:', error.response?.data || error.message);
@@ -126,23 +158,35 @@ const ledgerSlice = createSlice({
       state.selectedVendorName = action.payload;
     },
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     setDateRange: (state, action: PayloadAction<{ startDate: Date | null; endDate: Date | null }>) => {
       state.dateRange = action.payload;
     },
 >>>>>>> recover-branch
+=======
+    setDateRange: (state, action: PayloadAction<{ startDate: Date | null; endDate: Date | null }>) => {
+      state.dateRange = action.payload;
+    },
+>>>>>>> d185c94 (Overall disocunt amount)
     resetLedgerData: (state) => {
       state.ledgerData = null;
       state.error = null;
       state.selectedVendorName = null;
       state.transactions = [];
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
       state.dateRange = {
         startDate: null,
         endDate: null,
       };
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
     },
   },
   extraReducers: (builder) => {
@@ -166,6 +210,7 @@ const ledgerSlice = createSlice({
             reference_id: invoice.invoiceNo,
             description: `Invoice ${invoice.invoiceNo} - PO ${invoice.poId}`,
 <<<<<<< HEAD
+<<<<<<< HEAD
             debit_amount: invoice.totalPayableAmount,
             credit_amount: invoice.paidAmount,
             balance: invoice.remainingAmount,
@@ -174,6 +219,11 @@ const ledgerSlice = createSlice({
             credit_amount: invoice.totalPayableAmount,
             balance: 0,
 >>>>>>> recover-branch
+=======
+            debit_amount: 0,
+            credit_amount: invoice.totalPayableAmount,
+            balance: 0,
+>>>>>>> d185c94 (Overall disocunt amount)
             status: invoice.status,
             notes: `GRN: ${invoice.grnId}`,
           })) || [];
@@ -188,9 +238,13 @@ const ledgerSlice = createSlice({
 });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 export const { setSelectedVendorName, resetLedgerData } = ledgerSlice.actions;
 =======
 export const { setSelectedVendorName, setDateRange, resetLedgerData } = ledgerSlice.actions;
 >>>>>>> recover-branch
+=======
+export const { setSelectedVendorName, setDateRange, resetLedgerData } = ledgerSlice.actions;
+>>>>>>> d185c94 (Overall disocunt amount)
 export const selectLedger = (state: RootState) => state.outgoingLedger as LedgerState;
 export default ledgerSlice.reducer;

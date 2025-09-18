@@ -23,14 +23,19 @@ import {
   Dialog,
   DialogActions,
 <<<<<<< HEAD
+<<<<<<< HEAD
   DialogContent,
   DialogTitle,
   IconButton,
+=======
+  DialogTitle,
+  DialogContent,
+>>>>>>> d185c94 (Overall disocunt amount)
   Autocomplete,
   TextField,
-  FormControl,
   Card,
   CardContent,
+<<<<<<< HEAD
 } from "@mui/material";
 =======
   DialogTitle,
@@ -39,6 +44,8 @@ import {
   TextField,
   Card,
   CardContent,
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
   Container,
 } from '@mui/material';
 >>>>>>> recover-branch
@@ -84,29 +91,58 @@ import moment from 'moment';
 import Link from 'next/link';
 import DateRangeDialog from '@/components/dateRange';
 import YenBookPage from '../../page';
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
 
 const LedgerPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { ledgerData, loading, error, selectedVendorName, transactions } = useSelector(selectLedger);
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
   const { businesses } = useSelector((state: any) => state.business);
 >>>>>>> recover-branch
+=======
+  const { businesses } = useSelector((state: any) => state.business);
+>>>>>>> d185c94 (Overall disocunt amount)
   const [openDialog, setOpenDialog] = useState(false);
   const [outgoingVendor, setOutgoingVendor] = useState<VendorDetail[]>([]);
   const isFetchingRef = useRef(false);
   const isInitialLoad = useRef(true);
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+  const today = new Date(); // Current date: September 15, 2025, 03:38 PM IST
+>>>>>>> d185c94 (Overall disocunt amount)
   const [selectionRange, setSelectionRange] = useState({
-    startDate: new Date(),
-    endDate: new Date(),
+    startDate: startOfMonth(today), // Start of current month: September 1, 2025
+    endDate: endOfDay(today),      // End of today: September 15, 2025, 11:59 PM
     key: 'selection',
   });
+<<<<<<< HEAD
+=======
+
+  // Get business address dynamically
+  const getBusinessAddress = () => {
+    if (businesses && businesses.length > 0) {
+      const business = businesses[0];
+      const addressParts = [business.address, business.city, business.state, business.pincode].filter(part => part && part.trim() !== '');
+      if (addressParts.length === 0) {
+        return 'Your Company Address & Contact Details';
+      }
+      return addressParts.join(', ');
+    }
+    return 'Your Company Address & Contact Details';
+  };
+
+>>>>>>> d185c94 (Overall disocunt amount)
   // Format date helper
   const formatDate = (dateString: string | null): string => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return '';
     try {
+<<<<<<< HEAD
       return format(parseISO(dateString), 'dd-MM-yyyy HH:mm:ss a');
     } catch (error) {
       return format(new Date(dateString), 'dd-MM-yyyy HH:mm:ss a');
@@ -139,11 +175,17 @@ const LedgerPage = () => {
     } catch (error) {
       return format(new Date(dateString), 'MMM dd, yyyy');
 >>>>>>> recover-branch
+=======
+      return format(parseISO(dateString), 'MMM dd, yyyy');
+    } catch (error) {
+      return format(new Date(dateString), 'MMM dd, yyyy');
+>>>>>>> d185c94 (Overall disocunt amount)
     }
   };
 
   // Format currency helper
   const formatCurrency = (amount: number): string => {
+<<<<<<< HEAD
 <<<<<<< HEAD
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -182,6 +224,22 @@ const LedgerPage = () => {
   useEffect(() => {
     if (isInitialLoad.current) {
 >>>>>>> recover-branch
+=======
+    return 'Rs. ' + formatAmount(amount);
+  };
+
+  // Format amount without symbol
+  const formatAmount = (amount: number): string => {
+    return new Intl.NumberFormat('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
+
+  // Initial data fetching
+  useEffect(() => {
+    if (isInitialLoad.current) {
+>>>>>>> d185c94 (Overall disocunt amount)
       dispatch(fetchBusinesses());
       dispatch(fetchVendorDetails({ fetchAll: true })).then((action) => {
         if (fetchVendorDetails.fulfilled.match(action)) {
@@ -194,6 +252,7 @@ const LedgerPage = () => {
 
   // Fetch ledger data when vendor or date range changes
   useEffect(() => {
+<<<<<<< HEAD
 <<<<<<< HEAD
     console.log('useEffect for fetchLedgerData triggered with dependencies:', {
       selectedVendorName,
@@ -223,12 +282,24 @@ const LedgerPage = () => {
         const endDate = moment(selectionRange.endDate).format('YYYY-MM-DD');
         await dispatch(fetchLedgerData({ vendorName: selectedVendorName, startDate, endDate }));
 >>>>>>> recover-branch
+=======
+    const fetchData = async () => {
+      if (isFetchingRef.current || !selectedVendorName) return;
+      isFetchingRef.current = true;
+      try {
+        const startDate = moment(selectionRange.startDate).format('YYYY-MM-DD');
+        const endDate = moment(selectionRange.endDate).format('YYYY-MM-DD');
+        await dispatch(fetchLedgerData({ vendorName: selectedVendorName, startDate, endDate }));
+>>>>>>> d185c94 (Overall disocunt amount)
       } catch (error) {
         console.error('Error fetching ledger data:', error);
       } finally {
         isFetchingRef.current = false;
 <<<<<<< HEAD
+<<<<<<< HEAD
         console.log('isFetchingRef reset');
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
       }
     };
 
@@ -253,12 +324,16 @@ const LedgerPage = () => {
     fetchData();
   }, [dispatch, selectedVendorName, selectionRange.startDate, selectionRange.endDate]);
 
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
   const handleVendorChange = (event: React.SyntheticEvent, newValue: VendorDetail | null) => {
     dispatch(setSelectedVendorName(newValue?.vendorName || null));
   };
 
   const handleFilterClick = () => {
+<<<<<<< HEAD
 <<<<<<< HEAD
     if (!selectedVendorName) {
       console.log('No vendor selected for filtering.');
@@ -266,11 +341,16 @@ const LedgerPage = () => {
     }
     dispatch(fetchLedgerData(selectedVendorName));
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
     if (!selectedVendorName) return;
     const startDate = moment(selectionRange.startDate).format('YYYY-MM-DD');
     const endDate = moment(selectionRange.endDate).format('YYYY-MM-DD');
     dispatch(fetchLedgerData({ vendorName: selectedVendorName, startDate, endDate }));
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
   };
 
   const handleFilterClose = () => {
@@ -279,6 +359,7 @@ const LedgerPage = () => {
 
   const generateLedgerPDF = () => {
     const doc = new jsPDF();
+<<<<<<< HEAD
 <<<<<<< HEAD
 
     // Header
@@ -336,6 +417,33 @@ const LedgerPage = () => {
     const columns = ['Date', 'Particulars', 'Debit', 'Credit', 'Balance'];
     const rows = transactions?.map((transaction: Transaction) => [
       formatDate(transaction.date),
+=======
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(`LEDGER`, 105, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(getBusinessAddress(), 105, 28, { align: 'center' });
+    doc.setFontSize(12);
+    if (selectedVendorName) {
+      doc.text(`Vendor: ${selectedVendorName}`, 20, 40);
+    }
+    const startDate = moment(selectionRange.startDate).format('DD-MM-YYYY');
+    const endDate = moment(selectionRange.endDate).format('DD-MM-YYYY');
+    doc.text(`Period: ${startDate} to ${endDate}`, 20, 47);
+
+    // Add opening balance note
+    const openingBalance = ledgerData?.outstandingAmount || 0;
+    doc.text(
+      `Opening Balance as of ${startDate}: ${formatCurrency(Math.abs(openingBalance))} ${openingBalance >= 0 ? 'Dr' : 'Cr'}`,
+      20,
+      54
+    );
+
+    // Table
+    const columns = ['Date', 'Particulars', 'Debit', 'Credit', 'Balance'];
+    const rows = transactions?.map((transaction: Transaction) => [
+      formatDate(transaction.date),
+>>>>>>> d185c94 (Overall disocunt amount)
       `${transaction.description}${transaction.notes ? `\n${transaction.notes}` : ''}`,
       transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00',
       transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00',
@@ -357,13 +465,17 @@ const LedgerPage = () => {
       finalBalance === 0 
         ? '0.00'
         : `${formatAmount(Math.abs(finalBalance))} ${finalBalance >= 0 ? 'Dr' : 'Cr'}`,
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
     ]);
 
     doc.autoTable({
       head: [columns],
       body: rows,
       startY: 60,
+<<<<<<< HEAD
 <<<<<<< HEAD
       headStyles: {
         fillColor: [0, 0, 128],
@@ -376,6 +488,8 @@ const LedgerPage = () => {
 
     doc.save(`${selectedVendorName || 'Vendor'}_Ledger_Report.pdf`);
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
       styles: { fontSize: 10, cellPadding: 2, overflow: 'linebreak', lineWidth: 0.1, lineColor: [0, 0, 0] },
       headStyles: { fillColor: [240, 240, 240], lineWidth: 0.1, lineColor: [0, 0, 0] },
       columnStyles: {
@@ -388,11 +502,15 @@ const LedgerPage = () => {
     });
 
     doc.save(`${selectedVendorName}_Ledger.pdf`);
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
     setOpenDialog(false);
   };
 
   const generateLedgerCSV = () => {
+<<<<<<< HEAD
 <<<<<<< HEAD
     const columns = ["S.No", "Date", "Type", "Reference", "Description", "Debit", "Credit", "Balance"];
 
@@ -406,14 +524,32 @@ const LedgerPage = () => {
       transaction.credit_amount || 0,
       transaction.balance,
     ]);
+=======
+    const columns = ['Date', 'Particulars', 'Debit', 'Credit', 'Balance'];
+    const rows = transactions?.map((transaction: Transaction) => [
+      formatDate(transaction.date),
+      `${transaction.description}${transaction.notes ? ` - ${transaction.notes}` : ''}`,
+      transaction.debit_amount || '0.00',
+      transaction.credit_amount || '0.00',
+      transaction.balance === 0 
+        ? '0.00'
+        : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Dr' : 'Cr'}`,
+    ]) || [];
+>>>>>>> d185c94 (Overall disocunt amount)
 
     const csvData = [columns, ...rows];
     const csv = Papa.unparse(csvData);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
+<<<<<<< HEAD
     const link = document.createElement("a");
     link.setAttribute("href", url);
     link.setAttribute("download", `${selectedVendorName || 'Vendor'}_Ledger_Report.csv`);
+=======
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${selectedVendorName}_Ledger.csv`);
+>>>>>>> d185c94 (Overall disocunt amount)
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -421,8 +557,15 @@ const LedgerPage = () => {
     setOpenDialog(false);
   };
 
+  // Calculate totals
+  const totalDebit = transactions?.reduce((sum, t) => sum + t.debit_amount, 0) || 0;
+  const totalCredit = transactions?.reduce((sum, t) => sum + t.credit_amount, 0) || 0;
+  const finalBalance = transactions?.[transactions.length - 1]?.balance || ledgerData?.outstandingAmount || 0;
+  const openingBalance = ledgerData?.outstandingAmount || 0;
+
   if (loading) {
     return (
+<<<<<<< HEAD
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
         <CircularProgress />
       </Box>
@@ -459,17 +602,23 @@ const LedgerPage = () => {
 
   if (loading) {
     return (
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
       <Container maxWidth="lg">
         <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
           <CircularProgress size={60} />
         </Box>
       </Container>
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
     );
   }
 
   if (error) {
     return (
+<<<<<<< HEAD
 <<<<<<< HEAD
       <Box p={2}>
         <Typography color="error">Error: {error}</Typography>
@@ -478,6 +627,8 @@ const LedgerPage = () => {
         </Button>
       </Box>
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
       <Container maxWidth="lg">
         <Box p={4} textAlign="center">
           <Typography color="error" variant="h6" gutterBottom>
@@ -488,11 +639,15 @@ const LedgerPage = () => {
           </Button>
         </Box>
       </Container>
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
     );
   }
 
   return (
+<<<<<<< HEAD
 <<<<<<< HEAD
     <Box>
             <YenBookPage />
@@ -561,6 +716,8 @@ const LedgerPage = () => {
             <Autocomplete
               value={outgoingVendor.find(v => v.vendorName === selectedVendorName) || null}
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
     <Box maxWidth="xl" sx={{ py: 2 }}>
       {/* Navigation Buttons */}
       <YenBookPage />
@@ -629,7 +786,10 @@ const LedgerPage = () => {
           <Grid item xs={12} md={4}>
             <Autocomplete
               value={outgoingVendor.find((v) => v.vendorName === selectedVendorName) || null}
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
               onChange={handleVendorChange}
               options={outgoingVendor}
               getOptionLabel={(option: VendorDetail) => option.vendorName || ''}
@@ -639,6 +799,7 @@ const LedgerPage = () => {
                   label="Select Vendor"
                   variant="outlined"
                   size="small"
+<<<<<<< HEAD
 <<<<<<< HEAD
                 />
               )}
@@ -695,6 +856,12 @@ const LedgerPage = () => {
                 />
               )}
             />
+=======
+                  fullWidth
+                />
+              )}
+            />
+>>>>>>> d185c94 (Overall disocunt amount)
           </Grid>
           <Grid item xs={12} md={4}>
             <DateRangeDialog
@@ -750,13 +917,17 @@ const LedgerPage = () => {
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Opening Balance {openingBalance >= 0 ? '(Dr)' : '(Cr)'}
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={6} md={3}>
             <Card>
+<<<<<<< HEAD
 <<<<<<< HEAD
               <CardContent>
                 <Typography variant="h6" color="success.main">
@@ -765,6 +936,8 @@ const LedgerPage = () => {
                 <Typography variant="body2" color="textSecondary">
                   Total Paid
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
               <CardContent sx={{ textAlign: 'center' }}>
                 <Typography variant="h6" color="error.main">
                   {formatCurrency(totalDebit)}
@@ -783,13 +956,17 @@ const LedgerPage = () => {
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Total Bills/Invoices
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={6} md={3}>
             <Card>
+<<<<<<< HEAD
 <<<<<<< HEAD
               <CardContent>
                 <Typography variant="h6" color="info.main">
@@ -810,13 +987,18 @@ const LedgerPage = () => {
                 <Typography variant="body2" color="textSecondary">
                   Outstanding
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
               <CardContent sx={{ textAlign: 'center' }}>
                 <Typography variant="h6" color="warning.main">
                   {formatCurrency(Math.max(0, finalBalance))}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Outstanding Amount
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
                 </Typography>
               </CardContent>
             </Card>
@@ -824,6 +1006,7 @@ const LedgerPage = () => {
         </Grid>
       )}
 
+<<<<<<< HEAD
 <<<<<<< HEAD
       {/* Transactions Table */}
       <TableContainer component={Paper} sx={{ maxHeight: '60vh' }}>
@@ -929,6 +1112,8 @@ const LedgerPage = () => {
         <DialogContent>
           <Typography>Select the file format you want to download:</Typography>
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
       {/* Ledger Table */}
       <Paper sx={{ mb: 2,ml:2}}>
         <TableContainer sx={{ maxHeight: 500 }}>
@@ -1027,38 +1212,53 @@ const LedgerPage = () => {
         <DialogTitle>Download Ledger</DialogTitle>
         <DialogContent>
           <Typography>Choose format to download the ledger:</Typography>
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
         </DialogContent>
         <DialogActions>
           <Button
             onClick={generateLedgerPDF}
             variant="contained"
 <<<<<<< HEAD
+<<<<<<< HEAD
             color="primary"
             startIcon={<PictureAsPdfIcon />}
           >
             Download PDF
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
             startIcon={<PictureAsPdfIcon />}
             color="primary"
           >
             PDF
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
           </Button>
           <Button
             onClick={generateLedgerCSV}
             variant="contained"
+<<<<<<< HEAD
 <<<<<<< HEAD
             color="secondary"
             startIcon={<DescriptionIcon />}
           >
             Download CSV
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
             startIcon={<DescriptionIcon />}
             color="secondary"
           >
             CSV
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
           </Button>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
         </DialogActions>

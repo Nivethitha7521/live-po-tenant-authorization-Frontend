@@ -398,10 +398,14 @@ export const addNewVendorPayment = createAsyncThunk(
     console.log('addNewPayment called with data:', paymentData);
     try {
 <<<<<<< HEAD
+<<<<<<< HEAD
       const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/addvendorpayment/', {
 =======
       const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/advance/', {
 >>>>>>> recover-branch
+=======
+      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/advance/', {
+>>>>>>> d185c94 (Overall disocunt amount)
         ...paymentData,
         isPreOutgoing: !paymentData.poId,
       });

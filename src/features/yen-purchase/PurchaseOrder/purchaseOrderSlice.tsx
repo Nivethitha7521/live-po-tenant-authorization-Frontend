@@ -2,6 +2,7 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '@/redux/store'; // Adjust the import path accordingly
+<<<<<<< HEAD
 import { Item, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'
 =======
 import { createSlice, PayloadAction, createAsyncThunk, createAction } from '@reduxjs/toolkit';
@@ -9,6 +10,9 @@ import axios from 'axios';
 import { RootState } from '@/redux/store'; // Adjust the import path accordingly
 import { Item, ItemInput, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'
 >>>>>>> recover-branch
+=======
+import { Item, ItemInput, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'
+>>>>>>> d185c94 (Overall disocunt amount)
 
 export interface PurchaseItemSearch {
   purchaseitemId: string;
@@ -336,7 +340,10 @@ export const calculateItemTotals = createAsyncThunk(
   }
 );
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
 export const calculateOverallDiscountForAllItems = createAsyncThunk(
   'purchaseOrder/calculateOverallDiscountForAllItems',
   async (payload: {
@@ -402,7 +409,10 @@ export const calculateOverallDiscountForAllItems = createAsyncThunk(
 );
 
 
+<<<<<<< HEAD
 >>>>>>> recover-branch
+=======
+>>>>>>> d185c94 (Overall disocunt amount)
 export const downloadCsvTemplate = createAsyncThunk(
   'purchaseOrder/downloadCsvTemplate',
   async (_, { rejectWithValue }) => {
