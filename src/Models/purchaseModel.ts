@@ -279,3 +279,52 @@ export const initialState: PurchaseListState = {
   selectedPo: null,
   poDialogOpen: false,
 };
+// Add this interface to your slice types
+export interface ItemInput {
+  id?: string;
+  pendingTotalQuantity: number;
+  poQuantity: number;
+  newPrice: number;
+  befTaxDiscount?: number;
+  afTaxDiscount?: number;
+  befTaxDiscountAmount?: number;
+  afTaxDiscountAmount?: number;
+  befTaxDiscountType?: 'percentage' | 'amount';
+  afTaxDiscountType?: 'percentage' | 'amount';
+  taxPercentage?: number;
+  taxType?: 'cgst_sgst' | 'igst';
+}
+
+export interface OverallDiscountResponse {
+  success: boolean;
+  items: {
+    id: string;
+    pendingTotalPrice: number;
+    pendingBefTaxDiscountAmount: number;
+    pendingAfTaxDiscountAmount: number;
+    pendingDiscountAmount: number;
+    pendingTaxAmount: number;
+    pendingSgst: number;
+    pendingCgst: number;
+    pendingIgst: number;
+    pendingFinalPrice: number;
+    pendingOrderAmount: number;
+    befTaxDiscount: number;
+    afTaxDiscount: number;
+    itemOverallDiscountAmount: number;
+    proportion: number;
+    subtotalBeforeOverallDiscount: number;
+    poQuantity: number;
+    quantity: number;
+  }[];
+  summary: {
+    totalSubtotal: number;
+    overallDiscountTotalAmount: number;
+    overallDiscountPercentage: number;
+    totalFinalAmount: number;
+    totalTaxAmount: number;
+    totalDiscountAmount: number;
+    totalItems: number;
+  };
+  error?: string;
+}

@@ -1,51 +1,21 @@
 'use client';
-import React, { useRef, useState, ChangeEvent } from 'react';
+import React, { useRef, useState } from 'react';
 import {
-  Box,
-  TextField,
-  IconButton,
-  Typography,
-  Switch,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Button,
-  Backdrop,
-  CircularProgress,
-  Snackbar,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Menu,
-  MenuItem,
-  Checkbox,
-  TablePagination,
+  Box, TextField, IconButton, Typography, Switch, Dialog, DialogActions, DialogContent,
+  DialogContentText, DialogTitle, Button, Backdrop, CircularProgress, Snackbar,
+  Table, TableBody, TableCell, TableHead, TableRow, Menu, MenuItem, Checkbox,
 } from '@mui/material';
 import {
-  Add as AddIcon,
-  GetApp as GetAppIcon,
-  Upload as UploadIcon,
-  InsertDriveFile as InsertDriveFileIcon,
-  FilterList as FilterListIcon,
+  Add as AddIcon, GetApp as GetAppIcon, Upload as UploadIcon,
+  InsertDriveFile as InsertDriveFileIcon, FilterList as FilterListIcon,
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  importVendorsCsv,
-  setDialogOpen,
-  setShowDeactivated,
-  setSelectedHeaders,
-  fetchVendors,
-  exportVendorsCsv,
-  setSnackbarOpen,
-  setSnackbarMessage,
-  clearImportResults,
+  importVendorsCsv, setDialogOpen, setShowDeactivated, setSelectedHeaders,
+  fetchVendors, exportVendorsCsv, setSnackbarOpen, setSnackbarMessage, clearImportResults,
 } from '../../../features/yen-purchase/PurchaseMaster/vendorSlice';
 import { AppDispatch, RootState } from '@/redux/store';
-import { Vendor } from '@/Models/vendor';
+import { ChangeEvent } from 'react';
 
 // Header mapping (aligned with backend)
 const HEADER_MAPPING: { [key: string]: string } = {
@@ -78,7 +48,7 @@ const HEADER_MAPPING: { [key: string]: string } = {
 // Required fields (aligned with backend)
 const REQUIRED_FIELDS = ['vendorName', 'vendorType', 'contactpersonPhone', 'paymentTerms'];
 
-// Header mapping for filter menu
+// Header mapping for filter menu (aligned with VendorTable)
 const headerNameMap: Record<string, string> = {
   vendorId: 'S.No',
   randomId: 'Vendor ID',
@@ -106,6 +76,33 @@ const allHeaders = [
   'updatedDate',
 ];
 
+interface VendorData {
+  vendorId?: string;
+  randomId?: string;
+  vendorName: string;
+  contactpersonName: string;
+  contactpersonPhone: string;
+  contactpersonEmail: string;
+  address: string;
+  country: string;
+  state: string;
+  city: string;
+  postalCode: number | null;
+  website: string;
+  vendorType: string;
+  gstNumber: string;
+  paymentTerms: string;
+  creditLimit: number | null;
+  preferredpaymentMethod: string;
+  status?: string;
+  notes: string;
+  bankName: string;
+  accountNumber: number | null;
+  ifscCode: string;
+  createdDate?: Date | null;
+  updatedDate?: Date | null;
+}
+
 interface VendorToolbarProps {
   searchInputValue: string;
   setSearchInputValue: (value: string) => void;
@@ -113,31 +110,23 @@ interface VendorToolbarProps {
   showDeactivated: boolean;
   loading: boolean;
   exportStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
-  selectedHeaders: string[];
+  selectedHeaders: string[]; // Added to manage filter state
 }
 
 const VendorToolbar: React.FC<VendorToolbarProps> = ({
-  searchInputValue,
-  setSearchInputValue,
-  handleSearch,
-  showDeactivated,
-  loading,
-  exportStatus,
-  selectedHeaders,
+  searchInputValue, setSearchInputValue, handleSearch, showDeactivated, loading, exportStatus, selectedHeaders,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const inputFileRef = useRef<HTMLInputElement | null>(null);
-  const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
+  const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null); // Renamed to avoid conflict
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [formatDialogOpen, setFormatDialogOpen] = useState(false);
   const [viewSampleOpen, setViewSampleOpen] = useState(false);
   const [importResultsDialogOpen, setImportResultsDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [errorPage, setErrorPage] = useState(0);
-  const [errorsPerPage, setErrorsPerPage] = useState(10);
 
-  const { snackbarOpen, snackbarMessage, importErrors, importDuplicates, insertedCount, updatedCount } = useSelector(
+  const { snackbarOpen, snackbarMessage, importErrors, importDuplicates } = useSelector(
     (state: RootState) => state.vendor
   );
 
@@ -150,7 +139,9 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSearch();
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   const handleShowDeactivated = () => {
@@ -174,7 +165,7 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
     setViewSampleOpen(true);
   };
 
-  const handleFileSelect = (file: File | null) => {
+  const handleFileSelect = (file: File) => {
     if (!file) {
       dispatch(setSnackbarMessage('Please select a CSV file'));
       dispatch(setSnackbarOpen(true));
@@ -200,9 +191,11 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
     setConfirmDialogOpen(false);
     setImportLoading(true);
     try {
-      await dispatch(importVendorsCsv(selectedFile)).unwrap();
+      const result = await dispatch(importVendorsCsv(selectedFile)).unwrap();
       setImportResultsDialogOpen(true);
       await dispatch(fetchVendors());
+      dispatch(setSnackbarMessage(`Imported ${result.inserted_count} vendors, updated ${result.updated_count}`));
+      dispatch(setSnackbarOpen(true));
     } catch (error: any) {
       console.error('CSV import failed:', error);
       dispatch(setSnackbarMessage(`CSV import failed: ${error.message || error}`));
@@ -231,7 +224,7 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
   };
 
   const handleDownloadSampleCSV = () => {
-    const sampleData: Partial<Vendor>[] = [
+    const sampleData: Partial<VendorData>[] = [
       {
         vendorName: 'Sample Vendor',
         contactpersonName: 'Sample Person',
@@ -259,7 +252,7 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
     let csvContent = headers.join(',') + '\n';
     sampleData.forEach((row) => {
       const values = Object.keys(HEADER_MAPPING).map((field) => {
-        const value = row[field as keyof Vendor] ?? '';
+        const value = row[field as keyof VendorData] ?? '';
         const escaped = ('' + value).replace(/"/g, '""');
         return `"${escaped}"`;
       });
@@ -271,22 +264,7 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', 'sample_vendor.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleDownloadErrorReport = () => {
-    let csvContent = 'Row,Error,Vendor Name,Vendor Code\n';
-    importErrors.forEach((error) => {
-      const escapedError = (error.error || '').replace(/"/g, '""');
-      csvContent += `${error.row},"${escapedError}",${error.vendorName || 'N/A'},${error.randomId || 'N/A'}\n`;
-    });
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'import_errors.csv');
+    link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -298,10 +276,10 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
 
   const handleCloseImportResultsDialog = () => {
     setImportResultsDialogOpen(false);
-    setErrorPage(0);
     dispatch(clearImportResults());
   };
 
+  // Filter menu handlers
   const handleFilterClick = (event: React.MouseEvent<HTMLElement>) => {
     setFilterAnchorEl(event.currentTarget);
   };
@@ -325,55 +303,84 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
     dispatch(setSelectedHeaders(updatedHeaders));
   };
 
-  const handleChangeErrorPage = (event: unknown, newPage: number) => {
-    setErrorPage(newPage);
-  };
-
-  const handleChangeErrorsPerPage = (event: ChangeEvent<HTMLInputElement>) => {
-    setErrorsPerPage(parseInt(event.target.value, 10));
-    setErrorPage(0);
-  };
-
   return (
     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} ml={0.5} mt={0.5}>
+      {/* Search Field */}
       <TextField
         autoComplete="off"
         label="Vendor Name"
         variant="outlined"
+        className="some"
         value={searchInputValue}
         onChange={handleSearchInputChange}
         onKeyPress={handleKeyPress}
-        sx={{ flex: 1 }}
+        sx={{
+          flex: 1,
+        }}
       />
+
+      {/* Action Buttons */}
       <Box display="flex" alignItems="center" gap={1}>
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <IconButton
             color="primary"
             onClick={handleDialogOpen}
+            className="icon-button-outline"
             size="small"
             sx={{ p: 0.3 }}
             disabled={loading || importLoading || exportStatus === 'loading'}
           >
             <AddIcon fontSize="small" />
           </IconButton>
-          <Typography variant="caption" align="center" sx={{ maxWidth: 40, wordBreak: 'break-word', mt: 0.2 }}>
+          <Typography
+            variant="caption"
+            align="center"
+            sx={{
+              maxWidth: 40,
+              wordBreak: 'break-word',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: 1.1,
+              mt: 0.2,
+            }}
+          >
             Add
           </Typography>
         </Box>
+
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <IconButton
             color="primary"
             onClick={handleDownloadSampleCSV}
+            className="icon-button-outline"
             size="small"
             sx={{ p: 0.3 }}
             disabled={loading || importLoading || exportStatus === 'loading'}
           >
             <InsertDriveFileIcon fontSize="small" />
           </IconButton>
-          <Typography variant="caption" align="center" sx={{ maxWidth: 40, wordBreak: 'break-word', mt: 0.2 }}>
+          <Typography
+            variant="caption"
+            align="center"
+            sx={{
+              maxWidth: 40,
+              wordBreak: 'break-word',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: 1.1,
+              mt: 0.2,
+            }}
+          >
             Sample
           </Typography>
         </Box>
+
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <input
             accept=".csv"
@@ -381,51 +388,101 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
             id="import-csv"
             type="file"
             ref={inputFileRef}
-            onChange={(e) => handleFileSelect(e.target.files ? e.target.files[0] : null)}
+            onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
             disabled={loading || importLoading}
           />
           <IconButton
             color="primary"
-            onClick={handleImportClick}
-            size="small"
+            className="icon-button-outline"
             sx={{ p: 0.3 }}
             disabled={loading || importLoading || exportStatus === 'loading'}
+            onClick={handleImportClick}
+            size="small"
           >
             {importLoading ? <CircularProgress size={16} /> : <GetAppIcon fontSize="small" />}
           </IconButton>
-          <Typography variant="caption" align="center" sx={{ maxWidth: 40, wordBreak: 'break-word', mt: 0.2 }}>
+          <Typography
+            variant="caption"
+            align="center"
+            sx={{
+              maxWidth: 40,
+              wordBreak: 'break-word',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: 1.1,
+              mt: 0.2,
+            }}
+          >
             Import
           </Typography>
         </Box>
+
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <IconButton
             color="primary"
             onClick={handleExportCsv}
+            className="icon-button-outline"
+            disabled={loading || importLoading || exportStatus === 'loading'}
             size="small"
             sx={{ p: 0.3 }}
-            disabled={loading || importLoading || exportStatus === 'loading'}
           >
             {exportStatus === 'loading' ? <CircularProgress size={16} /> : <UploadIcon fontSize="small" />}
           </IconButton>
-          <Typography variant="caption" align="center" sx={{ maxWidth: 40, wordBreak: 'break-word', mt: 0.2 }}>
+          <Typography
+            variant="caption"
+            align="center"
+            sx={{
+              maxWidth: 40,
+              wordBreak: 'break-word',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: 1.1,
+              mt: 0.2,
+            }}
+          >
             Export
           </Typography>
         </Box>
+
+        {/* Filter Button */}
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <IconButton
             color="primary"
             onClick={handleFilterClick}
+            className="icon-button-outline"
             size="small"
             sx={{ p: 0.3 }}
             disabled={loading || importLoading || exportStatus === 'loading'}
           >
             <FilterListIcon fontSize="small" />
           </IconButton>
-          <Typography variant="caption" align="center" sx={{ maxWidth: 40, wordBreak: 'break-word', mt: 0.2 }}>
+          <Typography
+            variant="caption"
+            align="center"
+            sx={{
+              maxWidth: 40,
+              wordBreak: 'break-word',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: 1.1,
+              mt: 0.2,
+            }}
+          >
             Filter
           </Typography>
         </Box>
       </Box>
+
+      {/* Filter Menu */}
       <Menu
         anchorEl={filterAnchorEl}
         open={Boolean(filterAnchorEl)}
@@ -434,47 +491,69 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         {allHeaders.map((header) => (
-          <MenuItem key={header} onClick={() => handleHeaderToggle(header)}>
-            <Checkbox checked={selectedHeaders.includes(header)} />
+          <MenuItem
+            key={header}
+            onClick={() => handleHeaderToggle(header)}
+          >
+            <Checkbox
+              checked={selectedHeaders.includes(header)}
+            />
             <Typography variant="body2">{headerNameMap[header]}</Typography>
           </MenuItem>
         ))}
       </Menu>
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', ml: 0.5 }}>
-        <Typography variant="caption" align="center" sx={{ maxWidth: 60, wordBreak: 'break-word', mt: 0.2 }}>
-          {showDeactivated ? 'Deactivated' : 'Activated'}
-        </Typography>
-        <Switch
-          checked={showDeactivated}
-          onChange={handleShowDeactivated}
-          disabled={loading || importLoading || exportStatus === 'loading'}
-          size="small"
-          sx={{ height: 24 }}
-        />
-      </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' ,ml:0.5}}>
+          <Typography
+            variant="caption"
+            align="center"
+            sx={{
+              maxWidth: 60,
+              wordBreak: 'break-word',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: 1.1,
+              mt: 0.2,
+            }}
+          >
+            {showDeactivated ? 'Deactivated' : 'Activated'}
+          </Typography>
+          <Switch
+            checked={showDeactivated}
+            onChange={handleShowDeactivated}
+            disabled={loading || importLoading || exportStatus === 'loading'}
+            size="small"
+            sx={{ height: 24 }}
+          />
+        </Box>
+
+      {/* Format Requirement Dialog */}
       <Dialog open={formatDialogOpen} onClose={handleFormatDialogCancel} disableEscapeKeyDown={importLoading}>
         <DialogTitle>CSV Format Requirement</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            To ensure a successful import, your CSV file must follow the required format. Please review the sample format before proceeding.
+            To ensure a successful import, your CSV file must follow the required format.
+            Please review the sample format before proceeding.
           </DialogContentText>
           <Button variant="contained" color="primary" onClick={handleViewSample} sx={{ mt: 2 }}>
             View Sample CSV
           </Button>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleFormatDialogCancel} disabled={importLoading}>
-            Cancel
-          </Button>
-          <Button onClick={handleFormatDialogConfirm} disabled={importLoading}>
-            OK
-          </Button>
+          <Button onClick={handleFormatDialogCancel} disabled={importLoading}>Cancel</Button>
+          <Button onClick={handleFormatDialogConfirm} disabled={importLoading}>OK</Button>
         </DialogActions>
       </Dialog>
+
+      {/* View Sample Dialog */}
       <Dialog open={viewSampleOpen} onClose={() => setViewSampleOpen(false)} disableEscapeKeyDown={importLoading}>
         <DialogTitle>Sample CSV Format</DialogTitle>
         <DialogContent>
-          <DialogContentText>The CSV file must include the following required fields:</DialogContentText>
+          <DialogContentText>
+            The CSV file must include the following required fields:
+          </DialogContentText>
           <Box component="ul" sx={{ mt: 2, mb: 1 }}>
             {REQUIRED_FIELDS.map((field) => (
               <Typography key={field} component="li" sx={{ mb: 0.5 }}>
@@ -483,82 +562,61 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
             ))}
           </Box>
           <DialogContentText>
-            Optional fields:{' '}
-            {Object.keys(HEADER_MAPPING)
+            Optional fields: {Object.keys(HEADER_MAPPING)
               .filter((field) => !REQUIRED_FIELDS.includes(field))
               .map((field) => HEADER_MAPPING[field])
-              .join(', ')}
-            .
+              .join(', ')}.
           </DialogContentText>
           <Button variant="contained" color="primary" onClick={handleDownloadSampleCSV} sx={{ mt: 2 }}>
             Download Sample CSV
           </Button>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setViewSampleOpen(false)} disabled={importLoading}>
-            Close
-          </Button>
+          <Button onClick={() => setViewSampleOpen(false)} disabled={importLoading}>Close</Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={confirmDialogOpen} onClose={handleCancelImport}>
-        <DialogTitle>Confirm CSV Import</DialogTitle>
+
+      {/* Confirm Import Dialog */}
+      <Dialog open={confirmDialogOpen} onClose={handleCancelImport} aria-labelledby="confirm-import-dialog-title">
+        <DialogTitle id="confirm-import-dialog-title">Confirm CSV Import</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Are you sure you want to import {selectedFile?.name}? This action may overwrite existing data for duplicate vendors.
+          <DialogContentText id="confirm-import-dialog-description">
+            Are you sure you want to import {selectedFile?.name}? This action may overwrite existing data.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCancelImport} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmImport} color="primary" variant="contained">
+          <Button onClick={handleCancelImport} color="primary">Cancel</Button>
+          <Button onClick={handleConfirmImport} color="primary" variant="contained" autoFocus>
             Confirm
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Import Results Dialog */}
       <Dialog open={importResultsDialogOpen} onClose={handleCloseImportResultsDialog} maxWidth="md" fullWidth>
         <DialogTitle>CSV Import Results</DialogTitle>
         <DialogContent>
-          <Typography variant="body1" gutterBottom>
-            Import Summary: {insertedCount} vendors imported, {updatedCount} vendors updated,{' '}
-            {importErrors.length + importDuplicates.length} issues found
-          </Typography>
           {importErrors.length > 0 && (
             <>
               <Typography variant="subtitle1" color="error" gutterBottom>
-                Import Errors
+                Missing Required Fields
               </Typography>
               <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell>Row</TableCell>
                     <TableCell>Error</TableCell>
-                    <TableCell>Vendor Name</TableCell>
-                    <TableCell>Vendor Code</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {importErrors
-                    .slice(errorPage * errorsPerPage, errorPage * errorsPerPage + errorsPerPage)
-                    .map((error, idx) => (
-                      <TableRow key={idx} sx={{ backgroundColor: '#ffe6e6' }}>
-                        <TableCell>{error.row}</TableCell>
-                        <TableCell>{error.error}</TableCell>
-                        <TableCell>{error.vendorName || 'N/A'}</TableCell>
-                        <TableCell>{error.randomId || 'N/A'}</TableCell>
-                      </TableRow>
-                    ))}
+                  {importErrors.map((error, idx) => (
+                    <TableRow key={idx} sx={{ backgroundColor: '#ffe6e6' }}>
+                      <TableCell>{error.row}</TableCell>
+                      <TableCell>{error.error}</TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
-              <TablePagination
-                rowsPerPageOptions={[10, 25, 50]}
-                component="div"
-                count={importErrors.length}
-                rowsPerPage={errorsPerPage}
-                page={errorPage}
-                onPageChange={handleChangeErrorPage}
-                onRowsPerPageChange={handleChangeErrorsPerPage}
-              />
             </>
           )}
           {importDuplicates.length > 0 && (
@@ -573,7 +631,6 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
                     <TableCell>Vendor Name</TableCell>
                     <TableCell>Contact Phone</TableCell>
                     <TableCell>Existing Vendor ID</TableCell>
-                    <TableCell>Message</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -583,7 +640,6 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
                       <TableCell>{dup.vendorName}</TableCell>
                       <TableCell>{dup.contactpersonPhone}</TableCell>
                       <TableCell>{dup.existingId}</TableCell>
-                      <TableCell>{dup.error}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -595,16 +651,11 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
           )}
         </DialogContent>
         <DialogActions>
-          {importErrors.length > 0 && (
-            <Button onClick={handleDownloadErrorReport} color="primary">
-              Download Error Report
-            </Button>
-          )}
-          <Button onClick={handleCloseImportResultsDialog} color="primary">
-            Close
-          </Button>
+          <Button onClick={handleCloseImportResultsDialog} color="primary">Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Backdrop for Loading */}
       <Backdrop sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }} open={importLoading || exportStatus === 'loading'}>
         <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
           <CircularProgress color="inherit" />
@@ -613,12 +664,9 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
           </Typography>
         </Box>
       </Backdrop>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        message={snackbarMessage}
-      />
+
+      {/* Snackbar for Feedback */}
+      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleCloseSnackbar} message={snackbarMessage} />
     </Box>
   );
 };

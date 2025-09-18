@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction, createAsyncThunk, createAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '@/redux/store'; // Adjust the import path accordingly
-import { Item, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'
+import { Item, ItemInput, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'
 
 export interface PurchaseItemSearch {
   purchaseitemId: string;
@@ -266,6 +266,71 @@ export const calculateItemTotals = createAsyncThunk(
     }
   }
 );
+export const calculateOverallDiscountForAllItems = createAsyncThunk(
+  'purchaseOrder/calculateOverallDiscountForAllItems',
+  async (payload: {
+    items: ItemInput[];
+    overallDiscountValue: number;
+    overallDiscountMode: 'percentage' | 'amount';
+    applyOverallDiscount: boolean;
+  }): Promise<OverallDiscountResponse> => {
+    try {
+      const requestBody = {
+        items: payload.items.map(item => ({
+          id: item.id || '',
+          pendingTotalQuantity: item.pendingTotalQuantity,
+          poQuantity: item.poQuantity,
+          newPrice: item.newPrice,
+          befTaxDiscount: item.befTaxDiscount || 0,
+          afTaxDiscount: item.afTaxDiscount || 0,
+          befTaxDiscountAmount: item.befTaxDiscountAmount || 0,
+          afTaxDiscountAmount: item.afTaxDiscountAmount || 0,
+          befTaxDiscountType: item.befTaxDiscountType || 'percentage',
+          afTaxDiscountType: item.afTaxDiscountType || 'percentage',
+          taxPercentage: item.taxPercentage || 0,
+          taxType: item.taxType || 'cgst_sgst'
+        })),
+        overallDiscount: payload.overallDiscountMode === 'percentage' ? payload.overallDiscountValue : 0,
+        overallDiscountAmount: payload.overallDiscountMode === 'amount' ? payload.overallDiscountValue : 0,
+        overallDiscountType: payload.overallDiscountMode,
+        applyOverallDiscount: payload.applyOverallDiscount
+      };
+
+      const response = await fetch(`${BASE_URL}/purchaseorders/items/calculate-overall-discount`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error calculating overall discount:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        items: [],
+        summary: {
+          totalSubtotal: 0,
+          overallDiscountTotalAmount: 0,
+          overallDiscountPercentage: 0,
+          totalFinalAmount: 0,
+          totalTaxAmount: 0,
+          totalDiscountAmount: 0,
+          totalItems: 0,
+        }
+      };
+    }
+  }
+);
+
+
 export const downloadCsvTemplate = createAsyncThunk(
   'purchaseOrder/downloadCsvTemplate',
   async (_, { rejectWithValue }) => {

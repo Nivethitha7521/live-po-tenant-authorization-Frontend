@@ -331,7 +331,7 @@ export const importPurchaseItems = createAsyncThunk(
       formData.append('mode', mode);
 
       const response = await axios.post(
-        'https://yenerp.com/purchaseapi/rawMaterials/import_csv', 
+        'https://yenerp.com/purchaseapi/purchaseitems/import_csv', 
         formData, 
         {
           headers: {

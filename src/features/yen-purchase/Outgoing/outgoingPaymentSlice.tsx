@@ -306,7 +306,7 @@ export const addNewVendorPayment = createAsyncThunk(
   async (paymentData: any, { rejectWithValue }) => {
     console.log('addNewPayment called with data:', paymentData);
     try {
-      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/addvendorpayment/', {
+      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/advance/', {
         ...paymentData,
         isPreOutgoing: !paymentData.poId,
       });
