@@ -683,3 +683,6 @@ export const selectTotalItems = (state: RootState) => state.outgoingPayment.tota
 
 // Export reducer from slice
 export default outgoingSlice.reducer;
+
+
+
