@@ -635,7 +635,7 @@ const outgoingSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
         state.snackbarOpen = true;
-        state.snackbarMessage = action.payload as string;
+        state.snackbarMessage = action.payload as string; 
       })
       .addCase(fetchActiveDebitsVendor.pending, (state) => {
         state.loading = true;
