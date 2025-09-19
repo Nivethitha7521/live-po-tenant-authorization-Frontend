@@ -1,7 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
+<<<<<<< HEAD
 import { Bank, DebitNote, GRN, initialState, Outgoing,OutgoingState, PaymentDetails, PaymentDone, TaxDetail, VendorDetail} from '@/Models/outgoingModel';
+=======
+import { Bank, BulkPaymentRequest, BulkPaymentResponse, DebitNote, GRN, initialState, Outgoing, OutgoingState, PaymentDetails, PaymentDone, TaxDetail, VendorDetail, VendorPayment } from '@/Models/outgoingModel';
+>>>>>>> recover-branch
 
 interface ProcessPaymentRequest {
   outgoingId: string;
@@ -27,6 +31,7 @@ export const fetchOutgoings = createAsyncThunk(
   'outgoings/fetchOutgoings',
   async (
     {
+<<<<<<< HEAD
       page, 
       size, 
       fromDate, 
@@ -46,6 +51,27 @@ export const fetchOutgoings = createAsyncThunk(
       status?: string; 
       filterByAmount?: boolean | null; 
       filterByStatus?: boolean | null; 
+=======
+      page,
+      size,
+      fromDate,
+      toDate,
+      vendorName,
+      filterBy,  // invoiceDate or paymentDate
+      status,
+      filterByAmount,
+      filterByStatus
+    }: {
+      page: number;
+      size: number;
+      fromDate?: Date;
+      toDate?: Date;
+      vendorName?: string;
+      filterBy?: string;  // invoiceDate or paymentDate
+      status?: string;
+      filterByAmount?: boolean | null;
+      filterByStatus?: boolean | null;
+>>>>>>> recover-branch
     }) => {
     try {
       const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
@@ -96,7 +122,11 @@ export const fetchVendorDetails = createAsyncThunk(
   }) => {
     try {
       const params = new URLSearchParams();
+<<<<<<< HEAD
       
+=======
+
+>>>>>>> recover-branch
       if (filters.status) {
         params.append('status', filters.status);
       }
@@ -122,8 +152,13 @@ export const fetchVendorDetails = createAsyncThunk(
 export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
   const response = await axios.get<GRN[]>(`https://yenerp.com/purchaseapi/grns/`);
   const grnData = response.data.map(item => ({
+<<<<<<< HEAD
       grnId: item.grnId,
       randomId: item.randomId,
+=======
+    grnId: item.grnId,
+    randomId: item.randomId,
+>>>>>>> recover-branch
   }));
   return grnData;
 });
@@ -199,7 +234,11 @@ export const processPayment = createAsyncThunk<
         selectedDebitNotes, // Pass the array as-is
       };
 
+<<<<<<< HEAD
       await axios.patch(`http://192.168.1.122:8000/outgoingpayments/${outgoingId}/payment`, payload);
+=======
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
+>>>>>>> recover-branch
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.response?.data || 'Payment processing failed');
     }
@@ -225,6 +264,7 @@ export const fetchActiveDebitsVendor = createAsyncThunk<
     }
   }
 );
+<<<<<<< HEAD
 export const processBulkPayment = createAsyncThunk<
   { results: any[]; errors: any[]; totalProcessed: number; totalFailed: number },
   {
@@ -274,6 +314,81 @@ export const addNewPayment = createAsyncThunk<Outgoing, PaymentDetails>(
           console.error('Error in addNewPayment:', error); // Log the error for further insight
           return rejectWithValue(error.response?.data || 'An error occurred while adding payment');
       }
+=======
+export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
+  DebitNote[],
+  string[], // vendorNames array
+  {
+    rejectValue: string;
+  }
+>(
+  'debitNotes/fetchActiveDebitsMultipleVendor',
+  async (vendorNames, { rejectWithValue }) => {
+    try {
+      // Fetch debits for each vendor sequentially
+      const allDebits: DebitNote[] = [];
+      
+      for (const vendorName of vendorNames) {
+        try {
+          const response = await axios.get(`https://yenerp.com/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
+          if (response.data.debits) {
+            allDebits.push(...response.data.debits);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch debits for ${vendorName}:`, error);
+          // Continue with other vendors even if one fails
+        }
+      }
+      
+      if (allDebits.length === 0) {
+        throw new Error('No debits found for any vendor');
+      }
+      
+      return allDebits;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to fetch active debits');
+    }
+  }
+);
+export const processBulkPayment = createAsyncThunk<
+  BulkPaymentResponse,
+  BulkPaymentRequest,
+  { rejectValue: string }
+>(
+  'outgoings/processBulkPayment',
+  async (bulkPaymentRequest, { rejectWithValue }) => {
+    try {
+      const response = await axios.patch(
+        'https://yenerp.com/purchaseapi/outgoingpayments/bulkpayment/bulk-payment',
+        bulkPaymentRequest
+      );
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.detail || 'Bulk payment processing failed'
+      );
+    }
+  }
+);
+
+export const addNewPayment = createAsyncThunk<Outgoing, PaymentDetails>(
+  'outgoings/addNewPayment',
+  async (paymentData, { rejectWithValue }) => {
+    console.log('addNewPayment called with data:', paymentData); // Log data received
+
+    try {
+      const outgoingWithDate = {
+        ...paymentData,
+      };
+
+      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/', outgoingWithDate);
+      console.log('Response from API:', response.data); // Log response from API
+      return response.data;
+    } catch (error: any) {
+      console.error('Error in addNewPayment:', error); // Log the error for further insight
+      return rejectWithValue(error.response?.data || 'An error occurred while adding payment');
+    }
+>>>>>>> recover-branch
   }
 );
 // Async thunk for adding new payment
@@ -282,7 +397,11 @@ export const addNewVendorPayment = createAsyncThunk(
   async (paymentData: any, { rejectWithValue }) => {
     console.log('addNewPayment called with data:', paymentData);
     try {
+<<<<<<< HEAD
       const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/addvendorpayment/', {
+=======
+      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/advance/', {
+>>>>>>> recover-branch
         ...paymentData,
         isPreOutgoing: !paymentData.poId,
       });
@@ -421,11 +540,43 @@ const outgoingSlice = createSlice({
     clearSnackbarMessage(state) {
       state.snackbarMessage = '';
       state.snackbarOpen = false; // Close the snackbar when clearing the message
+<<<<<<< HEAD
   },
   setPagination: (state, action: PayloadAction<{ page: number; size: number }>) => {
     state.currentPage = action.payload.page;
     state.pageSize = action.payload.size;
   },
+=======
+    },
+    setPagination: (state, action: PayloadAction<{ page: number; size: number }>) => {
+      state.currentPage = action.payload.page;
+      state.pageSize = action.payload.size;
+    },
+    setVendorPayment(
+      state,
+      action: PayloadAction<{
+        vendorName: string;
+        payment: VendorPayment;
+      }>
+    ) {
+      state.vendorPayments[action.payload.vendorName] = action.payload.payment;
+    },
+    clearVendorPayments(state) {
+      state.vendorPayments = {};
+    },
+    setVendorDebits(
+      state,
+      action: PayloadAction<{
+        vendorName: string;
+        debits: any[];
+      }>
+    ) {
+      state.vendorDebits[action.payload.vendorName] = action.payload.debits;
+    },
+    clearVendorDebits(state) {
+      state.vendorDebits = {};
+    },
+>>>>>>> recover-branch
   },
   extraReducers: (builder) => {
     builder
@@ -447,7 +598,11 @@ const outgoingSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
+<<<<<<< HEAD
       
+=======
+
+>>>>>>> recover-branch
       .addCase(fetchVendorDetails.fulfilled, (state, action) => {
         state.loading = false;
         state.outgoingvendor = action.payload; // Store the vendor names in the state
@@ -504,13 +659,18 @@ const outgoingSlice = createSlice({
       .addCase(addNewVendorPayment.rejected, (state, action) => {
         state.loading = false;
       })
+<<<<<<< HEAD
        .addCase(fetchTaxDetails.fulfilled, (state, action) => {
+=======
+      .addCase(fetchTaxDetails.fulfilled, (state, action) => {
+>>>>>>> recover-branch
         // Handle the fetched tax details
         // You may want to store these details in state or use them as needed
         console.log('Fetched Tax Details:', action.payload); // Just logging for now
       })
       .addCase(fetchGRN.pending, (state) => {
         state.loading = true;
+<<<<<<< HEAD
     })
     .addCase(fetchGRN.fulfilled, (state, action: PayloadAction<GRN[]>) => {
         state.grns = action.payload;
@@ -621,6 +781,87 @@ const outgoingSlice = createSlice({
           state.snackbarMessage = 'Bulk payment processing failed';
         })
         .addCase(fetchActiveDebitsVendor.pending, (state) => {
+=======
+      })
+      .addCase(fetchGRN.fulfilled, (state, action: PayloadAction<GRN[]>) => {
+        state.grns = action.payload;
+      })
+      .addCase(fetchGRN.rejected, (state, action) => {
+        state.loading = false;
+      })
+      .addCase(fetchBank.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchBank.fulfilled, (state, action: PayloadAction<Bank[]>) => {
+        state.banks = action.payload;
+      })
+      .addCase(fetchBank.rejected, (state, action) => {
+        state.loading = false;
+      })
+      .addCase(selectOutgoingPayment.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(selectOutgoingPayment.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedOutgoing = action.payload;
+        const index = state.outgoings.findIndex((outgoing) => outgoing.outgoingId === updatedOutgoing.outgoingId);
+        if (index !== -1) {
+          state.outgoings[index] = updatedOutgoing;
+        }
+      })
+      .addCase(selectOutgoingPayment.rejected, (state, action) => {
+        state.loading = false;
+      })
+      .addCase(processBulkPayment.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(processBulkPayment.fulfilled, (state, action) => {
+        state.loading = false;
+        const { results, errors } = action.payload;
+
+        // Update each outgoing with the results
+        results.forEach((result) => {
+          const index = state.outgoings.findIndex(
+            (outgoing) => outgoing.outgoingId === result.outgoingId
+          );
+
+          if (index !== -1) {
+            state.outgoings[index] = {
+              ...state.outgoings[index],
+              totalPayableAmount: result.pendingAmount,
+              paidAmount: (state.outgoings[index].paidAmount || 0) + result.paymentAmount,
+              debitAmount: (state.outgoings[index].debitAmount || 0) + result.debitAmountApplied,
+              status: result.status,
+              paymentType: result.paymentType,
+              lastUpdatedDate: new Date(),
+              paymentDate: new Date(),
+              selectedDebitNotes: [
+                ...(state.outgoings[index].selectedDebitNotes || []),
+                ...result.debitNotesApplied
+              ],
+              hasDebitCreditNotes: result.debitNotesApplied.length > 0
+            };
+          }
+        });
+
+        // Show success message with error details if any
+        const successMessage = `Processed ${results.length} payments successfully.`;
+        const errorMessage = errors.length > 0 ? ` ${errors.length} failed.` : '';
+
+        state.snackbarOpen = true;
+        state.snackbarMessage = successMessage + errorMessage;
+        state.vendorPayments = {};
+        state.vendorDebits = {};
+      })
+      .addCase(processBulkPayment.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+        state.snackbarOpen = true;
+        state.snackbarMessage = action.payload as string;
+      })
+      .addCase(fetchActiveDebitsVendor.pending, (state) => {
+>>>>>>> recover-branch
         state.loading = true;
         state.error = null;
       })
@@ -632,7 +873,23 @@ const outgoingSlice = createSlice({
         state.loading = false;
         state.error = action.payload || 'Failed to fetch active debits';
       })
+<<<<<<< HEAD
    
+=======
+  .addCase(fetchActiveDebitsMultipleVendor.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchActiveDebitsMultipleVendor.fulfilled, (state, action) => {
+        state.loading = false;
+        // Replace all debits with the new ones
+        state.debits = action.payload;
+      })
+      .addCase(fetchActiveDebitsMultipleVendor.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch debit notes';
+      })
+>>>>>>> recover-branch
   },
 });
 
@@ -643,7 +900,11 @@ export const {
   setSnackbarOpen,
   setSnackbarMessage,
   clearSnackbarMessage,
+<<<<<<< HEAD
   setEditIndex,setPagination
+=======
+  setEditIndex, setPagination, setVendorDebits, setVendorPayment, clearVendorDebits
+>>>>>>> recover-branch
 } = outgoingSlice.actions;
 
 // Selector to get Outgoing items from state

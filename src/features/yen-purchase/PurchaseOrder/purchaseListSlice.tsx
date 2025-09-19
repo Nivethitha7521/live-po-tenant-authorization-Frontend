@@ -306,7 +306,11 @@ export const updateReceivedDamagedQuantities = createAsyncThunk(
         throw new Error('purchaseOrderId is required');
       }
       const response = await axios.patch(
+<<<<<<< HEAD
         `http://192.168.1.122:8000/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
+=======
+        `https://yenerp.com/purchaseapi/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
+>>>>>>> recover-branch
         params
       );
       return response.data;

@@ -5,7 +5,11 @@ import { RootState } from '../../../redux/store';
 // Define interfaces matching your API response
 export interface Transaction {
   date: string | null;
+<<<<<<< HEAD
   type: string; // "invoice", "payment", "debit_note", "advance_payment"
+=======
+  type: string; // "invoice", "payment", "debit_note", "advance_payment", "opening_balance"
+>>>>>>> recover-branch
   reference_id: string;
   description: string;
   debit_amount: number;
@@ -14,7 +18,11 @@ export interface Transaction {
   status: string;
   payment_method?: string;
   notes?: string;
+<<<<<<< HEAD
   formatted_date?: string; // Add this if your API includes formatted dates
+=======
+  formatted_date?: string;
+>>>>>>> recover-branch
 }
 
 export interface InvoiceDetail {
@@ -40,7 +48,11 @@ export interface VendorLedgerResponse {
   totalCreditAmount: number;
   outstandingAmount: number;
   invoices: InvoiceDetail[];
+<<<<<<< HEAD
   transactions: Transaction[]; // This should come from your API
+=======
+  transactions: Transaction[];
+>>>>>>> recover-branch
   lastTransactionDate: string | null;
 }
 
@@ -50,6 +62,13 @@ interface LedgerState {
   transactions: Transaction[];
   error: string | null;
   selectedVendorName: string | null;
+<<<<<<< HEAD
+=======
+  dateRange: {
+    startDate: Date | null;
+    endDate: Date | null;
+  };
+>>>>>>> recover-branch
 }
 
 const initialState: LedgerState = {
@@ -58,15 +77,39 @@ const initialState: LedgerState = {
   transactions: [],
   error: null,
   selectedVendorName: null,
+<<<<<<< HEAD
+=======
+  dateRange: {
+    startDate: null,
+    endDate: null,
+  },
+>>>>>>> recover-branch
 };
 
 export const fetchLedgerData = createAsyncThunk(
   'ledger/fetchLedgerData',
+<<<<<<< HEAD
   async (vendorName: string, { rejectWithValue }) => {
     try {
       const response = await axios.get(
         `https://yenerp.com/purchaseapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`
       );
+=======
+  async ({ vendorName, startDate, endDate }: { vendorName: string; startDate?: string; endDate?: string }, { rejectWithValue }) => {
+    try {
+      let url = `https://yenerp.com/purchaseapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`;
+      
+      // Add date parameters if provided
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      const response = await axios.get(url);
+>>>>>>> recover-branch
       return response.data as VendorLedgerResponse;
     } catch (error: any) {
       console.error('API Error:', error.response?.data || error.message);
@@ -82,11 +125,24 @@ const ledgerSlice = createSlice({
     setSelectedVendorName: (state, action: PayloadAction<string | null>) => {
       state.selectedVendorName = action.payload;
     },
+<<<<<<< HEAD
+=======
+    setDateRange: (state, action: PayloadAction<{ startDate: Date | null; endDate: Date | null }>) => {
+      state.dateRange = action.payload;
+    },
+>>>>>>> recover-branch
     resetLedgerData: (state) => {
       state.ledgerData = null;
       state.error = null;
       state.selectedVendorName = null;
       state.transactions = [];
+<<<<<<< HEAD
+=======
+      state.dateRange = {
+        startDate: null,
+        endDate: null,
+      };
+>>>>>>> recover-branch
     },
   },
   extraReducers: (builder) => {
@@ -109,9 +165,15 @@ const ledgerSlice = createSlice({
             type: 'invoice',
             reference_id: invoice.invoiceNo,
             description: `Invoice ${invoice.invoiceNo} - PO ${invoice.poId}`,
+<<<<<<< HEAD
             debit_amount: invoice.totalPayableAmount,
             credit_amount: invoice.paidAmount,
             balance: invoice.remainingAmount,
+=======
+            debit_amount: 0,
+            credit_amount: invoice.totalPayableAmount,
+            balance: 0,
+>>>>>>> recover-branch
             status: invoice.status,
             notes: `GRN: ${invoice.grnId}`,
           })) || [];
@@ -125,6 +187,10 @@ const ledgerSlice = createSlice({
   },
 });
 
+<<<<<<< HEAD
 export const { setSelectedVendorName, resetLedgerData } = ledgerSlice.actions;
+=======
+export const { setSelectedVendorName, setDateRange, resetLedgerData } = ledgerSlice.actions;
+>>>>>>> recover-branch
 export const selectLedger = (state: RootState) => state.outgoingLedger as LedgerState;
 export default ledgerSlice.reducer;

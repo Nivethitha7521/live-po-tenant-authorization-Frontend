@@ -4,7 +4,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   Box, TextField, Button, Typography, Grid, Paper, TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
   Autocomplete, Snackbar, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, RadioGroup,
+<<<<<<< HEAD
   FormControlLabel, Radio, CircularProgress, Tooltip, Backdrop,
+=======
+  FormControlLabel, Radio, CircularProgress, Tooltip, Backdrop, Switch, FormControl,
+>>>>>>> recover-branch
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -17,6 +21,7 @@ import {
   addPurchaseOrder, fetchPurchaseOrders, fetchAllVendors, selectPurchaseOrderState, setPurchaseOrderData,
   setNewItemData, addItemToPurchaseOrder, setSnackbarMessage, clearSnackbarMessage, setSnackbarOpen,
   setItemForEditing, clearItemForEditing, deleteItemFromPurchaseOrder, calculateItemTotals, setReduxTotals,
+<<<<<<< HEAD
   importCsvItems,
   downloadCsvTemplate,
   clearImportResults,
@@ -24,6 +29,13 @@ import {
 } from '../../../../features/yen-purchase/PurchaseOrder/purchaseOrderSlice';
 import { addShipping, fetchBusinesses, fetchShipping, selectBusinesses } from '@/features/account-setting/businessSlice';
 import { AppDispatch } from '@/redux/store';
+=======
+  importCsvItems, downloadCsvTemplate, clearImportResults, setImportDialogOpen, setDiscountMode,
+  calculateOverallDiscountForAllItems,
+} from '../../../../features/yen-purchase/PurchaseOrder/purchaseOrderSlice';
+import { addShipping, fetchBusinesses, fetchShipping, selectBusinesses } from '@/features/account-setting/businessSlice';
+import { AppDispatch, RootState } from '@/redux/store';
+>>>>>>> recover-branch
 import { useRouter } from 'next/navigation';
 import { Item, PurchaseItemSearchAdd } from '../../../../Models/purchaseModel';
 import { ShippingAddress } from '@/Models/businessModel';
@@ -33,6 +45,10 @@ import { searchPurchaseItems } from '@/features/yen-purchase/PurchaseMaster/purc
 import * as Yup from 'yup';
 import { useBeforeUnload } from 'react-use';
 import { VendorSummary } from '@/Models/vendor';
+<<<<<<< HEAD
+=======
+import ClearIcon from '@mui/icons-material/Clear'; // Add this import at the top with other MUI icon imports
+>>>>>>> recover-branch
 
 // Validation schema
 const validationSchema = Yup.object({
@@ -42,21 +58,44 @@ const validationSchema = Yup.object({
   paymentTerms: Yup.string().required('Payment terms are required'),
   creditLimit: Yup.number().required('Credit limit is required').min(0, 'Credit limit must be non-negative'),
 });
+<<<<<<< HEAD
 
 // Rounding functions
 const roundPrice = (price: number): number => Math.round(price * 100) / 100;
 const roundOff = (price: number): number => (price - Math.floor(price) >= 0.8 ? Math.ceil(price) : Math.floor(price));
 
+=======
+// Rounding functions
+const roundPrice = (price: number): number => Math.round(price * 100) / 100;
+const roundOff = (price: number): number => (price - Math.floor(price) >= 0.8 ? Math.ceil(price) : Math.floor(price));
+>>>>>>> recover-branch
 const PurchaseOrder: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const { purchaseOrderData, newItem, importDuplicates, importErrors, importDialogOpen, importWarnings, importSuccessMessages, importUpdatedItems, searchQuery, snackbarOpen, skip, limit, snackbarMessage } = useSelector(selectPurchaseOrderState);
   const { businesses, shippingaddress } = useSelector(selectBusinesses);
+<<<<<<< HEAD
   const [open, setDialogOpen] = useState(false);
   const [openShippingDialog, setOpenShippingDialog] = useState(false);
   const [updatedShippingRow, setUpdatedShippingRow] = useState<ShippingAddress | null>(null);
   const [discountType, setDiscountType] = useState<'before' | 'after'>('before');
   const [totals, setTotals] = useState({ roundedTotalOrderAmount: 0, roundedTotalDiscount: 0, roundedTotalTax: 0 });
+=======
+  const discountMode = useSelector((state: RootState) => state.purchaseOrder.discountMode);
+  const [open, setDialogOpen] = useState(false);
+  const [openShippingDialog, setOpenShippingDialog] = useState(false);
+  const [updatedShippingRow, setUpdatedShippingRow] = useState<ShippingAddress | null>(null);
+  const [totals, setTotals] = useState({
+    subTotal: 0,
+    roundedTotalOrderAmount: 0,
+    roundedTotalDiscount: 0,
+    roundedTotalTax: 0,
+    overallDiscountAmount: 0,
+    itemDiscountAmount: 0,
+    taxAmount: 0,
+    afterDiscount: 0,
+  });
+>>>>>>> recover-branch
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ itemName: false, pendingCount: false, pendingQuantity: false, newPrice: false });
@@ -69,11 +108,22 @@ const PurchaseOrder: React.FC = () => {
   const [countInput, setCountInput] = useState<string>('');
   const [quantityInput, setQuantityInput] = useState<string>('');
   const [newPriceInput, setNewPriceTypeInput] = useState<string>('');
+<<<<<<< HEAD
   const itemNameRef = useRef<HTMLInputElement | null>(null);
   const today = new Date();
   const formattedDate = today.toISOString().split('T')[0];
   const [isFullScreen, setIsFullScreen] = useState(false); // New state for full-screen mode
   const fileInputRef = useRef<HTMLInputElement | null>(null); // Add ref for file input
+=======
+  const [overallDiscountValue, setOverallDiscountValue] = useState<number>(0);
+  const [overallDiscountMode, setOverallDiscountMode] = useState<'percentage' | 'amount'>('percentage'); // Added state
+  const [roundOffValue, setRoundOffValue] = useState<number>(0);
+  const itemNameRef = useRef<HTMLInputElement | null>(null);
+  const today = new Date();
+  const formattedDate = today.toISOString().split('T')[0];
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+>>>>>>> recover-branch
   // Set default billingAddress if businesses has exactly one entry
   useEffect(() => {
     if (businesses.length === 1 && !purchaseOrderData.billingAddress) {
@@ -81,7 +131,10 @@ const PurchaseOrder: React.FC = () => {
       dispatch(setPurchaseOrderData({ ...purchaseOrderData, billingAddress: defaultBillingAddress }));
     }
   }, [businesses, purchaseOrderData, dispatch]);
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
   // Track form dirty state
   useEffect(() => {
     const hasChanges =
@@ -90,6 +143,7 @@ const PurchaseOrder: React.FC = () => {
       purchaseOrderData.billingAddress !== '' ||
       purchaseOrderData.shippingAddress !== '' ||
       purchaseOrderData.comments !== '' ||
+<<<<<<< HEAD
       purchaseOrderData.termsandConditions.some((term) => term !== '');
     setIsFormDirty(hasChanges);
   }, [purchaseOrderData]);
@@ -97,13 +151,32 @@ const PurchaseOrder: React.FC = () => {
   // Handle browser navigation and refresh
   useBeforeUnload(isFormDirty, 'You have unsaved changes. Are you sure you want to leave?');
 
+=======
+      purchaseOrderData.termsandConditions.some((term) => term !== '') ||
+      overallDiscountValue !== 0 ||
+      roundOffValue !== 0;
+    setIsFormDirty(hasChanges);
+  }, [purchaseOrderData, overallDiscountValue, roundOffValue]);
+  // Handle browser navigation and refresh
+  useBeforeUnload(isFormDirty, 'You have unsaved changes. Are you sure you want to leave?');
+>>>>>>> recover-branch
   // Sync input fields with Redux state
   useEffect(() => {
     setCountInput(newItem.pendingCount === 0 ? '' : newItem.pendingCount.toString());
     setQuantityInput(newItem.pendingQuantity === 0 ? '' : newItem.pendingQuantity.toString());
+<<<<<<< HEAD
     setNewPriceTypeInput(newItem.newPrice === 0 ? '' : newItem.newPrice.toFixed(2));
   }, [newItem.pendingCount, newItem.pendingQuantity, newItem.newPrice]);
 
+=======
+    // Only set newPriceInput if newItem.newPrice is non-zero and not already set by user input
+    if (newItem.newPrice !== 0 && newPriceInput === '') {
+      setNewPriceTypeInput(newItem.newPrice.toString());
+    } else if (newItem.newPrice === 0) {
+      setNewPriceTypeInput('');
+    }
+  }, [newItem.pendingCount, newItem.pendingQuantity, newItem.newPrice, newPriceInput]);
+>>>>>>> recover-branch
   // Fetch data
   useEffect(() => {
     dispatch(fetchPurchaseOrders());
@@ -111,13 +184,17 @@ const PurchaseOrder: React.FC = () => {
     dispatch(fetchBusinesses());
     dispatch(fetchShipping());
   }, [dispatch, searchQuery, skip, limit]);
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
   // Re-validate billingAddress to clear error when a value is selected
   useEffect(() => {
     if (purchaseOrderData.billingAddress && purchaseOrderData.billingAddress.trim() !== '') {
       setFormErrors((prev) => ({ ...prev, billingAddress: false }));
     }
   }, [purchaseOrderData.billingAddress]);
+<<<<<<< HEAD
 
   // Calculate totals
   const calculateTotals = useMemo(() => {
@@ -140,6 +217,41 @@ const PurchaseOrder: React.FC = () => {
   }, [purchaseOrderData.items]);
 
   // Update totals
+=======
+  // Calculate totals with updated logic for discount conversion
+  const calculateTotals = useMemo(() => {
+    let subTotal = 0;
+    let itemDiscountAmount = 0;
+    let taxAmount = 0;
+    // Sum up item-level totals
+    purchaseOrderData.items.forEach((item) => {
+      subTotal += item.pendingTotalPrice || 0;
+      itemDiscountAmount += item.pendingDiscountAmount || 0;
+      taxAmount += item.pendingTaxAmount || 0;
+    });
+    // Calculate overall discount based on mode
+    const overallDiscountAmount = overallDiscountMode === 'percentage'
+      ? subTotal * (overallDiscountValue / 100)
+      : overallDiscountValue;
+    // Total discount includes both item-level and overall discounts
+    const totalDiscount = itemDiscountAmount + overallDiscountAmount;
+    // Amount after discounts
+    const afterDiscount = Math.max(0, subTotal - totalDiscount);
+    // Final amount after tax and round-off
+    const finalAmount = afterDiscount + taxAmount + roundOffValue;
+    return {
+      subTotal: roundPrice(subTotal),
+      roundedTotalOrderAmount: roundPrice(finalAmount),
+      roundedTotalDiscount: roundPrice(totalDiscount),
+      roundedTotalTax: roundPrice(taxAmount),
+      overallDiscountAmount: roundPrice(overallDiscountAmount),
+      itemDiscountAmount: roundPrice(itemDiscountAmount),
+      taxAmount: roundPrice(taxAmount),
+      afterDiscount: roundPrice(afterDiscount),
+    };
+  }, [purchaseOrderData.items, overallDiscountMode, overallDiscountValue, roundOffValue]);
+  // Update totals and Redux state
+>>>>>>> recover-branch
   useEffect(() => {
     const newTotals = calculateTotals;
     setTotals(newTotals);
@@ -154,14 +266,20 @@ const PurchaseOrder: React.FC = () => {
       fileInputRef.current.value = '';
     }
   };
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
   const handleCloseImportDialog = () => {
     dispatch(setImportDialogOpen(false));
     dispatch(clearImportResults());
     dispatch(clearSnackbarMessage());
     resetFileInput();
   };
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
   // Navigation handlers
   const handleBackToPO = () => {
     if (isFormDirty) {
@@ -175,7 +293,222 @@ const PurchaseOrder: React.FC = () => {
       router.push('/yen-purchase/PurchaseOrder');
     }
   };
+<<<<<<< HEAD
 
+=======
+const handleOverallDiscountChange = async (e: ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+
+  if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {
+    const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+
+    // Basic validation
+    if (overallDiscountMode === 'percentage' && parsedValue >= 100) {
+      dispatch(setSnackbarMessage('Overall discount percentage cannot be 100% or more.'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    try {
+      // Map your current items to the format expected by the backend
+      const allItems = purchaseOrderData.items.map(item => ({
+        id: item.itemId,
+        pendingTotalQuantity: item.pendingTotalQuantity || 0,
+        poQuantity: item.pendingTotalQuantity || 0,
+        newPrice: item.newPrice || 0,
+        befTaxDiscount: item.befTaxDiscount || 0,
+        afTaxDiscount: item.afTaxDiscount || 0,
+        befTaxDiscountAmount: item.befTaxDiscountAmount || 0,
+        afTaxDiscountAmount: item.afTaxDiscountAmount || 0,
+        befTaxDiscountType: (item.befTaxDiscountType || 'percentage') as 'percentage' | 'amount',
+        afTaxDiscountType: (item.afTaxDiscountType || 'percentage') as 'percentage' | 'amount',
+        taxPercentage: item.taxPercentage || 0,
+        taxType: item.taxType || 'cgst_sgst'
+      }));
+
+      // Calculate with overall discount using backend
+      const result = await dispatch(calculateOverallDiscountForAllItems({
+        items: allItems,
+        overallDiscountValue: parsedValue,
+        overallDiscountMode: overallDiscountMode,
+        applyOverallDiscount: parsedValue > 0
+      })).unwrap();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Calculation failed');
+      }
+
+      // Validation check for negative amounts
+      const hasNegativeAmount = result.items.some(item => item.pendingFinalPrice < 0);
+      if (hasNegativeAmount) {
+        const maxAllowed = overallDiscountMode === 'percentage'
+          ? Math.min(99.99, (result.summary.totalSubtotal - 0.01) / result.summary.totalSubtotal * 100)
+          : result.summary.totalSubtotal - 0.01;
+
+        dispatch(setSnackbarMessage(
+          `Overall discount cannot be ${parsedValue} as it would make some items negative. Maximum allowed is ${maxAllowed.toFixed(2)}`
+        ));
+        dispatch(setSnackbarOpen(true));
+        return;
+      }
+
+      // Update overall discount value
+      setOverallDiscountValue(parsedValue);
+
+      // Update all items with new calculated values from backend
+      const updatedItems = purchaseOrderData.items.map(item => {
+        const calculatedItem = result.items.find(calc => calc.id === item.itemId);
+        if (calculatedItem) {
+          return {
+            ...item,
+            pendingFinalPrice: calculatedItem.pendingFinalPrice,
+            pendingOrderAmount: calculatedItem.pendingOrderAmount,
+            pendingAfTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,
+            afTaxDiscount: calculatedItem.afTaxDiscount,
+            pendingTaxAmount: calculatedItem.pendingTaxAmount,
+            pendingDiscountAmount: calculatedItem.pendingDiscountAmount,
+            pendingTotalPrice: calculatedItem.pendingTotalPrice,
+            pendingSgst: calculatedItem.pendingSgst,
+            pendingCgst: calculatedItem.pendingCgst,
+            pendingIgst: calculatedItem.pendingIgst,
+          };
+        }
+        return item;
+      });
+
+      // Update Redux state with the new items
+      dispatch(setPurchaseOrderData({
+        ...purchaseOrderData,
+        items: updatedItems,
+        pendingOrderAmount: result.summary.totalFinalAmount,
+        pendingDiscountAmount: result.summary.totalDiscountAmount,
+        pendingTaxAmount: result.summary.totalTaxAmount,
+      }));
+
+      // Show success message
+      dispatch(setSnackbarMessage(`Overall discount of ${parsedValue}${overallDiscountMode === 'percentage' ? '%' : ''} applied successfully`));
+      dispatch(setSnackbarOpen(true));
+
+    } catch (error) {
+      console.error('Error applying overall discount:', error);
+      dispatch(setSnackbarMessage('Error calculating overall discount. Please try again.'));
+      dispatch(setSnackbarOpen(true));
+    }
+  }
+};
+
+const setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amount') => {
+  if (newMode === overallDiscountMode) return;
+
+  let newValue = overallDiscountValue;
+
+  // Convert existing value to new mode
+  if (overallDiscountValue > 0 && totals.subTotal > 0) {
+    if (overallDiscountMode === 'percentage' && newMode === 'amount') {
+      newValue = (overallDiscountValue / 100) * totals.subTotal;
+    } else if (overallDiscountMode === 'amount' && newMode === 'percentage') {
+      newValue = (overallDiscountValue / totals.subTotal) * 100;
+    }
+  }
+
+  setOverallDiscountMode(newMode);
+  setOverallDiscountValue(roundPrice(newValue));
+
+  // Recalculate if there's a value
+  if (newValue > 0) {
+    try {
+      const allItems = purchaseOrderData.items.map(item => ({
+        id: item.itemId,
+        pendingTotalQuantity: item.pendingTotalQuantity || 0,
+        poQuantity: item.pendingTotalQuantity || 0,
+        newPrice: item.newPrice || 0,
+        befTaxDiscount: item.befTaxDiscount || 0,
+        afTaxDiscount: item.afTaxDiscount || 0,
+        befTaxDiscountAmount: item.befTaxDiscountAmount || 0,
+        afTaxDiscountAmount: item.afTaxDiscountAmount || 0,
+        befTaxDiscountType: (item.befTaxDiscountType || 'percentage') as 'percentage' | 'amount',
+        afTaxDiscountType: (item.afTaxDiscountType || 'percentage') as 'percentage' | 'amount',
+        taxPercentage: item.taxPercentage || 0,
+        taxType: item.taxType || 'cgst_sgst'
+      }));
+
+      const result = await dispatch(calculateOverallDiscountForAllItems({
+        items: allItems,
+        overallDiscountValue: newValue,
+        overallDiscountMode: newMode,
+        applyOverallDiscount: true
+      })).unwrap();
+
+      if (result.success) {
+        const updatedItems = purchaseOrderData.items.map(item => {
+          const calculatedItem = result.items.find(calc => calc.id === item.itemId);
+          if (calculatedItem) {
+            return {
+              ...item,
+              pendingFinalPrice: calculatedItem.pendingFinalPrice,
+              pendingOrderAmount: calculatedItem.pendingOrderAmount,
+              pendingAfTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,
+              afTaxDiscount: calculatedItem.afTaxDiscount,
+              pendingTaxAmount: calculatedItem.pendingTaxAmount,
+              pendingDiscountAmount: calculatedItem.pendingDiscountAmount,
+              pendingTotalPrice: calculatedItem.pendingTotalPrice,
+              pendingSgst: calculatedItem.pendingSgst,
+              pendingCgst: calculatedItem.pendingCgst,
+              pendingIgst: calculatedItem.pendingIgst,
+            };
+          }
+          return item;
+        });
+
+        dispatch(setPurchaseOrderData({
+          ...purchaseOrderData,
+          items: updatedItems,
+          pendingOrderAmount: result.summary.totalFinalAmount,
+          pendingDiscountAmount: result.summary.totalDiscountAmount,
+          pendingTaxAmount: result.summary.totalTaxAmount,
+        }));
+
+        dispatch(setSnackbarMessage(`Discount mode changed to ${newMode} and applied successfully`));
+        dispatch(setSnackbarOpen(true));
+      } else {
+        throw new Error(result.error || 'Failed to convert discount mode');
+      }
+    } catch (error) {
+      console.error('Error converting discount mode:', error);
+      dispatch(setSnackbarMessage('Error converting discount mode. Please try again.'));
+      dispatch(setSnackbarOpen(true));
+    }
+  }
+};
+  // Handle item-level discount mode with conversion
+  const setItemDiscountModeWithConversion = (newMode: 'percentage' | 'amount') => {
+    if (newMode === discountMode) return;
+    let newBefTaxDiscount = 0;
+    let newAfTaxDiscount = 0;
+    let newBefTaxDiscountAmount = 0;
+    let newAfTaxDiscountAmount = 0;
+    const totalPrice = newItem.pendingTotalQuantity * newItem.newPrice;
+    if (totalPrice > 0) {
+      if (discountMode === 'percentage') {
+        newBefTaxDiscountAmount = newItem.befTaxDiscount > 0 ? (newItem.befTaxDiscount / 100) * totalPrice : 0;
+        newAfTaxDiscountAmount = newItem.afTaxDiscount > 0 ? (newItem.afTaxDiscount / 100) * totalPrice : 0;
+      } else {
+        newBefTaxDiscount = newItem.befTaxDiscountAmount > 0 ? (newItem.befTaxDiscountAmount / totalPrice) * 100 : 0;
+        newAfTaxDiscount = newItem.afTaxDiscountAmount > 0 ? (newItem.afTaxDiscountAmount / totalPrice) * 100 : 0;
+      }
+    }
+    dispatch(setDiscountMode({ mode: newMode }));
+    dispatch(setNewItemData({
+      ...newItem,
+      befTaxDiscount: roundPrice(newBefTaxDiscount),
+      afTaxDiscount: roundPrice(newAfTaxDiscount),
+      befTaxDiscountAmount: roundPrice(newBefTaxDiscountAmount),
+      afTaxDiscountAmount: roundPrice(newAfTaxDiscountAmount),
+      befTaxDiscountType: newMode,
+      afTaxDiscountType: newMode,
+    }));
+  };
+>>>>>>> recover-branch
   // Form handlers
   const handleSelectAddressChange = useCallback(
     (name: string, value: string | null) => {
@@ -183,14 +516,20 @@ const PurchaseOrder: React.FC = () => {
       if (name === 'billingAddress') {
         const selectedBusiness = businesses.find((business) => `${business.address1 ?? ''} ${business.address2 ?? ''}`.trim() === value);
         updatedData.billingAddress = selectedBusiness ? `${selectedBusiness.address1 ?? ''} ${selectedBusiness.address2 ?? ''}`.trim() : value ?? '';
+<<<<<<< HEAD
         // Clear billingAddress error if a value is selected
+=======
+>>>>>>> recover-branch
         if (updatedData.billingAddress && updatedData.billingAddress.trim() !== '') {
           setFormErrors((prev) => ({ ...prev, billingAddress: false }));
         }
       } else if (name === 'shippingAddress') {
         const selectedShippingAddress = shippingaddress.find((address) => address.address === value);
         updatedData.shippingAddress = selectedShippingAddress ? selectedShippingAddress.address : value ?? '';
+<<<<<<< HEAD
         // Clear shippingAddress error if a value is selected
+=======
+>>>>>>> recover-branch
         if (updatedData.shippingAddress && updatedData.shippingAddress.trim() !== '') {
           setFormErrors((prev) => ({ ...prev, shippingAddress: false }));
         }
@@ -199,7 +538,10 @@ const PurchaseOrder: React.FC = () => {
     },
     [dispatch, purchaseOrderData, businesses, shippingaddress]
   );
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
   const handleTextFieldChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index?: number) => {
     const { name, value } = e.target;
     if (index !== undefined) {
@@ -223,14 +565,27 @@ const PurchaseOrder: React.FC = () => {
       }));
     }
   };
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
   const handleRemoveTerm = (index: number) => {
     dispatch(setPurchaseOrderData({
       ...purchaseOrderData,
       termsandConditions: purchaseOrderData.termsandConditions.filter((_, i) => i !== index),
     }));
   };
+<<<<<<< HEAD
 
+=======
+  const handleRoundOffChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '' || /^-?\d*\.?\d{0,2}$/.test(value)) {
+      const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+      setRoundOffValue(parsedValue);
+    }
+  };
+>>>>>>> recover-branch
   const handleItemSelection = (item: PurchaseItemSearchAdd | null) => {
     if (item) {
       setNewItemsearch(item);
@@ -252,12 +607,25 @@ const PurchaseOrder: React.FC = () => {
         hsnCode: item.hsnCode,
         befTaxDiscount: 0,
         afTaxDiscount: 0,
+<<<<<<< HEAD
         pendingTotalPrice: 0,
         taxType: 'cgst_sgst',
       }));
       setCountInput('');
       setQuantityInput('');
       setNewPriceTypeInput(item.purchasePrice.toFixed(2)); // Initialize to 2 decimal places
+=======
+        befTaxDiscountAmount: 0,
+        afTaxDiscountAmount: 0,
+        pendingTotalPrice: 0,
+        taxType: 'cgst_sgst',
+        befTaxDiscountType: discountMode,
+        afTaxDiscountType: discountMode,
+      }));
+      setCountInput('');
+      setQuantityInput('');
+      setNewPriceTypeInput(item.purchasePrice.toString()); // Use raw string, no .toFixed(2)
+>>>>>>> recover-branch
     } else {
       setNewItemsearch(null);
       let updatedData = { ...purchaseOrderData, itemName: '' };
@@ -265,9 +633,15 @@ const PurchaseOrder: React.FC = () => {
       dispatch(setNewItemData({
         itemId: '',
         itemName: '',
+<<<<<<< HEAD
         pendingCount: 0,
         pendingQuantity: 0,
         pendingTotalQuantity: 0,
+=======
+        quantity: 0,
+        count: 0,
+        eachQuantity: 0,
+>>>>>>> recover-branch
         existingPrice: 0,
         newPrice: 0,
         taxPercentage: 0,
@@ -277,6 +651,7 @@ const PurchaseOrder: React.FC = () => {
         hsnCode: '',
         befTaxDiscount: 0,
         afTaxDiscount: 0,
+<<<<<<< HEAD
         pendingTotalPrice: 0,
         taxType: 'cgst_sgst',
       }));
@@ -286,6 +661,23 @@ const PurchaseOrder: React.FC = () => {
     }
   };
 
+=======
+        befTaxDiscountAmount: 0,
+        afTaxDiscountAmount: 0,
+        pendingTotalPrice: 0,
+        taxType: 'cgst_sgst',
+        pendingCount: 0,
+        pendingQuantity: 0,
+        pendingTotalQuantity: 0,
+        befTaxDiscountType: discountMode,
+        afTaxDiscountType: discountMode,
+      }));
+      setCountInput('');
+      setQuantityInput('');
+      setNewPriceTypeInput(''); // Reset to empty string
+    }
+  };
+>>>>>>> recover-branch
   const handleClear = () => {
     dispatch(setPurchaseOrderData({
       purchaseOrderId: '',
@@ -322,6 +714,11 @@ const PurchaseOrder: React.FC = () => {
       totalPrice: 0,
       befTaxDiscount: 0,
       afTaxDiscount: 0,
+<<<<<<< HEAD
+=======
+      befTaxDiscountAmount: 0,
+      afTaxDiscountAmount: 0,
+>>>>>>> recover-branch
       uom: '',
       pendingCount: 0,
       pendingQuantity: 0,
@@ -331,12 +728,18 @@ const PurchaseOrder: React.FC = () => {
       hsnCode: '',
       taxType: 'cgst_sgst',
       pendingTotalPrice: 0,
+<<<<<<< HEAD
+=======
+      befTaxDiscountType: discountMode,
+      afTaxDiscountType: discountMode,
+>>>>>>> recover-branch
     }));
     setVendorSearch(null);
     setNewItemsearch(null);
     setCountInput('');
     setQuantityInput('');
     setNewPriceTypeInput('');
+<<<<<<< HEAD
     setIsFormDirty(false);
     setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, paymentTerms: false, creditLimit: false });
   };
@@ -377,6 +780,123 @@ const PurchaseOrder: React.FC = () => {
         const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
         const updatedValue = Math.min(parsedValue, 99); // Cap discounts at 99%
         dispatch(setNewItemData({ ...newItem, [name]: updatedValue }));
+=======
+    setOverallDiscountValue(0);
+    setOverallDiscountMode('percentage'); // Reset to default
+    setRoundOffValue(0);
+    setIsFormDirty(false);
+    setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, paymentTerms: false, creditLimit: false });
+  };
+  const enforceOneDiscount = (name: string, value: number) => {
+    const updatedItem = { ...newItem, [name]: value };
+    // Only reset after-tax discounts if before-tax discount is entered
+    if (name === 'befTaxDiscount' || name === 'befTaxDiscountAmount') {
+      updatedItem.afTaxDiscount = 0;
+      updatedItem.afTaxDiscountAmount = 0;
+    }
+    // Only reset before-tax discounts if after-tax discount is entered
+    else if (name === 'afTaxDiscount' || name === 'afTaxDiscountAmount') {
+      updatedItem.befTaxDiscount = 0;
+      updatedItem.befTaxDiscountAmount = 0;
+    }
+    dispatch(setNewItemData(updatedItem));
+  };
+  const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    // Different validation patterns for different fields
+    if (name === 'pendingCount' || name === 'pendingQuantity') {
+      // Allow larger numbers for count and quantity - more flexible pattern
+      if (value === '' || /^\d*\.?\d{0,3}$/.test(value)) {
+        if (name === 'pendingCount') {
+          setCountInput(value);
+          const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+          dispatch(setNewItemData({
+            ...newItem,
+            pendingCount: parsedValue,
+            pendingTotalQuantity: parsedValue * newItem.pendingQuantity,
+          }));
+          setErrors({ ...errors, pendingCount: false });
+        } else if (name === 'pendingQuantity') {
+          setQuantityInput(value);
+          const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+          dispatch(setNewItemData({
+            ...newItem,
+            pendingQuantity: parsedValue,
+            pendingTotalQuantity: newItem.pendingCount * parsedValue,
+          }));
+          setErrors({ ...errors, pendingQuantity: false });
+        }
+      }
+    } else if (name === 'newPrice') {
+      // More flexible price validation - allow up to 8 digits before decimal
+      if (name === 'newPrice') {
+        // Allow integers or decimals with up to 2 decimal places
+        if (value === '' || /^\d{0,8}(\.\d{0,2})?$/.test(value)) {
+          setNewPriceTypeInput(value); // Store raw input
+          const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+          dispatch(setNewItemData({
+            ...newItem,
+            newPrice: parsedValue,
+            priceVariance: newItem.existingPrice - parsedValue,
+          }));
+          setErrors({ ...errors, newPrice: false });
+        }
+      }
+    } else if (['befTaxDiscount', 'afTaxDiscount', 'befTaxDiscountAmount', 'afTaxDiscountAmount'].includes(name)) {
+      // For discount fields, use different validation based on discount mode
+      let validationPattern;
+      if (discountMode === 'percentage' && (name === 'befTaxDiscount' || name === 'afTaxDiscount')) {
+        // Percentage: 0-99.99 - more flexible
+        validationPattern = /^\d{0,2}(\.\d{0,2})?$/;
+      } else if (discountMode === 'amount' && (name === 'befTaxDiscountAmount' || name === 'afTaxDiscountAmount')) {
+        // Amount: up to 999999.99 - more flexible
+        validationPattern = /^\d{0,6}(\.\d{0,2})?$/;
+      } else {
+        // Fallback pattern
+        validationPattern = /^\d*\.?\d{0,2}$/;
+      }
+      if (value === '' || validationPattern.test(value)) {
+        const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+        const maxValue = discountMode === 'percentage' && (name === 'befTaxDiscount' || name === 'afTaxDiscount') ? 99.99 : Infinity;
+        let updatedValue = Math.min(parsedValue, maxValue);
+        // Calculate total price for validation
+        const totalPrice = newItem.pendingTotalQuantity * newItem.newPrice;
+        // Check if discount would make the final price negative
+        if (totalPrice > 0) {
+          let discountAmount = 0;
+          if (discountMode === 'percentage') {
+            if (name === 'befTaxDiscount' || name === 'afTaxDiscount') {
+              discountAmount = (updatedValue / 100) * totalPrice;
+            }
+          } else {
+            if (name === 'befTaxDiscountAmount' || name === 'afTaxDiscountAmount') {
+              discountAmount = updatedValue;
+            }
+          }
+          // Prevent discount from exceeding total price
+          if (discountAmount >= totalPrice) {
+            dispatch(setSnackbarMessage(`Discount cannot be ${updatedValue}${discountMode === 'percentage' ? '%' : ''} as it would make the final price negative or zero. Maximum allowed discount is ${discountMode === 'percentage' ? '99.99%' : (totalPrice - 0.01).toFixed(2)}`));
+            dispatch(setSnackbarOpen(true));
+            return;
+          }
+          // Additional check for percentage mode
+          if (discountMode === 'percentage' && (name === 'befTaxDiscount' || name === 'afTaxDiscount')) {
+            if (updatedValue >= 100) {
+              dispatch(setSnackbarMessage('Discount percentage cannot be 100% or more.'));
+              dispatch(setSnackbarOpen(true));
+              return;
+            }
+          }
+        }
+        enforceOneDiscount(name, updatedValue);
+        setErrors({ ...errors, [name]: false });
+      }
+    } else {
+      // For other numeric fields, more flexible validation
+      if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+        const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+        dispatch(setNewItemData({ ...newItem, [name]: parsedValue }));
+>>>>>>> recover-branch
         setErrors({ ...errors, [name]: false });
       }
     }
@@ -416,17 +936,27 @@ const PurchaseOrder: React.FC = () => {
       }));
     }
   };
+<<<<<<< HEAD
 
   const handleTaxTypeChange = (event: ChangeEvent<HTMLInputElement>) => {
     dispatch(setNewItemData({ ...newItem, taxType: event.target.value as 'cgst_sgst' | 'igst' }));
   };
 
+=======
+  const handleTaxTypeChange = (event: ChangeEvent<HTMLInputElement>) => {
+    dispatch(setNewItemData({ ...newItem, taxType: event.target.value as 'cgst_sgst' | 'igst' }));
+  };
+  const handleDiscountModeChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setItemDiscountModeWithConversion(event.target.value as 'percentage' | 'amount');
+  };
+>>>>>>> recover-branch
   const handleDelete = (itemId: string) => {
     dispatch(deleteItemFromPurchaseOrder(itemId));
     dispatch(clearItemForEditing());
     setNewItemsearch(null);
     setTotals(calculateTotals);
   };
+<<<<<<< HEAD
 
   const handleShippingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, field: string) => {
     setUpdatedShippingRow({ ...updatedShippingRow!, [field]: e.target.value });
@@ -434,6 +964,30 @@ const PurchaseOrder: React.FC = () => {
 
   const handleEdit = (item: Item) => {
     dispatch(setItemForEditing(item));
+=======
+  const handleShippingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, field: string) => {
+    setUpdatedShippingRow({ ...updatedShippingRow!, [field]: e.target.value });
+  };
+  const handleEdit = (item: Item) => {
+    const befDiscount = item.befTaxDiscount || 0;
+    const afDiscount = item.afTaxDiscount || 0;
+    const befDiscountAmount = item.befTaxDiscountAmount || 0;
+    const afDiscountAmount = item.afTaxDiscountAmount || 0;
+    let editedBef = discountMode === 'percentage' ? (befDiscount > 0 ? befDiscount : 0) : (befDiscountAmount > 0 ? befDiscountAmount : 0);
+    let editedAf = discountMode === 'percentage' ? (afDiscount > 0 ? afDiscount : 0) : (afDiscountAmount > 0 ? afDiscountAmount : 0);
+    if (editedBef > 0 && editedAf > 0) {
+      editedAf = 0;
+    }
+    dispatch(setItemForEditing({
+      ...item,
+      befTaxDiscount: discountMode === 'percentage' ? editedBef : 0,
+      afTaxDiscount: discountMode === 'percentage' ? editedAf : 0,
+      befTaxDiscountAmount: discountMode === 'amount' ? editedBef : 0,
+      afTaxDiscountAmount: discountMode === 'amount' ? editedAf : 0,
+      befTaxDiscountType: discountMode,
+      afTaxDiscountType: discountMode,
+    }));
+>>>>>>> recover-branch
     const itemForSearch: PurchaseItemSearchAdd = {
       purchaseitemId: item.itemId,
       itemName: item.itemName,
@@ -447,10 +1001,16 @@ const PurchaseOrder: React.FC = () => {
     setNewItemsearch(itemForSearch);
     setCountInput(item.pendingCount.toString());
     setQuantityInput(item.pendingQuantity.toString());
+<<<<<<< HEAD
     setNewPriceTypeInput(item.newPrice.toFixed(2)); // Format to 2 decimal places
     setTotals(calculateTotals);
   };
 
+=======
+    setNewPriceTypeInput(item.newPrice.toString()); // Use raw string, no .toFixed(2)
+    setTotals(calculateTotals);
+  };
+>>>>>>> recover-branch
   const handleAddItem = useCallback(async () => {
     setErrors({
       itemName: !newItem.itemName,
@@ -466,6 +1026,7 @@ const PurchaseOrder: React.FC = () => {
       dispatch(setSnackbarOpen(true));
       return;
     }
+<<<<<<< HEAD
     setLoading(true);
     try {
       await dispatch(calculateItemTotals({
@@ -481,14 +1042,94 @@ const PurchaseOrder: React.FC = () => {
       setNewItemsearch(null);
       if (itemNameRef.current) itemNameRef.current.focus();
       setTotals(calculateTotals);
+=======
+    // Enforce only one discount before calculating
+    let finalBef = newItem.befTaxDiscount || 0;
+    let finalBefAmount = newItem.befTaxDiscountAmount || 0;
+    let finalAf = newItem.afTaxDiscount || 0;
+    let finalAfAmount = newItem.afTaxDiscountAmount || 0;
+    if (finalBef > 0 || finalBefAmount > 0) {
+      finalAf = 0;
+      finalAfAmount = 0;
+      dispatch(setNewItemData({ ...newItem, afTaxDiscount: 0, afTaxDiscountAmount: 0 }));
+    } else if (finalAf > 0 || finalAfAmount > 0) {
+      finalBef = 0;
+      finalBefAmount = 0;
+      dispatch(setNewItemData({ ...newItem, befTaxDiscount: 0, befTaxDiscountAmount: 0 }));
+    }
+    setLoading(true);
+    try {
+      const params: {
+        pendingTotalQuantity: number;
+        poQuantity: number;
+        newPrice: number;
+        taxPercentage: number;
+        taxType: 'cgst_sgst' | 'igst';
+        befTaxDiscount?: number;
+        befTaxDiscountAmount?: number;
+        afTaxDiscount?: number;
+        afTaxDiscountAmount?: number;
+      } = {
+        pendingTotalQuantity: newItem.pendingTotalQuantity,
+        poQuantity: newItem.pendingTotalQuantity,
+        newPrice: newItem.newPrice,
+        taxPercentage: newItem.taxPercentage || 0,
+        taxType: newItem.taxType,
+      };
+      if (discountMode === 'percentage') {
+        if (finalBef > 0) params.befTaxDiscount = finalBef;
+        if (finalAf > 0) params.afTaxDiscount = finalAf;
+      } else {
+        if (finalBefAmount > 0) params.befTaxDiscountAmount = finalBefAmount;
+        if (finalAfAmount > 0) params.afTaxDiscountAmount = finalAfAmount;
+      }
+      await dispatch(calculateItemTotals(params)).unwrap();
+      dispatch(addItemToPurchaseOrder());
+      setNewItemsearch(null);
+      dispatch(setNewItemData({
+        itemId: '',
+        itemName: '',
+        quantity: 0,
+        count: 0,
+        eachQuantity: 0,
+        existingPrice: 0,
+        newPrice: 0,
+        taxPercentage: 0,
+        totalPrice: 0,
+        befTaxDiscount: 0,
+        afTaxDiscount: 0,
+        befTaxDiscountAmount: 0,
+        afTaxDiscountAmount: 0,
+        uom: '',
+        pendingCount: 0,
+        pendingQuantity: 0,
+        pendingTotalQuantity: 0,
+        purchasecategoryName: '',
+        purchasesubcategoryName: '',
+        hsnCode: '',
+        taxType: 'cgst_sgst',
+        pendingTotalPrice: 0,
+        befTaxDiscountType: discountMode,
+        afTaxDiscountType: discountMode,
+      }));
+      setCountInput('');
+      setQuantityInput('');
+      setNewPriceTypeInput('');
+      setTotals(calculateTotals);
+      if (itemNameRef.current) itemNameRef.current.focus();
+>>>>>>> recover-branch
     } catch (error) {
       dispatch(setSnackbarMessage('Failed to add item. Please try again.'));
       dispatch(setSnackbarOpen(true));
     } finally {
       setLoading(false);
     }
+<<<<<<< HEAD
   }, [dispatch, newItem, calculateTotals]);
 
+=======
+  }, [dispatch, newItem, calculateTotals, discountMode]);
+>>>>>>> recover-branch
   const saveShippingAddress = () => {
     if (updatedShippingRow) {
       dispatch(addShipping({ ...updatedShippingRow, shippingId: '', randomId: '' }))
@@ -502,11 +1143,15 @@ const PurchaseOrder: React.FC = () => {
         });
     }
   };
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
   const handleCloseShippingDialog = () => {
     setOpenShippingDialog(false);
     setUpdatedShippingRow(null);
   };
+<<<<<<< HEAD
 
   const handleOpenDialog = () => {
     // Re-check billingAddress before validation to avoid incorrect error
@@ -514,6 +1159,12 @@ const PurchaseOrder: React.FC = () => {
       setFormErrors((prev) => ({ ...prev, billingAddress: false }));
     }
 
+=======
+  const handleOpenDialog = () => {
+    if (purchaseOrderData.billingAddress && purchaseOrderData.billingAddress.trim() !== '') {
+      setFormErrors((prev) => ({ ...prev, billingAddress: false }));
+    }
+>>>>>>> recover-branch
     validationSchema.validate(purchaseOrderData, { abortEarly: false })
       .then(() => {
         setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, paymentTerms: false, creditLimit: false });
@@ -530,9 +1181,293 @@ const PurchaseOrder: React.FC = () => {
         dispatch(setSnackbarOpen(true));
       });
   };
+<<<<<<< HEAD
 
   const handleSubmit = async () => {
     setLoading(true);
+=======
+  const applyOverallDiscountToItems = () => {
+    if (overallDiscountValue <= 0) return;
+    const items = [...purchaseOrderData.items];
+    const totalOrderAmount = items.reduce((sum, item) => sum + (item.pendingTotalPrice || 0), 0);
+    if (totalOrderAmount <= 0) {
+      dispatch(setSnackbarMessage('Cannot apply discount to zero amount order'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    const totalDiscount = overallDiscountMode === 'percentage'
+      ? totalOrderAmount * (overallDiscountValue / 100)
+      : overallDiscountValue;
+    if (totalDiscount >= totalOrderAmount) {
+      dispatch(setSnackbarMessage(`Discount cannot be ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} as it would make the total negative.`));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    let remainingDiscount = totalDiscount;
+    let appliedDiscount = 0;
+    const updatedItems = items.map(item => {
+      if (!item.pendingTotalPrice || item.pendingTotalPrice <= 0) return item;
+      const itemShare = roundPrice((item.pendingTotalPrice / totalOrderAmount) * totalDiscount);
+      const discountPercentage = roundPrice((itemShare / item.pendingTotalPrice) * 100);
+      const discountAmount = Math.min(itemShare, item.pendingTotalPrice - 0.01); // prevent negative
+      const updatedItem = { ...item };
+      updatedItem.afTaxDiscount = discountPercentage;
+      updatedItem.afTaxDiscountAmount = discountAmount;
+      updatedItem.befTaxDiscount = 0;
+      updatedItem.befTaxDiscountAmount = 0;
+      const priceAfterDiscount = item.pendingTotalPrice - discountAmount;
+      const taxPercentage = item.taxPercentage || 0;
+      if (item.taxType === 'igst') {
+        updatedItem.pendingIgst = roundPrice((taxPercentage / 100) * priceAfterDiscount);
+        updatedItem.pendingSgst = 0;
+        updatedItem.pendingCgst = 0;
+      } else {
+        const halfTax = taxPercentage / 2;
+        updatedItem.pendingSgst = roundPrice((halfTax / 100) * priceAfterDiscount);
+        updatedItem.pendingCgst = roundPrice((halfTax / 100) * priceAfterDiscount);
+        updatedItem.pendingIgst = 0;
+      }
+      const taxAmount = (updatedItem.pendingSgst || 0) + (updatedItem.pendingCgst || 0) + (updatedItem.pendingIgst || 0);
+      updatedItem.pendingDiscountAmount = roundPrice((item.pendingDiscountAmount || 0) + discountAmount); // add to existing if any
+      updatedItem.pendingTaxAmount = roundPrice(taxAmount);
+      updatedItem.pendingFinalPrice = roundPrice(priceAfterDiscount + taxAmount);
+      updatedItem.pendingTotalPrice = roundPrice(priceAfterDiscount);
+      appliedDiscount += discountAmount;
+      remainingDiscount -= discountAmount;
+      return updatedItem;
+    });
+    // Update the purchase order with discounted items
+    dispatch(setPurchaseOrderData({
+      ...purchaseOrderData,
+      items: updatedItems,
+      pendingDiscountAmount: roundPrice((purchaseOrderData.pendingDiscountAmount || 0) + appliedDiscount),
+      pendingOrderAmount: roundPrice(purchaseOrderData.pendingOrderAmount - appliedDiscount)
+    }));
+    if (remainingDiscount > 0) {
+      dispatch(setSnackbarMessage(`Applied ₹${appliedDiscount.toFixed(2)} of ₹${totalDiscount.toFixed(2)} discount`));
+    } else {
+      dispatch(setSnackbarMessage(`Successfully applied ₹${totalDiscount.toFixed(2)} discount across all items`));
+    }
+    dispatch(setSnackbarOpen(true));
+    // Reset discount value after applying
+    setOverallDiscountValue(0);
+  };
+const handleApplyDiscount = async () => {
+  if (overallDiscountValue <= 0) {
+    dispatch(setSnackbarMessage('Please enter a discount amount'));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+  if (purchaseOrderData.items.length === 0) {
+    dispatch(setSnackbarMessage('Add items before applying discount'));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+
+  try {
+    const allItems = purchaseOrderData.items.map(item => ({
+      id: item.itemId,
+      pendingTotalQuantity: item.pendingTotalQuantity || 0,
+      poQuantity: item.pendingTotalQuantity || 0,
+      newPrice: item.newPrice || 0,
+      befTaxDiscount: item.befTaxDiscount || 0,
+      afTaxDiscount: item.afTaxDiscount || 0,
+      befTaxDiscountAmount: item.befTaxDiscountAmount || 0,
+      afTaxDiscountAmount: item.afTaxDiscountAmount || 0,
+      befTaxDiscountType: (item.befTaxDiscountType || 'percentage') as 'percentage' | 'amount',
+      afTaxDiscountType: (item.afTaxDiscountType || 'percentage') as 'percentage' | 'amount',
+      taxPercentage: item.taxPercentage || 0,
+      taxType: item.taxType || 'cgst_sgst'
+    }));
+
+    const result = await dispatch(calculateOverallDiscountForAllItems({
+      items: allItems,
+      overallDiscountValue: overallDiscountValue,
+      overallDiscountMode: overallDiscountMode,
+      applyOverallDiscount: true
+    })).unwrap();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to apply discount');
+    }
+
+    // Update items with calculated values
+    const updatedItems = purchaseOrderData.items.map(item => {
+      const calculatedItem = result.items.find(calc => calc.id === item.itemId);
+      if (calculatedItem) {
+        return {
+          ...item,
+          pendingFinalPrice: calculatedItem.pendingFinalPrice,
+          pendingOrderAmount: calculatedItem.pendingOrderAmount,
+          pendingAfTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,
+          afTaxDiscount: calculatedItem.afTaxDiscount,
+          pendingTaxAmount: calculatedItem.pendingTaxAmount,
+          pendingDiscountAmount: calculatedItem.pendingDiscountAmount,
+          pendingTotalPrice: calculatedItem.pendingTotalPrice,
+          pendingSgst: calculatedItem.pendingSgst,
+          pendingCgst: calculatedItem.pendingCgst,
+          pendingIgst: calculatedItem.pendingIgst,
+        };
+      }
+      return item;
+    });
+
+    dispatch(setPurchaseOrderData({
+      ...purchaseOrderData,
+      items: updatedItems,
+      pendingOrderAmount: result.summary.totalFinalAmount,
+      pendingDiscountAmount: result.summary.totalDiscountAmount,
+      pendingTaxAmount: result.summary.totalTaxAmount,
+    }));
+
+    dispatch(setSnackbarMessage(`Successfully applied ₹${result.summary.overallDiscountTotalAmount.toFixed(2)} discount across all items`));
+    dispatch(setSnackbarOpen(true));
+
+  } catch (error) {
+    console.error('Error applying overall discount:', error);
+    dispatch(setSnackbarMessage('Error applying overall discount. Please try again.'));
+    dispatch(setSnackbarOpen(true));
+  }
+};
+
+const removeOverallDiscount = async () => {
+  try {
+    const allItems = purchaseOrderData.items.map(item => ({
+      id: item.itemId,
+      pendingTotalQuantity: item.pendingTotalQuantity || 0,
+      poQuantity: item.pendingTotalQuantity || 0,
+      newPrice: item.newPrice || 0,
+      befTaxDiscount: item.befTaxDiscount || 0,
+      afTaxDiscount: 0, // Reset after-tax discount
+      befTaxDiscountAmount: item.befTaxDiscountAmount || 0,
+      afTaxDiscountAmount: 0, // Reset after-tax discount amount
+      befTaxDiscountType: (item.befTaxDiscountType || 'percentage') as 'percentage' | 'amount',
+      afTaxDiscountType: (item.afTaxDiscountType || 'percentage') as 'percentage' | 'amount',
+      taxPercentage: item.taxPercentage || 0,
+      taxType: item.taxType || 'cgst_sgst'
+    }));
+
+    const result = await dispatch(calculateOverallDiscountForAllItems({
+      items: allItems,
+      overallDiscountValue: 0,
+      overallDiscountMode: overallDiscountMode,
+      applyOverallDiscount: false
+    })).unwrap();
+
+    if (result.success) {
+      setOverallDiscountValue(0);
+
+      const updatedItems = purchaseOrderData.items.map(item => {
+        const calculatedItem = result.items.find(calc => calc.id === item.itemId);
+        if (calculatedItem) {
+          return {
+            ...item,
+            pendingFinalPrice: calculatedItem.pendingFinalPrice,
+            pendingOrderAmount: calculatedItem.pendingOrderAmount,
+            pendingAfTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,
+            afTaxDiscount: calculatedItem.afTaxDiscount,
+            pendingTaxAmount: calculatedItem.pendingTaxAmount,
+            pendingDiscountAmount: calculatedItem.pendingDiscountAmount,
+            pendingTotalPrice: calculatedItem.pendingTotalPrice,
+            pendingSgst: calculatedItem.pendingSgst,
+            pendingCgst: calculatedItem.pendingCgst,
+            pendingIgst: calculatedItem.pendingIgst,
+          };
+        }
+        return item;
+      });
+
+      dispatch(setPurchaseOrderData({
+        ...purchaseOrderData,
+        items: updatedItems,
+        pendingOrderAmount: result.summary.totalFinalAmount,
+        pendingDiscountAmount: result.summary.totalDiscountAmount,
+        pendingTaxAmount: result.summary.totalTaxAmount,
+      }));
+
+      dispatch(setSnackbarMessage('Overall discount removed successfully'));
+      dispatch(setSnackbarOpen(true));
+    } else {
+      throw new Error(result.error || 'Failed to remove discount');
+    }
+  } catch (error) {
+    console.error('Error removing overall discount:', error);
+    dispatch(setSnackbarMessage('Error removing overall discount. Please try again.'));
+    dispatch(setSnackbarOpen(true));
+  }
+};
+
+const handleResetDiscounts = async () => {
+  try {
+    // Reset all discounts to zero
+    const resetItems = purchaseOrderData.items.map(item => ({
+      id: item.itemId,
+      pendingTotalQuantity: item.pendingTotalQuantity || 0,
+      poQuantity: item.pendingTotalQuantity || 0,
+      newPrice: item.newPrice || 0,
+      befTaxDiscount: 0,
+      afTaxDiscount: 0,
+      befTaxDiscountAmount: 0,
+      afTaxDiscountAmount: 0,
+      befTaxDiscountType: 'percentage' as 'percentage' | 'amount',
+      afTaxDiscountType: 'percentage' as 'percentage' | 'amount',
+      taxPercentage: item.taxPercentage || 0,
+      taxType: item.taxType || 'cgst_sgst'
+    }));
+
+    const result = await dispatch(calculateOverallDiscountForAllItems({
+      items: resetItems,
+      overallDiscountValue: 0,
+      overallDiscountMode: overallDiscountMode,
+      applyOverallDiscount: false
+    })).unwrap();
+
+    if (result.success) {
+      const updatedItems = purchaseOrderData.items.map(item => {
+        const calculatedItem = result.items.find(calc => calc.id === item.itemId);
+        if (calculatedItem) {
+          return {
+            ...item,
+            befTaxDiscount: 0,
+            afTaxDiscount: 0,
+            befTaxDiscountAmount: 0,
+            afTaxDiscountAmount: 0,
+            pendingDiscountAmount: 0,
+            pendingFinalPrice: calculatedItem.pendingFinalPrice,
+            pendingTaxAmount: calculatedItem.pendingTaxAmount,
+            pendingTotalPrice: calculatedItem.pendingTotalPrice,
+            pendingSgst: calculatedItem.pendingSgst,
+            pendingCgst: calculatedItem.pendingCgst,
+            pendingIgst: calculatedItem.pendingIgst,
+          };
+        }
+        return item;
+      });
+
+      dispatch(setPurchaseOrderData({
+        ...purchaseOrderData,
+        items: updatedItems,
+        pendingDiscountAmount: 0,
+        pendingOrderAmount: result.summary.totalFinalAmount,
+        pendingTaxAmount: result.summary.totalTaxAmount,
+      }));
+
+      setOverallDiscountValue(0);
+      dispatch(setSnackbarMessage('All discounts reset'));
+      dispatch(setSnackbarOpen(true));
+    } else {
+      throw new Error(result.error || 'Failed to reset discounts');
+    }
+  } catch (error) {
+    console.error('Error resetting discounts:', error);
+    dispatch(setSnackbarMessage('Error resetting discounts. Please try again.'));
+    dispatch(setSnackbarOpen(true));
+  }
+};
+  const handleSubmit = async () => {
+    setLoading(true);
+    // Recalculate totals to ensure they're up-to-date
+>>>>>>> recover-branch
     const { roundedTotalOrderAmount, roundedTotalDiscount, roundedTotalTax } = calculateTotals;
     if (!purchaseOrderData.items.length) {
       dispatch(setSnackbarMessage('At least one item is required.'));
@@ -542,12 +1477,27 @@ const PurchaseOrder: React.FC = () => {
     }
     const dataToSubmit = {
       ...purchaseOrderData,
+<<<<<<< HEAD
       orderDate: purchaseOrderData.orderDate ? new Date(purchaseOrderData.orderDate) : null, // Convert string to Date or null
+=======
+      orderDate: purchaseOrderData.orderDate ? new Date(purchaseOrderData.orderDate) : null,
+>>>>>>> recover-branch
       expectedDeliveryDate: purchaseOrderData.expectedDeliveryDate ? new Date(purchaseOrderData.expectedDeliveryDate) : null,
       pendingOrderAmount: roundedTotalOrderAmount,
       pendingDiscountAmount: roundedTotalDiscount,
       pendingTaxAmount: roundedTotalTax,
+<<<<<<< HEAD
       isHoldOrder: roundedTotalOrderAmount > purchaseOrderData.creditLimit,
+=======
+      totalTax: roundedTotalTax,
+      isHoldOrder: roundedTotalOrderAmount > purchaseOrderData.creditLimit,
+      overallDiscountType: overallDiscountMode,
+      overallDiscountValue: roundedTotalDiscount,
+      discountPrice:roundedTotalDiscount,
+      totalDiscount:roundedTotalDiscount,
+      roundOffValue: roundOffValue,
+      // Items already have the discount applied from the UI calculation
+>>>>>>> recover-branch
     };
     try {
       const result = await dispatch(addPurchaseOrder(dataToSubmit)).unwrap();
@@ -568,6 +1518,7 @@ const PurchaseOrder: React.FC = () => {
       setLoading(false);
     }
   };
+<<<<<<< HEAD
 
   // const calculateTaxDetails = () => {
   //   const taxDetails: { [key: string]: { pendingSgst: number; pendingCgst: number; pendingIgst: number; percentage: number } } = {};
@@ -594,6 +1545,8 @@ const PurchaseOrder: React.FC = () => {
   //   });
   //   return taxDetails;
   // };
+=======
+>>>>>>> recover-branch
   const calculateTaxDetails = () => {
     const taxDetails: { [key: string]: { pendingSgst: number; pendingCgst: number; pendingIgst: number; percentage: number } } = {};
     purchaseOrderData.items.forEach((item) => {
@@ -603,7 +1556,11 @@ const PurchaseOrder: React.FC = () => {
           pendingSgst: 0,
           pendingCgst: 0,
           pendingIgst: 0,
+<<<<<<< HEAD
           percentage: taxPercentage, // Store the full tax percentage (e.g., 12 for cgst_sgst)
+=======
+          percentage: taxPercentage,
+>>>>>>> recover-branch
         };
       }
       if (item.taxType === 'igst') {
@@ -617,7 +1574,12 @@ const PurchaseOrder: React.FC = () => {
   };
   const taxDetails = calculateTaxDetails();
   const variancePrice = (newItem.newPrice - newItem.existingPrice).toFixed(2);
+<<<<<<< HEAD
 
+=======
+  const isBefDiscountActive = newItem.befTaxDiscount > 0 || newItem.befTaxDiscountAmount > 0;
+  const isAfDiscountActive = newItem.afTaxDiscount > 0 || newItem.afTaxDiscountAmount > 0;
+>>>>>>> recover-branch
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
       {/* Main Content */}
@@ -627,7 +1589,10 @@ const PurchaseOrder: React.FC = () => {
             <Typography fontWeight={'bold'} sx={{ textDecoration: 'underline' }}>Purchase Order</Typography>
             <Button variant="contained" color="primary" onClick={handleBackToPO}>Back to PO</Button>
           </Box>
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
           <Grid container spacing={2}>
             {/* Form Fields */}
             <Grid item xs={12} sm={3} md={2}>
@@ -707,7 +1672,11 @@ const PurchaseOrder: React.FC = () => {
                 value={purchaseOrderData.orderDate || ''}
                 onChange={handleTextFieldChange}
                 InputLabelProps={{ shrink: true }}
+<<<<<<< HEAD
                 inputProps={{ max: formattedDate }} // Restrict to today or earlier
+=======
+                inputProps={{ max: formattedDate }}
+>>>>>>> recover-branch
                 size="small"
                 variant="outlined"
               />
@@ -730,7 +1699,10 @@ const PurchaseOrder: React.FC = () => {
           <Box sx={{
             p: 1,
             mb: 3,
+<<<<<<< HEAD
             // Remove sticky/fixed positioning for normal mode; apply fixed positioning only in full-screen
+=======
+>>>>>>> recover-branch
             position: isFullScreen ? 'fixed' : 'relative',
             top: isFullScreen ? 0 : 'auto',
             left: isFullScreen ? 0 : 'auto',
@@ -747,7 +1719,10 @@ const PurchaseOrder: React.FC = () => {
           }}>
             {/* Add Item Section */}
             <Box sx={{ p: 1, mb: 3, position: 'sticky', top: 0, zIndex: 10, bgcolor: 'white' }}>
+<<<<<<< HEAD
               {/* Add Item Section */}
+=======
+>>>>>>> recover-branch
               <Box sx={{
                 p: 1,
                 mb: 3,
@@ -759,7 +1734,11 @@ const PurchaseOrder: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'space-between'
               }}>
+<<<<<<< HEAD
                 <Typography variant="h2">Add Item</Typography>
+=======
+                <Typography variant="h6">Add Item</Typography>
+>>>>>>> recover-branch
                 <Box sx={{ display: 'flex', gap: 2 }}>
                   <Button
                     variant="outlined"
@@ -862,11 +1841,19 @@ const PurchaseOrder: React.FC = () => {
                     fullWidth
                     label="New Price"
                     name="newPrice"
+<<<<<<< HEAD
                     type="number"
                     value={newPriceInput}
                     onChange={handleItemChange}
                     size="small"
                     inputProps={{ step: '00000.01', min: '0' }}
+=======
+                    type="text"
+                    value={newPriceInput}
+                    onChange={handleItemChange}
+                    size="small"
+                    inputProps={{ min: '0' }}
+>>>>>>> recover-branch
                     error={errors.newPrice}
                     helperText={errors.newPrice ? 'New price is required' : ''}
                   />
@@ -905,6 +1892,7 @@ const PurchaseOrder: React.FC = () => {
                   />
                 </Grid>
                 <Grid item xs={12} sm={4} md={0.8}>
+<<<<<<< HEAD
                   <Tooltip title="Before Tax Discount (%)">
                     <TextField
                       fullWidth
@@ -933,6 +1921,60 @@ const PurchaseOrder: React.FC = () => {
                       size="small"
                     />
                   </Tooltip>
+=======
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Tooltip title={`Before Tax Discount (${discountMode === 'percentage' ? '%' : '₹'}) - Disabled if After Tax is set`}>
+                      <TextField
+                        fullWidth
+                        autoComplete='off'
+                        label={`Before Tax Discount (${discountMode === 'percentage' ? '%' : '₹'})`}
+                        name={discountMode === 'percentage' ? 'befTaxDiscount' : 'befTaxDiscountAmount'}
+                        type="number"
+                        value={
+                          discountMode === 'percentage'
+                            ? (newItem.befTaxDiscount === 0 ? '' : newItem.befTaxDiscount.toString())
+                            : (newItem.befTaxDiscountAmount === 0 ? '' : newItem.befTaxDiscountAmount.toString())
+                        }
+                        onChange={handleItemChange}
+                        disabled={isAfDiscountActive}
+                        inputProps={{
+                          min: 0,
+                          max: discountMode === 'percentage' ? 99 : undefined,
+                          step: 0.01,
+                        }}
+                        size="small"
+                        sx={{ flex: 1 }}
+                      />
+                    </Tooltip>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={4} md={0.8}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Tooltip title={`After Tax Discount (${discountMode === 'percentage' ? '%' : '₹'}) - Disabled if Before Tax is set`}>
+                      <TextField
+                        fullWidth
+                        autoComplete='off'
+                        label={`After Tax Discount (${discountMode === 'percentage' ? '%' : '₹'})`}
+                        name={discountMode === 'percentage' ? 'afTaxDiscount' : 'afTaxDiscountAmount'}
+                        type="number"
+                        value={
+                          discountMode === 'percentage'
+                            ? (newItem.afTaxDiscount === 0 ? '' : newItem.afTaxDiscount.toString())
+                            : (newItem.afTaxDiscountAmount === 0 ? '' : newItem.afTaxDiscountAmount.toString())
+                        }
+                        onChange={handleItemChange}
+                        disabled={isBefDiscountActive}
+                        inputProps={{
+                          min: 0,
+                          max: discountMode === 'percentage' ? 99 : undefined,
+                          step: 0.01,
+                        }}
+                        size="small"
+                        sx={{ flex: 1 }}
+                      />
+                    </Tooltip>
+                  </Box>
+>>>>>>> recover-branch
                 </Grid>
                 <Grid item xs={12} sm={3} md={1.5}>
                   <TextField
@@ -953,6 +1995,7 @@ const PurchaseOrder: React.FC = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     gap: 2,
+<<<<<<< HEAD
                     flexWrap: 'wrap', // Allows wrapping on smaller screens
                   }}
                 >
@@ -965,18 +2008,70 @@ const PurchaseOrder: React.FC = () => {
                     <FormControlLabel value="igst" control={<Radio size="small" />} label="IGST" />
                     <FormControlLabel value="cgst_sgst" control={<Radio size="small" />} label="CGST/SGST" />
                   </RadioGroup>
+=======
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <RadioGroup
+                      row
+                      value={newItem.taxType}
+                      onChange={handleTaxTypeChange}
+                      sx={{ display: 'flex', alignItems: 'center' }}
+                    >
+                      <FormControlLabel value="igst" control={<Radio size="small" />} label="IGST" />
+                      <FormControlLabel value="cgst_sgst" control={<Radio size="small" />} label="CGST/SGST" />
+                    </RadioGroup>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                        Discount Mode:
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => {
+                          // Create a synthetic event to match the expected handler signature
+                          const syntheticEvent = {
+                            target: {
+                              value: discountMode === 'percentage' ? 'amount' : 'percentage'
+                            }
+                          } as ChangeEvent<HTMLInputElement>;
+                          handleDiscountModeChange(syntheticEvent);
+                        }}
+                        sx={{
+                          minWidth: 'auto',
+                          px: 1,
+                          py: 0.5,
+                          fontSize: '0.75rem',
+                          bgcolor: discountMode === 'percentage' ? 'primary.main' : 'grey.300',
+                          color: discountMode === 'percentage' ? 'white' : 'black',
+                          '&:hover': {
+                            bgcolor: discountMode === 'percentage' ? 'primary.dark' : 'grey.400',
+                          },
+                        }}
+                      >
+                        {discountMode === 'percentage' ? 'Percentage (%)' : 'Amount (₹)'}
+                      </Button>
+                    </Box>
+                  </Box>
+>>>>>>> recover-branch
                   <Button
                     variant="contained"
                     color="primary"
                     onClick={handleAddItem}
                     size="small"
+<<<<<<< HEAD
                     disabled={loading}
+=======
+                    disabled={loading || (newItem.befTaxDiscount > 0 && newItem.afTaxDiscount > 0) || (newItem.befTaxDiscountAmount > 0 && newItem.afTaxDiscountAmount > 0)}
+>>>>>>> recover-branch
                     startIcon={loading ? <CircularProgress size={20} /> : null}
                   >
                     {loading ? 'Adding...' : 'Add Item'}
                   </Button>
                 </Grid>
               </Grid>
+<<<<<<< HEAD
 
             </Box>
 
@@ -993,6 +2088,20 @@ const PurchaseOrder: React.FC = () => {
                     '& th': {
                       fontWeight: 'bold',
                       borderBottom: '2px solid rgba(0,0,0,0.12)', // Match MUI style
+=======
+            </Box>
+            <TableContainer sx={{ maxHeight: '500px', overflowY: 'auto', marginBottom: '10px' }}>
+              <Table stickyHeader>
+                <TableHead
+                  sx={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1,
+                    backgroundColor: 'white',
+                    '& th': {
+                      fontWeight: 'bold',
+                      borderBottom: '2px solid rgba(0,0,0,0.12)',
+>>>>>>> recover-branch
                     },
                   }}
                 >
@@ -1002,8 +2111,12 @@ const PurchaseOrder: React.FC = () => {
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>UOM</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>Existing Price</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>New Price</TableCell>
+<<<<<<< HEAD
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>Bef Dis</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>Af Dis</TableCell>
+=======
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Discount</TableCell>
+>>>>>>> recover-branch
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>Tax (%)</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>Total Price</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
@@ -1022,8 +2135,15 @@ const PurchaseOrder: React.FC = () => {
                         <TableCell align="right">{item.uom}</TableCell>
                         <TableCell align="right">{(item.existingPrice || 0).toFixed(2)}</TableCell>
                         <TableCell align="right">{(item.newPrice || 0).toFixed(2)}</TableCell>
+<<<<<<< HEAD
                         <TableCell align="right">{item.befTaxDiscount || 0}%</TableCell>
                         <TableCell align="right">{item.afTaxDiscount || 0}%</TableCell>
+=======
+                        <TableCell align="right">
+                          {(item.befTaxDiscount > 0 ? item.befTaxDiscount : item.afTaxDiscount) || (item.befTaxDiscountAmount > 0 ? item.befTaxDiscountAmount : item.afTaxDiscountAmount) || 0}
+                          {(item.befTaxDiscount > 0 || item.afTaxDiscount > 0) ? (item.befTaxDiscountType === 'percentage' ? '%' : '') : (item.befTaxDiscountAmount > 0 || item.afTaxDiscountAmount > 0) ? '' : ''}
+                        </TableCell>
+>>>>>>> recover-branch
                         <TableCell align="right">{item.taxPercentage}%</TableCell>
                         <TableCell align="right">{(item.pendingTotalPrice || 0).toFixed(2)}</TableCell>
                         <TableCell align="right">
@@ -1033,16 +2153,27 @@ const PurchaseOrder: React.FC = () => {
                       </TableRow>
                     ))
                   )}
+<<<<<<< HEAD
                   <TableRow>
                     <TableCell colSpan={8} />
                     <TableCell align="right"><strong>Discount:</strong></TableCell>
                     <TableCell align="right"><strong>{totals.roundedTotalDiscount.toFixed(2)}</strong></TableCell>
+=======
+                  <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
+                    <TableCell colSpan={7} align="right">
+                      <strong>Sub Total:</strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>{totals.subTotal.toFixed(2)}</strong>
+                    </TableCell>
+>>>>>>> recover-branch
                     <TableCell />
                   </TableRow>
                   {Object.keys(taxDetails).map((taxPercentage) => {
                     const { pendingSgst, pendingCgst, pendingIgst } = taxDetails[taxPercentage];
                     const percentage = Number(taxPercentage);
                     const halfPercentage = percentage / 2;
+<<<<<<< HEAD
 
                     return (
                       <React.Fragment key={taxPercentage}>
@@ -1051,28 +2182,61 @@ const PurchaseOrder: React.FC = () => {
                             <TableCell colSpan={8} />
                             <TableCell align="right"><strong>IGST ({percentage}%)</strong></TableCell>
                             <TableCell align="right">{pendingIgst.toFixed(2)}</TableCell>
+=======
+                    return (
+                      <React.Fragment key={taxPercentage}>
+                        {pendingIgst > 0 && (
+                          <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
+                            <TableCell colSpan={7} align="right">
+                              <strong>IGST ({percentage}%)</strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              {pendingIgst.toFixed(2)}
+                            </TableCell>
+>>>>>>> recover-branch
                             <TableCell />
                           </TableRow>
                         )}
                         {pendingSgst > 0 && (
+<<<<<<< HEAD
                           <TableRow>
                             <TableCell colSpan={8} />
                             <TableCell align="right"><strong>SGST ({halfPercentage}%)</strong></TableCell>
                             <TableCell align="right">{pendingSgst.toFixed(2)}</TableCell>
+=======
+                          <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
+                            <TableCell colSpan={7} align="right">
+                              <strong>SGST ({halfPercentage}%)</strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              {pendingSgst.toFixed(2)}
+                            </TableCell>
+>>>>>>> recover-branch
                             <TableCell />
                           </TableRow>
                         )}
                         {pendingCgst > 0 && (
+<<<<<<< HEAD
                           <TableRow>
                             <TableCell colSpan={8} />
                             <TableCell align="right"><strong>CGST ({halfPercentage}%)</strong></TableCell>
                             <TableCell align="right">{pendingCgst.toFixed(2)}</TableCell>
+=======
+                          <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
+                            <TableCell colSpan={7} align="right">
+                              <strong>CGST ({halfPercentage}%)</strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              {pendingCgst.toFixed(2)}
+                            </TableCell>
+>>>>>>> recover-branch
                             <TableCell />
                           </TableRow>
                         )}
                       </React.Fragment>
                     );
                   })}
+<<<<<<< HEAD
                   <TableRow>
                     <TableCell colSpan={8} />
                     <TableCell align="right"><strong>Rounded Amount:</strong></TableCell>
@@ -1083,17 +2247,185 @@ const PurchaseOrder: React.FC = () => {
                     <TableCell colSpan={8} />
                     <TableCell align="right"><strong>Final Amount:</strong></TableCell>
                     <TableCell align="right"><strong>{totals.roundedTotalOrderAmount.toFixed(2)}</strong></TableCell>
+=======
+                  <TableRow sx={{ fontWeight: 'bold' }}>
+                    <TableCell colSpan={7} align="right">
+                      <strong>Total Tax:</strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>{totals.roundedTotalTax.toFixed(2)}</strong>
+                    </TableCell>
+                    <TableCell />
+                  </TableRow>
+                  <TableRow sx={{ fontWeight: 'bold' }}>
+                    <TableCell colSpan={7} align="right">
+                      <strong>Item-wise Discount:</strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>{totals.itemDiscountAmount.toFixed(2)}</strong>
+                    </TableCell>
+                    <TableCell />
+                  </TableRow>
+
+                  <TableRow sx={{ fontWeight: 'bold' }}>
+                    <TableCell colSpan={7} align="right">
+                      <strong>Overall Discount:</strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <TextField
+                            value={overallDiscountValue === 0 ? '' : overallDiscountValue.toString()}
+                            onChange={handleOverallDiscountChange}
+                            size="small"
+                            type="text"
+                            label={overallDiscountMode === 'percentage' ? '%' : '₹'}
+                            inputProps={{
+                              min: '0',
+                              max: overallDiscountMode === 'percentage' ? '99.99' : undefined,
+                            }}
+                            sx={{ width: 100 }}
+                            disabled={purchaseOrderData.items.some(
+                              (item) =>
+                                item.befTaxDiscount > 0 ||
+                                item.afTaxDiscount > 0 ||
+                                item.befTaxDiscountAmount > 0 ||
+                                item.afTaxDiscountAmount > 0
+                            )}
+                            autoComplete='off'
+                          />
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={handleApplyDiscount}
+                            disabled={
+                              overallDiscountValue <= 0 ||
+                              purchaseOrderData.items.length === 0 ||
+                              purchaseOrderData.items.some(
+                                (item) =>
+                                  item.befTaxDiscount > 0 ||
+                                  item.afTaxDiscount > 0 ||
+                                  item.befTaxDiscountAmount > 0 ||
+                                  item.afTaxDiscountAmount > 0
+                              )
+                            }
+                          >
+                            Apply
+                          </Button>
+                        </Box>
+                        <Typography variant="caption" display="block">
+                          Mode: {overallDiscountMode === 'percentage' ? 'Percentage' : 'Amount'}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={overallDiscountMode === 'amount'}
+                              onChange={() =>
+                                setOverallDiscountModeWithConversion(
+                                  overallDiscountMode === 'percentage' ? 'amount' : 'percentage'
+                                )
+                              }
+                              size="small"
+                              disabled={purchaseOrderData.items.some(
+                                (item) =>
+                                  item.befTaxDiscount > 0 ||
+                                  item.afTaxDiscount > 0 ||
+                                  item.befTaxDiscountAmount > 0 ||
+                                  item.afTaxDiscountAmount > 0
+                              )}
+                            />
+                          }
+                          label={overallDiscountMode === 'amount' ? '₹' : '%'}
+                          labelPlacement="top"
+                          sx={{ m: 0 }}
+                        />
+                        <Tooltip title="Reset Discounts">
+                          <span>
+                            <IconButton
+                              onClick={handleResetDiscounts}
+                              size="small"
+                              color="error"
+                              className='icon-button-outline'
+                              disabled={purchaseOrderData.items.length === 0}
+                            >
+                              <ClearIcon />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow sx={{ fontWeight: 'bold' }}>
+                    <TableCell colSpan={7} align="right">
+                      <strong>Total Discount:</strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>{totals.roundedTotalDiscount.toFixed(2)}</strong>
+                    </TableCell>
+                    <TableCell />
+                  </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={7} align="right">
+                      <strong>Round Off/Adjustment:</strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField
+                          value={roundOffValue === 0 ? '' : roundOffValue.toString()}
+                          onChange={handleRoundOffChange}
+                          size="small"
+                          sx={{ width: 80 }}
+                          type="number"
+                          inputProps={{ step: '0.01', min: '-999999', max: '999999' }}
+                          autoComplete='off'
+                        />
+                        <Typography variant="body2">
+                          ({roundOffValue >= 0 ? '+' : ''}{roundOffValue.toFixed(2)})
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell />
+                  </TableRow>
+                  <TableRow sx={{ fontSize: '1.1em' }}>
+                    <TableCell colSpan={7} align="right">
+                      <strong style={{ fontSize: '1.2em' }}>FINAL AMOUNT:</strong>
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontSize: '1.2em', fontWeight: 'bold' }}>
+                      <strong>{totals.roundedTotalOrderAmount.toFixed(2)}</strong>
+                    </TableCell>
+>>>>>>> recover-branch
                     <TableCell />
                   </TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
           </Box>
+<<<<<<< HEAD
           {/* Additional Fields */}
+=======
+>>>>>>> recover-branch
           <Grid container spacing={2}>
             <Grid item xs={12} sm={2} md={2}>
               <TextField
                 fullWidth
+<<<<<<< HEAD
+=======
+                label="Sub Total"
+                name="subTotal"
+                value={totals.subTotal.toFixed(2)}
+                size="small"
+                variant="outlined"
+                InputProps={{ readOnly: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={2} md={2}>
+              <TextField
+                fullWidth
+>>>>>>> recover-branch
                 label="Total Order Amount"
                 name="pendingOrderAmount"
                 value={totals.roundedTotalOrderAmount.toFixed(2)}
@@ -1108,7 +2440,11 @@ const PurchaseOrder: React.FC = () => {
               <Autocomplete
                 fullWidth
                 options={businesses.map((business) => `${business.address1 ?? ''} ${business.address2 ?? ''}`.trim())}
+<<<<<<< HEAD
                 value={purchaseOrderData.billingAddress || ''} // Removed default fallback
+=======
+                value={purchaseOrderData.billingAddress || ''}
+>>>>>>> recover-branch
                 onChange={(event, newValue) => handleSelectAddressChange('billingAddress', newValue)}
                 renderInput={(params) => (
                   <TextField
@@ -1122,7 +2458,10 @@ const PurchaseOrder: React.FC = () => {
                 )}
               />
             </Grid>
+<<<<<<< HEAD
             {/* Updated Shipping Address Section */}
+=======
+>>>>>>> recover-branch
             <Grid item xs={12} sm={4} md={2}>
               <Grid container spacing={1} sx={{ display: 'flex', alignItems: 'center' }}>
                 <Grid item xs={10}>
@@ -1204,8 +2543,11 @@ const PurchaseOrder: React.FC = () => {
           </Grid>
         </Box>
       </Box>
+<<<<<<< HEAD
 
       {/* Footer with Buttons */}
+=======
+>>>>>>> recover-branch
       <Box sx={{ p: 0.5, bgcolor: 'white', position: 'sticky', bottom: 0, zIndex: 10 }}>
         <Grid container spacing={2} justifyContent="flex-end">
           <Grid item>
@@ -1218,8 +2560,11 @@ const PurchaseOrder: React.FC = () => {
           </Grid>
         </Grid>
       </Box>
+<<<<<<< HEAD
 
       {/* Dialogs */}
+=======
+>>>>>>> recover-branch
       <Dialog open={open} onClose={() => setDialogOpen(false)}>
         <DialogTitle>{isHoldOrderDialog ? 'Confirm Hold Purchase Order' : 'Confirm Purchase Order'}</DialogTitle>
         <DialogContent>
@@ -1242,7 +2587,10 @@ const PurchaseOrder: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
       <Dialog open={openShippingDialog} onClose={handleCloseShippingDialog}>
         <DialogTitle>Add New Shipping Address</DialogTitle>
         <DialogContent>
@@ -1284,7 +2632,10 @@ const PurchaseOrder: React.FC = () => {
           <Button onClick={saveShippingAddress} color="primary">Save</Button>
         </DialogActions>
       </Dialog>
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
       <Dialog open={showNavigationConfirm} onClose={() => setShowNavigationConfirm(false)}>
         <DialogTitle>Unsaved Changes</DialogTitle>
         <DialogContent>
@@ -1305,6 +2656,7 @@ const PurchaseOrder: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+<<<<<<< HEAD
 
       {/* Loading Overlay */}
       <Backdrop sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: '#fff' }} open={loading}>
@@ -1332,6 +2684,8 @@ const PurchaseOrder: React.FC = () => {
       </Dialog>
 
       {/* Loading Overlay */}
+=======
+>>>>>>> recover-branch
       <Backdrop sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: '#fff' }} open={loading}>
         <CircularProgress color="inherit" />
       </Backdrop>
@@ -1433,7 +2787,10 @@ const PurchaseOrder: React.FC = () => {
           <Button onClick={handleCloseImportDialog} color="primary">Close</Button>
         </DialogActions>
       </Dialog>
+<<<<<<< HEAD
       {/* Snackbar */}
+=======
+>>>>>>> recover-branch
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
@@ -1443,5 +2800,8 @@ const PurchaseOrder: React.FC = () => {
     </Box>
   );
 };
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
 export default PurchaseOrder;

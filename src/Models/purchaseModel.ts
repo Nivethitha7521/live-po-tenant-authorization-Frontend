@@ -10,7 +10,11 @@ export interface Item {
   count: number;
   expiryDate: Date | null;
   eachQuantity: number;
+<<<<<<< HEAD
   receivedQuantity?: number;
+=======
+  receivedQuantity?: string | number;
+>>>>>>> recover-branch
   damagedQuantity: number;
   purchasecategoryName: string;
   purchasesubcategoryName: any;
@@ -44,6 +48,11 @@ export interface Item {
   pendingFinalPrice: number;
   pendingBefTaxDiscountAmount?: number;
   pendingAfTaxDiscountAmount?: number;
+<<<<<<< HEAD
+=======
+  befTaxDiscountType?:string;
+  afTaxDiscountType?:string;
+>>>>>>> recover-branch
   pendingDiscountAmount: number;
   taxType: 'cgst_sgst' | 'igst';
   additionalTaxes?: { [key: string]: number }; // Optional additional taxes
@@ -88,6 +97,12 @@ export interface PurchaseOrderData {
   poCreatedPerson: string;
   poApprovedPerson: string;
   poRejectedPerson: string;
+<<<<<<< HEAD
+=======
+  discountMode: 'percentage' | 'amount'; // Added to track discount type
+  roundOffValue:number;
+  overallDiscountValue:number;
+>>>>>>> recover-branch
 }
 
 export type TaxDetails = Record<string, {
@@ -146,6 +161,10 @@ export interface PurchaseOrderState {
   importErrors: string[];
   importSuccessMessages: string[]; // Added for success messages
   importUpdatedItems: string[]; // Added for updated items
+<<<<<<< HEAD
+=======
+  discountMode:string;
+>>>>>>> recover-branch
 }
 
 export interface PurchaseRandomId {
@@ -272,4 +291,57 @@ export const initialState: PurchaseListState = {
   importUpdatedItems: [], // Initialize updated items
   selectedPo: null,
   poDialogOpen: false,
+<<<<<<< HEAD
 };
+=======
+};
+// Add this interface to your slice types
+export interface ItemInput {
+  id?: string;
+  pendingTotalQuantity: number;
+  poQuantity: number;
+  newPrice: number;
+  befTaxDiscount?: number;
+  afTaxDiscount?: number;
+  befTaxDiscountAmount?: number;
+  afTaxDiscountAmount?: number;
+  befTaxDiscountType?: 'percentage' | 'amount';
+  afTaxDiscountType?: 'percentage' | 'amount';
+  taxPercentage?: number;
+  taxType?: 'cgst_sgst' | 'igst';
+}
+
+export interface OverallDiscountResponse {
+  success: boolean;
+  items: {
+    id: string;
+    pendingTotalPrice: number;
+    pendingBefTaxDiscountAmount: number;
+    pendingAfTaxDiscountAmount: number;
+    pendingDiscountAmount: number;
+    pendingTaxAmount: number;
+    pendingSgst: number;
+    pendingCgst: number;
+    pendingIgst: number;
+    pendingFinalPrice: number;
+    pendingOrderAmount: number;
+    befTaxDiscount: number;
+    afTaxDiscount: number;
+    itemOverallDiscountAmount: number;
+    proportion: number;
+    subtotalBeforeOverallDiscount: number;
+    poQuantity: number;
+    quantity: number;
+  }[];
+  summary: {
+    totalSubtotal: number;
+    overallDiscountTotalAmount: number;
+    overallDiscountPercentage: number;
+    totalFinalAmount: number;
+    totalTaxAmount: number;
+    totalDiscountAmount: number;
+    totalItems: number;
+  };
+  error?: string;
+}
+>>>>>>> recover-branch

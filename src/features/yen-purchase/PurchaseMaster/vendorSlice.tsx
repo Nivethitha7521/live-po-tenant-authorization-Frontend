@@ -2,7 +2,11 @@ import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
 import { format } from 'date-fns'; // Import date-fns for date formatting
+<<<<<<< HEAD
 import { CsvImportResponse, initialState, Vendor, VendorNameGet, VendorSearch, VendorSummary, VendorTypeItem } from '@/Models/vendor';
+=======
+import {  CsvImportResponse, initialState, Vendor, VendorNameGet, VendorSearch, VendorSummary, VendorTypeItem } from '@/Models/vendor';
+>>>>>>> recover-branch
 
 
 // Async thunk to fetch vendors
@@ -259,13 +263,17 @@ export const activateVendor = createAsyncThunk('vendors/activate', async (vendor
     throw new Error(`Failed to activate vendor: ${error.message}`);
   }
 });
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
 export const importVendorsCsv = createAsyncThunk(
   'vendors/importCsv',
   async (file: File, { rejectWithValue }) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
+<<<<<<< HEAD
 
       const response = await axios.post<CsvImportResponse>(
         'https://yenerp.com/purchaseapi/vendors/import-csv',
@@ -277,6 +285,13 @@ export const importVendorsCsv = createAsyncThunk(
         }
       );
 
+=======
+      const response = await axios.post<CsvImportResponse>(
+        'https://yenerp.com/purchaseapi/vendors/import-csv',
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+>>>>>>> recover-branch
       clearAllVendorCaches();
       return response.data;
     } catch (error: any) {
@@ -506,10 +521,19 @@ const vendorSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch vendor types';
       })
+<<<<<<< HEAD
       .addCase(importVendorsCsv.pending, (state) => {
         state.loading = true;
         state.importErrors = []; // Clear previous errors
         state.importDuplicates = []; // Clear previous duplicates
+=======
+.addCase(importVendorsCsv.pending, (state) => {
+        state.loading = true;
+        state.importErrors = [];
+        state.importDuplicates = [];
+        state.insertedCount = 0;
+        state.updatedCount = 0;
+>>>>>>> recover-branch
       })
       .addCase(importVendorsCsv.fulfilled, (state, action) => {
         state.loading = false;
@@ -519,8 +543,27 @@ const vendorSlice = createSlice({
         state.error = null;
         state.insertedCount = action.payload.inserted_count;
         state.updatedCount = action.payload.updated_count;
+<<<<<<< HEAD
         state.importErrors = action.payload.errors || []; // Store errors
         state.importDuplicates = action.payload.duplicates || []; // Store duplicates
+=======
+        state.importErrors = action.payload.failed.map((item: any) => ({
+          row: item.row,
+          error: item.error,
+          vendorName: item.data?.vendorName || 'N/A',
+          randomId: item.data?.randomId || 'N/A',
+        }));
+        state.importDuplicates = action.payload.updated.map((item: any) => ({
+          row: item.row,
+          vendorName: item.vendorName,
+          contactpersonPhone: item.contactpersonPhone,
+          existingId: item.existingId,
+          error: item.error,
+        }));
+        // Update items with successful imports
+        state.items.push(...action.payload.successful.map((item: any) => item.data).filter((vendor: Vendor) => vendor.status === 'active'));
+        state.deactivatedItems.push(...action.payload.successful.map((item: any) => item.data).filter((vendor: Vendor) => vendor.status === 'deactivated'));
+>>>>>>> recover-branch
       })
       .addCase(importVendorsCsv.rejected, (state, action) => {
         state.loading = false;

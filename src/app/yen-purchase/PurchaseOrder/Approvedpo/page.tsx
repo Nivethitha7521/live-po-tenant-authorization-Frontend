@@ -93,7 +93,11 @@ interface ItemWithCalculations {
   status?: string;
   pendingTotalPrice?: number;
   totalDiscount?: number;
+<<<<<<< HEAD
   receivedQuantity?: number;
+=======
+  receivedQuantity?: number | string;
+>>>>>>> recover-branch
   befTaxDiscount?: number;
   afTaxDiscount?: number;
   expiryDate?: Date | null;
@@ -169,6 +173,7 @@ const TableRowMemo = React.memo(
       <TableCell>{item.itemName}</TableCell>
       <TableCell>{item.uom}</TableCell>
       <TableCell>{item.pendingTotalQuantity}</TableCell>
+<<<<<<< HEAD
       {/* <TableCell>
         <TextField
           type="text"
@@ -185,10 +190,13 @@ const TableRowMemo = React.memo(
           sx={{ width: '80px' }}
         />
       </TableCell> */}
+=======
+>>>>>>> recover-branch
       <TableCell>{item.poQuantity}</TableCell>
       <TableCell>
         <TextField
           type="number"
+<<<<<<< HEAD
           value={item.receivedQuantity === 0 || item.receivedQuantity === undefined ? item.pendingTotalQuantity : item.receivedQuantity}
           onChange={(e) => handleQuantityChange(item.itemId, 'receivedQuantity', e.target.value)}
           onBlur={(e) => handleQuantityBlur(item.itemId, 'receivedQuantity', e.target.value)}
@@ -201,12 +209,23 @@ const TableRowMemo = React.memo(
           inputProps={{ step: '0.01' }}
           sx={{ width: '80px' }}
           disabled={item.pendingTotalQuantity === 0 && item.receivedQuantity === 0}
+=======
+          value={item.receivedQuantity === undefined || item.receivedQuantity === null ? "" : item.receivedQuantity}
+          onChange={(e) => handleQuantityChange(item.itemId, "receivedQuantity", e.target.value)}
+          onBlur={(e) => handleQuantityBlur(item.itemId, "receivedQuantity", e.target.value)}
+          inputProps={{ step: "0.01" }}
+          sx={{ width: "80px" }}
+          disabled={item.pendingTotalQuantity === 0 || item.status === "Received"}
+          error={touched[index]?.receivedQuantity && !!errors[index]?.receivedQuantity}
+          helperText={touched[index]?.receivedQuantity && errors[index]?.receivedQuantity}
+>>>>>>> recover-branch
         />
       </TableCell>
       <TableCell>{item.newPrice.toFixed(2)}</TableCell>
       <TableCell>
         <TextField
           type="number"
+<<<<<<< HEAD
           value={item.befTaxDiscount === 0 || item.befTaxDiscount === undefined ? '' : item.befTaxDiscount}
           onChange={(e) => handleDiscountChange(item.itemId, 'befTaxDiscount', e.target.value)}
           error={touched[index]?.befTaxDiscount && !!errors[index]?.befTaxDiscount}
@@ -217,11 +236,20 @@ const TableRowMemo = React.memo(
           }
           inputProps={{ step: '0.01' }}
           sx={{ width: '80px' }}
+=======
+          value={item.befTaxDiscount === 0 || item.befTaxDiscount === undefined ? "" : item.befTaxDiscount}
+          onChange={(e) => handleDiscountChange(item.itemId, "befTaxDiscount", e.target.value)}
+          error={touched[index]?.befTaxDiscount && !!errors[index]?.befTaxDiscount}
+          helperText={touched[index]?.befTaxDiscount && errors[index]?.befTaxDiscount}
+          inputProps={{ step: "0.01" }}
+          sx={{ width: "80px" }}
+>>>>>>> recover-branch
         />
       </TableCell>
       <TableCell>
         <TextField
           type="number"
+<<<<<<< HEAD
           value={item.afTaxDiscount === 0 || item.afTaxDiscount === undefined ? '' : item.afTaxDiscount}
           onChange={(e) => handleDiscountChange(item.itemId, 'afTaxDiscount', e.target.value)}
           error={touched[index]?.afTaxDiscount && !!errors[index]?.afTaxDiscount}
@@ -232,6 +260,14 @@ const TableRowMemo = React.memo(
           }
           inputProps={{ step: '0.01' }}
           sx={{ width: '80px' }}
+=======
+          value={item.afTaxDiscount === 0 || item.afTaxDiscount === undefined ? "" : item.afTaxDiscount}
+          onChange={(e) => handleDiscountChange(item.itemId, "afTaxDiscount", e.target.value)}
+          error={touched[index]?.afTaxDiscount && !!errors[index]?.afTaxDiscount}
+          helperText={touched[index]?.afTaxDiscount && errors[index]?.afTaxDiscount}
+          inputProps={{ step: "0.01" }}
+          sx={{ width: "80px" }}
+>>>>>>> recover-branch
         />
       </TableCell>
       <TableCell>{item.taxPercentage}%</TableCell>
@@ -239,7 +275,11 @@ const TableRowMemo = React.memo(
         <TextField
           label="Expiry Date"
           type="date"
+<<<<<<< HEAD
           value={item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''}
+=======
+          value={item.expiryDate ? new Date(item.expiryDate).toISOString().split("T")[0] : ""}
+>>>>>>> recover-branch
           onChange={(e) =>
             handleExpiryDateChange(
               item.itemId,
@@ -249,7 +289,11 @@ const TableRowMemo = React.memo(
           sx={{ mt: 1 }}
           InputLabelProps={{ shrink: true }}
           inputProps={{
+<<<<<<< HEAD
             min: new Date().toISOString().split('T')[0], // Restrict to current date or earlier
+=======
+            min: new Date().toISOString().split("T")[0],
+>>>>>>> recover-branch
           }}
         />
       </TableCell>
@@ -257,6 +301,10 @@ const TableRowMemo = React.memo(
     </TableRow>
   )
 );
+<<<<<<< HEAD
+=======
+TableRowMemo.displayName = "TableRowMemo";
+>>>>>>> recover-branch
 TableRowMemo.displayName = 'TableRowMemo';
 interface OrderDetailsDialogProps {
   open: boolean;
@@ -268,7 +316,11 @@ interface OrderDetailsDialogProps {
   setInvoiceNumber: React.Dispatch<React.SetStateAction<string>>;
   invoiceDate: Date | null;
   setInvoiceDate: React.Dispatch<React.SetStateAction<Date | null>>;
+<<<<<<< HEAD
   grnDate :Date | null;
+=======
+  grnDate: Date | null;
+>>>>>>> recover-branch
   setGrnDate: React.Dispatch<React.SetStateAction<Date | null>>;
   isInvoiceDuplicate: boolean;
   isTouched: boolean;
@@ -359,6 +411,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
+<<<<<<< HEAD
 
   const handleQuantityBlur = useCallback(
     (itemId: string, field: "receivedQuantity", value: string | number) => {
@@ -378,6 +431,63 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
       }
     },
     [updatedItems, setErrors]
+=======
+  const handleQuantityBlur = useCallback(
+    (itemId: string, field: "receivedQuantity", value: string | number) => {
+      const index = updatedItems.findIndex((item) => item.itemId === itemId);
+      const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
+      const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+
+      // Allow empty string
+      if (value === "") {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "" },
+        }));
+        return;
+      }
+
+      // Validate non-empty input
+      if (!/^\d*\.?\d*$/.test(String(value))) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "Invalid number" },
+        }));
+        return;
+      }
+
+      const received = Number(value);
+      if (received < 0) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "Received quantity cannot be negative" },
+        }));
+        return;
+      }
+
+      if (originalPendingTotalQuantity === 0) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "Item is already fully received" },
+        }));
+        return;
+      }
+
+      if (received > originalPendingTotalQuantity) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: `Cannot exceed pending quantity of ${originalPendingTotalQuantity}` },
+        }));
+        return;
+      }
+
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "" },
+      }));
+    },
+    [updatedItems, selectedOrder]
+>>>>>>> recover-branch
   );
 
   // Function to open the confirmation dialog
@@ -461,6 +571,10 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
             <Box display="flex" gap={2} mt={1} mb={2}>
               <TextField
                 label="Invoice Number"
+<<<<<<< HEAD
+=======
+                autoComplete="off"
+>>>>>>> recover-branch
                 value={invoiceNumber}
                 onChange={(e) => {
                   setInvoiceNumber(e.target.value);
@@ -570,12 +684,26 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
             <Button variant="contained" onClick={handleOpenRevertDialog} disabled={isProcessing} sx={{ mr: 2 }}>
               Revert PO
             </Button>
+<<<<<<< HEAD
             <Tooltip title="At least one item must have a received quantity greater than 0 to convert to GRN">
+=======
+            <Tooltip
+              title={
+                isReceivedQuantityValid()
+                  ? "Convert this purchase order to a Goods Received Note (GRN)"
+                  : "Cannot convert to GRN: All items are fully received or no valid received quantities are provided."
+              }
+            >
+>>>>>>> recover-branch
               <span>
                 <Button
                   variant="contained"
                   color="success"
+<<<<<<< HEAD
                   onClick={handleOpenConfirmDialog} // Changed to open confirmation dialog
+=======
+                  onClick={handleOpenConfirmDialog}
+>>>>>>> recover-branch
                   disabled={isProcessing || !isReceivedQuantityValid() || isInvoiceDuplicate || !invoiceNumber}
                 >
                   Convert to GRN
@@ -666,8 +794,12 @@ const CreatePurchase: React.FC = () => {
     return updatedItems.map((item) => {
       const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
       if (!originalItem) return item;
+<<<<<<< HEAD
 
       const receivedQuantity = Number(item.receivedQuantity) || 0;
+=======
+      const receivedQuantity = Number(item.receivedQuantity) || 0; // Ensure number conversion
+>>>>>>> recover-branch
       const poQuantity = originalItem.poQuantity || 0;
       const pendingTotalQuantity = originalItem.pendingTotalQuantity || poQuantity;
       const pendingCount = originalItem.pendingCount || 1;
@@ -676,19 +808,29 @@ const CreatePurchase: React.FC = () => {
       const taxPercentage = originalItem.taxPercentage || 0;
       const befTaxDiscount = Number(item.befTaxDiscount) || 0;
       const afTaxDiscount = Number(item.afTaxDiscount) || 0;
+<<<<<<< HEAD
 
       // Display pendingQuantity as receivedQuantity for UI reference when entered, else backend value
       const calculatedPendingQuantity = receivedQuantity > 0 ? receivedQuantity : pendingQuantity;
       const calculatedPendingCount = pendingTotalQuantity > 0 ? pendingCount : 0;
 
       const totalPrice = receivedQuantity * newPrice; // Use receivedQuantity for total price
+=======
+      // Use receivedQuantity for calculations (now initialized to pendingTotalQuantity)
+      const calculatedPendingQuantity = receivedQuantity > 0 ? receivedQuantity : pendingQuantity;
+      const calculatedPendingCount = pendingTotalQuantity > 0 ? pendingCount : 0;
+      const totalPrice = receivedQuantity * newPrice;
+>>>>>>> recover-branch
       const discountAmountBeforeTax = totalPrice * (befTaxDiscount / 100);
       const discountedPriceBeforeTax = totalPrice - discountAmountBeforeTax;
       const taxAmount = discountedPriceBeforeTax * (taxPercentage / 100);
       let finalPrice = discountedPriceBeforeTax + taxAmount;
       const discountAmountAfterTax = finalPrice * (afTaxDiscount / 100);
       finalPrice = finalPrice - discountAmountAfterTax;
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
       return {
         ...item,
         calculatedPendingCount,
@@ -700,7 +842,10 @@ const CreatePurchase: React.FC = () => {
       };
     });
   }, [updatedItems, selectedOrder]);
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
   const taxDetails = useMemo(() => {
     const details: Record<string, { amount: number; percentage: number; type: string }> = {};
     calculatedItems.forEach((item) => {
@@ -766,16 +911,28 @@ const CreatePurchase: React.FC = () => {
     if (selectedOrder) {
       setInvoiceNumber(selectedOrder.invoiceNo || "");
       setInvoiceDate(selectedOrder.invoiceDate ? new Date(selectedOrder.invoiceDate) : null);
+<<<<<<< HEAD
       setGrnDate(selectedOrder.grnDate ? new Date(selectedOrder.grnDate) : new Date())
+=======
+      setGrnDate(selectedOrder.grnDate ? new Date(selectedOrder.grnDate) : new Date());
+>>>>>>> recover-branch
       const initializedItems = selectedOrder.items.map((item) => {
         const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
         const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
         return {
           ...item,
+<<<<<<< HEAD
           receivedQuantity: pendingTotalQuantity, // Set to pendingTotalQuantity
           befTaxDiscount: item.befTaxDiscount || 0,
           afTaxDiscount: item.afTaxDiscount || 0,
           expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
+=======
+          receivedQuantity: pendingTotalQuantity, // Initialize with pendingTotalQuantity
+          befTaxDiscount: item.befTaxDiscount || 0,
+          afTaxDiscount: item.afTaxDiscount || 0,
+          expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
+          status: pendingTotalQuantity === 0 ? "Received" : item.status || "Pending",
+>>>>>>> recover-branch
         };
       });
       setUpdatedItems(initializedItems);
@@ -836,11 +993,15 @@ const CreatePurchase: React.FC = () => {
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
       const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
       const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
       setTouched((prev) => ({
         ...prev,
         [index]: { ...prev[index], [field]: true },
       }));
+<<<<<<< HEAD
 
       let errorMessage = "";
       if (value !== "" && !/^\d*\.?\d*$/.test(String(value))) {
@@ -865,10 +1026,47 @@ const CreatePurchase: React.FC = () => {
 
       if (originalPendingTotalQuantity === 0) {
         errorMessage = "Item is already fully received";
+=======
+      // Allow empty string
+      if (value === "") {
+        setUpdatedItems((prevItems) =>
+          prevItems.map((item) =>
+            item.itemId === itemId ? { ...item, receivedQuantity: "" } : item
+          )
+        );
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "" },
+        }));
+        return;
+      }
+      // Validate non-empty input
+      if (!/^\d*\.?\d*$/.test(String(value))) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "Invalid number" },
+        }));
+        return;
+      }
+      const received = Number(value);
+      if (received < 0) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "Received quantity cannot be negative" },
+        }));
+        return;
+      }
+      if (originalPendingTotalQuantity === 0) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "Item is already fully received" },
+        }));
+>>>>>>> recover-branch
         setExcessDialogMessage(
           `Item "${updatedItems[index].itemName}" is already fully received (pending total quantity = 0).`
         );
         setExcessDialogOpen(true);
+<<<<<<< HEAD
         setErrors((prev) => ({
           ...prev,
           [index]: { ...prev[index], [field]: errorMessage },
@@ -878,10 +1076,20 @@ const CreatePurchase: React.FC = () => {
 
       if (received > originalPendingTotalQuantity) {
         errorMessage = `Cannot exceed pending quantity of ${originalPendingTotalQuantity}`;
+=======
+        return;
+      }
+      if (received > originalPendingTotalQuantity) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: `Cannot exceed pending quantity of ${originalPendingTotalQuantity}` },
+        }));
+>>>>>>> recover-branch
         setExcessDialogMessage(
           `Received quantity for item "${updatedItems[index].itemName}" (${received}) exceeds the pending total quantity (${originalPendingTotalQuantity}).`
         );
         setExcessDialogOpen(true);
+<<<<<<< HEAD
         setErrors((prev) => ({
           ...prev,
           [index]: { ...prev[index], [field]: errorMessage },
@@ -894,6 +1102,13 @@ const CreatePurchase: React.FC = () => {
           item.itemId === itemId
             ? { ...item, receivedQuantity: received }
             : item
+=======
+        return;
+      }
+      setUpdatedItems((prevItems) =>
+        prevItems.map((item) =>
+          item.itemId === itemId ? { ...item, receivedQuantity: received } : item
+>>>>>>> recover-branch
         )
       );
       setErrors((prev) => ({
@@ -904,6 +1119,60 @@ const CreatePurchase: React.FC = () => {
     [updatedItems, selectedOrder, setExcessDialogMessage, setExcessDialogOpen]
   );
 
+<<<<<<< HEAD
+=======
+  const handleQuantityBlur = useCallback(
+    (itemId: string, field: "receivedQuantity", value: string | number) => {
+      const index = updatedItems.findIndex((item) => item.itemId === itemId);
+      const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
+      const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+      // Allow empty string
+      if (value === "") {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "" },
+        }));
+        return;
+      }
+      // Validate non-empty input
+      if (!/^\d*\.?\d*$/.test(String(value))) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "Invalid number" },
+        }));
+        return;
+      }
+      const received = Number(value);
+      if (received < 0) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "Received quantity cannot be negative" },
+        }));
+        return;
+      }
+      if (originalPendingTotalQuantity === 0) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: "Item is already fully received" },
+        }));
+        return;
+      }
+      if (received > originalPendingTotalQuantity) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], [field]: `Cannot exceed pending quantity of ${originalPendingTotalQuantity}` },
+        }));
+        return;
+      }
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "" },
+      }));
+    },
+    [updatedItems, selectedOrder]
+  );
+
+>>>>>>> recover-branch
   const handleDiscountChange = useCallback(
     (itemId: string, field: "befTaxDiscount" | "afTaxDiscount", value: string) => {
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
@@ -946,6 +1215,10 @@ const CreatePurchase: React.FC = () => {
   );
   const handleSaveChanges = useCallback(async () => {
     console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate });
+<<<<<<< HEAD
+=======
+
+>>>>>>> recover-branch
     if (!selectedOrder?.purchaseOrderId) {
       setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
       setSnackbarInvoiceOpen(true);
@@ -970,6 +1243,7 @@ const CreatePurchase: React.FC = () => {
       return;
     }
 
+<<<<<<< HEAD
     const validItems = updatedItems.filter((item) => {
       const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
       const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
@@ -984,6 +1258,36 @@ const CreatePurchase: React.FC = () => {
 
     const hasErrors = validItems.some((item, index) =>
       Object.values(errors[index] || {}).some((error) => error)
+=======
+    // Check if there are any items with pendingTotalQuantity > 0
+    const validItems = updatedItems.filter((item) => {
+      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+      const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+      const receivedQuantity = item.receivedQuantity === "" ? 0 : Number(item.receivedQuantity);
+      return receivedQuantity > 0 && pendingTotalQuantity > 0;
+    });
+
+    // If no valid items are found, show a message and prevent GRN conversion
+    if (validItems.length === 0) {
+      const hasPendingItems = updatedItems.some((item) => {
+        const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+        return (originalItem?.pendingTotalQuantity || 0) > 0;
+      });
+
+      if (!hasPendingItems) {
+        setSnackbarInvoiceMessage("All items in this purchase order have already been fully received.");
+        setSnackbarInvoiceOpen(true);
+      } else {
+        setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0.");
+        setSnackbarInvoiceOpen(true);
+      }
+      return;
+    }
+
+    // Check for validation errors
+    const hasErrors = Object.values(errors).some((errorObj) =>
+      Object.values(errorObj).some((error) => error)
+>>>>>>> recover-branch
     );
     if (hasErrors) {
       setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
@@ -991,6 +1295,10 @@ const CreatePurchase: React.FC = () => {
       return;
     }
 
+<<<<<<< HEAD
+=======
+    // Check for excess quantities
+>>>>>>> recover-branch
     const hasExcessQuantity = validItems.some((item) => {
       const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
       const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
@@ -1007,9 +1315,16 @@ const CreatePurchase: React.FC = () => {
 
     if (hasExcessQuantity) return;
 
+<<<<<<< HEAD
     const items = validItems.map((item) => ({
       itemId: item.itemId,
       receivedQuantity: Number(item.receivedQuantity) || 0,
+=======
+    // Prepare items for submission
+    const items = validItems.map((item) => ({
+      itemId: item.itemId,
+      receivedQuantity: Number(item.receivedQuantity),
+>>>>>>> recover-branch
       befTaxDiscount: Number(item.befTaxDiscount) || 0,
       afTaxDiscount: Number(item.afTaxDiscount) || 0,
       expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
@@ -1039,14 +1354,21 @@ const CreatePurchase: React.FC = () => {
           );
           const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
           const newPendingQuantity = newPendingTotalQuantity;
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
           return {
             ...originalItem,
             pendingTotalQuantity: newPendingTotalQuantity,
             pendingCount: newPendingCount,
             pendingQuantity: newPendingQuantity,
             status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
+<<<<<<< HEAD
             receivedQuantity: (originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+=======
+            receivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+>>>>>>> recover-branch
             befTaxDiscount: updatedItem.befTaxDiscount,
             afTaxDiscount: updatedItem.afTaxDiscount,
             expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
@@ -1071,18 +1393,30 @@ const CreatePurchase: React.FC = () => {
           : null
       );
 
+<<<<<<< HEAD
       // Keep all items in updatedItems for UI display, reset receivedQuantity
       setUpdatedItems(
         updatedOrderItems.map((item) => ({
           ...item,
           receivedQuantity: 0, // Reset for next session
+=======
+      // Reset updatedItems for next session
+      setUpdatedItems(
+        updatedOrderItems.map((item) => ({
+          ...item,
+          receivedQuantity: "", // Reset to empty string
+>>>>>>> recover-branch
           befTaxDiscount: item.befTaxDiscount || 0,
           afTaxDiscount: item.afTaxDiscount || 0,
           expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime()) ? new Date(item.expiryDate) : null,
         }))
       );
 
+<<<<<<< HEAD
       // Update touched and errors for all items
+=======
+      // Reset touched and errors
+>>>>>>> recover-branch
       setTouched(
         updatedOrderItems.reduce(
           (acc, _, index) => ({
@@ -1115,26 +1449,40 @@ const CreatePurchase: React.FC = () => {
 
       setSnackbarInvoiceMessage("Changes saved successfully!");
       setSnackbarInvoiceOpen(true);
+<<<<<<< HEAD
 
       handleCloseDialogs();
 
+=======
+      handleCloseDialogs();
+>>>>>>> recover-branch
     } catch (error) {
       console.error("Save Error:", error);
       setSnackbarInvoiceMessage("Failed to save changes. Reverting UI to match backend state.");
       setSnackbarInvoiceOpen(true);
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
       // Revert updatedItems to original selectedOrder.items state
       if (selectedOrder) {
         setUpdatedItems(
           selectedOrder.items.map((item) => ({
             ...item,
+<<<<<<< HEAD
             receivedQuantity: 0,
+=======
+            receivedQuantity: "", // Reset to empty string
+>>>>>>> recover-branch
             befTaxDiscount: item.befTaxDiscount || 0,
             afTaxDiscount: item.afTaxDiscount || 0,
             expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime()) ? new Date(item.expiryDate) : null,
           }))
         );
+<<<<<<< HEAD
 
+=======
+>>>>>>> recover-branch
         setTouched(
           selectedOrder.items.reduce(
             (acc, _, index) => ({
@@ -1163,6 +1511,10 @@ const CreatePurchase: React.FC = () => {
     isInvoiceDuplicate,
     updatedItems,
     invoiceDate,
+<<<<<<< HEAD
+=======
+    grnDate,
+>>>>>>> recover-branch
     totalDiscountAmount,
     errors,
     dispatch,
@@ -1465,15 +1817,41 @@ const CreatePurchase: React.FC = () => {
           ];
         });
 
+<<<<<<< HEAD
       // Removed blank row padding logic
+=======
+      // Items Table - Simple approach to remove horizontal lines
+>>>>>>> recover-branch
       doc.autoTable({
         head: [itemHeader],
         body: tableRows,
         startY: yOffset,
         theme: 'grid',
+<<<<<<< HEAD
         styles: { fontSize: 8, halign: 'center', cellPadding: 2, lineWidth: 0.1, lineColor: [0, 0, 0] },
         headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255] },
         bodyStyles: { lineColor: [0, 0, 0] },
+=======
+        styles: {
+          fontSize: 8,
+          halign: 'center',
+          cellPadding: 2,
+          lineWidth: 0.1,
+          lineColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [0, 0, 128],
+          textColor: [255, 255, 255],
+          lineWidth: 0.1,
+          lineColor: [0, 0, 0],
+        },
+        // Set all body cell borders to have 0 width for top and bottom (removing horizontal lines)
+        bodyStyles: {
+          lineColor: [0, 0, 0],
+          lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 }, // No top/bottom, only left/right
+        },
+        // Keep header with full borders
+>>>>>>> recover-branch
         columnStyles: {
           0: { halign: 'center' },
           1: { halign: 'left' },
@@ -1529,7 +1907,11 @@ const CreatePurchase: React.FC = () => {
       const roundedTotalWithTax = Math.round(totalWithTax);
       const roundOffAmount = roundedTotalWithTax - totalWithTax;
 
+<<<<<<< HEAD
       taxSummary.push([`Round Off Amount`, roundOffAmount.toFixed(2)]);
+=======
+      taxSummary.push([`Round Off Amount`, purchaseOrder.roundOffValue.toFixed(2)]);
+>>>>>>> recover-branch
       taxSummary.push([`Amount In Words: ${toWords(roundedTotalWithTax)} only`, `Total [Including Tax]: ${roundedTotalWithTax.toFixed(2)}`]);
 
       doc.autoTable({
@@ -2113,6 +2495,7 @@ const CreatePurchase: React.FC = () => {
       status: "Approved",
     }));
   }, [dispatch, pageSize]);
+<<<<<<< HEAD
   const isReceivedQuantityValid = useCallback(
     () => updatedItems.some((item) => {
       const originalItem = selectedOrder?.items.find((orig) => orig.itemId === item.itemId);
@@ -2121,6 +2504,29 @@ const CreatePurchase: React.FC = () => {
     }),
     [updatedItems, selectedOrder]
   );
+=======
+  const isReceivedQuantityValid = useCallback(() => {
+    // Check if there are any items with pendingTotalQuantity > 0
+    const hasPendingItems = updatedItems.some((item) => {
+      const originalItem = selectedOrder?.items.find((orig) => orig.itemId === item.itemId);
+      const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+      return pendingTotalQuantity > 0;
+    });
+
+    // If no items have pending quantities, return false
+    if (!hasPendingItems) {
+      return false;
+    }
+
+    // Check if at least one item has a valid receivedQuantity > 0 and pendingTotalQuantity > 0
+    return updatedItems.some((item) => {
+      const originalItem = selectedOrder?.items.find((orig) => orig.itemId === item.itemId);
+      const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+      const receivedQuantity = item.receivedQuantity === "" ? 0 : Number(item.receivedQuantity);
+      return receivedQuantity > 0 && pendingTotalQuantity > 0;
+    });
+  }, [updatedItems, selectedOrder]);
+>>>>>>> recover-branch
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -2162,7 +2568,11 @@ const CreatePurchase: React.FC = () => {
                 options={allItems}
                 getOptionLabel={(option: PurchaseItemSearch) => option.itemName || ""}
                 isOptionEqualToValue={(option: PurchaseItemSearch, value: PurchaseItemSearch | null) =>
+<<<<<<< HEAD
                   option.purchaseitemId === value?.purchaseitemId 
+=======
+                  option.purchaseitemId === value?.purchaseitemId
+>>>>>>> recover-branch
                 }
                 value={newItem}
                 onInputChange={(event, newInputValue) => {

@@ -36,6 +36,10 @@ import {
   List,
   FormControlLabel,
   ListItem,
+<<<<<<< HEAD
+=======
+  ListItemText,
+>>>>>>> recover-branch
 } from '@mui/material';
 import YenBookPage from '../page';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -53,7 +57,10 @@ import {
   selectPageSize,
   selectTotalItems,
   setPagination,
+<<<<<<< HEAD
   processBulkPayment,
+=======
+>>>>>>> recover-branch
   fetchActiveDebitsVendor,
 } from '../../../features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import { fetchGrnById, fetchItemwiseGrns, selectGrn } from '@/features/yen-purchase/GRN/grnSlice';
@@ -80,6 +87,10 @@ import { fetchPoById, selectPurchaseListState, setPoDialogOpen, setSelectedPo } 
 import { ItemDetailResponsePO, PoResponse } from '@/Models/purchaseModel';
 import PODialog from '@/components/yen-purchase/OutgoingComponent/PODialog';
 import ConfirmationDialog from '@/components/confirmationDialog';
+<<<<<<< HEAD
+=======
+import BulkPaymentDialog from '@/components/yen-purchase/OutgoingComponent/BulkPaymentDialog';
+>>>>>>> recover-branch
 
 const OutgoingPaymentComponent = React.memo(() => {
   const dispatch = useDispatch<AppDispatch>();
@@ -123,14 +134,21 @@ const OutgoingPaymentComponent = React.memo(() => {
 
   const [selectedVendorName, setSelectedVendorName] = useState<VendorDetail | null>(null); // Default is null
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+<<<<<<< HEAD
   const [dialogOpen, setDialogOpen] = useState(false);
+=======
+>>>>>>> recover-branch
   const [selectedOutgoings, setSelectedOutgoings] = useState<Outgoing[]>([]);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false); // Controls the second dialog
   const [viewItemsDialogOpen, setViewItemsDialogOpen] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState<GrnResponse | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [paymentDetailsToSend, setPaymentDetailsToSend] = useState<any>(null);
+<<<<<<< HEAD
   const [confirmMultipleDialogOpen, setConfirmMultipleDialogOpen] = useState(false);
+=======
+const [isBulkPaymentOpen, setIsBulkPaymentOpen] = useState(false);
+>>>>>>> recover-branch
   const [paymentTypeMultiple, setPaymentTypeMultiple] = useState<{ [outgoingId: string]: 'full' | 'partial' }>({});
   const [partialAmount, setPartialAmount] = useState<{ [outgoingId: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false); // To track loading state
@@ -160,9 +178,12 @@ const OutgoingPaymentComponent = React.memo(() => {
   const [error, setError] = useState<string>('');
   const [errors, setErrors] = useState<{ [outgoingId: string]: string }>({});
   // Add this to your component's state
+<<<<<<< HEAD
   const [totalAmount, setTotalAmount] = useState<number>(
     selectedOutgoing?.totalPayableAmount || 0
   );
+=======
+>>>>>>> recover-branch
   const [isFilterActive, setIsFilterActive] = useState(false);
 const [confirmDialogProps, setConfirmDialogProps] = useState<{
     title: string;
@@ -211,6 +232,10 @@ useEffect(() => {
     fetchActiveDebits();
   }
 }, [selectedOutgoing, openDetailsDialog, dispatch]);
+<<<<<<< HEAD
+=======
+
+>>>>>>> recover-branch
   useEffect(() => {
     if (loadingState === 'idle') {
       dispatch(fetchItemwiseGrns());
@@ -483,6 +508,7 @@ const validateAmount = (amount: string, maxAllowed: number): string => {
   const handleDaysChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedDays(Number(event.target.value));
   };
+<<<<<<< HEAD
   // Handle debit note selection
 const handleDebitNoteChange = (debitId: string) => {
   setPaymentDetails((prev) => {
@@ -492,10 +518,16 @@ const handleDebitNoteChange = (debitId: string) => {
 
     // Calculate total debit amount
     const totalDebitAmount = newSelectedDebitNotes.reduce((sum, id) => {
+=======
+  const handleDebitNoteChange = (selectedValues: string[]) => {
+  setPaymentDetails((prev) => {
+    const totalDebitAmount = selectedValues.reduce((sum, id) => {
+>>>>>>> recover-branch
       const debit = activeDebits.find((d) => d.randomId === id);
       return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
     }, 0);
 
+<<<<<<< HEAD
     // Calculate remaining payable amount
     const remainingPayable = selectedOutgoing?.totalPayableAmount
       ? selectedOutgoing.totalPayableAmount - totalDebitAmount
@@ -517,6 +549,22 @@ const handleDebitNoteChange = (debitId: string) => {
         : remainingPayable > 0
         ? remainingPayable.toFixed(2)
         : '0.00', // Auto-fill amount with remaining
+=======
+    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
+    const validationError =
+      totalDebitAmount > totalPayable
+        ? `Total debit notes (₹${totalDebitAmount.toFixed(2)}) cannot exceed total payable amount (₹${totalPayable.toFixed(2)})`
+        : '';
+
+    setError(validationError);
+
+    return {
+      ...prev,
+      selectedDebitNotes: validationError ? prev.selectedDebitNotes : selectedValues,
+      amount: validationError
+        ? prev.amount
+        : (totalPayable - totalDebitAmount).toFixed(2),
+>>>>>>> recover-branch
     };
   });
 };
@@ -650,10 +698,14 @@ const handleFilterClick = () => {
     }));
     setError('');
   };
+<<<<<<< HEAD
   const handleProcessPayment = () => {
     setDialogOpen(true);  // Close the first dialog
     setPaymentDialogOpen(true);  // Open the second dialog for payment method
   };
+=======
+
+>>>>>>> recover-branch
 const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   const { name, value } = e.target;
 
@@ -775,7 +827,11 @@ const handleConfirmPayment = async () => {
       description: (
         <Box>
           <Typography>
+<<<<<<< HEAD
             This invoice already has debit notes applied. Are you sure you want to proceed with the payment without applying additional debit notes?
+=======
+          Are you sure you want to proceed with the payment without applying additional debit notes?
+>>>>>>> recover-branch
           </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
             Vendor: {selectedOutgoing?.vendorName} <br />
@@ -796,7 +852,11 @@ const handleConfirmPayment = async () => {
       description: (
         <Box>
           <Typography>
+<<<<<<< HEAD
             There are available debit notes for this vendor. Are you sure you want to proceed with the payment without applying any debit notes?
+=======
+            Are you sure you want to proceed with the payment without applying any debit notes?
+>>>>>>> recover-branch
           </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
             Vendor: {selectedOutgoing?.vendorName} <br />
@@ -1149,6 +1209,7 @@ const totalPages = doc.getNumberOfPages();
     setOpenDialog(false);
   };
 
+<<<<<<< HEAD
   const handlePayClick = () => {
     // Gather selected data and make sure outgoingId is defined
     const selectedData = outgoings.filter(outgoing =>
@@ -1223,6 +1284,25 @@ const totalPages = doc.getNumberOfPages();
     }
   };
 
+=======
+const handlePayClick = () => {
+  // Gather selected data and make sure outgoingId is defined
+  const selectedData = outgoings.filter(outgoing =>
+    outgoing.outgoingId !== undefined && selectedRows.includes(outgoing.outgoingId)
+  );
+
+  // Check if any outgoings are selected
+  if (selectedData.length === 0) {
+    dispatch(setSnackbarMessage('Please select at least one outgoing payment to process'));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+
+  // Set the selected data and open the bulk payment dialog
+  setSelectedOutgoings(selectedData);
+  setIsBulkPaymentOpen(true); // Open the bulk payment dialog
+};
+>>>>>>> recover-branch
   const handleDownload = async (outgoingId: string) => {
     const outgoingdetail = outgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
 
@@ -2168,6 +2248,7 @@ Description:<br />
     {activeDebits.length > 0 && (
       <Box sx={{ mt: 2 }}>
         <Typography variant="subtitle1">Apply Debit Notes</Typography>
+<<<<<<< HEAD
         <List dense>
           {activeDebits.map((debit) => (
             <ListItem key={debit.randomId}>
@@ -2183,6 +2264,39 @@ Description:<br />
             </ListItem>
           ))}
         </List>
+=======
+       <FormControl fullWidth sx={{ mb: 2 }}>
+  <InputLabel>Apply Debit Notes</InputLabel>
+  <Select
+    multiple
+    value={paymentDetails.selectedDebitNotes}
+    onChange={(e: SelectChangeEvent<string[]>) =>
+      handleDebitNoteChange(e.target.value as string[])
+    }
+    label="Apply Debit Notes"
+    renderValue={(selected) => {
+      if (selected.length === 0) return 'No debit notes selected';
+      return selected
+        .map((id) => {
+          const debit = activeDebits.find((d) => d.randomId === id);
+          return debit ? `${debit.randomId} (₹${parseFloat(debit.finalAmount || '0').toFixed(2)})` : '';
+        })
+        .join(', ');
+    }}
+  >
+    {activeDebits.map((debit) => (
+      <MenuItem key={debit.randomId} value={debit.randomId}>
+        <Checkbox
+          checked={paymentDetails.selectedDebitNotes.includes(debit.randomId)}
+        />
+        <ListItemText
+          primary={`${debit.randomId} - ₹${parseFloat(debit.finalAmount || '0').toFixed(2)}`}
+        />
+      </MenuItem>
+    ))}
+  </Select>
+</FormControl>
+>>>>>>> recover-branch
       </Box>
     )}
   </DialogContent>
@@ -2199,6 +2313,7 @@ Description:<br />
     </Button>
   </DialogActions>
 </Dialog>
+<<<<<<< HEAD
           <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} PaperProps={{
             sx: {
               width: '700px', // Set the width of the Dialog to 700px
@@ -2470,6 +2585,10 @@ Description:<br />
         onClose={() => setOpenSnackbar(false)}
         message={snackbarMessage}
       /> */}
+=======
+       
+   
+>>>>>>> recover-branch
           <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} >
             <DialogTitle>Confirm Payment</DialogTitle>
             <DialogContent>
@@ -2504,6 +2623,7 @@ Description:<br />
               }} variant="contained" color="primary">Confirm</Button>
             </DialogActions>
           </Dialog>
+<<<<<<< HEAD
           <Dialog open={confirmMultipleDialogOpen} onClose={() => setConfirmMultipleDialogOpen(false)}>
             <DialogTitle>Confirm Multiple Payments</DialogTitle>
             <DialogContent>
@@ -2551,6 +2671,9 @@ Description:<br />
               )}
             </DialogActions>
           </Dialog>
+=======
+       
+>>>>>>> recover-branch
           <DebitCreditNoteDialog />
           <PODialog
             open={poDialogOpen}
@@ -2570,6 +2693,15 @@ Description:<br />
             onClose={handleCloseApDialog}
             apInvoice={selectedApInvoice}
           />
+<<<<<<< HEAD
+=======
+          <BulkPaymentDialog
+  open={isBulkPaymentOpen}
+  onClose={() => setIsBulkPaymentOpen(false)}
+  selectedOutgoings={selectedOutgoings}
+/>
+
+>>>>>>> recover-branch
           {/* Dialog for choosing PDF or CSV */}
           <Dialog open={openDialog} onClose={handleCloseDialog}>
             <DialogTitle>Choose a file format</DialogTitle>
@@ -2616,6 +2748,10 @@ Description:<br />
         title={confirmDialogProps.title}
         description={confirmDialogProps.description}
       />
+<<<<<<< HEAD
+=======
+      
+>>>>>>> recover-branch
         </Grid>
       </Box>
     </Box>

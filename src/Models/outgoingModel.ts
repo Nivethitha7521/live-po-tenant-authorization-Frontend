@@ -75,6 +75,10 @@ export interface Outgoing {
   hasDebitCreditNotes:boolean;
   debitAmount:number;
   invoiceplusdebit:number;
+<<<<<<< HEAD
+=======
+  selectedDebitNotes?: string[]; // Add this to support debit notes
+>>>>>>> recover-branch
 }
 export interface TaxDetail {
   id: string;
@@ -100,6 +104,7 @@ export interface Bank {
   branchName: string;
 }
 export interface DebitNote {
+<<<<<<< HEAD
   _id: string;
   noteId: string;
   vendorName: string;
@@ -107,6 +112,22 @@ export interface DebitNote {
   status: string;
   createdDate: string;
 }
+=======
+  randomId: string;
+  noteId: string;
+  vendorName: string;
+  totalAmount: number;
+  finalAmount:number;
+  status: string;
+  createdDate: string;
+}
+export interface VendorPayment {
+  outgoingIds: string[];
+  paymentType: 'full' | 'partial' ;
+  amount: number;
+  selectedDebitNotes: string[];
+}
+>>>>>>> recover-branch
 // Interface for Outgoing slice state
 export interface OutgoingState {
   outgoings: Outgoing[];  // List of outgoings
@@ -128,8 +149,16 @@ export interface OutgoingState {
   pageSize: number;
   totalItems: number;
   intimationData: Outgoing[];     // Assuming it's an array of Outgoing items
+<<<<<<< HEAD
 }
 
+=======
+  vendorPayments: { [vendorName: string]: VendorPayment }; // Added for multiple payments
+  vendorDebits: { [vendorName: string]: any[] }; // Added for debit notes per vendor
+}
+
+
+>>>>>>> recover-branch
 export interface PaymentDone {
   outgoingIds: string[];
   invoiceDate: string[];
@@ -187,5 +216,57 @@ export const initialState: OutgoingState = {
   currentPage: 1,    // Start from page 1
   pageSize: 50,      // Default page size
   totalItems: 0,     // Set totalItems to 0 initially  
+<<<<<<< HEAD
   intimationData: []
 };
+=======
+  intimationData: [],
+  vendorPayments: {},
+  vendorDebits: {},
+};
+
+
+// Add this to your types
+export interface BulkPaymentResponse {
+  results: Array<{
+    outgoingId: string;
+    message: string;
+    pendingAmount: number;
+    totalPayableAmount: number;
+    paymentAmount: number;
+    debitAmountApplied: number;
+    paymentType: string;
+    status: string;
+    debitNotesApplied: string[];
+  }>;
+  errors: Array<{
+    outgoingId?: string;
+    debitNoteId?: string;
+    error: string;
+  }>;
+  totalProcessed: number;
+  totalFailed: number;
+}
+
+export interface PaymentInfo {
+  paymentMode: 'Bank' | 'Cash';
+  paymentType: 'full' | 'partial';
+  fullPaymentAmount?: number;
+  partialAmount?: number;
+  paymentMethod?: string;
+  chequeNo?: string;
+  neftNo?: string;
+  rtgsNo?: string;
+  impsNo?: string;
+  upi?: string;
+  pettyCashAmount?: number;
+  hoCash?: number;
+  bankName?: string;
+  selectedDebitNotes: string[];
+}
+
+export interface BulkPaymentRequest {
+  payments: PaymentInfo[];
+  outgoingIds: string[];
+}
+>>>>>>> recover-branch

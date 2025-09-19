@@ -41,13 +41,21 @@ const moduleConfig: Record<
   },
   itemType: {
     entityName: 'Item Type',
+<<<<<<< HEAD
     idField: 'Item Type ID',
+=======
+    idField: 'randomId',
+>>>>>>> recover-branch
     nameField: 'itemtypeName',
     nameLabel: 'Item Type Name',
   },
   itemGroup: {
     entityName: 'Item Group',
+<<<<<<< HEAD
     idField: 'Item Group ID',
+=======
+    idField: 'randomId',
+>>>>>>> recover-branch
     nameField: 'itemgroupName',
     nameLabel: 'Item Group Name',
   },

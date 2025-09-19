@@ -9,7 +9,11 @@ import { PurchaseItemType } from '@/Models/itemType';
 import { PurchaseGroupItem } from '@/Models/itemgroup';
 
 
+<<<<<<< HEAD
 const EXPORT_CSV_URL = 'https://yenerp.com/purchaseapi/purchaseitems/export_csv'; // Make sure this URL is correct
+=======
+const EXPORT_CSV_URL = 'https://yenerp.com/purchaseapi/rawMaterials/export_csv'; // Make sure this URL is correct
+>>>>>>> recover-branch
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
 // Define an async thunk to handle the export of purchase items to CSV
@@ -74,7 +78,11 @@ export const fetchPurchaseItems = createAsyncThunk(
     });
 
     try {
+<<<<<<< HEAD
       const response = await axios.get('https://yenerp.com/purchaseapi/purchaseitems/', { params });
+=======
+      const response = await axios.get('https://yenerp.com/purchaseapi/rawMaterials/', { params });
+>>>>>>> recover-branch
       return {
         items: response.data.items || [],
         totalItems: response.data.totalItems || 0
@@ -148,7 +156,11 @@ export const addPurchaseItem = createAsyncThunk(
       };
 
       const response = await axios.post<PurchaseItem>(
+<<<<<<< HEAD
         'https://yenerp.com/purchaseapi/purchaseitems/', // Ensure the endpoint matches your backend route
+=======
+        'https://yenerp.com/purchaseapi/rawMaterials/', // Ensure the endpoint matches your backend route
+>>>>>>> recover-branch
         purchaseToAdd
       );
 
@@ -188,7 +200,11 @@ export const POsearchPurchaseItems = createAsyncThunk<PurchaseItemSearch[], { se
     }
 
     // Fetch fresh data from the API if no valid cache is found
+<<<<<<< HEAD
     const response = await axios.get<PurchaseItemSearch[]>(`https://yenerp.com/purchaseapi/purchaseitems/exact-name/`, {
+=======
+    const response = await axios.get<PurchaseItemSearch[]>(`https://yenerp.com/purchaseapi/rawMaterials/exact-name/`, {
+>>>>>>> recover-branch
       params: {
         item_name: searchQuery,
         skip,
@@ -244,7 +260,11 @@ export const searchPurchaseItems = createAsyncThunk<PurchaseItemSearchAdd[], { s
 
     try {
       // Fetch fresh data from the API if no valid cache is found
+<<<<<<< HEAD
       const response = await axios.get<SearchResponse>(`https://yenerp.com/purchaseapi/purchaseitems/search`, {
+=======
+      const response = await axios.get<SearchResponse>(`https://yenerp.com/purchaseapi/rawMaterials/search`, {
+>>>>>>> recover-branch
         params: { itemName: searchQuery, skip, limit },
       });
 
@@ -283,7 +303,11 @@ export const updatePurchaseItem = createAsyncThunk(
         ...purchase,
       };
       const response = await axios.patch<PurchaseItem>(
+<<<<<<< HEAD
         `https://yenerp.com/purchaseapi/purchaseitems/${purchase.purchaseitemId}`,
+=======
+        `https://yenerp.com/purchaseapi/rawMaterials/${purchase.purchaseitemId}`,
+>>>>>>> recover-branch
         purchaseToUpdate
       );
 
@@ -304,7 +328,11 @@ export const deactivatePurchaseItem = createAsyncThunk(
   'purchaseItems/deactivate',
   async (id: string) => {
     const response = await axios.patch<PurchaseItem>(
+<<<<<<< HEAD
       `https://yenerp.com/purchaseapi/purchaseitems/${id}`,
+=======
+      `https://yenerp.com/purchaseapi/rawMaterials/${id}`,
+>>>>>>> recover-branch
       { status: 'deactivated' }
     );
     return id; // Return the ID directly since the status update is handled in the extraReducers
@@ -316,7 +344,11 @@ export const activatePurchaseItem = createAsyncThunk(
   'purchaseItems/activate',
   async (id: string) => {
     const response = await axios.patch<PurchaseItem>(
+<<<<<<< HEAD
       `https://yenerp.com/purchaseapi/purchaseitems/${id}`,
+=======
+      `https://yenerp.com/purchaseapi/rawMaterials/${id}`,
+>>>>>>> recover-branch
       { status: 'active' }
     );
     return id; // Return the ID directly since the status update is handled in the extraReducers
@@ -391,7 +423,11 @@ export const exportPurchaseItems = createAsyncThunk(
   'purchaseItems/export',
   async (_, { rejectWithValue }) => {
     try {
+<<<<<<< HEAD
       const response = await axios.get('https://yenerp.com/purchaseapi/purchaseitems/purchaseitemexport/export_csv', {
+=======
+      const response = await axios.get('https://yenerp.com/purchaseapi/rawMaterials/purchaseitemexport/export_csv', {
+>>>>>>> recover-branch
         responseType: 'blob',
       });
 
