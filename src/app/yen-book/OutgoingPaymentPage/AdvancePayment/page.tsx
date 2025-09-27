@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import {
   Grid,
   Typography,
@@ -15,104 +14,104 @@ import {
   Box,
   Snackbar,
   FormControl,
-  MenuItem,
-  Select,
-  SelectChangeEvent,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
   Tooltip,
-  Icon,
   AutocompleteChangeReason,
   Autocomplete,
   TextField,
+  MenuItem,
 } from "@mui/material";
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import DescriptionIcon from '@mui/icons-material/Description';  // CSV icon
+import DescriptionIcon from '@mui/icons-material/Description';
 import DownloadIcon from '@mui/icons-material/Download';
-import FilterAltIcon from '@mui/icons-material/FilterAlt'; // Import the filter icon
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import Clear from '@mui/icons-material/Clear';
 import {
-  fetchOutgoings,
-  selectOutgoings,
+  fetchAdvances,
+  selectAdvances,
   setSnackbarMessage,
-  setSnackbarOpen, clearSnackbarMessage,
+  setSnackbarOpen,
+  clearSnackbarMessage,
   selectCurrentPage,
   selectPageSize,
-  selectTotalItems, setPagination, fetchVendorDetails
-} from "../../../../features/yen-purchase/Outgoing/outgoingPaymentSlice"; // Adjust the path as needed
+  selectTotalItems,
+  setPagination,
+  fetchVendorDetails,
+  createAdvancePayment,
+} from "../../../../features/yen-purchase/Outgoing/advancePaymentSlice";
+import { fetchVendorNames, selectVendorItems } from "../../../../features/yen-purchase/PurchaseMaster/vendorSlice";
 import { AppDispatch } from "@/redux/store";
 import YenBookPage from "../../page";
-import { fetchGrnById, fetchItemwiseGrns, selectGrn } from '@/features/yen-purchase/GRN/grnSlice';
-import jsPDF from 'jspdf';
-import "jspdf-autotable"; // Ensure this plugin is available for autoTable functionality
 import { fetchBusinesses, fetchPhoto, selectBusinesses } from '@/features/account-setting/businessSlice';
-import { GrnData } from '@/Models/grnModel';
-import { Outgoing, VendorDetail } from "@/Models/outgoingModel";
+import { AdvancePayment, VendorDetail, VendorNameGet, PaymentHistory } from "@/Models/advanceModel";
 import { format } from "date-fns";
 import Link from "next/link";
-import { openDialog } from "@/features/posDeviceSlice";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import Papa from "papaparse";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import DateRangeDialog from "@/components/dateRange";
-import { ClearIcon } from "@mui/x-date-pickers/icons";
-import 'react-date-range/dist/styles.css'; // main style file
-import 'react-date-range/dist/theme/default.css'; // theme css file
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 import moment from "moment";
+import { useDispatch, useSelector } from "react-redux";
+import { Formik, Form } from "formik";
+import * as Yup from "yup";
 
 const AdvancePaymentComponent = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { outgoings, loading, snackbarMessage, snackbarOpen, outgoingvendor } = useSelector(selectOutgoings);
-  const { itemwise } = useSelector(selectGrn);
+  const { advances, loading, snackbarMessage, snackbarOpen, advanceVendors } = useSelector(selectAdvances);
   const { businesses } = useSelector(selectBusinesses);
+  const { vendorName } = useSelector(selectVendorItems);
   const [loadingState, setLoadingState] = useState<'idle' | 'loading' | 'succeeded' | 'failed'>('idle');
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
-  const [selectedVendorName, setSelectedVendorName] = useState<VendorDetail | null>(null); // Default is null
-  const [totalpayment, setTotalPayment] = useState<number>(); // Initialize totalpayment as a number
-  const [filteredOutgoing, setFilteredOutgoing] = useState<Outgoing[]>([]); // Explicit type declaration
-  const [status, setStatus] = useState('Advance Paid'); // Default status filter is "Pending"
-  const [openDialog, setOpenDialog] = useState(false);  // Control dialog visibility
+  const [selectedVendorName, setSelectedVendorName] = useState<VendorDetail | null>(null);
+  const [filteredAdvances, setFilteredAdvances] = useState<AdvancePayment[]>([]);
+  const [status, setStatus] = useState('Pending');
+  const [openDialog, setOpenDialog] = useState(false);
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const currentPage = useSelector(selectCurrentPage);
   const pageSize = useSelector(selectPageSize);
   const totalItems = useSelector(selectTotalItems);
-  const newPage = useSelector(selectCurrentPage);
   const [selectionRange, setSelectionRange] = useState({
     startDate: new Date(),
     endDate: new Date(),
     key: 'selection',
   });
   const dateField = 'paymentDate';
-  const StartDate = moment().utc().startOf('day').toDate(); // Start of the month
-  const EndDate = moment().utc().endOf('day').toDate(); // End of the month
+  const StartDate = moment().utc().startOf('day').toDate();
+  const EndDate = moment().utc().endOf('day').toDate();
   const [shouldFetch, setShouldFetch] = useState(true);
 
   useEffect(() => {
     if (shouldFetch && loadingState === 'idle') {
-      const action = fetchOutgoings({
-        page: newPage,
+      dispatch(fetchAdvances({
+        page: currentPage,
         size: pageSize,
         status: status,
         filterBy: dateField,
         fromDate: StartDate,
-        toDate: EndDate
-      });
-      dispatch(action);
+        toDate: EndDate,
+      }));
       setShouldFetch(false);
     }
-  }, [dispatch, newPage, pageSize, status, loadingState, dateField, StartDate, EndDate, shouldFetch]);
+  }, [dispatch, currentPage, pageSize, status, loadingState, dateField, StartDate, EndDate, shouldFetch]);
+
   useEffect(() => {
     if (loadingState === 'idle') {
-      dispatch(fetchItemwiseGrns());
       dispatch(fetchVendorDetails({ status: status }));
+      dispatch(fetchVendorNames());
     }
   }, [loadingState, status, dispatch]);
 
   useEffect(() => {
     dispatch(fetchBusinesses());
   }, [dispatch]);
+
   useEffect(() => {
     businesses.forEach((business) => {
       if (!fetchedBusinessIds.has(business.businessId)) {
@@ -121,6 +120,7 @@ const AdvancePaymentComponent = () => {
       }
     });
   }, [businesses, fetchedBusinessIds, dispatch]);
+
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
       return;
@@ -128,16 +128,19 @@ const AdvancePaymentComponent = () => {
     const appliedFromDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : StartDate;
     const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : EndDate;
     dispatch(setPagination({ page: newPage, size: pageSize }));
-    dispatch(fetchOutgoings({
-      page: newPage, size: pageSize, status: status, filterBy: dateField,
+    dispatch(fetchAdvances({
+      page: newPage,
+      size: pageSize,
+      status: status,
+      filterBy: dateField,
       fromDate: appliedFromDate,
-      toDate: appliedToDate, vendorName: selectedVendorName?.vendorName, // Use vendorName from selectedVendorName object
-
-    }))
+      toDate: appliedToDate,
+      vendorName: selectedVendorName?.vendorName,
+    }));
   };
 
   const handleNextPage = () => {
-    if (currentPage * pageSize) {
+    if (currentPage * pageSize < totalItems) {
       handlePageChange(currentPage + 1);
     }
   };
@@ -148,18 +151,6 @@ const AdvancePaymentComponent = () => {
     }
   };
 
-  useEffect(() => {
-    businesses.forEach((business) => {
-      if (!fetchedBusinessIds.has(business.businessId)) {
-        dispatch(fetchPhoto(business.businessId));
-        setFetchedBusinessIds(prevSet => new Set(prevSet).add(business.businessId));
-      }
-    });
-  }, [businesses, fetchedBusinessIds, dispatch]);
-
-  const handleStartDateChange = (value: Date | null) => {
-    setStartDate(value); // Update the startDate state with Date or null
-  };
   const handleOpenDialog = () => {
     setOpenDialog(true);
   };
@@ -168,280 +159,235 @@ const AdvancePaymentComponent = () => {
     setOpenDialog(false);
   };
 
-  // Handler for end date change
-  const handleEndDateChange = (value: Date | null) => {
-    setEndDate(value); // Update the endDate state with Date or null
+  const handleOpenCreateDialog = () => {
+    setOpenCreateDialog(true);
   };
+
+  const handleCloseCreateDialog = () => {
+    setOpenCreateDialog(false);
+  };
+
   const handleVendorChange = (
     event: React.SyntheticEvent,
-    newValue: VendorDetail | null, // `newValue` is a VendorDetail or null
+    newValue: VendorDetail | null,
     reason: AutocompleteChangeReason
   ) => {
-    setSelectedVendorName(newValue); // Set the selected vendor directly
+    setSelectedVendorName(newValue);
   };
 
-  const filteredPayments = useMemo(() => {
-    const safeOutgoings = outgoings; // Fallback to an empty array if outgoings is undefined
-    return safeOutgoings;
-  }, [outgoings]);
-  console.log(filteredPayments);
-  const generateOutgoingInvoicePDF = () => {
-    // Initialize jsPDF instance
+  const validationSchema = Yup.object({
+    vendorId: Yup.string().required("Vendor is required"),
+    amount: Yup.number()
+      .required("Amount is required")
+      .min(0.01, "Amount must be greater than 0"),
+    paymentMethod: Yup.string().required("Payment Method is required"),
+    paymentMode: Yup.string()
+      .required("Payment Mode is required")
+      .oneOf(["Cash", "Bank"], "Payment Mode must be Cash or Bank"),
+    bankName: Yup.string().when("paymentMode", {
+      is: (value: string) => value === "Bank",
+      then: (schema) => schema.required("Bank Name is required for Bank payments"),
+      otherwise: (schema) => schema.optional(),
+    }),
+    neftNo: Yup.string().when("paymentMethod", {
+      is: (value: string) => value === "neft",
+      then: (schema) => schema.required("NEFT Number is required"),
+      otherwise: (schema) => schema.optional(),
+    }),
+    rtgsNo: Yup.string().when("paymentMethod", {
+      is: (value: string) => value === "rtgs",
+      then: (schema) => schema.required("RTGS Number is required"),
+      otherwise: (schema) => schema.optional(),
+    }),
+    impsNo: Yup.string().when("paymentMethod", {
+      is: (value: string) => value === "imps",
+      then: (schema) => schema.required("IMPS Number is required"),
+      otherwise: (schema) => schema.optional(),
+    }),
+    upi: Yup.string().when("paymentMethod", {
+      is: (value: string) => value === "upi",
+      then: (schema) => schema.required("UPI ID is required"),
+      otherwise: (schema) => schema.optional(),
+    }),
+    cashVoucherNo: Yup.string().when("paymentMethod", {
+      is: (value: string) => value === "cash",
+      then: (schema) => schema.required("Cash Voucher Number is required"),
+      otherwise: (schema) => schema.optional(),
+    }),
+    remarks: Yup.string().optional(),
+  });
+
+  const filteredAdvancesMemo = useMemo(() => {
+    return filteredAdvances.length > 0 ? filteredAdvances : advances || [];
+  }, [advances, filteredAdvances]);
+
+  const generateAdvanceInvoicePDF = () => {
     const doc = new jsPDF();
-
-    // Starting yOffset for content
     let yOffset = 10;
+    const logoX = 14;
+    const titleX = 80;
 
-    // Define the logo and title position
-    const logoX = 14;  // Position for logo
-    const titleX = 80; // Position for title and summary text
-
-    // Add business image on the left side (adjust as needed)
     const business = businesses.length > 0 ? businesses[0] : null;
-
     if (business && business.imageUrl) {
       try {
-        doc.addImage(business.imageUrl, 'JPEG', logoX, yOffset, 20, 20);  // Adjust image size and position
+        doc.addImage(business.imageUrl, 'JPEG', logoX, yOffset, 20, 20);
       } catch (e) {
         console.error("Image failed to load:", e);
       }
     }
 
-    // Adjust the title and summary below the image
-    doc.setFontSize(12);  // Increase title font size
-    doc.text("Advance Payment Invoice Summary", titleX, yOffset + 10);  // Title at the top next to the logo
-    // Add underline below the title
-    const titleWidth = doc.getTextWidth("Advance Payment Invoice Summary");  // Get the width of the title text
-    const underlineStartX = titleX;  // X position for the start of the underline (same as titleX)
-    const underlineEndX = underlineStartX + titleWidth;  // X position for the end of the underline
-    doc.setLineWidth(0.5);  // Set the thickness of the underline
-    doc.line(underlineStartX, yOffset + 12, underlineEndX, yOffset + 12);  // Draw the underline below the title
+    doc.setFontSize(12);
+    doc.text("Advance Payment Summary", titleX, yOffset + 10);
+    const titleWidth = doc.getTextWidth("Advance Payment Summary");
+    doc.setLineWidth(0.5);
+    doc.line(titleX, yOffset + 12, titleX + titleWidth, yOffset + 12);
 
-    // Update yOffset for next row content (Date and Amount)
-    yOffset += 25;  // Adjust position for the next content
+    yOffset += 25;
 
-    // Filter outgoings based on "Advance Paid" status
-    const filteredOutgoings = outgoings.filter(outgoing => {
-      return outgoing.status === 'Advance Paid';
-    });
+    const filtered = filteredAdvancesMemo.filter((advance: AdvancePayment) => advance.status === 'Pending');
+    const totalAmount = filtered.reduce((sum: number, advance: AdvancePayment) => sum + (advance.amount || 0), 0);
 
-    // Calculate the total payable amount for the filtered outgoings
-    const totalPayableAmount = filteredOutgoings.reduce((sum, outgoing) => {
-      return sum + (outgoing.totalPayableAmount || 0);
-    }, 0);
-
-    // Current date formatting
     const today = new Date();
     const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-
-    // Display the "Date" on the left and "Total Payable Amount" on the right in the next row
     doc.setFontSize(10);
-    doc.text(`Total Payable Amount: ${totalPayableAmount.toFixed(2)}`, 14, yOffset);  // Left-align amount
-    doc.text(`Date: ${currentDate}`, 140, yOffset);  // Right-align date
+    doc.text(`Total Amount: ${totalAmount.toFixed(2)}`, 14, yOffset);
+    doc.text(`Date: ${currentDate}`, 140, yOffset);
 
-    yOffset += 7;  // Adjust space before the table
+    yOffset += 7;
 
-    // Table headers
     const headers = [
-      ["S.No", "Outgoing ID", "Vendor Name", "Invoice No", "Invoice Date", "Advance", "Total Outgoing Amount"]
+      ["S.No", "Advance ID", "Vendor Name", "Amount", "Pending Amount", "Payment Date", "Status", "Payment History"]
     ];
 
-    // Map and format rows based on filteredOutgoings
-    const rows = filteredOutgoings.map((outgoing, index) => {
-      const outgoingAmount = outgoing.totalPayableAmount || 0;
-      // Ensure valid data for each outgoing row
-      return [
-        `${index + 1}`,
-        outgoing.randomId ? outgoing.randomId.toString() : "N/A",
-        outgoing.vendorName ? outgoing.vendorName.toString() : "N/A",
-        outgoing.invoiceNo || "N/A",
-        outgoing.invoiceDate ? format(new Date(outgoing.invoiceDate), 'dd-MM-yyyy') : 'N/A',
-        outgoing.advanceAmount?.toFixed(2) || "0.00",
-        outgoingAmount.toFixed(2)
-      ];
-    });
+    const rows = filtered.map((advance: AdvancePayment, index: number) => [
+      `${index + 1}`,
+      advance.randomId || "N/A",
+      advance.vendorName || "N/A",
+      (advance.amount || 0).toFixed(2),
+      (advance.pendingAmount || 0).toFixed(2),
+      advance.paymentDate ? format(new Date(advance.paymentDate), 'dd-MM-yyyy') : 'N/A',
+      advance.status || "N/A",
+      advance.paymentHistory
+        ? advance.paymentHistory.map((h: PaymentHistory) => `₹${h.amount.toFixed(2)} on ${format(new Date(h.paymentDate), 'dd-MM-yyyy')}`).join(', ')
+        : "N/A",
+    ]);
 
-    // Add the table to the PDF using autoTable
     doc.autoTable({
       head: headers,
       body: rows,
-      startY: yOffset,  // Start the table below the "Date" and "Total Payable Amount"
+      startY: yOffset,
       styles: {
-        fillColor: [30, 144, 255],  // DodgerBlue color
-        textColor: [255, 255, 255], // White text color
-        lineColor: [0, 0, 0],       // Black table borders
-        fontSize: 8,                // Set the font size here
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        fontSize: 8,
       },
       headStyles: {
-        fillColor: [0, 0, 128],  // Dark Blue background for the header
-        textColor: [255, 255, 255]  // White text color for header
+        fillColor: [0, 0, 128],
+        textColor: [255, 255, 255],
       },
       bodyStyles: {
-        fillColor: [255, 255, 255],  // White background for rows
-        textColor: [0, 0, 0]         // Black text color for rows
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
       },
       columnStyles: {
-        4: { halign: 'right' },  // Right-align "Advance"
-        5: { halign: 'center' }, // Center-align "Total Outgoing Amount"
+        7: { cellWidth: 40 }, // Adjust width for Payment History
       },
-
     });
+
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
     }
-    // Save the generated PDF with a dynamic filename
-    const pdfFilename = `Outgoing_Invoice_Summary.pdf`;
-    doc.save(pdfFilename);
+
+    doc.save("Advance_Payment_Summary.pdf");
     handleCloseDialog();
   };
 
-  const handleFilterClick = () => {
-    let filtered = outgoings;
-
-    // Ensure proper date handling with Date objects
-    const formattedStartDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : StartDate;
-    const formattedEndDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : EndDate;
-
-    // Filter based on selected vendor name
-    if (selectedVendorName && selectedVendorName.vendorName) {
-      filtered = filtered.filter((outgoing) =>
-        outgoing.vendorName?.toLowerCase().includes(selectedVendorName.vendorName.toLowerCase())
-      );
-    }
-    // Filter based on start date
-    if (formattedStartDate) {
-      filtered = filtered.filter(outgoing => {
-        const invoiceDateParsed = outgoing.invoiceDate
-          ? new Date(outgoing.invoiceDate) : null;
-        // Only compare dates if invoiceDateParsed is valid
-        return invoiceDateParsed && invoiceDateParsed >= formattedStartDate;
-      });
-    }
-
-    // Filter based on end date
-    if (formattedEndDate) {
-      filtered = filtered.filter(outgoing => {
-        const invoiceDateParsed = outgoing.invoiceDate
-          ? new Date(outgoing.invoiceDate) // Ensure invoiceDate is formatted as a string
-          : null;
-        // Only compare dates if invoiceDateParsed is valid
-        return invoiceDateParsed && invoiceDateParsed <= formattedEndDate;
-      });
-    }
-
-    // Send filters to the backend
-    dispatch(
-      fetchOutgoings({
-        page: newPage, size: pageSize,
-        fromDate: formattedStartDate instanceof Date ? formattedStartDate : undefined,
-        toDate: formattedEndDate instanceof Date ? formattedEndDate : undefined,
-        vendorName: selectedVendorName?.vendorName, // Use vendorName from selectedVendorName object
-        filterBy: 'paymentDate',
-        status: 'Advance Paid'
-      })
-    )
-      .then((response) => {
-        const data = response.payload || [];
-
-        if (data.length === 0) {
-          console.log('No matching outgoing found.');
-          setSnackbarMessage('No matching Outgoing Payment found.');
-          setSnackbarOpen(true);
-        } else {
-          setFilteredOutgoing(data); // Update filtered orders state with the data from the backend
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching outgoing:', error);
-        setSnackbarMessage(error.message || 'Error fetching outgoing');
-        setSnackbarOpen(true);
-      });
-  };
-  const handleFilterClose = () => {
-    // Reset filter states (except for the date)
-    setSelectionRange({
-      startDate: new Date(),  // Set to current date
-      endDate: new Date(),    // Set to current date
-      key: 'selection',       // Retain the key
-    });
-    setStatus(''); // Clear status filter
-    setSelectedVendorName(null);
-    dispatch(fetchOutgoings({
-      page: 1, size: pageSize, status: status, filterBy: dateField,
-      fromDate: StartDate,
-      toDate: EndDate
-    }))
-  }
-
-  const generateOutgoingSummaryCSV = () => {
-    console.log(filteredPayments);
-
-    // Define headers for the CSV
+  const generateAdvanceSummaryCSV = () => {
     const headers = [
-      ["S.No", "Outgoing ID", "Vendor Name", "Invoice No", "Invoice Date", "Total Invoice Amount", "Remaining Amount"],
+      ["S.No", "Advance ID", "Vendor Name", "Amount", "Pending Amount", "Payment Date", "Status", "Payment History"]
     ];
 
-    // Prepare rows for the CSV data
-    const rows = (filteredPayments || []).map((outgoing, index) => {
-      // Fallback handling for missing data
-      const totalPayableAmount = outgoing.totalPayableAmount || 0;
-      const totalDiscount = outgoing.discountDetails || 0;
-      const finalAmount = totalPayableAmount - totalDiscount;
-      const remainingAmount = outgoing.advanceAmount || 0;
-      const randomId = outgoing.randomId || 'N/A';
-      // Skip rows if critical fields are missing
-      if (!outgoing.vendorName) {
-        return null;  // Skip rows without essential info
-      }
+    const rows = filteredAdvancesMemo.map((advance: AdvancePayment, index: number) => [
+      `${index + 1}`,
+      advance.randomId || "N/A",
+      advance.vendorName || "N/A",
+      (advance.amount || 0).toFixed(2),
+      (advance.pendingAmount || 0).toFixed(2),
+      advance.paymentDate ? format(new Date(advance.paymentDate), 'dd-MM-yyyy') : 'N/A',
+      advance.status || "N/A",
+      advance.paymentHistory
+        ? advance.paymentHistory.map((h: PaymentHistory) => `₹${h.amount.toFixed(2)} on ${format(new Date(h.paymentDate), 'dd-MM-yyyy')}`).join(', ')
+        : "N/A",
+    ]);
 
-      // Return row with fallback values for missing or null fields
-      return [
-        `${index + 1}`,
-        randomId.toString() || 'N/A',  // Use 'N/A' for missing ID
-        outgoing.vendorName.toString() || 'N/A', // Use 'N/A' for missing Vendor Name
-        outgoing.invoiceNo || 'Not Provided',   // Fallback if Invoice No is missing
-        outgoing.invoiceDate ? format(new Date(outgoing.invoiceDate), 'dd-MM-yyyy') : 'Not Provided',  // Fallback if Invoice Date is missing
-        remainingAmount.toFixed(2),  // Remaining Amount (advance)
-        finalAmount.toFixed(2),  // Total Invoice Amount after discount
-      ];
-    }).filter(row => row !== null);  // Remove null rows
-
-    // Combine headers and rows
     const csvData = [headers[0], ...rows];
-
-    // Use PapaParse to convert array to CSV string and trigger download
     const csv = Papa.unparse(csvData);
-
-    // Create a Blob from the CSV string
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-
-    // Trigger download
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "OutgoingSummary.csv");
+    link.setAttribute("download", "AdvancePaymentSummary.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     handleCloseDialog();
   };
 
-  const vendorNames = Array.from(
-    new Set(
-      (outgoings || []).map(outgoing => outgoing.vendorName) // Ensures outgoings is not undefined
-    )
-  );
+  const handleFilterClick = () => {
+    const appliedFromDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : StartDate;
+    const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : EndDate;
 
+    dispatch(fetchAdvances({
+      page: currentPage,
+      size: pageSize,
+      status: status,
+      filterBy: dateField,
+      fromDate: appliedFromDate,
+      toDate: appliedToDate,
+      vendorName: selectedVendorName?.vendorName,
+    }))
+      .then((response) => {
+        const data = (response.payload as { data: AdvancePayment[]; totalItems: number })?.data || [];
+        if (data.length === 0) {
+          dispatch(setSnackbarMessage('No matching advance payments found.'));
+          dispatch(setSnackbarOpen(true));
+        } else {
+          setFilteredAdvances(data);
+        }
+      })
+      .catch((error) => {
+        dispatch(setSnackbarMessage(error.message || 'Error fetching advance payments'));
+        dispatch(setSnackbarOpen(true));
+      });
+  };
 
-  const handleDownload = async (outgoingId: string) => {
-    const outgoingdetail = outgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
+  const handleFilterClose = () => {
+    setSelectionRange({
+      startDate: new Date(),
+      endDate: new Date(),
+      key: 'selection',
+    });
+    setStatus('');
+    setSelectedVendorName(null);
+    dispatch(fetchAdvances({
+      page: 1,
+      size: pageSize,
+      status: '',
+      filterBy: dateField,
+      fromDate: StartDate,
+      toDate: EndDate,
+    }));
+  };
 
-
-    if (!outgoingdetail) {
-      console.error('Outgoing not found!');
+  const handleDownload = (advanceId: string) => {
+    const advance = advances.find((a: AdvancePayment) => a.advanceId === advanceId);
+    if (!advance) {
+      dispatch(setSnackbarMessage('Advance payment not found!'));
+      dispatch(setSnackbarOpen(true));
       return;
     }
 
@@ -449,204 +395,96 @@ const AdvancePaymentComponent = () => {
     const doc = new jsPDF();
     let yOffset = 10;
 
-    // Header Section
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 128);
-    doc.text('Advance Payment', 90, yOffset + 5);
-
-    // Add underline
-    const textWidth = doc.getTextWidth('Advance Payment'); // Get the width of the text
-    doc.setDrawColor(0, 0, 128); // Set underline color (same as text color)
-    doc.line(90, yOffset + 7, 90 + textWidth, yOffset + 7); // Draw the underline
+    doc.text('Advance Payment Details', 90, yOffset + 5);
+    const textWidth = doc.getTextWidth('Advance Payment Details');
+    doc.setDrawColor(0, 0, 128);
+    doc.line(90, yOffset + 7, 90 + textWidth, yOffset + 7);
 
     yOffset += 10;
-    // Add Business Logo if available
+
     if (business && business.imageUrl) {
       try {
-        let logoX = 20; // Position for the logo horizontally
-        let yOffset = 5; // Position for the content vertically
-        doc.addImage(business.imageUrl, 'JPEG', logoX, yOffset, 20, 20);  // Adjust image size and position
+        doc.addImage(business.imageUrl, 'JPEG', 20, yOffset, 20, 20);
       } catch (e) {
         console.error("Image failed to load:", e);
       }
     }
 
-    // Payment Details Section
-    const paymentMethod = outgoingdetail.paymentMethod || 'Not Provided';
-    let paymentDetails = '';
+    yOffset += 20;
 
-    if (paymentMethod === 'cash') {
-      paymentDetails = `Cash Voucher No: ${outgoingdetail.cashVoucherNo || 'Not Provided'}`;
-    } else if (paymentMethod === 'neft') {
-      paymentDetails = `NEFT No: ${outgoingdetail.neftNo || 'Not Provided'}`;
+    const paymentMethod = advance.paymentMethod || 'N/A';
+    let paymentDetails = '';
+  if (paymentMethod === 'neft') {
+      paymentDetails = `NEFT No: ${advance.neftNo || 'N/A'}`;
     } else if (paymentMethod === 'rtgs') {
-      paymentDetails = `RTGS No: ${outgoingdetail.rtgsNo || 'Not Provided'}`;
+      paymentDetails = `RTGS No: ${advance.rtgsNo || 'N/A'}`;
+    } else if (paymentMethod === 'imps') {
+      paymentDetails = `IMPS No: ${advance.impsNo || 'N/A'}`;
+    } else if (paymentMethod === 'upi') {
+      paymentDetails = `UPI ID: ${advance.upi || 'N/A'}`;
     }
 
-    // Add Payment details to the PDF
     doc.setFontSize(10);
     doc.text(`Payment Method: ${paymentMethod}`, 14, yOffset + 10);
     doc.text(paymentDetails, 14, yOffset + 20);
 
-    yOffset += 20;
+    yOffset += 30;
 
-    // Vendor and Business Details
     const vendorDetailsRows = [
       [
-        `Vendor Name: ${outgoingdetail.vendorName || 'Not Provided'}\n` +
-        `GSTIN: ${outgoingdetail.gstNumber || 'Not Provided'}\n` +
-        `Address: ${outgoingdetail.address || 'Not Provided'}\n` +
-        `City: ${outgoingdetail.city || 'Not Provided'}\n` +
-        `State: ${outgoingdetail.state || 'Not Provided'}\n` +
-        `Country: ${outgoingdetail.country || 'Not Provided'}\n` +
-        `Email: ${outgoingdetail.contactpersonEmail || 'Not Provided'}`,
-        `Business Name: ${business?.companyName || 'Not Provided'}\n` +
-        `GSTIN: ${business?.gstIn || 'Not Provided'}\n` +
-        `Address: ${business?.address1 || 'Not Provided'}\n` +
-        `Phone: ${business?.phoneNo || 'Not Provided'}\n` +
-        `Email: ${business?.emailId || 'Not Provided'}`,
-        `Outgoing No: ${outgoingdetail.randomId || 'Not Provided'}\n` +
-        `Date: ${outgoingdetail.createdDate ? format(new Date(outgoingdetail.createdDate), 'dd-MM-yyyy') : 'Not Provided'}`
+        `Vendor Name: ${advance.vendorName || 'N/A'}\n` +
+        `Advance ID: ${advance.randomId || 'N/A'}\n` +
+        `Amount: ${(advance.amount || 0).toFixed(2)}\n` +
+        `Pending Amount: ${(advance.pendingAmount || 0).toFixed(2)}\n` +
+        `Payment Date: ${advance.paymentDate ? format(new Date(advance.paymentDate), 'dd-MM-yyyy') : 'N/A'}\n` +
+        `Status: ${advance.status || 'N/A'}\n` +
+        `Remarks: ${advance.remarks || 'N/A'}\n` +
+        `Payment History: ${advance.paymentHistory
+          ? advance.paymentHistory.map((h: PaymentHistory) => `₹${h.amount.toFixed(2)} on ${format(new Date(h.paymentDate), 'dd-MM-yyyy')}`).join(', ')
+          : 'N/A'}`,
+        `Business Name: ${business?.companyName || 'N/A'}\n` +
+        `GSTIN: ${business?.gstIn || 'N/A'}\n` +
+        `Address: ${business?.address1 || 'N/A'}\n` +
+        `Phone: ${business?.phoneNo || 'N/A'}\n` +
+        `Email: ${business?.emailId || 'N/A'}`,
       ]
     ];
 
     doc.autoTable({
-      head: [['Vendor Details', 'Business Details', 'Outgoing Payment Details']],
+      head: [['Advance Details', 'Business Details']],
       body: vendorDetailsRows,
       startY: yOffset,
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 4, halign: 'left', valign: 'top', overflow: 'linebreak' },
-      columnStyles: { 0: { cellWidth: 60.6 }, 1: { cellWidth: 60.6 }, 2: { cellWidth: 60.6 } },
+      columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 90 } },
       headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], fontStyle: 'bold' },
       bodyStyles: { lineWidth: 0.1, lineColor: [0, 0, 0], textColor: [0, 0, 0], minCellHeight: 15 },
       tableLineColor: [0, 0, 0],
       tableLineWidth: 0.1,
     });
 
-    yOffset = doc.autoTable.previous.finalY;
-
-    // Items Table Header
-    const itemHeader = [
-      'Invoice No',
-      'Invoice Date',
-      'Vendor Name',
-      'Item Name',
-      'Tax Details',
-      'Tax Amount',
-      'Without Tax Value',
-      'With Tax Value'
-    ];
-
-    const filteredItems = outgoingdetail.grnId
-      ? itemwise.filter(grn => grn.grnId === outgoingdetail.grnId).flatMap(grn => grn.itemDetails)
-      : [];
-
-    const tableRows = filteredItems.map((item) => {
-      const unitPrice = item.unitPrice || 0;
-      const quantity = item.quantity || 0;
-      const withoutTaxValue = unitPrice * quantity;
-      const taxAmount = withoutTaxValue * (item.purchasetaxName / 100);
-      const withTaxValue = withoutTaxValue + taxAmount;
-
-      return [
-        outgoingdetail.invoiceNo || 'N/A',
-        outgoingdetail.invoiceDate ? format(new Date(outgoingdetail.invoiceDate), 'dd-MM-yyyy') : 'Not Provided',
-        outgoingdetail.vendorName || 'N/A',
-        item.itemName || 'N/A',
-        `${item.purchasetaxName || 0}%`,
-        taxAmount.toFixed(2),
-        withoutTaxValue.toFixed(2),
-        withTaxValue.toFixed(2),
-      ];
-    });
-
-    // If no items exist (like in advance payment case), show default values
-    if (tableRows.length === 0) {
-      tableRows.push([
-        'N/A', 'N/A', outgoingdetail.vendorName || 'N/A', 'N/A', '0%', '0.00', '0.00', '0.00'
-      ]);
-    }
-
-    doc.autoTable({
-      head: [itemHeader],
-      body: tableRows,
-      startY: yOffset,
-      theme: 'grid',
-      styles: { fontSize: 8, halign: 'center', cellPadding: 2 },
-      headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], lineWidth: 0.1, lineColor: [0, 0, 0] },
-      bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0] },
-      columnStyles: {
-        0: { halign: 'center' },
-        1: { halign: 'left' },
-        2: { halign: 'left' },
-        3: { halign: 'left' },
-        4: { halign: 'right' },
-        5: { halign: 'right' },
-        6: { halign: 'right' },
-        7: { halign: 'right' },
-      },
-    });
-
-    yOffset = doc.autoTable.previous.finalY;
-
-    // Overall Total Payable Amount or Advance Amount
-    const discount = outgoingdetail.discountDetails || 0;
-    const totalPayableAmount = outgoingdetail.totalPayableAmount || 0;
-    const advanceAmount = outgoingdetail.advanceAmount || 0;
-
-    const summaryTable = [
-      ['Discount', discount.toFixed(2)],
-      ['Advance Amount', advanceAmount.toFixed(2)],
-      ['Total Payable Amount', totalPayableAmount ? totalPayableAmount.toFixed(2) : '0.00']
-    ];
-
-    doc.autoTable({
-      head: [['Description', 'Amount']],
-      body: summaryTable,
-      startY: yOffset,
-      theme: 'grid',
-      styles: { fontSize: 8, halign: 'right', cellPadding: 2 },
-      headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [0, 0, 0], lineWidth: 0.1 },
-      bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0], },
-    });
-
-    const imageUrl = '/images/advancecash.jpg';
-
-    // Adjust yOffset further if you need to add space below the signature
-    yOffset = doc.autoTable.previous.finalY + 5; // Move down after the signature
-    doc.addImage(imageUrl, 'JPEG', 150, yOffset, 30, 25); // Add image with desired width and height
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
     }
-    doc.save(`${outgoingdetail.vendorName}_PaymentDetails.pdf`);
+
+    doc.save(`${advance.vendorName || 'Advance'}_PaymentDetails.pdf`);
   };
 
   return (
     <Box>
-      {/* Parent Component */}
       <YenBookPage />
       <Box sx={{ p: 1, backgroundColor: "white", m: 1 }}>
         <Box display="flex" alignItems="center" mb={2}>
-          <Grid container spacing={1} alignItems="center" justifyContent="space-between" >
+          <Grid container spacing={1} alignItems="center" justifyContent="space-between">
             <Grid container alignItems="center" gap={1} ml={1}>
               <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage" passHref>
-                  <Button variant="contained" color="primary">Outgoing Payment</Button>
-                </Link>
-              </Grid>
-
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
-                  <Button variant="contained" color="primary">Pre Outgoing</Button>
-                </Link>
-              </Grid>
-
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>
+                <Link href="/yen-book/AdvancePaymentPage" passHref>
                   <Button variant="contained" sx={{
                     backgroundColor: 'white',
                     color: 'black',
@@ -658,51 +496,24 @@ const AdvancePaymentComponent = () => {
                   </Button>
                 </Link>
               </Grid>
-
               <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
-                  <Button variant="contained" color="primary">Partial Payment</Button>
-                </Link>
+                <Button
+                  variant="contained"
+                  onClick={handleOpenCreateDialog}
+                  sx={{
+                    backgroundColor: 'primary.main',
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'primary.dark',
+                    },
+                  }}
+                >
+                  Create Advance Payment
+                </Button>
               </Grid>
-
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
-                  <Button variant="contained" color="primary">Payment Done</Button>
-                </Link>
-              </Grid>
-
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
-                  <Button variant="contained" color="primary">Ledger</Button>
-                </Link>
-              </Grid>
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
-                  <Button variant="contained" color="primary">Purchase Return</Button>
-                </Link>
-              </Grid>
-              {/* <Grid item sx={{ ml: 'auto' }}>
-    <Typography
-      sx={{
-        pl: 2,
-        pr: 2,
-        boxShadow: 3,
-        borderRadius: 1,
-        padding: '8px',
-        textAlign: 'left',
-        maxWidth: '370px',
-        fontWeight: 'bold',
-        flexGrow: 1,
-      }}
-    >
-                      Description:<br />
-      Welcome to the Advance Payment page. Here, you can view all advance payments made to vendors.
-    </Typography>
-  </Grid> */}
             </Grid>
 
             <Grid container spacing={2} alignItems="center" sx={{ mt: 1 }}>
-              {/* Date Range Picker */}
               <Grid item xs="auto">
                 <Box sx={{ display: 'flex', alignItems: 'center', height: '100%', ml: 1 }}>
                   <DateRangeDialog
@@ -712,14 +523,13 @@ const AdvancePaymentComponent = () => {
                 </Box>
               </Grid>
 
-              {/* Vendor Search */}
               <Grid item xs={6} sm={4} md={2}>
                 <FormControl fullWidth>
                   <Autocomplete
-                    value={selectedVendorName} // VendorDetail | null
-                    onChange={handleVendorChange} // Handles VendorDetail object
-                    options={outgoingvendor} // Array of VendorDetail objects
-                    getOptionLabel={(option: VendorDetail) => option.vendorName || ''} // Specify how to display the vendor name
+                    value={selectedVendorName}
+                    onChange={handleVendorChange}
+                    options={advanceVendors}
+                    getOptionLabel={(option: VendorDetail) => option.vendorName || ''}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -728,18 +538,17 @@ const AdvancePaymentComponent = () => {
                         size="small"
                         InputProps={{
                           ...params.InputProps,
-                          style: { fontSize: '12px' }, // Adjust font size as needed
+                          style: { fontSize: '12px' },
                         }}
                       />
                     )}
                     sx={{
-                      fontSize: '12px', // Adjust font size of the Autocomplete input as needed
+                      fontSize: '12px',
                     }}
                   />
                 </FormControl>
               </Grid>
 
-              {/* Filter Button */}
               <Grid item xs="auto">
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <IconButton
@@ -771,7 +580,6 @@ const AdvancePaymentComponent = () => {
                 </Box>
               </Grid>
 
-              {/* Filter Clear Button */}
               <Grid item xs="auto">
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <IconButton
@@ -781,7 +589,7 @@ const AdvancePaymentComponent = () => {
                     size="small"
                     sx={{ p: 0.3 }}
                   >
-                    <ClearIcon fontSize="small" />
+                    <Clear fontSize="small" />
                   </IconButton>
                   <Typography
                     variant="caption"
@@ -803,10 +611,8 @@ const AdvancePaymentComponent = () => {
                 </Box>
               </Grid>
 
-              {/* Spacer to Push Download to the End */}
               <Grid item xs sx={{ flexGrow: 1 }} />
 
-              {/* Download Button */}
               <Grid item xs="auto">
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <IconButton
@@ -815,7 +621,7 @@ const AdvancePaymentComponent = () => {
                     className="icon-button-outline"
                     size="small"
                     sx={{ p: 0.3 }}
-                    disabled={!filteredPayments || filteredPayments.length === 0}
+                    disabled={!filteredAdvancesMemo || filteredAdvancesMemo.length === 0}
                   >
                     <DownloadIcon fontSize="small" />
                   </IconButton>
@@ -842,14 +648,12 @@ const AdvancePaymentComponent = () => {
           </Grid>
         </Box>
 
-
-        {/* Main Table */}
         <Grid container spacing={2}>
           <Grid item xs={12}>
             <TableContainer
               component={Paper}
               sx={{
-                maxHeight: 'calc(100vh - 230px)', // Dynamic height based on viewport
+                maxHeight: 'calc(100vh - 230px)',
                 overflowY: 'auto',
                 width: '100%',
               }}
@@ -858,66 +662,53 @@ const AdvancePaymentComponent = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>No</TableCell>
+                    <TableCell>Advance ID</TableCell>
                     <TableCell>Vendor Name</TableCell>
-                    <TableCell>Invoice No</TableCell>
-                    <TableCell>Invoice Date</TableCell>
-                    <TableCell>Total Amount (Advance + Payable)</TableCell>
-                    <TableCell>Advance Amount Paid</TableCell>
+                    <TableCell>Amount</TableCell>
+                    <TableCell>Pending Amount</TableCell>
                     <TableCell>Payment Date</TableCell>
-                    <TableCell>Tax Percentage</TableCell>
-                    <TableCell>Discount Amount</TableCell>
-                    <TableCell>Total Payable Amount</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Payment History</TableCell>
                     <TableCell>Action</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredPayments.length === 0 ? (
+                  {filteredAdvancesMemo.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} style={{ textAlign: 'center' }}>
-                        No data available
+                      <TableCell colSpan={9} style={{ textAlign: 'center' }}>
+                        No advance payments available
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredPayments.map((payment: any, index) => {
-                      // Calculate total amount
-                      const totalAmount =
-                        (payment.advanceAmount || 0) + (payment.totalPayableAmount || 0);
-
-                      return (
-                        <TableRow key={payment.outgoingId}>
-                          <TableCell>{index + 1}</TableCell>
-                          <TableCell>{payment.vendorName}</TableCell>
-                          <TableCell>{payment.invoiceNo || "N/A"}</TableCell>
-                          <TableCell>{payment.invoiceDate ? format(payment.invoiceDate, 'dd-MM-yyyy') : 'N/A'}</TableCell>
-                          <TableCell>{totalAmount.toFixed(2)}</TableCell>
-                          <TableCell>
-                            {(payment.advanceAmount || 0).toFixed(2)}
-                          </TableCell>
-                          <TableCell>{payment.paymentDate ? format(payment.paymentDate, 'dd-MM-yyyy') : 'N/A'}</TableCell>
-
-                          <TableCell>
-                            {(payment.taxDetails || 0).toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            {(payment.discountDetails || 0).toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            {(payment.totalPayableAmount || 0).toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <Tooltip title='PDF Download'>
-                              <IconButton
-                                color="primary"
-                                sx={{ ml: 0.1 }} // Adds some margin between the buttons
-                                onClick={() => handleDownload(payment.outgoingId ?? '')} // Corrected usage of purchaseOrderId
-                              >
-                                <PictureAsPdfIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
+                    filteredAdvancesMemo.map((payment: AdvancePayment, index: number) => (
+                      <TableRow key={payment.advanceId}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{payment.randomId || "N/A"}</TableCell>
+                        <TableCell>{payment.vendorName || "N/A"}</TableCell>
+                        <TableCell>{(payment.amount || 0).toFixed(2)}</TableCell>
+                        <TableCell>{(payment.pendingAmount || 0).toFixed(2)}</TableCell>
+                        <TableCell>
+                          {payment.paymentDate ? format(new Date(payment.paymentDate), 'dd-MM-yyyy') : 'N/A'}
+                        </TableCell>
+                        <TableCell>{payment.status || "N/A"}</TableCell>
+                        <TableCell>
+                          {payment.paymentHistory
+                            ? payment.paymentHistory.map((h: PaymentHistory) => `₹${h.amount.toFixed(2)} on ${format(new Date(h.paymentDate), 'dd-MM-yyyy')}`).join(', ')
+                            : "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title='PDF Download'>
+                            <IconButton
+                              color="primary"
+                              sx={{ ml: 0.1 }}
+                              onClick={() => handleDownload(payment.advanceId ?? '')}
+                            >
+                              <PictureAsPdfIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))
                   )}
                 </TableBody>
               </Table>
@@ -945,43 +736,298 @@ const AdvancePaymentComponent = () => {
             </Grid>
           </Grid>
         </Grid>
+
         <Dialog open={openDialog} onClose={handleCloseDialog}>
           <DialogTitle>Choose a file format</DialogTitle>
           <DialogContent>
             <p>Select the file format you want to download:</p>
           </DialogContent>
           <DialogActions>
-            {/* Button to download PDF */}
             <Button
-              onClick={generateOutgoingInvoicePDF}
+              onClick={generateAdvanceInvoicePDF}
               variant="contained"
               color="primary"
               startIcon={<PictureAsPdfIcon />}
             >
               Download PDF
             </Button>
-
-            {/* Button to download CSV */}
             <Button
-              onClick={generateOutgoingSummaryCSV}
+              onClick={generateAdvanceSummaryCSV}
               variant="contained"
               color="secondary"
               startIcon={<DescriptionIcon />}
             >
               Download CSV
             </Button>
-
-            {/* Cancel button */}
-            <Button onClick={handleCloseDialog} >
+            <Button onClick={handleCloseDialog}>
               Cancel
             </Button>
           </DialogActions>
         </Dialog>
+
+        <Dialog open={openCreateDialog} onClose={handleCloseCreateDialog}>
+          <DialogTitle>Create Advance Payment</DialogTitle>
+          <DialogContent sx={{ width: "500px" }}>
+            <Formik
+              initialValues={{
+                vendorId: "",
+                vendorName: "",
+                amount: "",
+                paymentMethod: "",
+                paymentMode: "",
+                bankName: "",
+                neftNo: "",
+                rtgsNo: "",
+                impsNo: "",
+                upi: "",
+                cashVoucherNo: "",
+                remarks: "",
+              }}
+              validationSchema={validationSchema}
+              onSubmit={async (values) => {
+                const paymentData: Partial<AdvancePayment> = {
+                  vendorId: values.vendorId,
+                  vendorName: values.vendorName,
+                  amount: parseFloat(values.amount),
+                  paymentType: "advance",
+                  paymentMethod: values.paymentMethod,
+                  paymentMode: values.paymentMode as 'Cash' | 'Bank',
+                  bankName: values.paymentMode === "Bank" ? values.bankName : undefined,
+                  neftNo: values.paymentMethod === "neft" ? values.neftNo : undefined,
+                  rtgsNo: values.paymentMethod === "rtgs" ? values.rtgsNo : undefined,
+                  impsNo: values.paymentMethod === "imps" ? values.impsNo : undefined,
+                  upi: values.paymentMethod === "upi" ? values.upi : undefined,
+                  remarks: values.remarks,
+                  paymentDate: new Date(),
+                };
+
+                try {
+                  await dispatch(createAdvancePayment(paymentData)).unwrap();
+                  dispatch(fetchAdvances({
+                    page: currentPage,
+                    size: pageSize,
+                    status: status,
+                    filterBy: dateField,
+                    fromDate: StartDate,
+                    toDate: EndDate,
+                  }));
+                  handleCloseCreateDialog();
+                } catch (error: any) {
+                  dispatch(setSnackbarMessage(error.message || 'Error creating advance payment'));
+                  dispatch(setSnackbarOpen(true));
+                }
+              }}
+            >
+              {({ values, handleChange, handleBlur, handleSubmit, errors, touched }) => (
+                <Form onSubmit={handleSubmit}>
+                  <Grid container spacing={2} mt={1}>
+                    <Grid item xs={12}>
+                      <FormControl fullWidth>
+                        <Autocomplete
+                          options={vendorName}
+                          getOptionLabel={(option: VendorNameGet) => option.vendorName || ''}
+                          isOptionEqualToValue={(option: VendorNameGet, value: VendorNameGet) => option.vendorId === value.vendorId}
+                          onChange={(event, newValue) => {
+                            handleChange({
+                              target: {
+                                name: 'vendorId',
+                                value: newValue?.vendorId || '',
+                              },
+                            });
+                            handleChange({
+                              target: {
+                                name: 'vendorName',
+                                value: newValue?.vendorName || '',
+                              },
+                            });
+                          }}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Vendor"
+                              variant="outlined"
+                              size="small"
+                              error={touched.vendorId && !!errors.vendorId}
+                              helperText={touched.vendorId && errors.vendorId}
+                            />
+                          )}
+                        />
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Amount"
+                        type="number"
+                        name="amount"
+                        value={values.amount}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        error={touched.amount && !!errors.amount}
+                        helperText={touched.amount && errors.amount}
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        select
+                        fullWidth
+                        label="Payment Mode"
+                        name="paymentMode"
+                        value={values.paymentMode}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        error={touched.paymentMode && !!errors.paymentMode}
+                        helperText={touched.paymentMode && errors.paymentMode}
+                        size="small"
+                      >
+                        <MenuItem value="Cash">Cash</MenuItem>
+                        <MenuItem value="Bank">Bank</MenuItem>
+                      </TextField>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        select
+                        fullWidth
+                        label="Payment Method"
+                        name="paymentMethod"
+                        value={values.paymentMethod}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        error={touched.paymentMethod && !!errors.paymentMethod}
+                        helperText={touched.paymentMethod && errors.paymentMethod}
+                        size="small"
+                      >
+                        <MenuItem value="cash">Cash</MenuItem>
+                        <MenuItem value="neft">NEFT</MenuItem>
+                        <MenuItem value="rtgs">RTGS</MenuItem>
+                        <MenuItem value="imps">IMPS</MenuItem>
+                        <MenuItem value="upi">UPI</MenuItem>
+                      </TextField>
+                    </Grid>
+                    {values.paymentMode === "Bank" && (
+                      <>
+                        <Grid item xs={12}>
+                          <TextField
+                            fullWidth
+                            label="Bank Name"
+                            name="bankName"
+                            value={values.bankName}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            error={touched.bankName && !!errors.bankName}
+                            helperText={touched.bankName && errors.bankName}
+                            size="small"
+                          />
+                        </Grid>
+                        {values.paymentMethod === "neft" && (
+                          <Grid item xs={12}>
+                            <TextField
+                              fullWidth
+                              label="NEFT Number"
+                              name="neftNo"
+                              value={values.neftNo}
+                              onChange={handleChange}
+                              onBlur={handleBlur}
+                              error={touched.neftNo && !!errors.neftNo}
+                              helperText={touched.neftNo && errors.neftNo}
+                              size="small"
+                            />
+                          </Grid>
+                        )}
+                        {values.paymentMethod === "rtgs" && (
+                          <Grid item xs={12}>
+                            <TextField
+                              fullWidth
+                              label="RTGS Number"
+                              name="rtgsNo"
+                              value={values.rtgsNo}
+                              onChange={handleChange}
+                              onBlur={handleBlur}
+                              error={touched.rtgsNo && !!errors.rtgsNo}
+                              helperText={touched.rtgsNo && errors.rtgsNo}
+                              size="small"
+                            />
+                          </Grid>
+                        )}
+                        {values.paymentMethod === "imps" && (
+                          <Grid item xs={12}>
+                            <TextField
+                              fullWidth
+                              label="IMPS Number"
+                              name="impsNo"
+                              value={values.impsNo}
+                              onChange={handleChange}
+                              onBlur={handleBlur}
+                              error={touched.impsNo && !!errors.impsNo}
+                              helperText={touched.impsNo && errors.impsNo}
+                              size="small"
+                            />
+                          </Grid>
+                        )}
+                        {values.paymentMethod === "upi" && (
+                          <Grid item xs={12}>
+                            <TextField
+                              fullWidth
+                              label="UPI ID"
+                              name="upi"
+                              value={values.upi}
+                              onChange={handleChange}
+                              onBlur={handleBlur}
+                              error={touched.upi && !!errors.upi}
+                              helperText={touched.upi && errors.upi}
+                              size="small"
+                            />
+                          </Grid>
+                        )}
+                      </>
+                    )}
+                    {values.paymentMethod === "cash" && (
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          label="Cash Voucher Number"
+                          name="cashVoucherNo"
+                          value={values.cashVoucherNo}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          error={touched.cashVoucherNo && !!errors.cashVoucherNo}
+                          helperText={touched.cashVoucherNo && errors.cashVoucherNo}
+                          size="small"
+                        />
+                      </Grid>
+                    )}
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Remarks"
+                        name="remarks"
+                        value={values.remarks}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        error={touched.remarks && !!errors.remarks}
+                        helperText={touched.remarks && errors.remarks}
+                        size="small"
+                      />
+                    </Grid>
+                  </Grid>
+                  <DialogActions>
+                    <Button onClick={handleCloseCreateDialog}>Cancel</Button>
+                    <Button type="submit" variant="contained" color="primary">
+                      Create
+                    </Button>
+                  </DialogActions>
+                </Form>
+              )}
+            </Formik>
+          </DialogContent>
+        </Dialog>
+
         <Snackbar
           open={snackbarOpen}
           message={snackbarMessage}
           autoHideDuration={3000}
-          onClose={() => dispatch(clearSnackbarMessage())} // Manually close the snackbar when clicked
+          onClose={() => dispatch(clearSnackbarMessage())}
         />
       </Box>
     </Box>

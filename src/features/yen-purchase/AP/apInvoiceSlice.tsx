@@ -6,7 +6,7 @@ import { GrnData } from '../../../Models/grnModel';
 import { ApInvoice, ApInvoiceRandomId, ApInvoiceState, initialState } from '@/Models/apModel';
 
 
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
 
 
 // Fetch AP Invoices with pagination and advanced filtering
@@ -186,14 +186,17 @@ export const fetchItemwiseAps = createAsyncThunk(
 export const postOutgoingAndUpdateDiscount = createAsyncThunk(
   'apinvoice/postOutgoingAndUpdateDiscount',
   async (
-    { invoiceId, apDiscountPrice }: { invoiceId: string; apDiscountPrice: number },
+    { invoiceId, apDiscountPrice, outgoingDate }: { invoiceId: string; apDiscountPrice: number; outgoingDate?: Date | null },
     { rejectWithValue }
   ) => {
     try {
+      const effectiveDate = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
+      console.log('Sending payload:', { invoiceId, apDiscountPrice, outgoingDate: effectiveDate });
       const response = await axios.patch(
         `${BASE_URL}/apinvoices/${invoiceId}/convert-to-outgoing-and-discount`,
-        { invoiceId, apDiscountPrice }
+        { invoiceId, apDiscountPrice, outgoingDate: effectiveDate }
       );
+      console.log('Server response:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('Error in postOutgoingAndUpdateDiscount:', error);
@@ -332,25 +335,13 @@ const apInvoiceSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      // Post Outgoing and Update Status
       .addCase(postOutgoingAndUpdateDiscount.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(postOutgoingAndUpdateDiscount.fulfilled, (state, action) => {
         state.loading = false;
-        const { updatedInvoice } = action.payload; // Extract updatedInvoice from the response
-
-        // Find and update the AP Invoice in the state
-        const index = state.apInvoices.findIndex(
-          (invoice) => invoice.invoiceId === updatedInvoice.invoiceId
-        );
-        if (index !== -1) {
-          state.apInvoices[index] = {
-            ...state.apInvoices[index],
-            ...updatedInvoice, // Update the invoice with the new data (status, invoiceAmount, discountPrice, etc.)
-          };
-        }
+        // No manual update needed; refetch in finally() handles refreshing the list
       })
       .addCase(postOutgoingAndUpdateDiscount.rejected, (state, action) => {
         state.loading = false;
@@ -412,7 +403,7 @@ const apInvoiceSlice = createSlice({
   },
 });
 
-export const { setSearchQuery, clearError, setSelectedinvoiceId, setSnackbarMessage, setSnackbarOpen, setPagination, clearSnackbarMessage, 
+export const { setSearchQuery, clearError, setSelectedinvoiceId, setSnackbarMessage, setSnackbarOpen, setPagination, clearSnackbarMessage,
   setApDialogOpen, } = apInvoiceSlice.actions;
 
 export const selectApinvoice = (state: RootState) => state.apInvoice;

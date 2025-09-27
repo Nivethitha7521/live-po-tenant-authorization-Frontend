@@ -12,7 +12,7 @@ export interface ItemUpdate {
   afTaxDiscount?: number;
   expiryDate?: Date | null;
 }
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
 const customRoundOf = (value: number) => {
   return Math.round(value * 100) / 100; // Round to two decimal places
 };
@@ -183,16 +183,32 @@ export const updateGrnStatus = createAsyncThunk(
 export const updateItemDetails = createAsyncThunk(
   'grn/updateItemDetails',
   async (
-    { grnId, discountPrice, itemUpdates, convertToAp = true }:
-      { grnId: string; discountPrice: number; itemUpdates: ItemUpdate[]; convertToAp?: boolean },
+    {
+      grnId,
+      discountPrice,
+      itemUpdates,
+      convertToAp = true,
+      apInvoiceDate, // Add optional apInvoiceDate
+    }: {
+      grnId: string;
+      discountPrice: number;
+      itemUpdates: ItemUpdate[];
+      convertToAp?: boolean;
+      apInvoiceDate?: string; // ISO string (e.g., "2025-09-22T00:00:00.000Z")
+    },
     { rejectWithValue }
   ) => {
     try {
-      // Construct the URL
-      const url = `${BASE_URL}/grns/items/totals/${grnId}?discountPrice=${discountPrice}&convertToAp=${convertToAp}`;
+      // Construct the URL with query parameters
+      const url = new URL(`${BASE_URL}/grns/items/totals/${grnId}`);
+      url.searchParams.append('discountPrice', discountPrice.toString());
+      url.searchParams.append('convertToAp', convertToAp.toString());
+      if (apInvoiceDate) {
+        url.searchParams.append('apInvoiceDate', apInvoiceDate); // Include apInvoiceDate if provided
+      }
 
       // Send the request
-      const response = await axios.patch(url, itemUpdates);
+      const response = await axios.patch(url.toString(), itemUpdates);
 
       // Check if AP conversion was requested but not completed
       if (convertToAp && !response.data.apInvoiceConverted) {
@@ -202,7 +218,7 @@ export const updateItemDetails = createAsyncThunk(
       // Return the response data
       return {
         grnId,
-        itemUpdates: response.data.updatedItems, // Use backend's updatedItems for consistency
+        itemUpdates: response.data.updatedItems,
         discountPrice,
         success: true,
         apInvoiceConverted: response.data.apInvoiceConverted || false,

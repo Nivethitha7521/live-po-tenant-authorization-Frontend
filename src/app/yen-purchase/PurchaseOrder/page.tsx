@@ -1617,7 +1617,7 @@ const handleViewDetailsClick = (orderId: string) => {
             <TableCell>S.No</TableCell>
             <TableCell>Item Name</TableCell>
             <TableCell>UOM</TableCell>
-            <TableCell>Count</TableCell>
+            <TableCell>Pkt Count</TableCell>
             <TableCell>Quantity</TableCell>
             <TableCell>Total Quantity</TableCell>
             <TableCell>Unit Price</TableCell>

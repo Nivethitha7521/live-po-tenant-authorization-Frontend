@@ -455,14 +455,14 @@ const generatePDF = () => {
       (grn.itemDetails || []).map((item) => {
         const returnHistoryText = Array.isArray(item.returnHistory) && item.returnHistory.length > 0
           ? item.returnHistory.map((history, idx) =>
-              `Return ${idx + 1}: Date: ${history.date ? format(new Date(history.date), 'dd-MM-yyyy HH:mm:ss') : 'N/A'}, By: ${history.by || 'N/A'}, Qty: ${history.totalUnits || 0} ${item.uom || 'N/A'}, Reason: ${history.reason || 'N/A'}`
+              `Return ${idx + 1}: Date: ${history.date ? format(new Date(history.date), 'dd-MM-yyyy HH:mm:ss') : 'N/A'}, By: ${history.by }, Qty: ${history.totalUnits || 0} ${item.uom }, Reason: ${history.reason }`
             ).join('; ')
           : 'No return history';
         return [
           `${index + 1}`,
-          grn.randomId || 'N/A',
-          grn.vendorName || 'N/A',
-          item.itemName || 'N/A',
+          grn.randomId ,
+          grn.vendorName ,
+          item.itemName ,
           item.quantity || 0,
           item.returnedQuantity || 0,
           (item.unitPrice || 0).toFixed(2),
@@ -530,9 +530,9 @@ const generateSummaryPDF = () => {
     (grn.itemDetails || []).map((item) => {
       return [
         `${index + 1}`,
-        grn.randomId || 'N/A',
-        grn.vendorName || 'N/A',
-        item.itemName || 'N/A',
+        grn.randomId ,
+        grn.vendorName ,
+        item.itemName ,
         item.receivedQuantity || 0,
         item.returnedQuantity || 0,
         (item.unitPrice || 0).toFixed(2),
@@ -605,12 +605,12 @@ const generateSummaryPDF = () => {
   doc.text('Goods Receipt Note - Return History', 90, yOffset + 5);
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.text(business.companyName || 'N/A', 90, yOffset + 10);
+  doc.text(business.companyName , 90, yOffset + 10);
   doc.setFontSize(8);
-  doc.text(business.address1 || 'N/A', 90, yOffset + 15);
-  doc.text(`Tel.No: ${business.phoneNo || 'N/A'}`, 90, yOffset + 20);
-  doc.text(`E-Mail: ${business.emailId || 'N/A'}`, 90, yOffset + 25);
-  doc.text(`GSTIN: ${business.gstIn || 'N/A'}`, 90, yOffset + 30);
+  doc.text(business.address1 , 90, yOffset + 15);
+  doc.text(`Tel.No: ${business.phoneNo }`, 90, yOffset + 20);
+  doc.text(`E-Mail: ${business.emailId }`, 90, yOffset + 25);
+  doc.text(`GSTIN: ${business.gstIn }`, 90, yOffset + 30);
   yOffset += 40;
 
   // Add GRN details
@@ -621,9 +621,9 @@ const generateSummaryPDF = () => {
   const columnWidth = 60.6;
   const tableHeader = [['Vendor Details', 'Billing Address', 'GRN Details']];
   const vendorDetailsRows = [[
-    `Name: ${grn.vendorName || 'N/A'}\nGSTIN: ${grn.gstNumber || 'N/A'}\nAddress: ${grn.address || 'N/A'}\nCity: ${grn.city || 'N/A'}\nState: ${grn.state || 'N/A'}\nCountry: ${grn.country || 'N/A'}\nEmail: ${grn.contactpersonEmail || 'N/A'}`,
-    `Billing Address: ${grn.billingAddress || 'N/A'}`,
-    `Po No: ${grn.poRandomID || 'N/A'}\nGRN No: ${grn.randomId || 'N/A'}\nGRN Date: ${grn.createdDate ? format(new Date(grn.createdDate), 'dd-MM-yyyy') : 'N/A'}\nPayment Terms: ${grn.paymentTerms || '15'} \nDue Date: ${format(dueDate, 'dd-MM-yyyy')}\nCurrency: INR`,
+    `Name: ${grn.vendorName }\nGSTIN: ${grn.gstNumber }\nAddress: ${grn.address }\nCity: ${grn.city }\nState: ${grn.state }\nCountry: ${grn.country }\nEmail: ${grn.contactpersonEmail }`,
+    `Billing Address: ${grn.billingAddress }`,
+    `Po No: ${grn.poRandomID }\nGRN No: ${grn.randomId }\nGRN Date: ${grn.createdDate ? format(new Date(grn.createdDate), 'dd-MM-yyyy') : 'N/A'}\nPayment Terms: ${grn.paymentTerms || '15'} \nDue Date: ${format(dueDate, 'dd-MM-yyyy')}\nCurrency: INR`,
   ]];
 
   doc.autoTable({
@@ -645,15 +645,15 @@ const generateSummaryPDF = () => {
     .filter(item => item.returnedQuantity > 0 && Array.isArray(item.returnHistory) && item.returnHistory.length > 0)
     .flatMap((item, index) =>
       (item.returnHistory || []).map((history, historyIndex) => [
-        item.itemName || 'N/A',
-        item.uom || 'N/A',
+        item.itemName ,
+        item.uom ,
         (item.quantity || 0).toString(),
         (item.returnedQuantity || 0).toString(),
         (item.unitPrice || 0).toFixed(2),
         history.date ? format(new Date(history.date), 'dd-MM-yyyy HH:mm:ss') : 'N/A',
-        history.by || 'N/A',
-        `${history.totalUnits || 0} ${item.uom || 'N/A'}`,
-        history.reason || 'N/A',
+        history.by ,
+        `${history.totalUnits || 0} ${item.uom }`,
+        history.reason ,
       ])
     );
 
@@ -1047,10 +1047,10 @@ const generateSummaryPDF = () => {
             <strong>PO ID:</strong> {selectedGrn.poRandomID || 'N/A'}
           </Typography>
           <Typography variant="h6">
-            <strong>GRN ID:</strong> {selectedGrn.randomId || 'N/A'}
+            <strong>GRN ID:</strong> {selectedGrn.randomId }
           </Typography>
           <Typography variant="h6">
-            <strong>Vendor:</strong> {selectedGrn.vendorName || 'N/A'}
+            <strong>Vendor:</strong> {selectedGrn.vendorName }
           </Typography>
         </Box>
         
@@ -1061,11 +1061,11 @@ const generateSummaryPDF = () => {
                 <TableCell>Item Name</TableCell>
                 <TableCell>UOM</TableCell>
                 <TableCell>Quantity</TableCell>
-                <TableCell>Returned Quantity</TableCell>
+                <TableCell>Overall Returned Qty</TableCell>
                 <TableCell>Unit Price</TableCell>
                 <TableCell>Return Date</TableCell>
                 <TableCell>Returned By</TableCell>
-                <TableCell>Return Quantity</TableCell>
+                <TableCell>Return Qty</TableCell>
                 <TableCell>Reason</TableCell>
               </TableRow>
             </TableHead>

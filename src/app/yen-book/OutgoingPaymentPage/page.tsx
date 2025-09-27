@@ -81,6 +81,7 @@ import { ItemDetailResponsePO, PoResponse } from '@/Models/purchaseModel';
 import PODialog from '@/components/yen-purchase/OutgoingComponent/PODialog';
 import ConfirmationDialog from '@/components/confirmationDialog';
 import BulkPaymentDialog from '@/components/yen-purchase/OutgoingComponent/BulkPaymentDialog';
+import SinglePaymentDialog from '@/components/yen-purchase/OutgoingComponent/SinglePayment';
 
 const OutgoingPaymentComponent = React.memo(() => {
   const dispatch = useDispatch<AppDispatch>();
@@ -91,49 +92,15 @@ const OutgoingPaymentComponent = React.memo(() => {
   const { selectedPo, poDialogOpen, loading } = useSelector(selectPurchaseListState);
   const [selectedOutgoing, setSelectedOutgoing] = useState<any>(null);
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
-  const [paymentDetails, setPaymentDetails] = useState<{
-    paymentMethod: string;
-    neftNo: string;
-    cashVoucherNo: string;
-    amount: string;
-    bankName: string;
-    paymentType: 'full' | 'partial' | 'advance';
-    rtgsNo: string;
-    paymentMode: 'Cash' | 'Bank';
-    pettyCashAmount: number;
-    hoCash: number;
-    upi: string;
-    impsNo: string;
-    selectedDebitNotes: string[]; // Changed to array
-  }>({
-    paymentMethod: '',
-    neftNo: '',
-    cashVoucherNo: '',
-    amount: '',
-    bankName: '',
-    paymentType: 'advance',
-    rtgsNo: '',
-    paymentMode: 'Cash',
-    pettyCashAmount: 0,
-    hoCash: 0,
-    upi: '',
-    impsNo: '',
-    selectedDebitNotes: [], // Initialize as empty array
-  });
-  const [activeDebits, setActiveDebits] = useState<any[]>([]); // Added state for active debit notes
 
   const [selectedVendorName, setSelectedVendorName] = useState<VendorDetail | null>(null); // Default is null
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedOutgoings, setSelectedOutgoings] = useState<Outgoing[]>([]);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false); // Controls the second dialog
   const [viewItemsDialogOpen, setViewItemsDialogOpen] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState<GrnResponse | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [paymentDetailsToSend, setPaymentDetailsToSend] = useState<any>(null);
-const [isBulkPaymentOpen, setIsBulkPaymentOpen] = useState(false);
+  const [isBulkPaymentOpen, setIsBulkPaymentOpen] = useState(false);
   const [paymentTypeMultiple, setPaymentTypeMultiple] = useState<{ [outgoingId: string]: 'full' | 'partial' }>({});
-  const [partialAmount, setPartialAmount] = useState<{ [outgoingId: string]: string }>({});
-  const [isLoading, setIsLoading] = useState(false); // To track loading state
   const [loadingState, setLoadingState] = useState<'idle' | 'loading' | 'succeeded' | 'failed'>('idle');
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
   const [status, setStatus] = useState(''); // Default status filter is "Pending"
@@ -157,21 +124,18 @@ const [isBulkPaymentOpen, setIsBulkPaymentOpen] = useState(false);
   const dateField = 'invoiceDate';
   const fromDate = moment().utc().startOf('day').toDate(); // Start of the day (in UTC)
   const toDate = moment().utc().endOf('day').toDate(); // End of the day (in UTC)
-  const [error, setError] = useState<string>('');
   const [errors, setErrors] = useState<{ [outgoingId: string]: string }>({});
   // Add this to your component's state
   const [isFilterActive, setIsFilterActive] = useState(false);
-const [confirmDialogProps, setConfirmDialogProps] = useState<{
+  const [confirmDialogProps, setConfirmDialogProps] = useState<{
     title: string;
     description: string | JSX.Element;
     onConfirm: () => void;
   }>({
     title: '',
     description: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
-  const [isSinglePaymentLoading, setIsSinglePaymentLoading] = useState(false);
-  const [isMultiplePaymentLoading, setIsMultiplePaymentLoading] = useState(false);
   const debitCreditNotes = useSelector((state: RootState) => selectDebitCreditNote(state).debitCreditNotes);
   // Compute selectedApInvoice from itemwise and selectedinvoiceId
   const selectedApInvoice = useMemo(() => {
@@ -189,25 +153,7 @@ const [confirmDialogProps, setConfirmDialogProps] = useState<{
       }));
     }
   }, [dispatch, loadingState, dateField, newPage, pageSize]); // Depend on loading, newPage, pageSize, currentDate
-useEffect(() => {
-  if (selectedOutgoing && openDetailsDialog && selectedOutgoing.vendorName) {
-    const fetchActiveDebits = async () => {
-      try {
-        const response = await dispatch(
-          fetchActiveDebitsVendor(selectedOutgoing.vendorName)
-        ).unwrap();
-        // Filter for active debit notes (assuming status is part of the response)
-        const active = response.filter((note: any) => note.status === 'Active' || note.status === 'Partially Cleared');
-        setActiveDebits(active);
-      } catch (err) {
-        dispatch(setSnackbarMessage('Failed to load active debit notes'));
-        dispatch(setSnackbarOpen(true));
-        console.error('Error fetching debit notes:', err);
-      }
-    };
-    fetchActiveDebits();
-  }
-}, [selectedOutgoing, openDetailsDialog, dispatch]);
+
 
   useEffect(() => {
     if (loadingState === 'idle') {
@@ -264,42 +210,7 @@ useEffect(() => {
       return 0; // Default return value if no sorting happens
     });
   }, [outgoings, sortOrder, sortColumn]);
-  const totalDebitAmount = useMemo(() => {
-    return paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
-      const debit = activeDebits.find((d) => d.randomId === debitId);
-      return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
-    }, 0);
-  }, [paymentDetails.selectedDebitNotes, activeDebits]);
-const validateAmount = (amount: string, maxAllowed: number): string => {
-  if (!amount) return 'Please enter an amount';
-  const numAmount = parseFloat(amount);
-  if (isNaN(numAmount)) return 'Invalid amount format';
-  if (numAmount < 0) return 'Amount cannot be negative';
 
-  // Calculate total debit amount from selected debit notes
-  const totalDebitAmount = paymentDetails.selectedDebitNotes.reduce(
-    (sum, debitId) => {
-      const debit = activeDebits.find((d) => d.randomId === debitId);
-      return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
-    },
-    0
-  );
-
-  // Check if total debit amount exceeds maxAllowed
-  if (totalDebitAmount > maxAllowed) {
-    return `Total debit notes (₹${totalDebitAmount.toFixed(2)}) cannot exceed total payable amount (₹${maxAllowed.toFixed(2)})`;
-  }
-
-  // Calculate remaining payable after debit notes
-  const remainingPayable = maxAllowed - totalDebitAmount;
-
-  // Check if payment amount exceeds remaining payable
-  if (numAmount > remainingPayable) {
-    return `Payment amount (₹${numAmount.toFixed(2)}) cannot exceed remaining payable amount (₹${remainingPayable.toFixed(2)}) after applying debit notes`;
-  }
-
-  return '';
-};
   const handleApClick = (invoiceId: string | undefined) => {
     if (!invoiceId) {
       dispatch(setSnackbarMessage('Invalid AP Invoice ID'));
@@ -448,21 +359,6 @@ const validateAmount = (amount: string, maxAllowed: number): string => {
     setSelectedOutgoing(outgoing);
     setOpenDetailsDialog(true);
   };
-  const handlePaymentModeChange = (e: React.ChangeEvent<{ value: unknown }>) => {
-    const selectedMode = e.target.value as 'Cash' | 'Bank';
-    setPaymentDetails(prevDetails => ({
-      ...prevDetails,
-      paymentMode: selectedMode,
-      paymentMethod: '',  // Reset payment method when payment mode changes
-    }));
-  };
-  const handlePaymentMethodChange = (e: React.ChangeEvent<{ value: unknown }>) => {
-    const selectedMethod = e.target.value as string;
-    setPaymentDetails(prevDetails => ({
-      ...prevDetails,
-      paymentMethod: selectedMethod,
-    }));
-  };
   const handleSort = (column: 'dueDays' | 'paymentTerms') => {
     if (sortColumn === column) {
       // Toggle sort order between 'asc' and 'desc' for the clicked column
@@ -481,106 +377,66 @@ const validateAmount = (amount: string, maxAllowed: number): string => {
   const handleDaysChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedDays(Number(event.target.value));
   };
-  const handleDebitNoteChange = (selectedValues: string[]) => {
-  setPaymentDetails((prev) => {
-    const totalDebitAmount = selectedValues.reduce((sum, id) => {
-      const debit = activeDebits.find((d) => d.randomId === id);
-      return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
-    }, 0);
-
-    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
-    const validationError =
-      totalDebitAmount > totalPayable
-        ? `Total debit notes (₹${totalDebitAmount.toFixed(2)}) cannot exceed total payable amount (₹${totalPayable.toFixed(2)})`
-        : '';
-
-    setError(validationError);
-
-    return {
-      ...prev,
-      selectedDebitNotes: validationError ? prev.selectedDebitNotes : selectedValues,
-      amount: validationError
-        ? prev.amount
-        : (totalPayable - totalDebitAmount).toFixed(2),
+  const handleFilterClick = () => {
+    setIsFilterActive(true);
+    const formattedStartDate = selectionRange?.startDate instanceof Date
+      ? moment(selectionRange.startDate).startOf('day').toISOString()
+      : fromDate?.toISOString();
+    const formattedEndDate = selectionRange?.endDate instanceof Date
+      ? moment(selectionRange.endDate).endOf('day').toISOString()
+      : toDate?.toISOString();
+    const newPage = 1;
+    dispatch(setPagination({ page: newPage, size: pageSize }));
+    // Prepare filter parameters - only include values that are selected
+    const filterParams: any = {
+      page: newPage,
+      size: pageSize,
+      filterByAmount: true,
     };
-  });
-};
-  const handleClosePayDialog = () => {
-    setOpenDetailsDialog(false);
-    resetPaymentDetails();
-  };
-
-  const handleCloseMultipleDialog = () => {
-    setPaymentDialogOpen(false);
-    resetPaymentDetails();
-  };
-const handleFilterClick = () => {
-  setIsFilterActive(true);
-
-  const formattedStartDate = selectionRange?.startDate instanceof Date
-    ? moment(selectionRange.startDate).startOf('day').toISOString()
-    : fromDate?.toISOString();
-    
-  const formattedEndDate = selectionRange?.endDate instanceof Date
-    ? moment(selectionRange.endDate).endOf('day').toISOString()
-    : toDate?.toISOString();
-
-  const newPage = 1;
-  dispatch(setPagination({ page: newPage, size: pageSize }));
-
-  // Prepare filter parameters - only include values that are selected
-  const filterParams: any = {
-    page: newPage,
-    size: pageSize,
-    filterByAmount: true,
-  };
-
-  // Only add dates if they are selected
-  if (formattedStartDate) {
-    filterParams.fromDate = new Date(formattedStartDate);
-  }
-  
-  if (formattedEndDate) {
-    filterParams.toDate = new Date(formattedEndDate);
-  }
-
-  // Only add vendor name if selected and not empty
-  if (selectedVendorName?.vendorName && 
-      selectedVendorName.vendorName.trim() !== '' && 
-      selectedVendorName.vendorName !== 'none') {
-    filterParams.vendorName = selectedVendorName.vendorName.trim();
-  }
-
-  // Only add dateField if selected and not empty
-  if (dateField && dateField.trim() !== '' ) {
-    filterParams.filterBy = dateField.trim();
-  }
-
-  // Only add status if selected and not empty/all
-  if (status && status.trim() !== '' && status !== 'none' && status !== 'all') {
-    filterParams.status = status.trim();
-  }
-
-  console.log('Applying filters:', filterParams);
-
-  dispatch(fetchOutgoings(filterParams))
-    .then((response) => {
-      const data = response.payload || [];
-      console.log('Filtered outgoings:', data);
-      if (data.length === 0) {
-        setSnackbarMessage('No matching Outgoing Payment found.');
+    if (formattedStartDate) {
+      filterParams.fromDate = new Date(formattedStartDate);
+    }
+    if (formattedEndDate) {
+      filterParams.toDate = new Date(formattedEndDate);
+    }
+    if (
+      selectedVendorName?.vendorName &&
+      selectedVendorName.vendorName.trim() !== '' &&
+      selectedVendorName.vendorName !== 'none'
+    ) {
+      filterParams.vendorName = selectedVendorName.vendorName.trim();
+    }
+    if (dateField && dateField.trim() !== '') {
+      filterParams.filterBy = dateField.trim();
+    }
+    if (status && status.trim() !== '' && status !== 'none' && status !== 'all') {
+      filterParams.status = status.trim();
+    }
+    console.log('Applying filters:', filterParams);
+    dispatch(fetchOutgoings(filterParams))
+      .then((response) => {
+        // Explicitly type the response payload
+        const data = response.payload as { outgoings: Outgoing[]; totalItems: number } | string;
+        console.log('Filtered outgoings:', data);
+        if (typeof data === 'string') {
+          setSnackbarMessage(data);
+          setSnackbarOpen(true);
+          setFilteredOutgoing([]);
+        } else if (data.outgoings.length === 0) {
+          setSnackbarMessage('No matching Outgoing Payment found.');
+          setSnackbarOpen(true);
+          setFilteredOutgoing([]);
+        } else {
+          setFilteredOutgoing(data.outgoings);
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching outgoing:', error);
+        setSnackbarMessage(error.message || 'Error fetching outgoing');
         setSnackbarOpen(true);
-      } else {
-        setFilteredOutgoing(data);
-      }
-    })
-    .catch((error) => {
-      console.error('Error fetching outgoing:', error);
-      setSnackbarMessage(error.message || 'Error fetching outgoing');
-      setSnackbarOpen(true);
-    });
-};
-
+        setFilteredOutgoing([]);
+      });
+  };
 
   const handleFilterClose = () => {
     // Reset filter states (except for the date)
@@ -606,60 +462,6 @@ const handleFilterClick = () => {
     setSelectedGrn(null);  // Clear the selected GRN details
   };
 
-  const resetPaymentDetails = () => {
-    setPaymentDetails({
-      paymentMethod: '',
-      neftNo: '',
-      cashVoucherNo: '',
-      amount: '',
-      bankName: '',
-      paymentType: 'advance', // Default value
-      rtgsNo: '',
-      paymentMode: 'Cash', // Default value for paymentMode
-      pettyCashAmount: 0, // Default value for pettyCashAmount
-      hoCash: 0, // Default value for hoCash
-      upi: '', // Default value for upi
-      impsNo: '', // Default value for impsNo
-      selectedDebitNotes:[]
-    });
-  };
-
-  const handlePaymentTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedType = e.target.value as "full" | "partial" | "advance"; // Explicitly cast to the type
-    setPaymentDetails(prevDetails => ({
-      ...prevDetails,
-      paymentType: selectedType,
-      amount: selectedType === 'full' && selectedOutgoing
-        ? selectedOutgoing.totalPayableAmount?.toString() ?? ''
-        : '',
-    }));
-    setError('');
-  };
-
-const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const { name, value } = e.target;
-
-  if (name === 'amount') {
-    // Only allow numbers and decimal point
-    if (!/^\d*\.?\d*$/.test(value)) {
-      return;
-    }
-
-    // Only validate if selectedOutgoing exists
-    if (selectedOutgoing?.totalPayableAmount) {
-      const validationError = validateAmount(value, selectedOutgoing.totalPayableAmount);
-      setError(validationError);
-    } else {
-      setError('No payable amount available for validation');
-    }
-  }
-
-  setPaymentDetails(prevDetails => ({
-    ...prevDetails,
-    [name]: value,
-  }));
-};
-
   const getRandomId = (grnId: string): string | undefined => {
     const grn = itemwise.find(grn => grn.grnId === grnId);
     return grn?.randomId;
@@ -681,162 +483,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       return acc;
     }, {});
   };
-const handleConfirmPayment = async () => {
-  if (!selectedOutgoing || !paymentDetails.amount) {
-    dispatch(setSnackbarMessage('Please enter a valid amount'));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-  const validationError = validateAmount(
-    paymentDetails.amount,
-    selectedOutgoing.totalPayableAmount
-  );
-  if (validationError) {
-    setError(validationError);
-    dispatch(setSnackbarMessage(validationError));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-  const paymentAmount = parseFloat(paymentDetails.amount);
-  const totalDebitAmount = paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
-    const debit = activeDebits.find((d) => d.randomId === debitId);
-    return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
-  }, 0);
-  const remainingPayable = selectedOutgoing.totalPayableAmount - totalDebitAmount - paymentAmount;
 
-  const paymentDetailsToSend = {
-    outgoingId: selectedOutgoing.outgoingId,
-    paymentType: paymentDetails.paymentType,
-    totalPayableAmount: selectedOutgoing.totalPayableAmount || 0,
-    fullPaymentAmount: paymentDetails.paymentType === 'full' ? (selectedOutgoing.totalPayableAmount - totalDebitAmount) : 0,
-    partialAmount: paymentDetails.paymentType === 'partial' ? paymentAmount : 0,
-    advanceAmount: paymentDetails.paymentType === 'advance' ? paymentAmount : 0,
-    paymentMethod: paymentDetails.paymentMethod,
-    paymentMode: paymentDetails.paymentMode,
-    pettyCashAmount: paymentDetails.paymentMode === 'Cash' && paymentDetails.paymentMethod === 'pettyCash' ? paymentAmount : 0,
-    hoCash: paymentDetails.paymentMode === 'Cash' && paymentDetails.paymentMethod === 'hoCash' ? paymentAmount : 0,
-    upi: paymentDetails.paymentMethod === 'upi' ? paymentDetails.upi : '',
-    bankName: paymentDetails.paymentMode === 'Bank' ? paymentDetails.bankName : '',
-    impsNo: paymentDetails.paymentMethod === 'imps' ? paymentDetails.impsNo : '',
-    neftNo: paymentDetails.paymentMethod === 'neft' ? paymentDetails.neftNo : '',
-    rtgsNo: paymentDetails.paymentMethod === 'rtgs' ? paymentDetails.rtgsNo : '',
-    chequeNo: '',
-    selectedDebitNotes: paymentDetails.selectedDebitNotes,
-  };
-
-  const proceedWithPayment = async () => {
-    try {
-      setIsSinglePaymentLoading(true);
-      await dispatch(processPayment(paymentDetailsToSend)).unwrap();
-      resetPaymentDetails();
-      setOpenDetailsDialog(false);
-      dispatch(fetchOutgoings({
-        page: newPage,
-        size: pageSize,
-        filterBy: dateField,
-        filterByAmount: true,
-      }));
-      setConfirmDialogOpen(false);
-      dispatch(setSnackbarMessage('Payment processed successfully'));
-      dispatch(setSnackbarOpen(true));
-    } catch (error) {
-      console.error('Failed to process payment:', error);
-      dispatch(setSnackbarMessage('Failed to process payment. Please try again.'));
-      dispatch(setSnackbarOpen(true));
-    } finally {
-      setIsSinglePaymentLoading(false);
-    }
-  };
-
-  // Check for existing debit notes or no debit notes selected
-  const hasExistingDebitNotes = selectedOutgoing.hasDebitCreditNotes || paymentDetails.selectedDebitNotes.length > 0;
-
-  if (hasExistingDebitNotes && paymentDetails.selectedDebitNotes.length === 0) {
-    setConfirmDialogProps({
-      title: 'Confirm Payment Without Debit Note',
-      description: (
-        <Box>
-          <Typography>
-          Are you sure you want to proceed with the payment without applying additional debit notes?
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            Vendor: {selectedOutgoing?.vendorName} <br />
-            Invoice No: {selectedOutgoing?.invoiceNo} <br />
-            Total Payable: {selectedOutgoing?.totalPayableAmount.toFixed(2)} <br />
-            Debit Notes Applied: {totalDebitAmount.toFixed(2)} <br />
-            Payment Amount: {paymentAmount.toFixed(2)} <br />
-            Remaining Payable: {remainingPayable.toFixed(2)}
-          </Typography>
-        </Box>
-      ),
-      onConfirm: proceedWithPayment,
-    });
-    setConfirmDialogOpen(true);
-  } else if (paymentDetails.selectedDebitNotes.length === 0 && activeDebits.length > 0) {
-    setConfirmDialogProps({
-      title: 'Confirm Payment Without Debit Note',
-      description: (
-        <Box>
-          <Typography>
-            Are you sure you want to proceed with the payment without applying any debit notes?
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            Vendor: {selectedOutgoing?.vendorName} <br />
-            Invoice No: {selectedOutgoing?.invoiceNo} <br />
-            Total Payable: {selectedOutgoing?.totalPayableAmount.toFixed(2)} <br />
-            Debit Notes Applied: {totalDebitAmount.toFixed(2)} <br />
-            Payment Amount: {paymentAmount.toFixed(2)} <br />
-            Remaining Payable: {remainingPayable.toFixed(2)}
-          </Typography>
-        </Box>
-      ),
-      onConfirm: proceedWithPayment,
-    });
-    setConfirmDialogOpen(true);
-  } else if (totalDebitAmount > 0 && paymentDetails.paymentType === 'full' && totalDebitAmount + paymentAmount > selectedOutgoing.totalPayableAmount) {
-    setConfirmDialogProps({
-      title: 'Confirm Full Payment with Debit Notes',
-      description: (
-        <Box>
-          <Typography>
-            You have selected debit notes totaling {totalDebitAmount.toFixed(2)}, and for full payment, the amount will be adjusted to { (selectedOutgoing.totalPayableAmount - totalDebitAmount).toFixed(2) }. Are you sure you want to proceed? You may not have paid the full amount yet.
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            Vendor: {selectedOutgoing?.vendorName} <br />
-            Invoice No: {selectedOutgoing?.invoiceNo} <br />
-            Total Payable: {selectedOutgoing?.totalPayableAmount.toFixed(2)} <br />
-            Debit Notes Applied: {totalDebitAmount.toFixed(2)} <br />
-            Adjusted Payment Amount: {(selectedOutgoing.totalPayableAmount - totalDebitAmount).toFixed(2)} <br />
-            Remaining Payable: {remainingPayable.toFixed(2)}
-          </Typography>
-        </Box>
-      ),
-      onConfirm: proceedWithPayment,
-    });
-    setConfirmDialogOpen(true);
-  } else {
-    setConfirmDialogProps({
-      title: 'Confirm Payment',
-      description: (
-        <Box>
-          <Typography>
-            Are you sure you want to process the payment for this outgoing?
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            Vendor: {selectedOutgoing?.vendorName} <br />
-            Invoice No: {selectedOutgoing?.invoiceNo} <br />
-            Total Payable: {selectedOutgoing?.totalPayableAmount.toFixed(2)} <br />
-            Debit Notes Applied: {totalDebitAmount.toFixed(2)} <br />
-            Payment Amount: {paymentAmount.toFixed(2)} <br />
-            Remaining Payable: {remainingPayable.toFixed(2)}
-          </Typography>
-        </Box>
-      ),
-      onConfirm: proceedWithPayment,
-    });
-    setConfirmDialogOpen(true);
-  }
-};
   console.log(filteredPayments);
 
 
@@ -858,31 +505,6 @@ const handleConfirmPayment = async () => {
       setPaymentTypeMultiple(prev => ({ ...prev, [outgoingId]: value }));
     }
 
-  };
-
-  const handlePartialAmountChangeMultiple = (outgoingId: string, value: string, totalPayableAmount: number) => {
-  if (!outgoingId) return;
-  // Allow empty input to clear the field without setting an error
-  if (value === '') {
-    setPartialAmount(prev => ({ ...prev, [outgoingId]: '' }));
-    setErrors(prev => ({ ...prev, [outgoingId]: '' }));
-    return;
-  }
-  const validationError = validateAmount(value, totalPayableAmount); // Pass totalPayableAmount
-  if (validationError) {
-    setErrors(prev => ({ ...prev, [outgoingId]: validationError }));
-    setPartialAmount(prev => ({ ...prev, [outgoingId]: value }));
-  } else {
-    setErrors(prev => ({ ...prev, [outgoingId]: '' }));
-    setPartialAmount(prev => ({ ...prev, [outgoingId]: value }));
-  }
-};
-
-  const handlePartialAmountChange = (outgoingId: string, value: string) => {
-    setPartialAmount((prev) => ({
-      ...prev,
-      [outgoingId]: value,
-    }));
   };
 
   const handleGrnClick = async (grnId: string) => {
@@ -1049,12 +671,12 @@ const handleConfirmPayment = async () => {
         10: { halign: 'right' }, // Remaining Amount
       },
     });
-const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-  }
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    }
     // Save the PDF with a dynamic name based on outgoing order ID
     const pdfFilename = `PendingOutgoing.pdf`;
     doc.save(pdfFilename);
@@ -1131,23 +753,23 @@ const totalPages = doc.getNumberOfPages();
     setOpenDialog(false);
   };
 
-const handlePayClick = () => {
-  // Gather selected data and make sure outgoingId is defined
-  const selectedData = outgoings.filter(outgoing =>
-    outgoing.outgoingId !== undefined && selectedRows.includes(outgoing.outgoingId)
-  );
+  const handlePayClick = () => {
+    // Gather selected data and make sure outgoingId is defined
+    const selectedData = outgoings.filter(outgoing =>
+      outgoing.outgoingId !== undefined && selectedRows.includes(outgoing.outgoingId)
+    );
 
-  // Check if any outgoings are selected
-  if (selectedData.length === 0) {
-    dispatch(setSnackbarMessage('Please select at least one outgoing payment to process'));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
+    // Check if any outgoings are selected
+    if (selectedData.length === 0) {
+      dispatch(setSnackbarMessage('Please select at least one outgoing payment to process'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
 
-  // Set the selected data and open the bulk payment dialog
-  setSelectedOutgoings(selectedData);
-  setIsBulkPaymentOpen(true); // Open the bulk payment dialog
-};
+    // Set the selected data and open the bulk payment dialog
+    setSelectedOutgoings(selectedData);
+    setIsBulkPaymentOpen(true); // Open the bulk payment dialog
+  };
   const handleDownload = async (outgoingId: string) => {
     const outgoingdetail = outgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
 
@@ -1191,15 +813,13 @@ const handlePayClick = () => {
     }
 
     // Payment Details Section
-    const paymentMethod = outgoingdetail.paymentMethod || 'Not Provided';
+    const paymentMethod = outgoingdetail.paymentMethod;
     let paymentDetails = '';
 
-    if (paymentMethod === 'cash') {
-      paymentDetails = `Cash Voucher No: ${outgoingdetail.cashVoucherNo || 'Not Provided'}`;
-    } else if (paymentMethod === 'neft') {
-      paymentDetails = `NEFT No: ${outgoingdetail.neftNo || 'Not Provided'}`;
+    if (paymentMethod === 'neft') {
+      paymentDetails = `NEFT No: ${outgoingdetail.neftNo}`;
     } else if (paymentMethod === 'rtgs') {
-      paymentDetails = `RTGS No: ${outgoingdetail.rtgsNo || 'Not Provided'}`;
+      paymentDetails = `RTGS No: ${outgoingdetail.rtgsNo}`;
     }
 
     // Add Payment details to the PDF
@@ -1211,23 +831,23 @@ const handlePayClick = () => {
     // Vendor and Business Details
     const vendorDetailsRows = [
       [
-        `Vendor Name: ${outgoingdetail.vendorName || 'Not Provided'}\n` +
-        `GSTIN: ${outgoingdetail.gstNumber || 'Not Provided'}\n` +
-        `Address: ${outgoingdetail.address || 'Not Provided'}\n` +
-        `City: ${outgoingdetail.city || 'Not Provided'}\n` +
-        `State: ${outgoingdetail.state || 'Not Provided'}\n` +
-        `Country: ${outgoingdetail.country || 'Not Provided'}\n` +
-        `Email: ${outgoingdetail.contactpersonEmail || 'Not Provided'}`,
+        `Vendor Name: ${outgoingdetail.vendorName}\n` +
+        `GSTIN: ${outgoingdetail.gstNumber}\n` +
+        `Address: ${outgoingdetail.address}\n` +
+        `City: ${outgoingdetail.city}\n` +
+        `State: ${outgoingdetail.state}\n` +
+        `Country: ${outgoingdetail.country}\n` +
+        `Email: ${outgoingdetail.contactpersonEmail}`,
         `Business Name: ${business?.companyName || ''}\n` +
         `GSTIN: ${business?.gstIn || ''}\n` +
         `Address: ${business?.address1 || ''}\n` +
         `Phone: ${business?.phoneNo || ''}\n` +
         `Email: ${business?.emailId || ''}`,
-        `Outgoing No: ${outgoingdetail.randomId || 'Not Provided'}\n` +
-        `PO No: ${outgoingdetail.poRandomId || 'Not Provided'}\n` +
-        `GRN No: ${getRandomId(outgoingdetail.grnId) || 'Not Provided'}\n` +
+        `Outgoing No: ${outgoingdetail.randomId}\n` +
+        `PO No: ${outgoingdetail.poRandomId}\n` +
+        `GRN No: ${getRandomId(outgoingdetail.grnId)}\n` +
         `AP No: ${outgoingdetail.apRandomId}\n` +
-        `Date: ${outgoingdetail.createdDate ? format(new Date(outgoingdetail.createdDate), 'dd-MM-yyyy') : 'Not Provided'}`
+        `Date: ${outgoingdetail.createdDate ? format(new Date(outgoingdetail.createdDate), 'dd-MM-yyyy') : ''}`
       ]
     ];
 
@@ -1331,9 +951,7 @@ const handlePayClick = () => {
       paidAmount = totalPayableAmount;
     } else if (outgoingdetail.status === 'Partially Paid') {
       paidAmount = partialAmount;
-    } else if (outgoingdetail.status === 'Advance PAid') {
-      paidAmount = advanceAmount;
-    }
+    } 
 
     // Now you can update the summaryTable with payment status, paid amount, and pending amount.
     const summaryTable = [
@@ -1456,13 +1074,13 @@ const handlePayClick = () => {
                   </Button>
                 </Link>
               </Grid>
-              <Grid item>
+              {/* <Grid item>
                 <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>
                   <Button variant="contained" color="primary" sx={{ mr: 1 }} >
                     Advance Payment
                   </Button>
                 </Link>
-              </Grid>
+              </Grid> */}
               <Grid item>
                 <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
                   <Button variant="contained" color="primary" sx={{ mr: 1 }}>
@@ -1479,10 +1097,10 @@ const handlePayClick = () => {
               </Grid>
               <Grid item>
                 <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
-                  <Button variant="contained" color="primary" sx={{mr:1}}>Ledger</Button>
+                  <Button variant="contained" color="primary" sx={{ mr: 1 }}>Ledger</Button>
                 </Link>
               </Grid>
-                <Grid item>
+              <Grid item>
                 <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
                   <Button variant="contained" color="primary">Purchase Return</Button>
                 </Link>
@@ -1846,7 +1464,7 @@ Description:<br />
                                     ).map(([key, taxDetail], index) => {
                                       const halfTaxPercentage = taxDetail.purchasetaxName / 2;
                                       return (
-                                       <div key={key} style={{ fontSize: '14px' }}>
+                                        <div key={key} style={{ fontSize: '14px' }}>
                                           SGST ({halfTaxPercentage}%): {taxDetail.sgst.toFixed(2)} | CGST ({halfTaxPercentage}%):{' '}
                                           {taxDetail.cgst.toFixed(2)} | IGST ({taxDetail.purchasetaxName}%): {taxDetail.igst.toFixed(2)} - Total:{' '}
                                           {taxDetail.totalAmount.toFixed(2)}
@@ -1855,7 +1473,7 @@ Description:<br />
                                     })}
                                   </React.Fragment>
                                 ) : (
-                               <span style={{ fontSize: '14px' }}>No item details available</span>
+                                  <span style={{ fontSize: '14px' }}>No item details available</span>
                                 )
                               }
                               placement="top"
@@ -1943,240 +1561,6 @@ Description:<br />
             </Grid>
 
           </Grid>
-<Dialog open={openDetailsDialog} onClose={() => setOpenDetailsDialog(false)}>
-  <DialogTitle>Payment Details</DialogTitle>
-  <DialogContent>
-    <Typography variant="body1" gutterBottom>
-      Total Amount: ₹{selectedOutgoing?.totalPayableAmount?.toFixed(2) || 'N/A'}
-    </Typography>
-    <Typography variant="body2" color="textSecondary">
-      Total Debit Amount: ₹{totalDebitAmount.toFixed(2)}
-    </Typography>
-    <Typography variant="body2" color="textSecondary">
-      Remaining Payable: ₹{(selectedOutgoing?.totalPayableAmount - totalDebitAmount).toFixed(2)}
-    </Typography>
-    <TextField
-      select
-      name="paymentType"
-      label="Payment Type"
-      value={paymentDetails.paymentType}
-      onChange={handlePaymentTypeChange}
-      fullWidth
-      margin="normal"
-    >
-      <MenuItem value="full">Full Payment</MenuItem>
-      <MenuItem value="partial">Partial Payment</MenuItem>
-      <MenuItem value="advance">Advance Payment</MenuItem>
-    </TextField>
-    <TextField
-      autoComplete="off"
-      name="amount"
-      label="Amount"
-      value={paymentDetails.amount}
-      onChange={handleInputChange}
-      fullWidth
-      margin="normal"
-      required
-      error={!!error}
-      helperText={error}
-      disabled={paymentDetails.paymentType === 'full'}
-      inputProps={{ type: 'number', step: '0.01' }}
-    />
-    <TextField
-      select
-      name="paymentMode"
-      label="Payment Mode"
-      value={paymentDetails.paymentMode}
-      onChange={handlePaymentModeChange}
-      fullWidth
-      margin="normal"
-    >
-      <MenuItem value="Cash">Cash</MenuItem>
-      <MenuItem value="Bank">Bank</MenuItem>
-    </TextField>
-    {paymentDetails.paymentMode === 'Cash' && (
-      <TextField
-        select
-        name="paymentMethod"
-        label="Payment Method"
-        value={paymentDetails.paymentMethod}
-        onChange={handleInputChange}
-        fullWidth
-        margin="normal"
-        required
-      >
-        <MenuItem value="pettyCash">Petty Cash</MenuItem>
-        <MenuItem value="hoCash">HO Cash</MenuItem>
-      </TextField>
-    )}
-    {paymentDetails.paymentMode === 'Bank' && (
-      <>
-        <TextField
-          select
-          name="bankName"
-          label="Bank Name"
-          value={paymentDetails.bankName}
-          onChange={handleInputChange}
-          fullWidth
-          margin="normal"
-        >
-          {banks.map((bank) => (
-            <MenuItem key={bank.bankMasterId} value={bank.bankName}>
-              {bank.bankName}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          name="paymentMethod"
-          label="Payment Method"
-          value={paymentDetails.paymentMethod}
-          onChange={handlePaymentMethodChange}
-          fullWidth
-          margin="normal"
-        >
-          <MenuItem value="neft">NEFT</MenuItem>
-          <MenuItem value="rtgs">RTGS</MenuItem>
-          <MenuItem value="imps">IMPS</MenuItem>
-          <MenuItem value="upi">UPI</MenuItem>
-        </TextField>
-        {paymentDetails.paymentMethod === 'neft' && (
-          <TextField
-            autoComplete="off"
-            name="neftNo"
-            label="NEFT Number"
-            value={paymentDetails.neftNo}
-            onChange={handleInputChange}
-            fullWidth
-            margin="normal"
-            required
-          />
-        )}
-        {paymentDetails.paymentMethod === 'rtgs' && (
-          <TextField
-            autoComplete="off"
-            name="rtgsNo"
-            label="RTGS Number"
-            value={paymentDetails.rtgsNo}
-            onChange={handleInputChange}
-            fullWidth
-            margin="normal"
-            required
-          />
-        )}
-        {paymentDetails.paymentMethod === 'imps' && (
-          <TextField
-            autoComplete="off"
-            name="impsNo"
-            label="IMPS Number"
-            value={paymentDetails.impsNo}
-            onChange={handleInputChange}
-            fullWidth
-            margin="normal"
-            required
-          />
-        )}
-        {paymentDetails.paymentMethod === 'upi' && (
-          <TextField
-            autoComplete="off"
-            name="upi"
-            label="UPI ID"
-            value={paymentDetails.upi}
-            onChange={handleInputChange}
-            fullWidth
-            margin="normal"
-            required
-          />
-        )}
-      </>
-    )}
-    {activeDebits.length > 0 && (
-      <Box sx={{ mt: 2 }}>
-        <Typography variant="subtitle1">Apply Debit Notes</Typography>
-       <FormControl fullWidth sx={{ mb: 2 }}>
-  <InputLabel>Apply Debit Notes</InputLabel>
-  <Select
-    multiple
-    value={paymentDetails.selectedDebitNotes}
-    onChange={(e: SelectChangeEvent<string[]>) =>
-      handleDebitNoteChange(e.target.value as string[])
-    }
-    label="Apply Debit Notes"
-    renderValue={(selected) => {
-      if (selected.length === 0) return 'No debit notes selected';
-      return selected
-        .map((id) => {
-          const debit = activeDebits.find((d) => d.randomId === id);
-          return debit ? `${debit.randomId} (₹${parseFloat(debit.finalAmount || '0').toFixed(2)})` : '';
-        })
-        .join(', ');
-    }}
-  >
-    {activeDebits.map((debit) => (
-      <MenuItem key={debit.randomId} value={debit.randomId}>
-        <Checkbox
-          checked={paymentDetails.selectedDebitNotes.includes(debit.randomId)}
-        />
-        <ListItemText
-          primary={`${debit.randomId} - ₹${parseFloat(debit.finalAmount || '0').toFixed(2)}`}
-        />
-      </MenuItem>
-    ))}
-  </Select>
-</FormControl>
-      </Box>
-    )}
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={handleClosePayDialog} color="primary">
-      Cancel
-    </Button>
-    <Button
-      onClick={handleConfirmPayment}
-      color="primary"
-      disabled={isSinglePaymentLoading || !!error}
-    >
-      {isSinglePaymentLoading ? <CircularProgress size={24} /> : 'Confirm Payment'}
-    </Button>
-  </DialogActions>
-</Dialog>
-       
-   
-          <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} >
-            <DialogTitle>Confirm Payment</DialogTitle>
-            <DialogContent>
-              <Typography variant="body1">Are you sure you want to process the payment for this outgoing?</Typography>
-              <Typography variant="body2" style={{ marginTop: 10 }}>
-                Vendor: {selectedOutgoing?.vendorName} <br />
-                Invoice No: {selectedOutgoing?.invoiceNo} <br />
-              </Typography>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setConfirmDialogOpen(false)} variant="contained" color="primary">Cancel</Button>
-              <Button onClick={async () => {
-                try {
-                  setIsSinglePaymentLoading(true);
-                  await dispatch(processPayment(paymentDetailsToSend)).unwrap();
-                  resetPaymentDetails();
-                  handleClosePayDialog();
-                  dispatch(fetchOutgoings({
-                    page: newPage,
-                    size: pageSize,
-                    filterBy: dateField,
-                    filterByAmount: true,
-                  }));
-                  setConfirmDialogOpen(false); // Close the confirmation dialog
-                  setIsSinglePaymentLoading(false);
-                } catch (error) {
-                  console.error('Failed to process payment:', error);
-                  alert('Failed to process payment. Please try again.');
-                  setConfirmDialogOpen(false); // Close the confirmation dialog if error occurs
-                  setIsSinglePaymentLoading(false);
-                }
-              }} variant="contained" color="primary">Confirm</Button>
-            </DialogActions>
-          </Dialog>
-       
           <DebitCreditNoteDialog />
           <PODialog
             open={poDialogOpen}
@@ -2197,10 +1581,10 @@ Description:<br />
             apInvoice={selectedApInvoice}
           />
           <BulkPaymentDialog
-  open={isBulkPaymentOpen}
-  onClose={() => setIsBulkPaymentOpen(false)}
-  selectedOutgoings={selectedOutgoings}
-/>
+            open={isBulkPaymentOpen}
+            onClose={() => setIsBulkPaymentOpen(false)}
+            selectedOutgoings={selectedOutgoings}
+          />
 
           {/* Dialog for choosing PDF or CSV */}
           <Dialog open={openDialog} onClose={handleCloseDialog}>
@@ -2242,13 +1626,30 @@ Description:<br />
             onClose={() => dispatch(clearSnackbarMessage())} // Manually close the snackbar when clicked
           />
           <ConfirmationDialog
-        open={confirmDialogOpen}
-        onClose={() => setConfirmDialogOpen(false)}
-        onConfirm={confirmDialogProps.onConfirm}
-        title={confirmDialogProps.title}
-        description={confirmDialogProps.description}
-      />
-      
+            open={confirmDialogOpen}
+            onClose={() => setConfirmDialogOpen(false)}
+            onConfirm={confirmDialogProps.onConfirm}
+            title={confirmDialogProps.title}
+            description={confirmDialogProps.description}
+          />
+
+          <SinglePaymentDialog
+            open={openDetailsDialog}
+            onClose={() => setOpenDetailsDialog(false)}
+            selectedOutgoing={selectedOutgoing}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            dateField={dateField}
+            onPaymentSuccess={() => {
+              dispatch(fetchOutgoings({
+                page: currentPage,
+                size: pageSize,
+                filterBy: dateField,
+                filterByAmount: true,
+              }));
+            }}
+          />
+
         </Grid>
       </Box>
     </Box>

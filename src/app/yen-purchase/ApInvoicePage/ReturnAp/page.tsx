@@ -635,19 +635,19 @@ const toggleFullScreen = () => {
 
  const vendorDetailsRows = [
       [
-        `${apinvoice.vendorName || 'Not Provided'}\n` +
-        `GSTIN: ${apinvoice.gstNumber || 'Not Provided'}\n` +
-        `Address: ${apinvoice.address || 'Not Provided'}\n` +
-        `City: ${apinvoice.city || 'Not Provided'}\n` +
-        `State: ${apinvoice.state || 'Not Provided'}\n` +
-        `Country: ${apinvoice.country || 'Not Provided'}\n` +
-        `Email: ${apinvoice.contactpersonEmail || 'Not Provided'}`,
-        `Billing Address: ${apinvoice.billingAddress || 'Not Provided'}`,
-        `PO No: ${apinvoice.poRandomId || 'Not Provided'}\n` +
-        `GRN No: ${apinvoice.grnRandomId || 'Not Provided'}\n` +
-        `AP No: ${apinvoice.randomId || 'Not Provided'}\n` +
-        `Invoice No: ${apinvoice.invoiceNo || 'Not Provided'}\n` +
-        `Invoice Date: ${apinvoice.invoiceDate ? format(new Date(apinvoice.invoiceDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+        `${apinvoice.vendorName }\n` +
+        `GSTIN: ${apinvoice.gstNumber }\n` +
+        `Address: ${apinvoice.address }\n` +
+        `City: ${apinvoice.city }\n` +
+        `State: ${apinvoice.state }\n` +
+        `Country: ${apinvoice.country }\n` +
+        `Email: ${apinvoice.contactpersonEmail }`,
+        `Billing Address: ${apinvoice.billingAddress }`,
+        `PO No: ${apinvoice.poRandomId }\n` +
+        `GRN No: ${apinvoice.grnRandomId }\n` +
+        `AP No: ${apinvoice.randomId }\n` +
+        `Invoice No: ${apinvoice.invoiceNo }\n` +
+        `Invoice Date: ${apinvoice.invoiceDate ? format(new Date(apinvoice.invoiceDate), 'dd-MM-yyyy') : ''}\n` +
         `Payment Terms: ${apinvoice.paymentTerms || '15'} \n` +
         `Currency: ${'INR'}`,
       ]
@@ -685,7 +685,7 @@ const toggleFullScreen = () => {
     yOffset += 45;
 
     // Items Table Section
-    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Count','Qty','Stock Qty', 'Unit Price', 'Tax', 'Amount'];
+    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count','Qty','Stock Qty', 'Unit Price', 'Tax', 'Amount'];
     const tableRows = apinvoice.itemDetails.map((item, index) => {
       const unitPrice = item.unitPrice || 0;
       const quantity = item.quantity || 0;
@@ -1255,7 +1255,7 @@ const toggleFullScreen = () => {
                     <TableRow>
                       <TableCell>Item Name</TableCell>
                       <TableCell>UOM</TableCell>
-                      <TableCell>Count</TableCell>
+                      <TableCell>Pkt Count</TableCell>
                       <TableCell>Quantity</TableCell>
                       <TableCell>Stock Quantity</TableCell>
                       <TableCell>Discount(%)</TableCell>

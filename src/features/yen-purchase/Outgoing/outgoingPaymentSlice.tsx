@@ -17,13 +17,31 @@ interface ProcessPaymentRequest {
   rtgsNo?: string;
   impsNo?: string;
   upi?: string;
-  pettyCashAmount?: number;
-  hoCash?: number;
+  cashAmount:number;
   bankName?: string;
   selectedDebitNotes?: string[]; // Changed to array to support multiple debit notes
 }
+// Define the argument type for fetchOutgoings
+interface FetchOutgoingsArgs {
+  page: number;
+  size: number;
+  fromDate?: Date;
+  toDate?: Date;
+  vendorName?: string;
+  filterBy?: 'invoiceDate' | 'paymentDate' | 'outgoingDate';
+  status?: string;
+  filterByAmount?: boolean;
+  filterByStatus?: boolean;
+  sortOrder?: 'ascending' | 'descending';
+  filterAll?: boolean;
+}
 
-export const fetchOutgoings = createAsyncThunk(
+// Async thunk for fetching outgoings
+export const fetchOutgoings = createAsyncThunk<
+  { outgoings: Outgoing[]; totalItems: number },
+  FetchOutgoingsArgs,
+  { rejectValue: string }
+>(
   'outgoings/fetchOutgoings',
   async (
     {
@@ -31,61 +49,42 @@ export const fetchOutgoings = createAsyncThunk(
       size,
       fromDate,
       toDate,
-      vendorName,
-      filterBy,  // invoiceDate or paymentDate
+      vendorName, 
+      filterBy,
       status,
       filterByAmount,
-      filterByStatus
-    }: {
-      page: number;
-      size: number;
-      fromDate?: Date;
-      toDate?: Date;
-      vendorName?: string;
-      filterBy?: string;  // invoiceDate or paymentDate
-      status?: string;
-      filterByAmount?: boolean | null;
-      filterByStatus?: boolean | null;
-    }) => {
+      filterByStatus,
+      sortOrder = 'ascending',
+      filterAll = true,
+    },
+    { rejectWithValue }
+  ) => {
     try {
-      const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
-
-      // Prepare query parameters dynamically based on provided arguments
+      const url = 'http://192.168.29.116:8000/purchaseapi/outgoingpayments/';
       const params: any = {
-        skip: (page - 1) * size, // Pagination skip
-        limit: size,             // Pagination limit
-        filterByAmount,          // Optional filter by amount
-        filterByStatus,          // Optional filter by status
+        skip: (page - 1) * size,
+        limit: size,
+        filterByAmount: filterByAmount ?? false,
+        filterByStatus: filterByStatus ?? false,
+        sortOrder,
+        filterAll,
       };
 
-      // Add filters to params if provided
-      if (fromDate) {
-        params.fromDate = fromDate.toISOString();
-      }
-      if (toDate) {
-        params.toDate = toDate.toISOString();
-      }
-      if (vendorName) {
-        params.vendorName = vendorName;
-      }
-      if (filterBy) {
-        params.filterBy = filterBy;
-      }
-      if (status) {
-        params.status = status;
-      }
+      if (fromDate) params.fromDate = fromDate.toISOString();
+      if (toDate) params.toDate = toDate.toISOString();
+      if (vendorName) params.vendorName = vendorName;
+      if (filterBy) params.filterBy = filterBy;
+      if (status) params.status = status;
 
-      // Make the GET request with query parameters
-      const response = await axios.get(url, { params });
-
-      return response.data;  // Returning the paginated and filtered outgoings
-
-    } catch (error) {
+      const response = await axios.get<{ outgoings: Outgoing[]; totalItems: number }>(url, { params });
+      return response.data;
+    } catch (error: any) {
       console.error('Failed to fetch outgoings:', error);
-      throw new Error('Failed to fetch outgoings');
+      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch outgoings');
     }
   }
 );
+
 export const fetchVendorDetails = createAsyncThunk(
   'outgoing/fetchVendorDetails',
   async (filters: {
@@ -140,11 +139,6 @@ export const updateOutgoing = createAsyncThunk<Outgoing, Outgoing>('outgoings/up
   return response.data;
 });
 
-// // Async thunk to delete an Outgoing item
-// export const deleteOutgoing = createAsyncThunk<void, string>('outgoings/deleteOutgoing', async (outgoingId) => {
-//   await axios.delete(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}`); // Adjust the API endpoint as needed
-// });
-
 export const fetchBank = createAsyncThunk('bank/fetchBanks', async () => {
   const response = await axios.get(`https://yenerp.com/masterapi/bankmasters/`);
   return response.data;
@@ -164,21 +158,22 @@ export const processPayment = createAsyncThunk<
       totalPayableAmount,
       fullPaymentAmount,
       partialAmount,
-      advanceAmount,
       paymentMethod,
       chequeNo,
       neftNo,
       rtgsNo,
       impsNo,
       upi,
-      pettyCashAmount,
-      hoCash,
+      cashAmount,
       bankName,
-      selectedDebitNotes = [], // Already supports array
+      selectedDebitNotes = [],
     },
     { rejectWithValue }
   ) => {
     try {
+      if (!['full', 'partial'].includes(paymentType)) {
+        throw new Error('Payment type must be "full" or "partial"');
+      }
       const payload = {
         outgoingId,
         paymentMode,
@@ -186,22 +181,20 @@ export const processPayment = createAsyncThunk<
         totalPayableAmount,
         fullPaymentAmount: paymentType === 'full' ? fullPaymentAmount : 0,
         partialAmount: paymentType === 'partial' ? partialAmount : 0,
-        advanceAmount: paymentType === 'advance' ? advanceAmount : 0,
         paymentMethod,
         chequeNo,
         neftNo,
         rtgsNo,
         impsNo,
         upi,
-        pettyCashAmount,
-        hoCash,
+      cashAmount,
         bankName,
-        selectedDebitNotes, // Pass the array as-is
+        selectedDebitNotes,
       };
 
-      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`http://192.168.29.116:8000/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || error.response?.data || 'Payment processing failed');
+      return rejectWithValue(error.response?.data?.detail || error.message || 'Payment processing failed');
     }
   }
 );
@@ -237,7 +230,7 @@ export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
     try {
       // Fetch debits for each vendor sequentially
       const allDebits: DebitNote[] = [];
-      
+
       for (const vendorName of vendorNames) {
         try {
           const response = await axios.get(`https://yenerp.com/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
@@ -249,11 +242,11 @@ export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
           // Continue with other vendors even if one fails
         }
       }
-      
+
       if (allDebits.length === 0) {
         throw new Error('No debits found for any vendor');
       }
-      
+
       return allDebits;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch active debits');
@@ -479,17 +472,34 @@ const outgoingSlice = createSlice({
     builder
       .addCase(fetchOutgoings.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
-      .addCase(fetchOutgoings.fulfilled, (state, action) => {
+      .addCase(
+        fetchOutgoings.fulfilled,
+        (
+          state,
+          action: PayloadAction<
+            { outgoings: Outgoing[]; totalItems: number },
+            string,
+            { arg: FetchOutgoingsArgs }
+          >
+        ) => {
+          state.loading = false;
+          state.outgoings = action.payload.outgoings.map(outgoing => ({
+            ...outgoing,
+            paidAmount: (outgoing.advanceAmount || 0) + (outgoing.partialAmount || 0) + (outgoing.fullPaymentAmount || 0),
+            // No date conversion; keep as strings
+          }));
+          state.totalItems = action.payload.totalItems;
+          state.currentPage = action.meta.arg.page;
+          state.pageSize = action.meta.arg.size;
+        }
+      )
+      .addCase(fetchOutgoings.rejected, (state, action) => {
         state.loading = false;
-        state.outgoings = action.payload;
-        state.currentPage = action.meta.arg.page;
-        state.pageSize = action.meta.arg.size;
-        state.totalItems = action.payload.totalItems; // Assuming the response has a 'totalItems' property
-        state.daysFilterDate = action.payload.daysFilterDate ?? state.daysFilterDate;
-      })
-      .addCase(fetchOutgoings.rejected, (state) => {
-        state.loading = false;
+        state.error = action.payload as string;
+        state.snackbarMessage = action.payload as string;
+        state.snackbarOpen = true;
       })
       .addCase(fetchVendorDetails.pending, (state) => {
         state.loading = true;
@@ -635,7 +645,7 @@ const outgoingSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
         state.snackbarOpen = true;
-        state.snackbarMessage = action.payload as string; 
+        state.snackbarMessage = action.payload as string;
       })
       .addCase(fetchActiveDebitsVendor.pending, (state) => {
         state.loading = true;
@@ -649,7 +659,7 @@ const outgoingSlice = createSlice({
         state.loading = false;
         state.error = action.payload || 'Failed to fetch active debits';
       })
-  .addCase(fetchActiveDebitsMultipleVendor.pending, (state) => {
+      .addCase(fetchActiveDebitsMultipleVendor.pending, (state) => {
         state.loading = true;
         state.error = null;
       })

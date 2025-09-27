@@ -74,7 +74,7 @@ import userAccountReducer from '../features/userAccountSlice';
 // import currencyReducer from '../features/masterAdminSlice/currencySlice';
 
 import locationAreaReducer from '../features/locationAreaSlice';
-
+import advancePaymentReducer from '../features/yen-purchase/Outgoing/advancePaymentSlice'
 // import tableReducer from '../features/yen-pos/tableSlice';
 // import assetReducer from '../features/yen-pos/assetSlice';
 
@@ -155,6 +155,7 @@ const store = configureStore({
     csvOperations:csvOperationsReducer,
     debitCreditNote:debitCreditNoteReducer,
     outgoingLedger:outgoingLedgerReducer,
+    advances: advancePaymentReducer, // Make sure this is correctly named
     // addOns: addOnReducer,    
     // variants: variantReducer,
 

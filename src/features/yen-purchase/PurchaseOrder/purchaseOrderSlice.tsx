@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction, createAsyncThunk, createAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '@/redux/store'; // Adjust the import path accordingly
-import { Item, ItemInput, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'
+import { CalculateOverallDiscountPayload, Item, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'
 
 export interface PurchaseItemSearch {
   purchaseitemId: string;
@@ -125,7 +125,7 @@ export const initialState: PurchaseOrderState = {
 let purchaseItemsCache: Map<string, { data: PurchaseItemSearchAdd[], timestamp: number }> = new Map();
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
 
 export const fetchPurchaseOrders = createAsyncThunk(
   'purchaseOrder/fetchPurchaseOrders',
@@ -266,53 +266,34 @@ export const calculateItemTotals = createAsyncThunk(
     }
   }
 );
-export const calculateOverallDiscountForAllItems = createAsyncThunk(
+export const calculateOverallDiscountForAllItems = createAsyncThunk<
+  OverallDiscountResponse,
+  CalculateOverallDiscountPayload,
+  { rejectValue: OverallDiscountResponse }
+>(
   'purchaseOrder/calculateOverallDiscountForAllItems',
-  async (payload: {
-    items: ItemInput[];
-    overallDiscountValue: number;
-    overallDiscountMode: 'percentage' | 'amount';
-    applyOverallDiscount: boolean;
-  }): Promise<OverallDiscountResponse> => {
+  async (payload: CalculateOverallDiscountPayload, { rejectWithValue }) => {
     try {
-      const requestBody = {
-        items: payload.items.map(item => ({
-          id: item.id || '',
-          pendingTotalQuantity: item.pendingTotalQuantity,
-          poQuantity: item.poQuantity,
-          newPrice: item.newPrice,
-          befTaxDiscount: item.befTaxDiscount || 0,
-          afTaxDiscount: item.afTaxDiscount || 0,
-          befTaxDiscountAmount: item.befTaxDiscountAmount || 0,
-          afTaxDiscountAmount: item.afTaxDiscountAmount || 0,
-          befTaxDiscountType: item.befTaxDiscountType || 'percentage',
-          afTaxDiscountType: item.afTaxDiscountType || 'percentage',
-          taxPercentage: item.taxPercentage || 0,
-          taxType: item.taxType || 'cgst_sgst'
-        })),
-        overallDiscount: payload.overallDiscountMode === 'percentage' ? payload.overallDiscountValue : 0,
-        overallDiscountAmount: payload.overallDiscountMode === 'amount' ? payload.overallDiscountValue : 0,
-        overallDiscountType: payload.overallDiscountMode,
-        applyOverallDiscount: payload.applyOverallDiscount
-      };
+      console.log('Sending to backend:', payload); // Debug log
 
       const response = await fetch(`${BASE_URL}/purchaseorders/items/calculate-overall-discount`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
+      const result: OverallDiscountResponse = await response.json();
+      console.log('Backend response:', result); // Debug log
       return result;
     } catch (error) {
       console.error('Error calculating overall discount:', error);
-      return {
+      return rejectWithValue({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
         items: [],
@@ -324,13 +305,11 @@ export const calculateOverallDiscountForAllItems = createAsyncThunk(
           totalTaxAmount: 0,
           totalDiscountAmount: 0,
           totalItems: 0,
-        }
-      };
+        },
+      });
     }
   }
 );
-
-
 export const downloadCsvTemplate = createAsyncThunk(
   'purchaseOrder/downloadCsvTemplate',
   async (_, { rejectWithValue }) => {
@@ -465,6 +444,7 @@ export const setDiscountMode = createAction<{
   mode: 'percentage' | 'amount';
   recalculate?: boolean; // Optional flag to recalculate after mode change
 }>('purchaseOrder/setDiscountMode');
+
 const purchaseOrderSlice = createSlice({
   name: 'purchaseOrder',
   initialState,

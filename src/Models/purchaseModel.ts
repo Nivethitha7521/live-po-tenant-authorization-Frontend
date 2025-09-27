@@ -279,44 +279,45 @@ export const initialState: PurchaseListState = {
   selectedPo: null,
   poDialogOpen: false,
 };
-// Add this interface to your slice types
-export interface ItemInput {
-  id?: string;
+// Define the Item type for the payload
+export interface PurchaseOrderItem {
+  id: string;
   pendingTotalQuantity: number;
   poQuantity: number;
   newPrice: number;
-  befTaxDiscount?: number;
-  afTaxDiscount?: number;
-  befTaxDiscountAmount?: number;
-  afTaxDiscountAmount?: number;
-  befTaxDiscountType?: 'percentage' | 'amount';
-  afTaxDiscountType?: 'percentage' | 'amount';
-  taxPercentage?: number;
-  taxType?: 'cgst_sgst' | 'igst';
+  befTaxDiscount: number;
+  afTaxDiscount: number;
+  befTaxDiscountAmount: number;
+  afTaxDiscountAmount: number;
+  befTaxDiscountType: 'percentage' | 'amount';
+  afTaxDiscountType: 'percentage' | 'amount';
+  taxPercentage: number;
+  taxType: 'cgst_sgst' | 'igst';
 }
 
+// Define the response type for the thunk
 export interface OverallDiscountResponse {
   success: boolean;
-  items: {
+  error?: string;
+  items: Array<{
     id: string;
-    pendingTotalPrice: number;
-    pendingBefTaxDiscountAmount: number;
-    pendingAfTaxDiscountAmount: number;
-    pendingDiscountAmount: number;
+    pendingTotalQuantity: number;
+    poQuantity: number;
+    newPrice: number;
+    befTaxDiscount: number;
+    afTaxDiscount: number;
+    befTaxDiscountAmount: number;
+    afTaxDiscountAmount: number;
+    pendingFinalPrice: number;
+    pendingOrderAmount: number;
     pendingTaxAmount: number;
+    pendingAfTaxDiscountAmount:number;
+    pendingDiscountAmount: number;
+    pendingTotalPrice: number;
     pendingSgst: number;
     pendingCgst: number;
     pendingIgst: number;
-    pendingFinalPrice: number;
-    pendingOrderAmount: number;
-    befTaxDiscount: number;
-    afTaxDiscount: number;
-    itemOverallDiscountAmount: number;
-    proportion: number;
-    subtotalBeforeOverallDiscount: number;
-    poQuantity: number;
-    quantity: number;
-  }[];
+  }>;
   summary: {
     totalSubtotal: number;
     overallDiscountTotalAmount: number;
@@ -326,5 +327,13 @@ export interface OverallDiscountResponse {
     totalDiscountAmount: number;
     totalItems: number;
   };
-  error?: string;
+}
+
+// Define the payload type for the thunk
+export interface CalculateOverallDiscountPayload {
+  items: PurchaseOrderItem[];
+  overallDiscount: number;
+  overallDiscountAmount: number;
+  overallDiscountType: 'percentage' | 'amount';
+  applyOverallDiscount: boolean;
 }

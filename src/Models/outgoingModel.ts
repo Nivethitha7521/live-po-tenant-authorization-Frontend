@@ -9,74 +9,72 @@ export interface ItemDetails {
   taxAmount: number;
   hsnCode: string;
 }
-// Interface for Outgoing item
 export interface Outgoing {
   outgoingId: string;
   purchaseOrderId?: string;
   grnId: string;
   invoiceId: string;
-  poRandomId: string;
-  grnRandomId: string;
-  apRandomId: string;
+  poRandomId?: string;
+  grnRandomId?: string;
+  apRandomId?: string;
   vendorName?: string;
-  orderDate?: Date | null;
-  grnDate?: Date | null;
+  orderDate?: string;
+  grnDate?: string;
+  outgoingDate?: string;
+  createdDate?: Date | string;
+  lastUpdatedDate?: Date | string;
   invoiceDate?: Date | null;
-  invoiceNo?: string;
-  apinvoiceDate?: Date | null;
-  poDate?: Date | null;
+  poDate?: string;
+  paymentDate?:Date;
+  apinvoiceDate?: string;
   receivingLocation?: string;
-  payableAmount: number;
   totalPayableAmount?: number;
+  paidAmount?: number;
   comments?: string;
-  createdDate?: Date | null;
-  lastUpdatedDate?: Date | null;
+  invoiceNo?: string;
   poCreatedPerson?: string;
   grnCreatedPerson?: string;
   apCreatedPerson?: string;
   grnVerifiedPerson?: string;
   apVerifiedPerson?: string;
+  intimationDays?: number;
   paymentMethod?: string;
-  paymentDate: Date | null;
+  paymentMode?: string;
   advanceAmount?: number;
   totalPrice?: number;
+  payableAmount?: number;
   partialAmount?: number;
   fullPaymentAmount?: number;
+  paymentType?: string;
   chequeNo?: number;
-  paidAmount?:number;
-  paymentType: string;
   onlinePayment?: number;
-  intimationDays: string | null;
-  itemDetails: ItemDetails[];
   discountDetails?: number;
-  paymentMode: string;
-  taxDetails: number;
+  taxDetails?: number;
   neftNo?: string;
   rtgsNo?: string;
-  cashVoucherNo?: string;
-  impsNo: string;
-  upi: string;
-  paymentCash: string;
-  pettyCashAmount: number;
-  hoCash: number;
+  cashAmount:number;
+  impsNo?: string;
+  upi?: string;
   status?: string;
   randomId?: string;
-  address: string;
-  country: string;
-  state: string;
-  city: string;
-  postalCode: number;
-  gstNumber: string;
-  contactpersonEmail: string;
-  shippingAddress: string;
+  address?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  postalCode?: number;
+  gstNumber?: string;
+  contactpersonEmail?: string;
   paymentTerms: string;
-  billingAddress: string;
-  bankName: string;
-  hasDebitCreditNotes:boolean;
-  debitAmount:number;
-  invoiceplusdebit:number;
-  selectedDebitNotes?: string[]; // Add this to support debit notes
+  shippingAddress?: string;
+  billingAddress?: string;
+  bankName?: string;
+  hasDebitCreditNotes?: boolean;
+  debitAmount?: number;
+  selectedDebitNotes?: string[];
+  paymentHistory?: PaymentHistory[];
+  itemDetails?: ItemDetails[];
 }
+
 export interface TaxDetail {
   id: string;
   taxName: string;
@@ -114,6 +112,21 @@ export interface VendorPayment {
   paymentType: 'full' | 'partial' ;
   amount: number;
   selectedDebitNotes: string[];
+}
+export interface PaymentHistory {
+  amount?: number;
+  paymentType?: string;
+  paymentMethod?: string;
+  paymentMode?: string;
+  cashAmount:number;
+  bankName?: string;
+  impsNo?: string;
+  neftNo?: string;
+  rtgsNo?: string;
+  upi?: string;
+  date?: string; // ISO string to match datetime in Pydantic
+  debitNotesApplied?: string[];
+  debitAmount?: number;
 }
 // Interface for Outgoing slice state
 export interface OutgoingState {
@@ -173,7 +186,7 @@ export interface PaymentDetails {
   paymentMethod: string;
   chequeNo?: string;
   neftNo?: string;
-  cashVoucherNo?: string;
+  cashAmount:number;
   rtgsNo?: string;
   transactionNumber?: string;
   bankName: string;
@@ -237,8 +250,7 @@ export interface PaymentInfo {
   rtgsNo?: string;
   impsNo?: string;
   upi?: string;
-  pettyCashAmount?: number;
-  hoCash?: number;
+  cashAmount:number;
   bankName?: string;
   selectedDebitNotes: string[];
 }

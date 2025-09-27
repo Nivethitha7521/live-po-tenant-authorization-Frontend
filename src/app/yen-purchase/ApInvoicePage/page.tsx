@@ -127,6 +127,7 @@ const VerifiedApInvoicePage: React.FC = () => {
     endDate: new Date(),
     key: 'selection',
   });
+  const [outgoingDate, setOutgoingDate] = useState<Date | null>(null); // New state for outgoingDate
   const [anchorElDate, setAnchorElDate] = useState<null | HTMLElement>(null);
   const dateField = 'apinvoiceDate';
   const fromDate = moment().utc().startOf('day').toDate(); // Start of the day (in UTC)
@@ -190,6 +191,10 @@ const VerifiedApInvoicePage: React.FC = () => {
     if (currentPage > 1) {
       handlePageChange(currentPage - 1);
     }
+  };
+  const handleOutgoingDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const dateValue = event.target.value ? new Date(event.target.value) : null;
+    setOutgoingDate(dateValue);
   };
   const handleViewCreditNotes = (invoiceId: string) => {
     console.log('Opening DebitCreditNoteDialog for invoiceId:', invoiceId);
@@ -716,21 +721,23 @@ const VerifiedApInvoicePage: React.FC = () => {
       console.error('No invoice selected');
     }
   };
-
   const handlePostOutgoingPayment = () => {
     if (!selectedInvoice) return;
     setLoading(true);
 
-    // Get the discount price from the TextField, default to 0 if invalid or empty
     const discountToApply = isNaN(apDiscountPrice) || apDiscountPrice === null ? 0 : apDiscountPrice;
 
-    // Dispatch the combined thunk to post the Outgoing Payment and apply the discount
-    dispatch(postOutgoingAndUpdateDiscount({ invoiceId: selectedInvoice.invoiceId, apDiscountPrice: discountToApply }))
+    dispatch(postOutgoingAndUpdateDiscount({
+      invoiceId: selectedInvoice.invoiceId,
+      apDiscountPrice: discountToApply,
+      outgoingDate // Pass the selected outgoingDate
+    }))
       .unwrap()
       .then(() => {
         console.log('Outgoing payment posted and discount applied successfully!');
         dispatch(setSnackbarMessage('Outgoing payment posted and discount applied successfully'));
         dispatch(setSnackbarOpen(true));
+        setOutgoingDate(null); // Reset date after submission
       })
       .catch((err: any) => {
         console.error('Error posting outgoing payment and applying discount:', err);
@@ -738,14 +745,19 @@ const VerifiedApInvoicePage: React.FC = () => {
         dispatch(setSnackbarOpen(true));
       })
       .finally(() => {
-        setOutgoingDialogOpen(false); // Close the Outgoing Payment dialog
-        setDetailsDialogOpen(false); // Close the details dialog
+        setOutgoingDialogOpen(false);
+        setDetailsDialogOpen(false);
         setLoading(false);
-        // Refresh the AP Invoices list to reflect the updated status and discount
-        dispatch(fetchApInvoices({ page: newPage, size: pageSize, status, dateFilterField: dateField, fromDate, toDate }));
+        dispatch(fetchApInvoices({
+          page: newPage,
+          size: pageSize,
+          status,
+          dateFilterField: dateField,
+          fromDate,
+          toDate
+        }));
       });
   };
-
   const handleDownload = async (apinvoiceId: string) => {
     const apinvoice = apInvoices.find((invoice: ApInvoice) => invoice.invoiceId === apinvoiceId);
 
@@ -797,19 +809,19 @@ const VerifiedApInvoicePage: React.FC = () => {
 
     const vendorDetailsRows = [
       [
-        `${apinvoice.vendorName || 'Not Provided'}\n` +
-        `GSTIN: ${apinvoice.gstNumber || 'Not Provided'}\n` +
-        `Address: ${apinvoice.address || 'Not Provided'}\n` +
-        `City: ${apinvoice.city || 'Not Provided'}\n` +
-        `State: ${apinvoice.state || 'Not Provided'}\n` +
-        `Country: ${apinvoice.country || 'Not Provided'}\n` +
-        `Email: ${apinvoice.contactpersonEmail || 'Not Provided'}`,
-        `Billing Address: ${apinvoice.billingAddress || 'Not Provided'}`,
-        `PO No: ${apinvoice.poRandomId || 'Not Provided'}\n` +
-        `GRN No: ${apinvoice.grnRandomId || 'Not Provided'}\n` +
-        `AP No: ${apinvoice.randomId || 'Not Provided'}\n` +
-        `Invoice No: ${apinvoice.invoiceNo || 'Not Provided'}\n` +
-        `Invoice Date: ${apinvoice.invoiceDate ? format(new Date(apinvoice.invoiceDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+        `${apinvoice.vendorName }\n` +
+        `GSTIN: ${apinvoice.gstNumber }\n` +
+        `Address: ${apinvoice.address }\n` +
+        `City: ${apinvoice.city }\n` +
+        `State: ${apinvoice.state }\n` +
+        `Country: ${apinvoice.country }\n` +
+        `Email: ${apinvoice.contactpersonEmail }`,
+        `Billing Address: ${apinvoice.billingAddress }`,
+        `PO No: ${apinvoice.poRandomId }\n` +
+        `GRN No: ${apinvoice.grnRandomId }\n` +
+        `AP No: ${apinvoice.randomId }\n` +
+        `Invoice No: ${apinvoice.invoiceNo }\n` +
+        `Invoice Date: ${apinvoice.invoiceDate ? format(new Date(apinvoice.invoiceDate), 'dd-MM-yyyy') : ''}\n` +
         `Payment Terms: ${apinvoice.paymentTerms || '15'} \n` +
         `Due Date: ${format(dueDate, 'dd-MM-yyyy')}\n` +
         `Currency: ${'INR'}`,
@@ -848,7 +860,7 @@ const VerifiedApInvoicePage: React.FC = () => {
 
     yOffset += 45;
 
-    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Count', 'Qty', 'Stock Qty', 'Unit Price', 'Tax', 'Amount'];
+    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count', 'Qty', 'Stock Qty', 'Unit Price', 'Tax', 'Amount'];
     const tableRows = apinvoice.itemDetails.map((item, index) => {
       const unitPrice = item.unitPrice || 0;
       const quantity = item.quantity || 0;
@@ -1344,17 +1356,27 @@ const VerifiedApInvoicePage: React.FC = () => {
                     {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                   </IconButton>
                 </Box>
-                {/* Vendor and date in a single row */}
-                <Box sx={{ display: 'flex', gap: 3, mb: 2, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: 3, mb: 2, alignItems: 'center' }}>
                   <Typography variant="h6">
                     <strong>Vendor:</strong> {selectedInvoice.vendorName}
                   </Typography>
                   <Typography variant="h6">
-                    <strong>Invoice Date:</strong> {selectedInvoice?.invoiceDate ? format(new Date(selectedInvoice.invoiceDate), 'dd-MM-yyyy') : ''}
+                    <strong>Invoice Date:</strong>{' '}
+                    {selectedInvoice?.invoiceDate
+                      ? format(new Date(selectedInvoice.invoiceDate), 'dd-MM-yyyy')
+                      : ''}
                   </Typography>
                   <Typography variant="h6">
                     <strong>Total Amount:</strong> {selectedInvoice.invoiceAmount}
                   </Typography>
+                  <TextField
+                    label="Outgoing Date"
+                    type="date"
+                    value={outgoingDate ? format(outgoingDate, 'yyyy-MM-dd') : ''}
+                    onChange={handleOutgoingDateChange}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ maxWidth: 200 }}
+                  />
                 </Box>
 
                 <TableContainer component={Paper} sx={{ mt: 2 }}>
@@ -1365,7 +1387,7 @@ const VerifiedApInvoicePage: React.FC = () => {
                         <TableCell>Received Quantity</TableCell>
                         <TableCell>UOM</TableCell>
                         <TableCell>Returned Quantity</TableCell>
-                        <TableCell>Count</TableCell>
+                        <TableCell>Pkt Count</TableCell>
                         <TableCell>Quantity</TableCell>
                         <TableCell>Stock Quantity</TableCell>
                         <TableCell>Bef Tax Discount(%)</TableCell>

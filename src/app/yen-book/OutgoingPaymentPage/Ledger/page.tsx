@@ -291,13 +291,13 @@ const LedgerPage = () => {
               </Button>
             </Link>
           </Grid>
-          <Grid item>
+          {/* <Grid item>
             <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>
               <Button variant="contained" size="small">
                 Advance Payment
               </Button>
             </Link>
-          </Grid>
+          </Grid> */}
           <Grid item>
             <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
               <Button variant="contained" size="small">

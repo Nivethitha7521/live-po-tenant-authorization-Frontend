@@ -124,9 +124,9 @@ const PaidPaymentComponent = () => {
 
 
   const paidOutgoings = outgoings.filter(payment => {
-    const totalPaid = (payment.advanceAmount || 0) + (payment.partialAmount || 0) + (payment.fullPaymentAmount || 0);
-    return totalPaid > 0 || payment.status === 'Fully Paid'; // Include all partially paid and fully paid outgoings
+    return payment.status === 'Fully Paid' || payment.status === 'Partially Paid';
   });
+
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
       return;
@@ -154,66 +154,57 @@ const PaidPaymentComponent = () => {
 
 
   const handleFilterClick = () => {
-    let filtered = outgoings;
+    // Prepare filter parameters
+    const formattedStartDate = selectionRange?.startDate instanceof Date
+      ? moment(selectionRange.startDate).startOf('day').toDate()
+      : StartDate;
+    const formattedEndDate = selectionRange?.endDate instanceof Date
+      ? moment(selectionRange.endDate).endOf('day').toDate()
+      : EndDate;
 
-    // Ensure proper date handling with Date objects
-    const formattedStartDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : StartDate;
-    const formattedEndDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : EndDate;
+    const filterParams: any = {
+      page: newPage,
+      size: pageSize,
+      filterByStatus: true,
+      filterBy: dateField,
+    };
 
-    // Filter based on selected vendor name
-    if (selectedVendorName && selectedVendorName.vendorName) {
-      filtered = filtered.filter((outgoing) =>
-        outgoing.vendorName?.toLowerCase().includes(selectedVendorName.vendorName.toLowerCase())
-      );
-    }
-
-    // Filter based on start date
     if (formattedStartDate) {
-      filtered = filtered.filter(outgoing => {
-        const paymentDateParsed = outgoing.paymentDate
-          ? new Date(outgoing.paymentDate) : null;
-        // Only compare dates if invoiceDateParsed is valid
-        return paymentDateParsed && paymentDateParsed >= formattedStartDate;
-      });
+      filterParams.fromDate = formattedStartDate;
     }
-
-    // Filter based on end date
     if (formattedEndDate) {
-      filtered = filtered.filter(outgoing => {
-        const paymentDateParsed = outgoing.paymentDate
-          ? new Date(outgoing.paymentDate) // Ensure invoiceDate is formatted as a string
-          : null;
-        // Only compare dates if invoiceDateParsed is valid
-        return paymentDateParsed && paymentDateParsed <= formattedEndDate;
-      });
+      filterParams.toDate = formattedEndDate;
+    }
+    if (selectedVendorName?.vendorName && selectedVendorName.vendorName.trim() !== '') {
+      filterParams.vendorName = selectedVendorName.vendorName.trim();
     }
 
-    // Send filters to the backend
-    dispatch(
-      fetchOutgoings({
-        page: newPage, size: pageSize,
-        fromDate: formattedStartDate instanceof Date ? formattedStartDate : undefined,
-        toDate: formattedEndDate instanceof Date ? formattedEndDate : undefined,
-        vendorName: selectedVendorName?.vendorName, // Use vendorName from selectedVendorName object
-        filterBy: 'paymentDate',
-        filterByStatus: true
-      })
-    )
-      .then((response) => {
-        const data = response.payload || [];
+    console.log('Applying filters:', filterParams);
 
-        if (data.length === 0) {
-          console.log('No matching outgoing found.');
+    dispatch(fetchOutgoings(filterParams))
+      .then((response) => {
+        // Explicitly type the response payload
+        const data = response.payload as { outgoings: Outgoing[]; totalItems: number } | string;
+
+        console.log('Filtered outgoings:', data);
+
+        if (typeof data === 'string') {
+          setSnackbarMessage(data);
+          setSnackbarOpen(true);
+          setFilteredOutgoing([]);
+        } else if (data.outgoings.length === 0) {
           setSnackbarMessage('No matching Outgoing Payment found.');
           setSnackbarOpen(true);
+          setFilteredOutgoing([]);
         } else {
-          setFilteredOutgoing(data); // Update filtered orders state with the data from the backend
+          setFilteredOutgoing(data.outgoings);
         }
       })
       .catch((error) => {
         console.error('Error fetching outgoing:', error);
         setSnackbarMessage(error.message || 'Error fetching outgoing');
         setSnackbarOpen(true);
+        setFilteredOutgoing([]);
       });
   };
   const handleFilterClose = () => {
@@ -462,15 +453,13 @@ const PaidPaymentComponent = () => {
 
 
     // Payment Details Section
-    const paymentMethod = outgoingdetail.paymentMethod || 'Not Provided';
+    const paymentMethod = outgoingdetail.paymentMethod;
     let paymentDetails = '';
 
-    if (paymentMethod === 'cash') {
-      paymentDetails = `Cash Voucher No: ${outgoingdetail.cashVoucherNo || 'Not Provided'}`;
-    } else if (paymentMethod === 'neft') {
-      paymentDetails = `NEFT No: ${outgoingdetail.neftNo || 'Not Provided'}`;
+    if (paymentMethod === 'neft') {
+      paymentDetails = `NEFT No: ${outgoingdetail.neftNo}`;
     } else if (paymentMethod === 'rtgs') {
-      paymentDetails = `RTGS No: ${outgoingdetail.rtgsNo || 'Not Provided'}`;
+      paymentDetails = `RTGS No: ${outgoingdetail.rtgsNo}`;
     }
 
     // Add Payment details to the PDF
@@ -483,19 +472,19 @@ const PaidPaymentComponent = () => {
     // Vendor and Business Details
     const vendorDetailsRows = [
       [
-        `Vendor Name: ${outgoingdetail.vendorName || 'Not Provided'}\n` +
-        `GSTIN: ${outgoingdetail.gstNumber || 'Not Provided'}\n` +
-        `Address: ${outgoingdetail.address || 'Not Provided'}\n` +
-        `City: ${outgoingdetail.city || 'Not Provided'}\n` +
-        `State: ${outgoingdetail.state || 'Not Provided'}\n` +
-        `Country: ${outgoingdetail.country || 'Not Provided'}\n` +
-        `Email: ${outgoingdetail.contactpersonEmail || 'Not Provided'}`,
-        `Business Name: ${business?.companyName || 'Not Provided'}\n` +
-        `GSTIN: ${business?.gstIn || 'Not Provided'}\n` +
-        `Address: ${business?.address1 || 'Not Provided'}\n` +
-        `Phone: ${business?.phoneNo || 'Not Provided'}\n` +
-        `Email: ${business?.emailId || 'Not Provided'}`,
-        `Outgoing No: ${outgoingdetail.randomId || 'Not Provided'}\n` +
+        `Vendor Name: ${outgoingdetail.vendorName}\n` +
+        `GSTIN: ${outgoingdetail.gstNumber}\n` +
+        `Address: ${outgoingdetail.address}\n` +
+        `City: ${outgoingdetail.city}\n` +
+        `State: ${outgoingdetail.state}\n` +
+        `Country: ${outgoingdetail.country}\n` +
+        `Email: ${outgoingdetail.contactpersonEmail}`,
+        `Business Name: ${business?.companyName}\n` +
+        `GSTIN: ${business?.gstIn}\n` +
+        `Address: ${business?.address1}\n` +
+        `Phone: ${business?.phoneNo}\n` +
+        `Email: ${business?.emailId}`,
+        `Outgoing No: ${outgoingdetail.randomId}\n` +
         `Date: ${outgoingdetail.createdDate
           ? format(new Date(outgoingdetail.createdDate), 'dd-MM-yyyy')
           : 'Not Provided'}`
@@ -683,12 +672,12 @@ const PaidPaymentComponent = () => {
                 <Button variant="contained" color="primary">Pre Outgoing</Button>
               </Link>
             </Grid>
-
+{/* 
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>
                 <Button variant="contained" color="primary">Advance Payment</Button>
               </Link>
-            </Grid>
+            </Grid> */}
 
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
@@ -918,26 +907,15 @@ const PaidPaymentComponent = () => {
                       </TableCell>
                     </TableRow>
                   ) : (paidOutgoings.map((payment, index) => {
-                    const totalPaid =
-                      (payment.advanceAmount || 0) +
-                      (payment.partialAmount || 0) +
-                      (payment.fullPaymentAmount || 0) +
-                      (payment.totalPayableAmount || 0);
-                    const total =
-                      (payment.advanceAmount || 0) +
-                      (payment.partialAmount || 0) +
-                      (payment.fullPaymentAmount || 0);
-
                     return (
                       <TableRow key={payment.outgoingId}>
                         <TableCell>{index + 1}</TableCell>
                         <TableCell>{payment.vendorName}</TableCell>
                         <TableCell>{payment.invoiceNo || "N/A"}</TableCell>
                         <TableCell>{payment.invoiceDate ? format(payment.invoiceDate, 'dd-MM-yyyy') : 'N/A'}</TableCell>
-                        <TableCell>{payment.payableAmount?.toFixed(2) || 0.00}</TableCell>
+                        <TableCell>{payment.totalPayableAmount?.toFixed(2) || 0.00}</TableCell>
                         <TableCell>{payment.paidAmount?.toFixed(2)}</TableCell>
                         <TableCell>{payment.paymentDate ? format(payment.paymentDate, 'dd-MM-yyyy') : 'N/A'}</TableCell>
-
                         <TableCell>
                           <Box
                             sx={{

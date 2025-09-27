@@ -230,7 +230,6 @@ const TableRowMemo = React.memo(
   )
 );
 TableRowMemo.displayName = "TableRowMemo";
-TableRowMemo.displayName = 'TableRowMemo';
 interface OrderDetailsDialogProps {
   open: boolean;
   onClose: () => void;
@@ -1007,163 +1006,262 @@ const CreatePurchase: React.FC = () => {
     },
     []
   );
-  const handleSaveChanges = useCallback(async () => {
-    console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate });
+ // Fixed handleSaveChanges function with proper validation and calculation
+const handleSaveChanges = useCallback(async () => {
+  console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate });
 
-    if (!selectedOrder?.purchaseOrderId) {
-      setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
+  if (!selectedOrder?.purchaseOrderId) {
+    setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  if (!invoiceNumber.trim()) {
+    setSnackbarInvoiceMessage("Invoice number is required.");
+    setSnackbarInvoiceOpen(true);
+    setIsTouched(true);
+    return;
+  }
+
+  if (!invoiceDate) {
+    setSnackbarInvoiceMessage("Invoice date is required.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  if (isInvoiceDuplicate) {
+    setSnackbarInvoiceMessage("Duplicate invoice number detected. Please enter a unique invoice number.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  // Check for validation errors
+  const hasErrors = Object.values(errors).some((errorObj) =>
+    Object.values(errorObj).some((error) => error)
+  );
+  if (hasErrors) {
+    setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  // Filter items that have valid received quantities and pending quantities
+  const validItems = updatedItems.filter((item) => {
+    const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+    const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+    const receivedQuantity = item.receivedQuantity === "" ? 0 : Number(item.receivedQuantity);
+    
+    // Validate discount ranges
+    const befTaxDiscount = Number(item.befTaxDiscount) || 0;
+    const afTaxDiscount = Number(item.afTaxDiscount) || 0;
+    
+    if (befTaxDiscount < 0 || befTaxDiscount > 100) {
+      setSnackbarInvoiceMessage(`Before-tax discount for item "${item.itemName}" must be between 0 and 100%.`);
       setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    if (!invoiceNumber) {
-      setSnackbarInvoiceMessage("Invoice number is required.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    if (!invoiceDate) {
-      setSnackbarInvoiceMessage("Invoice date is required.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    if (isInvoiceDuplicate) {
-      setSnackbarInvoiceMessage("Duplicate invoice number detected. Please enter a unique invoice number.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    // Check if there are any items with pendingTotalQuantity > 0
-    const validItems = updatedItems.filter((item) => {
-      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
-      const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      const receivedQuantity = item.receivedQuantity === "" ? 0 : Number(item.receivedQuantity);
-      return receivedQuantity > 0 && pendingTotalQuantity > 0;
-    });
-
-    // If no valid items are found, show a message and prevent GRN conversion
-    if (validItems.length === 0) {
-      const hasPendingItems = updatedItems.some((item) => {
-        const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
-        return (originalItem?.pendingTotalQuantity || 0) > 0;
-      });
-
-      if (!hasPendingItems) {
-        setSnackbarInvoiceMessage("All items in this purchase order have already been fully received.");
-        setSnackbarInvoiceOpen(true);
-      } else {
-        setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0.");
-        setSnackbarInvoiceOpen(true);
-      }
-      return;
-    }
-
-    // Check for validation errors
-    const hasErrors = Object.values(errors).some((errorObj) =>
-      Object.values(errorObj).some((error) => error)
-    );
-    if (hasErrors) {
-      setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    // Check for excess quantities
-    const hasExcessQuantity = validItems.some((item) => {
-      const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
-      const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      const receivedQuantity = Number(item.receivedQuantity);
-      if (receivedQuantity > backendPendingTotalQuantity) {
-        setExcessDialogMessage(
-          `Received quantity for item "${item.itemName}" (${receivedQuantity}) exceeds the pending total quantity (${backendPendingTotalQuantity}).`
-        );
-        setExcessDialogOpen(true);
-        return true;
-      }
       return false;
+    }
+    
+    if (afTaxDiscount < 0) {
+      setSnackbarInvoiceMessage(`After-tax discount for item "${item.itemName}" cannot be negative.`);
+      setSnackbarInvoiceOpen(true);
+      return false;
+    }
+
+    return receivedQuantity > 0 && pendingTotalQuantity > 0;
+  });
+
+  // If no valid items are found, show a message and prevent GRN conversion
+  if (validItems.length === 0) {
+    const hasPendingItems = updatedItems.some((item) => {
+      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+      return (originalItem?.pendingTotalQuantity || 0) > 0;
     });
 
-    if (hasExcessQuantity) return;
+    if (!hasPendingItems) {
+      setSnackbarInvoiceMessage("All items in this purchase order have already been fully received.");
+      setSnackbarInvoiceOpen(true);
+    } else {
+      setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0.");
+      setSnackbarInvoiceOpen(true);
+    }
+    return;
+  }
 
-    // Prepare items for submission
-    const items = validItems.map((item) => ({
+  // Check for excess quantities one more time
+  const hasExcessQuantity = validItems.some((item) => {
+    const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
+    const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+    const receivedQuantity = Number(item.receivedQuantity);
+    
+    if (receivedQuantity > backendPendingTotalQuantity) {
+      setExcessDialogMessage(
+        `Received quantity for item "${item.itemName}" (${receivedQuantity}) exceeds the pending total quantity (${backendPendingTotalQuantity}).`
+      );
+      setExcessDialogOpen(true);
+      return true;
+    }
+    return false;
+  });
+
+  if (hasExcessQuantity) return;
+
+  // Prepare items for submission with validated data
+  const items = validItems.map((item) => {
+    // Ensure proper number conversion and validation
+    const receivedQuantity = Number(item.receivedQuantity);
+    const befTaxDiscount = Math.max(0, Math.min(100, Number(item.befTaxDiscount) || 0));
+    const afTaxDiscount = Math.max(0, Number(item.afTaxDiscount) || 0);
+    
+    return {
       itemId: item.itemId,
-      receivedQuantity: Number(item.receivedQuantity),
-      befTaxDiscount: Number(item.befTaxDiscount) || 0,
-      afTaxDiscount: Number(item.afTaxDiscount) || 0,
+      receivedQuantity: receivedQuantity,
+      befTaxDiscount: befTaxDiscount,
+      afTaxDiscount: afTaxDiscount,
       expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
-    }));
+    };
+  });
 
-    try {
-      setIsProcessing(true);
-      const updateResult = await dispatch(
-        updateReceivedDamagedQuantities({
-          purchaseOrderId: selectedOrder.purchaseOrderId,
-          items,
-          invoiceNo: invoiceNumber,
-          invoiceDate: invoiceDate,
-          grnDate: grnDate,
-          discountPrice: totalDiscountAmount,
-        })
-      ).unwrap();
-      console.log("Update Result:", updateResult);
+  // Log the items being sent to backend for debugging
+  console.log("Items being sent to backend:", items);
 
-      // Update selectedOrder with new backend state
-      const updatedOrderItems = selectedOrder.items.map((originalItem) => {
-        const updatedItem = items.find((item) => item.itemId === originalItem.itemId);
-        if (updatedItem) {
-          const newPendingTotalQuantity = Math.max(
-            0,
-            (originalItem.pendingTotalQuantity || 0) - updatedItem.receivedQuantity
-          );
-          const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
-          const newPendingQuantity = newPendingTotalQuantity;
-          return {
-            ...originalItem,
-            pendingTotalQuantity: newPendingTotalQuantity,
-            pendingCount: newPendingCount,
-            pendingQuantity: newPendingQuantity,
-            status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
-            receivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
-            befTaxDiscount: updatedItem.befTaxDiscount,
-            afTaxDiscount: updatedItem.afTaxDiscount,
-            expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
-          };
-        }
-        return originalItem;
-      });
+  try {
+    setIsProcessing(true);
+    
+    const updateResult = await dispatch(
+      updateReceivedDamagedQuantities({
+        purchaseOrderId: selectedOrder.purchaseOrderId,
+        items,
+        invoiceNo: invoiceNumber.trim(),
+        invoiceDate: invoiceDate,
+        grnDate: grnDate || new Date(),
+        discountPrice: 0, // PO-level discount, set to 0 if not used
+      })
+    ).unwrap();
+    
+    console.log("Update Result:", updateResult);
 
-      setSelectedOrder((prev) =>
-        prev
-          ? {
+    // Update selectedOrder with new backend state
+    const updatedOrderItems = selectedOrder.items.map((originalItem) => {
+      const updatedItem = items.find((item) => item.itemId === originalItem.itemId);
+      if (updatedItem) {
+        const newPendingTotalQuantity = Math.max(
+          0,
+          (originalItem.pendingTotalQuantity || 0) - updatedItem.receivedQuantity
+        );
+        const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
+        const newPendingQuantity = newPendingTotalQuantity;
+        
+        return {
+          ...originalItem,
+          pendingTotalQuantity: newPendingTotalQuantity,
+          pendingCount: newPendingCount,
+          pendingQuantity: newPendingQuantity,
+          status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
+          receivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+          totalReceivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+          befTaxDiscount: updatedItem.befTaxDiscount,
+          afTaxDiscount: updatedItem.afTaxDiscount,
+          expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
+        };
+      }
+      return originalItem;
+    });
+
+    // Update the selected order state
+    setSelectedOrder((prev) =>
+      prev
+        ? {
             ...prev,
             items: updatedOrderItems,
-            pendingOrderAmount: updatedOrderItems.reduce(
-              (sum, item) =>
-                sum +
-                (item.pendingTotalQuantity || 0) * (item.newPrice || 0) +
-                ((item.pendingTotalQuantity || 0) * (item.newPrice || 0) * (item.taxPercentage || 0)) / 100,
-              0
-            ),
+            pendingOrderAmount: updateResult.pendingOrderAmount || 0,
+            totalOrderAmount: updateResult.totalOrderAmount || 0,
+            invoiceNo: updateResult.invoiceNo,
+            invoiceDate: updateResult.invoiceDate,
           }
           : null
-      );
+    );
 
-      // Reset updatedItems for next session
+    // Reset form state for next session
+    setUpdatedItems(
+      updatedOrderItems.map((item) => ({
+        ...item,
+        receivedQuantity: "", // Reset to empty string
+        befTaxDiscount: item.befTaxDiscount || 0,
+        afTaxDiscount: item.afTaxDiscount || 0,
+        expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime()) 
+          ? new Date(item.expiryDate) 
+          : null,
+      }))
+    );
+
+    // Reset validation state
+    setTouched(
+      updatedOrderItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
+        }),
+        {}
+      )
+    );
+    
+    setErrors(
+      updatedOrderItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
+        }),
+        {}
+      )
+    );
+
+    // Refresh the purchase orders list
+    await dispatch(
+      fetchPurchaseOrders({
+        page: currentPage,
+        size: pageSize,
+        dateField: "approvedDate",
+        fromDate: moment().utc().startOf("day").toDate(),
+        toDate: moment().utc().endOf("day").toDate(),
+        status: "Approved",
+      })
+    ).unwrap();
+
+    setSnackbarInvoiceMessage('Changes saved successfully!');
+    setSnackbarInvoiceOpen(true);
+    handleCloseDialogs();
+    
+  } catch (error:any) {
+    console.error("Save Error:", error);
+    
+    let errorMessage = "Failed to save changes. ";
+    if (error.message) {
+      errorMessage += error.message;
+    } else if (typeof error === 'string') {
+      errorMessage += error;
+    } else {
+      errorMessage += "Please check your inputs and try again.";
+    }
+    
+    setSnackbarInvoiceMessage(errorMessage);
+    setSnackbarInvoiceOpen(true);
+    
+    // Revert updatedItems to original selectedOrder.items state on error
+    if (selectedOrder) {
       setUpdatedItems(
-        updatedOrderItems.map((item) => ({
+        selectedOrder.items.map((item) => ({
           ...item,
           receivedQuantity: "", // Reset to empty string
           befTaxDiscount: item.befTaxDiscount || 0,
           afTaxDiscount: item.afTaxDiscount || 0,
-          expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime()) ? new Date(item.expiryDate) : null,
+          expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime()) 
+            ? new Date(item.expiryDate) 
+            : null,
         }))
       );
-
-      // Reset touched and errors
+      
       setTouched(
-        updatedOrderItems.reduce(
+        selectedOrder.items.reduce(
           (acc, _, index) => ({
             ...acc,
             [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
@@ -1171,8 +1269,9 @@ const CreatePurchase: React.FC = () => {
           {}
         )
       );
+      
       setErrors(
-        updatedOrderItems.reduce(
+        selectedOrder.items.reduce(
           (acc, _, index) => ({
             ...acc,
             [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
@@ -1180,72 +1279,28 @@ const CreatePurchase: React.FC = () => {
           {}
         )
       );
-
-      await dispatch(
-        fetchPurchaseOrders({
-          page: currentPage,
-          size: pageSize,
-          dateField: "approvedDate",
-          fromDate: moment().utc().startOf("day").toDate(),
-          toDate: moment().utc().endOf("day").toDate(),
-          status: "Approved",
-        })
-      ).unwrap();
-
-      setSnackbarInvoiceMessage("Changes saved successfully!");
-      setSnackbarInvoiceOpen(true);
-      handleCloseDialogs();
-    } catch (error) {
-      console.error("Save Error:", error);
-      setSnackbarInvoiceMessage("Failed to save changes. Reverting UI to match backend state.");
-      setSnackbarInvoiceOpen(true);
-      // Revert updatedItems to original selectedOrder.items state
-      if (selectedOrder) {
-        setUpdatedItems(
-          selectedOrder.items.map((item) => ({
-            ...item,
-            receivedQuantity: "", // Reset to empty string
-            befTaxDiscount: item.befTaxDiscount || 0,
-            afTaxDiscount: item.afTaxDiscount || 0,
-            expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime()) ? new Date(item.expiryDate) : null,
-          }))
-        );
-        setTouched(
-          selectedOrder.items.reduce(
-            (acc, _, index) => ({
-              ...acc,
-              [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
-            }),
-            {}
-          )
-        );
-        setErrors(
-          selectedOrder.items.reduce(
-            (acc, _, index) => ({
-              ...acc,
-              [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
-            }),
-            {}
-          )
-        );
-      }
-    } finally {
-      setIsProcessing(false);
     }
-  }, [
-    selectedOrder,
-    invoiceNumber,
-    isInvoiceDuplicate,
-    updatedItems,
-    invoiceDate,
-    grnDate,
-    totalDiscountAmount,
-    errors,
-    dispatch,
-    currentPage,
-    pageSize,
-    handleCloseDialogs,
-  ]);
+  } finally {
+    setIsProcessing(false);
+  }
+}, [
+  selectedOrder,
+  invoiceNumber,
+  isInvoiceDuplicate,
+  updatedItems,
+  invoiceDate,
+  grnDate,
+  errors,
+  dispatch,
+  currentPage,
+  pageSize,
+  handleCloseDialogs,
+  setExcessDialogMessage,
+  setExcessDialogOpen,
+  setSnackbarInvoiceMessage,
+  setSnackbarInvoiceOpen,
+  setIsTouched,
+]);
   const filteredOrders = useMemo(() => purchaseList.filter((order) => order.poStatus === "Approved"), [purchaseList]);
   const handleViewDetailsClick = (orderId: string) => {
     const selectedOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
@@ -1452,12 +1507,12 @@ const CreatePurchase: React.FC = () => {
       doc.text(title, 90, yOffset + 5); // Centered title
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 0); // Black color
-      doc.text(business.companyName || 'Not Provided', 90, yOffset + 10);
+      doc.text(business.companyName , 90, yOffset + 10);
       doc.setFontSize(8);
-      doc.text(business.address1 || 'Not Provided', 90, yOffset + 15);
-      doc.text(`Tel.No: ${business.phoneNo || 'Not Provided'}`, 90, yOffset + 20);
-      doc.text(`E-Mail: ${business.emailId || 'Not Provided'}`, 90, yOffset + 25);
-      doc.text(`GSTIN: ${business.gstIn || 'Not Provided'}`, 90, yOffset + 30);
+      doc.text(business.address1 , 90, yOffset + 15);
+      doc.text(`Tel.No: ${business.phoneNo }`, 90, yOffset + 20);
+      doc.text(`E-Mail: ${business.emailId }`, 90, yOffset + 25);
+      doc.text(`GSTIN: ${business.gstIn }`, 90, yOffset + 30);
       yOffset += 35;
 
       // Vendor Details Table
@@ -1465,20 +1520,20 @@ const CreatePurchase: React.FC = () => {
       const tableHeader = [['Vendor Details', 'Billing Address', 'PO Details']];
       const vendorDetailsRows = [
         [
-          `${purchaseOrder.vendorName || 'Not Provided'}\n` +
-          `GSTIN: ${purchaseOrder.gstNumber || 'Not Provided'}\n` +
-          `Address: ${purchaseOrder.address || 'Not Provided'}\n` +
-          `City: ${purchaseOrder.city || 'Not Provided'}\n` +
-          `State: ${purchaseOrder.state || 'Not Provided'}\n` +
-          `Country: ${purchaseOrder.country || 'Not Provided'}\n` +
-          `Email: ${purchaseOrder.contactpersonEmail || 'Not Provided'}\n` +
-          `Phone: ${purchaseOrder.vendorContact || 'Not Provided'}`,
-          `Billing Address: ${purchaseOrder.billingAddress || 'Not Provided'}`,
-          `PO No: ${purchaseOrder.randomId || 'Not Provided'}\n` +
+          `${purchaseOrder.vendorName }\n` +
+          `GSTIN: ${purchaseOrder.gstNumber }\n` +
+          `Address: ${purchaseOrder.address }\n` +
+          `City: ${purchaseOrder.city }\n` +
+          `State: ${purchaseOrder.state }\n` +
+          `Country: ${purchaseOrder.country }\n` +
+          `Email: ${purchaseOrder.contactpersonEmail }\n` +
+          `Phone: ${purchaseOrder.vendorContact }`,
+          `Billing Address: ${purchaseOrder.billingAddress }`,
+          `PO No: ${purchaseOrder.randomId }\n` +
           `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
           `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-          `Payment Terms: ${purchaseOrder.paymentTerms || 'Not Provided'}\n` +
-          `Status: ${purchaseOrder.poStatus || 'Not Provided'}\n` +
+          `Payment Terms: ${purchaseOrder.paymentTerms }\n` +
+          `Status: ${purchaseOrder.poStatus }\n` +
           `Currency: INR`,
         ],
       ];

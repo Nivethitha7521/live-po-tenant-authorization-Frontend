@@ -33,8 +33,7 @@ interface PaymentDetailsState {
   paymentMode: 'Bank' | 'Cash' | '';
   paymentMethod: string;
   bankName: string;
-  pettyCashAmount: number;
-  hoCash: number;
+  cashAmount: number;
 }
 
 const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
@@ -47,8 +46,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     paymentMode: '',
     paymentMethod: '',
     bankName: '',
-    pettyCashAmount: 0,
-    hoCash: 0,
+    cashAmount: 0,
   });
   const [paymentTypeMultiple, setPaymentTypeMultiple] = useState<Record<string, 'full' | 'partial'>>({});
   const [partialAmount, setPartialAmount] = useState<Record<string, string>>({});
@@ -175,10 +173,9 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     setPaymentDetails((prev) => ({
       ...prev,
       paymentMode: value,
-      paymentMethod: value === 'Bank' ? 'neft' : 'pettyCash',
+      paymentMethod: value === 'Bank' ? 'neft' : 'cash',
       bankName: value === 'Bank' ? prev.bankName : '',
-      pettyCashAmount: 0,
-      hoCash: 0,
+      cashAmount: 0,
     }));
     setErrors((prev) => ({ ...prev, _paymentMode: '' }));
   };
@@ -336,10 +333,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
           fullPaymentAmount: paymentType === 'full' ? amount : 0,
           partialAmount: paymentType === 'partial' ? amount : 0,
           paymentMethod: paymentDetails.paymentMethod,
-          pettyCashAmount: paymentDetails.paymentMode === 'Cash' &&
-                           paymentDetails.paymentMethod === 'pettyCash' ? amount : 0,
-          hoCash: paymentDetails.paymentMode === 'Cash' &&
-                  paymentDetails.paymentMethod === 'hoCash' ? amount : 0,
+          cashAmount: paymentDetails.paymentMode === 'Cash' ? amount : 0,
           bankName: paymentDetails.bankName,
           selectedDebitNotes: vendorSelectedDebitNotes,
         };
@@ -354,8 +348,8 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
 
       // Immediately fetch updated outgoings data
       await dispatch(fetchOutgoings({
-        page: 1, // Start from page 1
-        size: 50, // Fetch 50 records
+        page: 1,
+        size: 50,
         filterByAmount: true,
         filterBy: 'invoiceDate',
       })).unwrap();
@@ -368,8 +362,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         paymentMode: '',
         paymentMethod: '',
         bankName: '',
-        pettyCashAmount: 0,
-        hoCash: 0,
+        cashAmount: 0,
       });
       setPaymentTypeMultiple({});
       setPartialAmount({});
@@ -392,8 +385,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       paymentMode: '',
       paymentMethod: '',
       bankName: '',
-      pettyCashAmount: 0,
-      hoCash: 0,
+      cashAmount: 0,
     });
     setPaymentTypeMultiple({});
     setPartialAmount({});
@@ -653,20 +645,6 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
               <MenuItem value="Bank">Bank</MenuItem>
             </Select>
           </FormControl>
-
-          {paymentDetails.paymentMode === 'Cash' && (
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Payment Method</InputLabel>
-              <Select
-                value={paymentDetails.paymentMethod}
-                label="Payment Method"
-                onChange={handlePaymentMethodChange}
-              >
-                <MenuItem value="pettyCash">Petty Cash</MenuItem>
-                <MenuItem value="hoCash">HO Cash</MenuItem>
-              </Select>
-            </FormControl>
-          )}
 
           {paymentDetails.paymentMode === 'Bank' && (
             <>

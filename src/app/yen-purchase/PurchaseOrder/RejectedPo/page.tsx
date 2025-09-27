@@ -601,19 +601,19 @@ const RejectedPo: React.FC = () => {
     const tableHeader = [['Vendor Details', 'Billing Address', 'PO Details']];
     const vendorDetailsRows = [
       [
-        `${purchaseOrder.vendorName || 'Not Provided'}\n` +
-        `GSTIN: ${purchaseOrder.gstNumber || 'Not Provided'}\n` +
-        `Address: ${purchaseOrder.address || 'Not Provided'}\n` +
-        `City: ${purchaseOrder.city || 'Not Provided'}\n` +
-        `State: ${purchaseOrder.state || 'Not Provided'}\n` +
-        `Country: ${purchaseOrder.country || 'Not Provided'}\n` +
-        `Email: ${purchaseOrder.contactpersonEmail || 'Not Provided'}\n` +
-        `Phone: ${purchaseOrder.vendorContact || 'Not Provided'}`,
-        `Billing Address: ${purchaseOrder.billingAddress || 'Not Provided'}`,
-        `PO No: ${purchaseOrder.randomId || 'Not Provided'}\n` +
+        `${purchaseOrder.vendorName }\n` +
+        `GSTIN: ${purchaseOrder.gstNumber }\n` +
+        `Address: ${purchaseOrder.address }\n` +
+        `City: ${purchaseOrder.city }\n` +
+        `State: ${purchaseOrder.state }\n` +
+        `Country: ${purchaseOrder.country }\n` +
+        `Email: ${purchaseOrder.contactpersonEmail }\n` +
+        `Phone: ${purchaseOrder.vendorContact }`,
+        `Billing Address: ${purchaseOrder.billingAddress }`,
+        `PO No: ${purchaseOrder.randomId }\n` +
         `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
         `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-        `Payment Terms: ${purchaseOrder.paymentTerms || 'Not Provided'}\n` +
+        `Payment Terms: ${purchaseOrder.paymentTerms }\n` +
         `Currency: ${'INR'}`,
       ],
     ];
@@ -1532,7 +1532,7 @@ const toggleFullScreen = () => {
                   <TableCell>Item Id</TableCell>
                   <TableCell>Item Name</TableCell>
                   <TableCell>Uom</TableCell>
-                  <TableCell>Count</TableCell>
+                  <TableCell>Pkt Count</TableCell>
                   <TableCell>Quantity</TableCell>
                   <TableCell>PO Quantity</TableCell>
                   <TableCell>Price</TableCell>

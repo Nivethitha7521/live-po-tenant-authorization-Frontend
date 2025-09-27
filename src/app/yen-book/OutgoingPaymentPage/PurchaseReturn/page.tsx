@@ -126,27 +126,45 @@ const PurchaseReturnPage = React.memo(() => {
         }));
     };
 
-    const handleFilterClick = () => {
-        setIsFilterActive(true);
-        const filterParams = {
-            page: 1,
-            size: pageSize,
-            fromDate: moment(selectionRange.startDate).startOf('day').toDate(),
-            toDate: moment(selectionRange.endDate).endOf('day').toDate(),
-            vendorName: selectedVendorName?.vendorName,
-        };
-        dispatch(setPagination({ page: 1, size: pageSize }));
-        dispatch(fetchOutgoings(filterParams)).then(response => {
-            if (response.payload?.length === 0) {
-                dispatch(setSnackbarMessage('No matching Outgoing Payment found.'));
-                dispatch(setSnackbarOpen(true));
-            }
-        }).catch(error => {
-            dispatch(setSnackbarMessage(error.message || 'Error fetching outgoing'));
-            dispatch(setSnackbarOpen(true));
-        });
-    };
-
+const handleFilterClick = () => {
+  setIsFilterActive(true);
+  const filterParams = {
+    page: 1,
+    size: pageSize,
+    fromDate: moment(selectionRange.startDate).startOf('day').toDate(),
+    toDate: moment(selectionRange.endDate).endOf('day').toDate(),
+    vendorName: selectedVendorName?.vendorName,
+    filterBy: 'paymentDate' as const, // Use 'as const' to ensure it's treated as the literal type
+    status: status
+  };
+  
+  dispatch(setPagination({ page: 1, size: pageSize }));
+  dispatch(fetchOutgoings(filterParams)).then(response => {
+    // Handle different possible response types
+    let outgoingData: Outgoing[] = [];
+    
+    if (typeof response.payload === 'string') {
+      // Handle string response (error message)
+      dispatch(setSnackbarMessage(response.payload));
+      dispatch(setSnackbarOpen(true));
+      return;
+    } else if (Array.isArray(response.payload)) {
+      // Handle array response
+      outgoingData = response.payload;
+    } else if (response.payload && typeof response.payload === 'object' && 'outgoings' in response.payload) {
+      // Handle object with outgoings property
+      outgoingData = response.payload.outgoings;
+    }
+    
+    if (outgoingData.length === 0) {
+      dispatch(setSnackbarMessage('No matching Outgoing Payment found.'));
+      dispatch(setSnackbarOpen(true));
+    }
+  }).catch(error => {
+    dispatch(setSnackbarMessage(error.message || 'Error fetching outgoing'));
+    dispatch(setSnackbarOpen(true));
+  });
+};
     const handleFilterClose = () => {
         setIsFilterActive(false);
         setSelectionRange({ startDate: new Date(), endDate: new Date(), key: 'selection' });
@@ -358,11 +376,11 @@ const PurchaseReturnPage = React.memo(() => {
                             Pre Outgoing
                         </Button>
                     </Link>
-                    <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>
+                    {/* <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>
                         <Button variant="contained" color="primary" sx={{ mr: '2px' }} >
                             Advance Payment
                         </Button>
-                    </Link>
+                    </Link> */}
                     <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
                         <Button variant="contained" color="primary" sx={{ mr: '2px' }} >
                             Partial Payment
