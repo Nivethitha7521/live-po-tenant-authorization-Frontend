@@ -18,13 +18,15 @@ import {
   SelectChangeEvent,
 } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch } from '@/redux/store';
+import { AppDispatch, RootState } from '@/redux/store';
 import {
   processPayment,
   setSnackbarMessage,
   setSnackbarOpen,
   fetchActiveDebitsVendor,
+  ProcessPaymentRequest,
 } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
+import { fetchActiveAdvancesVendorByName } from '@/features/yen-purchase/Outgoing/advancePaymentSlice';
 
 interface SinglePaymentDialogProps {
   open: boolean;
@@ -46,10 +48,11 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
   onPaymentSuccess,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { banks } = useSelector((state: any) => state.outgoingPayment);
+  const { banks, debits } = useSelector((state: RootState) => state.outgoingPayment);
+  const { activeAdvances } = useSelector((state: RootState) => state.advances);
 
   const [paymentDetails, setPaymentDetails] = useState({
-    paymentMethod: '',
+    paymentMethod: 'cash',
     neftNo: '',
     amount: '',
     bankName: '',
@@ -60,147 +63,191 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     upi: '',
     impsNo: '',
     selectedDebitNotes: [] as string[],
+    selectedAdvancePayments: [] as string[],
   });
 
-  const [activeDebits, setActiveDebits] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (selectedOutgoing && open) {
-      fetchActiveDebits();
-      // Set default amount for full payment when dialog opens
-      setPaymentDetails((prev) => ({
-        ...prev,
-        paymentType: 'full',
-        paymentMode: 'Cash',
+      dispatch(fetchActiveDebitsVendor(selectedOutgoing.vendorName));
+      dispatch(fetchActiveAdvancesVendorByName(selectedOutgoing.vendorName));
+      const initialAmount = selectedOutgoing?.totalPayableAmount?.toFixed(2) || '';
+      setPaymentDetails({
         paymentMethod: 'cash',
-        amount: selectedOutgoing?.totalPayableAmount?.toFixed(2) || '',
-        cashAmount: selectedOutgoing?.totalPayableAmount || 0,
-      }));
+        neftNo: '',
+        amount: initialAmount,
+        bankName: '',
+        paymentType: 'full',
+        rtgsNo: '',
+        paymentMode: 'Cash',
+        cashAmount: parseFloat(initialAmount) || 0,
+        upi: '',
+        impsNo: '',
+        selectedDebitNotes: [],
+        selectedAdvancePayments: [],
+      });
     }
-  }, [selectedOutgoing, open]);
+  }, [selectedOutgoing, open, dispatch]);
 
-  const fetchActiveDebits = async () => {
-    try {
-      const response = await dispatch(
-        fetchActiveDebitsVendor(selectedOutgoing.vendorName)
-      ).unwrap();
-      const active = response.filter(
-        (note: any) => note.status === 'Active' || note.status === 'Partially Cleared'
-      );
-      setActiveDebits(active);
-    } catch (err) {
-      dispatch(setSnackbarMessage('Failed to load active debit notes'));
-      dispatch(setSnackbarOpen(true));
-      console.error('Error fetching debit notes:', err);
-    }
+  // Define remainingPayable before totalAdvanceAmount
+  const remainingPayable = () => {
+    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
+    const totalDebit = paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
+      const debit = debits.find((d: any) => d.randomId === debitId);
+      return sum + (debit ? (debit.finalAmount || 0) : 0);
+    }, 0);
+    const paymentAmount = parseFloat(paymentDetails.amount || '0');
+    return totalPayable - totalDebit - (paymentDetails.paymentType === 'partial' ? paymentAmount : 0);
   };
 
+  const totalAdvanceAmount = paymentDetails.selectedAdvancePayments.reduce((sum, advanceId, index, array) => {
+    const advance = activeAdvances.find((a: any) => a.randomId === advanceId);
+    if (!advance) return sum;
+    // Calculate previously applied advance amounts (excluding current)
+    const prevAdvanceSum = array.slice(0, index).reduce((prevSum, prevId) => {
+      const prevAdvance = activeAdvances.find((a: any) => a.randomId === prevId);
+      return prevSum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
+    }, 0);
+    // Cap advance to remaining payable after previous advances
+    const remaining = remainingPayable() - prevAdvanceSum;
+    return sum + Math.min(advance.pendingAmount || 0, Math.max(0, remaining));
+  }, 0);
+
   const totalDebitAmount = paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
-    const debit = activeDebits.find((d) => d.randomId === debitId);
-    return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
+    const debit = debits.find((d: any) => d.randomId === debitId);
+    return sum + (debit ? (debit.finalAmount || 0) : 0);
   }, 0);
 
   const validateAmount = (amount: string, maxAllowed: number): string => {
-    if (!amount) return 'Please enter an amount';
-    const numAmount = parseFloat(amount);
+    if (!amount && paymentDetails.paymentType === 'partial') return 'Please enter an amount';
+    const numAmount = parseFloat(amount || '0');
     if (isNaN(numAmount)) return 'Invalid amount format';
     if (numAmount < 0) return 'Amount cannot be negative';
 
-    const remainingPayable = maxAllowed - totalDebitAmount;
-    if (numAmount > remainingPayable) {
-      return `Payment amount (₹${numAmount.toFixed(2)}) cannot exceed remaining payable amount (₹${remainingPayable.toFixed(2)}) after applying debit notes`;
+    const totalApplied = totalDebitAmount + totalAdvanceAmount + numAmount;
+    if (totalApplied > maxAllowed) {
+      return `Total payment (₹${totalApplied.toFixed(2)}) exceeds remaining payable amount (₹${maxAllowed.toFixed(2)})`;
     }
     return '';
   };
 
   const handlePaymentTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedType = e.target.value as 'full' | 'partial';
-    setPaymentDetails((prevDetails) => ({
-      ...prevDetails,
+    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
+    const newAmount = selectedType === 'full' ? (totalPayable - totalDebitAmount - totalAdvanceAmount).toFixed(2) : paymentDetails.amount;
+    setPaymentDetails((prev) => ({
+      ...prev,
       paymentType: selectedType,
-      amount:
-        selectedType === 'full' && selectedOutgoing
-          ? (selectedOutgoing.totalPayableAmount - totalDebitAmount).toFixed(2)
-          : '',
-      ...(prevDetails.paymentMode === 'Cash'
-        ? { cashAmount: selectedType === 'full' ? selectedOutgoing.totalPayableAmount - totalDebitAmount : 0 }
-        : {}),
+      amount: newAmount,
+      cashAmount: prev.paymentMode === 'Cash' ? parseFloat(newAmount || '0') : 0,
     }));
-    setError('');
+    setError(validateAmount(newAmount, totalPayable));
   };
 
   const handlePaymentModeChange = (e: React.ChangeEvent<{ value: unknown }>) => {
     const selectedMode = e.target.value as 'Cash' | 'Bank';
-    setPaymentDetails((prevDetails) => ({
-      ...prevDetails,
+    setPaymentDetails((prev) => ({
+      ...prev,
       paymentMode: selectedMode,
       paymentMethod: selectedMode === 'Cash' ? 'cash' : '',
-      cashAmount: selectedMode === 'Cash' ? parseFloat(prevDetails.amount || '0') : 0,
+      cashAmount: selectedMode === 'Cash' ? parseFloat(prev.amount || '0') : 0,
+      bankName: selectedMode === 'Cash' ? '' : prev.bankName,
+      neftNo: '',
+      rtgsNo: '',
+      impsNo: '',
+      upi: '',
     }));
+    setError('');
   };
 
   const handlePaymentMethodChange = (e: React.ChangeEvent<{ value: unknown }>) => {
-    const selectedMethod = e.target.value as string;
-    setPaymentDetails((prevDetails) => ({
-      ...prevDetails,
-      paymentMethod: selectedMethod,
+    setPaymentDetails((prev) => ({
+      ...prev,
+      paymentMethod: e.target.value as string,
+      neftNo: '',
+      rtgsNo: '',
+      impsNo: '',
+      upi: '',
     }));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    if (name === 'amount') {
-      if (!/^\d*\.?\d*$/.test(value)) return;
+    if (name === 'amount' && !/^\d*\.?\d*$/.test(value)) return;
 
-      if (selectedOutgoing?.totalPayableAmount) {
-        const validationError = validateAmount(value, selectedOutgoing.totalPayableAmount);
-        setError(validationError);
+    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
+    setPaymentDetails((prev) => {
+      const newDetails = {
+        ...prev,
+        [name]: value,
+        ...(name === 'amount' && prev.paymentMode === 'Cash' && prev.paymentMethod === 'cash'
+          ? { cashAmount: parseFloat(value || '0') }
+          : {}),
+      };
+      if (name === 'amount') {
+        setError(validateAmount(value, totalPayable));
       }
-    }
-
-    setPaymentDetails((prevDetails) => ({
-      ...prevDetails,
-      [name]: value,
-      ...(name === 'amount' && prevDetails.paymentMode === 'Cash' && prevDetails.paymentMethod === 'cash'
-        ? { cashAmount: parseFloat(value || '0') }
-        : {}),
-    }));
+      return newDetails;
+    });
   };
 
   const handleDebitNoteChange = (selectedValues: string[]) => {
-    setPaymentDetails((prev) => {
-      const totalDebitAmount = selectedValues.reduce((sum, id) => {
-        const debit = activeDebits.find((d) => d.randomId === id);
-        return sum + (debit ? parseFloat(debit.finalAmount || '0') : 0);
+    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
+    const totalDebit = selectedValues.reduce((sum, id) => {
+      const debit = debits.find((d: any) => d.randomId === id);
+      return sum + (debit ? (debit.finalAmount || 0) : 0);
+    }, 0);
+
+    // Check if adding the new debit notes exceeds the remaining payable
+    const tempRemaining = totalPayable - totalDebit - totalAdvanceAmount - (paymentDetails.paymentType === 'partial' ? parseFloat(paymentDetails.amount || '0') : 0);
+    if (tempRemaining < 0) {
+      setError(`Total debit notes and advance payments (₹${(totalDebit + totalAdvanceAmount).toFixed(2)}) exceed remaining payable amount (₹${totalPayable.toFixed(2)})`);
+      return;
+    }
+
+    const newAmount = paymentDetails.paymentType === 'full' ? (totalPayable - totalDebit - totalAdvanceAmount).toFixed(2) : paymentDetails.amount;
+    setPaymentDetails((prev) => ({
+      ...prev,
+      selectedDebitNotes: selectedValues,
+      amount: newAmount,
+      cashAmount: prev.paymentMode === 'Cash' ? parseFloat(newAmount || '0') : 0,
+    }));
+    setError(validateAmount(newAmount, totalPayable));
+  };
+
+  const handleAdvancePaymentChange = (selectedValues: string[]) => {
+    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
+    const totalAdvance = selectedValues.reduce((sum, id, index, array) => {
+      const advance = activeAdvances.find((a: any) => a.randomId === id);
+      if (!advance) return sum;
+      const prevAdvanceSum = array.slice(0, index).reduce((prevSum, prevId) => {
+        const prevAdvance = activeAdvances.find((a: any) => a.randomId === prevId);
+        return prevSum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
       }, 0);
+      const remaining = totalPayable - totalDebitAmount - (paymentDetails.paymentType === 'partial' ? parseFloat(paymentDetails.amount || '0') : 0) - prevAdvanceSum;
+      return sum + Math.min(advance.pendingAmount || 0, Math.max(0, remaining));
+    }, 0);
 
-      const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
-      const validationError =
-        totalDebitAmount > totalPayable
-          ? `Total debit notes (₹${totalDebitAmount.toFixed(2)}) cannot exceed total payable amount (₹${totalPayable.toFixed(2)})`
-          : '';
+    if (totalDebitAmount + totalAdvance > totalPayable) {
+      setError(`Total debit notes and advance payments (₹${(totalDebitAmount + totalAdvance).toFixed(2)}) exceed remaining payable amount (₹${totalPayable.toFixed(2)})`);
+      return;
+    }
 
-      setError(validationError);
-      return {
-        ...prev,
-        selectedDebitNotes: validationError ? prev.selectedDebitNotes : selectedValues,
-        amount: validationError
-          ? prev.amount
-          : prev.paymentType === 'full'
-          ? (totalPayable - totalDebitAmount).toFixed(2)
-          : prev.amount,
-        ...(prev.paymentMode === 'Cash' && prev.paymentMethod === 'cash'
-          ? { cashAmount: parseFloat((totalPayable - totalDebitAmount).toFixed(2)) || 0 }
-          : {}),
-      };
-    });
+    const newAmount = paymentDetails.paymentType === 'full' ? (totalPayable - totalDebitAmount - totalAdvance).toFixed(2) : paymentDetails.amount;
+    setPaymentDetails((prev) => ({
+      ...prev,
+      selectedAdvancePayments: selectedValues,
+      amount: newAmount,
+      cashAmount: prev.paymentMode === 'Cash' ? parseFloat(newAmount || '0') : 0,
+    }));
+    setError(validateAmount(newAmount, totalPayable));
   };
 
   const resetPaymentDetails = () => {
     setPaymentDetails({
-      paymentMethod: '',
+      paymentMethod: 'cash',
       neftNo: '',
       amount: '',
       bankName: '',
@@ -211,6 +258,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       upi: '',
       impsNo: '',
       selectedDebitNotes: [],
+      selectedAdvancePayments: [],
     });
     setError('');
   };
@@ -221,16 +269,14 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
   };
 
   const handleConfirmPayment = async () => {
-    if (!selectedOutgoing || !paymentDetails.amount) {
-      dispatch(setSnackbarMessage('Please enter a valid amount'));
+    if (!selectedOutgoing) {
+      dispatch(setSnackbarMessage('No outgoing payment selected'));
       dispatch(setSnackbarOpen(true));
       return;
     }
 
-    const validationError = validateAmount(
-      paymentDetails.amount,
-      selectedOutgoing.totalPayableAmount
-    );
+    const totalPayable = selectedOutgoing.totalPayableAmount || 0;
+    const validationError = validateAmount(paymentDetails.amount, totalPayable);
     if (validationError) {
       setError(validationError);
       dispatch(setSnackbarMessage(validationError));
@@ -238,20 +284,16 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       return;
     }
 
-    const paymentAmount = parseFloat(paymentDetails.amount);
-    const paymentDetailsToSend = {
+    const paymentAmount = parseFloat(paymentDetails.amount || '0');
+    const paymentDetailsToSend: ProcessPaymentRequest = {
       outgoingId: selectedOutgoing.outgoingId,
       paymentType: paymentDetails.paymentType,
-      totalPayableAmount: selectedOutgoing.totalPayableAmount || 0,
-      fullPaymentAmount:
-        paymentDetails.paymentType === 'full' ? selectedOutgoing.totalPayableAmount - totalDebitAmount : 0,
+      totalPayableAmount: totalPayable,
+      fullPaymentAmount: paymentDetails.paymentType === 'full' ? totalPayable - totalDebitAmount - totalAdvanceAmount : 0,
       partialAmount: paymentDetails.paymentType === 'partial' ? paymentAmount : 0,
       paymentMethod: paymentDetails.paymentMethod,
       paymentMode: paymentDetails.paymentMode,
-      cashAmount:
-        paymentDetails.paymentMode === 'Cash' && paymentDetails.paymentMethod === 'cash'
-          ? paymentDetails.cashAmount
-          : 0,
+      cashAmount: paymentDetails.paymentMode === 'Cash' && paymentDetails.paymentMethod === 'cash' ? paymentAmount : 0,
       upi: paymentDetails.paymentMethod === 'upi' ? paymentDetails.upi : '',
       bankName: paymentDetails.paymentMode === 'Bank' ? paymentDetails.bankName : '',
       impsNo: paymentDetails.paymentMethod === 'imps' ? paymentDetails.impsNo : '',
@@ -259,6 +301,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       rtgsNo: paymentDetails.paymentMethod === 'rtgs' ? paymentDetails.rtgsNo : '',
       chequeNo: '',
       selectedDebitNotes: paymentDetails.selectedDebitNotes,
+      selectedAdvancePayments: paymentDetails.selectedAdvancePayments,
     };
 
     try {
@@ -302,7 +345,10 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
           Total Debit Amount: ₹{totalDebitAmount.toFixed(2)}
         </Typography>
         <Typography variant="body2" color="textSecondary">
-          Remaining Payable: ₹{(selectedOutgoing?.totalPayableAmount - totalDebitAmount).toFixed(2)}
+          Total Advance Amount: ₹{totalAdvanceAmount.toFixed(2)}
+        </Typography>
+        <Typography variant="body2" color="textSecondary">
+          Remaining Payable: ₹{(selectedOutgoing?.totalPayableAmount - totalDebitAmount - totalAdvanceAmount).toFixed(2)}
         </Typography>
 
         <TextField
@@ -442,7 +488,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
           </>
         )}
 
-        {activeDebits.length > 0 && (
+        {debits.length > 0 && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle2">Apply Debit Notes</Typography>
             <FormControl fullWidth sx={{ mb: 2 }}>
@@ -450,33 +496,79 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
               <Select
                 multiple
                 value={paymentDetails.selectedDebitNotes}
-                onChange={(e: SelectChangeEvent<string[]>) =>
-                  handleDebitNoteChange(e.target.value as string[])
-                }
+                onChange={(e: SelectChangeEvent<string[]>) => handleDebitNoteChange(e.target.value as string[])}
                 label="Apply Debit Notes"
                 size="small"
-                renderValue={(selected) => {
-                  if (selected.length === 0) return 'No debit notes selected';
-                  return selected
-                    .map((id) => {
-                      const debit = activeDebits.find((d) => d.randomId === id);
-                      return debit
-                        ? `${debit.randomId} (₹${parseFloat(debit.finalAmount || '0').toFixed(2)})`
-                        : '';
-                    })
-                    .join(', ');
-                }}
+                renderValue={(selected) =>
+                  selected.length === 0
+                    ? 'No debit notes selected'
+                    : selected
+                        .map((id) => {
+                          const debit = debits.find((d: any) => d.randomId === id);
+                          return debit ? `${debit.randomId} (₹${(debit.finalAmount || 0).toFixed(2)})` : '';
+                        })
+                        .join(', ')
+                }
               >
-                {activeDebits.map((debit) => (
+                {debits.map((debit: any) => (
                   <MenuItem key={debit.randomId} value={debit.randomId}>
-                    <Checkbox
-                      checked={paymentDetails.selectedDebitNotes.includes(debit.randomId)}
-                    />
+                    <Checkbox checked={paymentDetails.selectedDebitNotes.includes(debit.randomId)} />
                     <ListItemText
                       primary={`${debit.randomId} - ₹${parseFloat(debit.finalAmount || '0').toFixed(2)}`}
                     />
                   </MenuItem>
                 ))}
+              </Select>
+            </FormControl>
+          </Box>
+        )}
+
+        {activeAdvances.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2">Apply Advance Payments</Typography>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Apply Advance Payments</InputLabel>
+              <Select
+                multiple
+                value={paymentDetails.selectedAdvancePayments}
+                onChange={(e: SelectChangeEvent<string[]>) => handleAdvancePaymentChange(e.target.value as string[])}
+                label="Apply Advance Payments"
+                size="small"
+                renderValue={(selected) =>
+                  selected.length === 0
+                    ? 'No advance payments selected'
+                    : selected
+                        .map((id, index, array) => {
+                          const advance = activeAdvances.find((a: any) => a.randomId === id);
+                          const prevAdvanceSum = array.slice(0, index).reduce((sum, prevId) => {
+                            const prevAdvance = activeAdvances.find((a: any) => a.randomId === prevId);
+                            return sum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
+                          }, 0);
+                          const remaining = remainingPayable() - prevAdvanceSum;
+                          const cappedAmount = advance ? Math.min(advance.pendingAmount || 0, Math.max(0, remaining)) : 0;
+                          return advance ? `${advance.randomId} (₹${cappedAmount.toFixed(2)})` : '';
+                        })
+                        .join(', ')
+                }
+              >
+                {activeAdvances.map((advance: any) => {
+                  const prevSelected = paymentDetails.selectedAdvancePayments
+                    .slice(0, paymentDetails.selectedAdvancePayments.indexOf(advance.randomId))
+                    .reduce((sum, prevId) => {
+                      const prevAdvance = activeAdvances.find((a: any) => a.randomId === prevId);
+                      return sum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
+                    }, 0);
+                  const remaining = remainingPayable() - prevSelected;
+                  const cappedAmount = Math.min(advance.pendingAmount || 0, Math.max(0, remaining));
+                  return (
+                    <MenuItem key={advance.randomId} value={advance.randomId} disabled={cappedAmount <= 0}>
+                      <Checkbox checked={paymentDetails.selectedAdvancePayments.includes(advance.randomId)} />
+                      <ListItemText
+                        primary={`${advance.randomId} - ₹${parseFloat(advance.pendingAmount || '0').toFixed(2)} (Available: ₹${cappedAmount.toFixed(2)})`}
+                      />
+                    </MenuItem>
+                  );
+                })}
               </Select>
             </FormControl>
           </Box>
@@ -490,7 +582,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
         <Button
           onClick={handleConfirmPayment}
           color="primary"
-          disabled={isLoading || !!error}
+          disabled={isLoading || !!error || (paymentDetails.paymentType === 'partial' && !parseFloat(paymentDetails.amount))}
           size="small"
         >
           {isLoading ? <CircularProgress size={24} /> : 'Confirm Payment'}

@@ -36,7 +36,7 @@ import {
   setSnackbarOpen,
   clearSnackbarMessage,
 } from "../../../../features/yen-purchase/Outgoing/advancePaymentSlice";
-import { AppDispatch } from "@/redux/store";
+import { AppDispatch, RootState } from "@/redux/store";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import YenBookPage from "../../page";
@@ -45,12 +45,15 @@ import VendorDialog from "@/components/yen-purchase/vendorcomponent/vendorDialog
 import { VendorNameGet, AdvancePayment } from "@/Models/advanceModel";
 import AddIcon from "@mui/icons-material/Add";
 import { format } from "date-fns";
+import { fetchBank } from "@/features/yen-purchase/Outgoing/outgoingPaymentSlice";
+
 const VendorPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { vendorName, loading: vendorLoading, dialogOpen } = useSelector(selectVendorItems);
   const { advances, loading: paymentLoading, snackbarMessage, snackbarOpen } = useSelector(selectAdvances);
   const [selectedVendor, setSelectedVendor] = useState<VendorNameGet | null>(null);
   const [openNewPaymentDialog, setOpenNewPaymentDialog] = useState(false);
+  const { banks } = useSelector((state: RootState) => state.outgoingPayment);
 
   useEffect(() => {
     dispatch(fetchVendorNames());
@@ -58,9 +61,13 @@ const VendorPage: React.FC = () => {
       fetchAdvances({
         page: 1,
         size: 10,
-        filterBy: "createdDate", // Changed to createdDate to match backend
+        filterBy: "createdDate",
       })
     );
+  }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchBank());
   }, [dispatch]);
 
   const handleVendorSelect = (vendor: VendorNameGet | null) => {
@@ -86,11 +93,6 @@ const VendorPage: React.FC = () => {
   };
 
   const handleOpenNewPaymentDialog = () => {
-    if (!selectedVendor) {
-      dispatch(setSnackbarMessage("Please select a vendor first"));
-      dispatch(setSnackbarOpen(true));
-      return;
-    }
     setOpenNewPaymentDialog(true);
   };
 
@@ -103,99 +105,86 @@ const VendorPage: React.FC = () => {
   };
 
   const validationSchema = Yup.object({
+    vendor: Yup.object().required("Vendor is required").nullable(),
     amount: Yup.number()
       .required("Amount is required")
       .min(0.01, "Amount must be greater than 0"),
-    initialPaid: Yup.number()
-      .optional()
-      .min(0, "Must be at least 0")
-      .max(Yup.ref("amount"), "Cannot exceed the advance amount"),
-    paymentMode: Yup.string().when("initialPaid", {
-      is: (value: number) => (value || 0) > 0,
-      then: (schema) =>
-        schema
-          .required("Payment Mode is required")
-          .oneOf(["Cash", "Bank"], "Payment Mode must be Cash or Bank"),
-      otherwise: (schema) => schema.optional(),
-    }),
-    paymentMethod: Yup.string().when(["initialPaid", "paymentMode"], {
-      is: (initialPaid: number, paymentMode: string) => (initialPaid || 0) > 0 && paymentMode === "Bank",
+    paymentMode: Yup.string()
+      .required("Payment Mode is required")
+      .oneOf(["Cash", "Bank"], "Payment Mode must be Cash or Bank"),
+    paymentMethod: Yup.string().when("paymentMode", {
+      is: (paymentMode: string) => paymentMode === "Bank",
       then: (schema) =>
         schema
           .required("Payment Method is required")
           .oneOf(["neft", "rtgs", "imps", "upi"], "Invalid Payment Method"),
       otherwise: (schema) => schema.optional(),
     }),
-    bankName: Yup.string().when(["paymentMode", "initialPaid"], {
-      is: (paymentMode: string, initialPaid: number) => paymentMode === "Bank" && (initialPaid || 0) > 0,
+    bankName: Yup.string().when("paymentMode", {
+      is: (paymentMode: string) => paymentMode === "Bank",
       then: (schema) => schema.required("Bank Name is required for Bank payments"),
       otherwise: (schema) => schema.optional(),
     }),
-    neftNo: Yup.string().when(["paymentMethod", "initialPaid"], {
-      is: (paymentMethod: string, initialPaid: number) => paymentMethod === "neft" && (initialPaid || 0) > 0,
+    neftNo: Yup.string().when("paymentMethod", {
+      is: (paymentMethod: string) => paymentMethod === "neft",
       then: (schema) => schema.required("NEFT Number is required"),
       otherwise: (schema) => schema.optional(),
     }),
-    rtgsNo: Yup.string().when(["paymentMethod", "initialPaid"], {
-      is: (paymentMethod: string, initialPaid: number) => paymentMethod === "rtgs" && (initialPaid || 0) > 0,
+    rtgsNo: Yup.string().when("paymentMethod", {
+      is: (paymentMethod: string) => paymentMethod === "rtgs",
       then: (schema) => schema.required("RTGS Number is required"),
       otherwise: (schema) => schema.optional(),
     }),
-    impsNo: Yup.string().when(["paymentMethod", "initialPaid"], {
-      is: (paymentMethod: string, initialPaid: number) => paymentMethod === "imps" && (initialPaid || 0) > 0,
+    impsNo: Yup.string().when("paymentMethod", {
+      is: (paymentMethod: string) => paymentMethod === "imps",
       then: (schema) => schema.required("IMPS Number is required"),
       otherwise: (schema) => schema.optional(),
     }),
-    upi: Yup.string().when(["paymentMethod", "initialPaid"], {
-      is: (paymentMethod: string, initialPaid: number) => paymentMethod === "upi" && (initialPaid || 0) > 0,
+    upi: Yup.string().when("paymentMethod", {
+      is: (paymentMethod: string) => paymentMethod === "upi",
       then: (schema) => schema.required("UPI ID/Number is required"),
       otherwise: (schema) => schema.optional(),
     }),
     remarks: Yup.string().optional(),
   });
 
-const handleNewPaymentSubmit = async (values: any) => {
-  if (!selectedVendor) {
-    dispatch(setSnackbarMessage("No vendor selected"));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
+  const handleNewPaymentSubmit = async (values: any) => {
+    const paymentData: Partial<AdvancePayment> = {
+      vendorId: values.vendor.vendorId,
+      vendorName: values.vendor.vendorName,
+      amount: parseFloat(values.amount),
+      paymentType: "advance",
+      paymentMode: values.paymentMode,
+      paymentMethod: values.paymentMode === "Cash" ? undefined : values.paymentMethod,
+      bankName: values.paymentMode === "Bank" ? values.bankName : undefined,
+      neftNo: values.paymentMethod === "neft" ? values.neftNo : undefined,
+      rtgsNo: values.paymentMethod === "rtgs" ? values.rtgsNo : undefined,
+      impsNo: values.paymentMethod === "imps" ? values.impsNo : undefined,
+      upi: values.paymentMethod === "upi" ? values.upi : undefined,
+      remarks: values.remarks || undefined,
+      paymentHistory: [],
+    };
 
-  const paymentData: Partial<AdvancePayment> = {
-    vendorId: selectedVendor.vendorId,
-    vendorName: selectedVendor.vendorName,
-    amount: parseFloat(values.amount),
-    initialPaid: values.initialPaid ? parseFloat(values.initialPaid) : undefined,
-    paymentType: "advance",
-    paymentMode: values.paymentMode || undefined,
-    paymentMethod: values.paymentMode === "Cash" ? undefined : values.paymentMethod || undefined,
-    bankName: values.paymentMode === "Bank" ? values.bankName : undefined,
-    neftNo: values.paymentMethod === "neft" ? values.neftNo : undefined,
-    rtgsNo: values.paymentMethod === "rtgs" ? values.rtgsNo : undefined,
-    impsNo: values.paymentMethod === "imps" ? values.impsNo : undefined,
-    upi: values.paymentMethod === "upi" ? values.upi : undefined,
-    remarks: values.remarks || undefined,
-    paymentHistory: [], // Explicitly set to empty array
+    try {
+      await dispatch(createAdvancePayment(paymentData)).unwrap();
+      setOpenNewPaymentDialog(false);
+      setSelectedVendor(values.vendor);
+      dispatch(
+        fetchAdvances({
+          page: 1,
+          size: 10,
+          filterBy: "createdDate",
+          vendorName: values.vendor.vendorName,
+        })
+      );
+      dispatch(setSnackbarMessage("Advance payment created successfully"));
+      dispatch(setSnackbarOpen(true));
+    } catch (error: any) {
+      dispatch(setSnackbarMessage(`Failed to create advance payment: ${error}`));
+      dispatch(setSnackbarOpen(true));
+    }
   };
 
-  try {
-    await dispatch(createAdvancePayment(paymentData)).unwrap();
-    setOpenNewPaymentDialog(false);
-    dispatch(
-      fetchAdvances({
-        page: 1,
-        size: 10,
-        filterBy: "createdDate",
-        vendorName: selectedVendor.vendorName,
-      })
-    );
-    dispatch(setSnackbarMessage("Advance payment created successfully"));
-    dispatch(setSnackbarOpen(true));
-  } catch (error: any) {
-    dispatch(setSnackbarMessage(`Failed to create advance payment: ${error}`));
-    dispatch(setSnackbarOpen(true));
-  }
-};
   return (
     <Box sx={{ backgroundColor: "white" }}>
       <YenBookPage />
@@ -206,33 +195,34 @@ const handleNewPaymentSubmit = async (values: any) => {
               Outgoing Payment
             </Button>
           </Link>
-                <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
-                  <Button variant="contained" color="primary" sx={{ mr: "5px",
-                    backgroundColor: 'white',
-                    color: 'black',
-                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.8)' },
-                  }}>Pre Outgoing</Button>
-                </Link>
-                
-                <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
-                  <Button variant="contained" sx={{ mr: "5px"}} >
-                    Partial Payment
-                  </Button>
-                </Link>
-                 <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
-                  <Button variant="contained" color="primary" sx={{ mr: "5px"}} >Payment Done</Button>
-                </Link>
-                 <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
-                  <Button variant="contained" color="primary" sx={{ mr: "5px"}} >Ledger</Button>
-                </Link>
-                
-                <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
-                  <Button variant="contained" color="primary" sx={{ mr: "5px"}} >Purchase Return</Button>
-                </Link>
+          <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
+            <Button variant="contained" color="primary" sx={{ 
+              mr: "5px",
+              backgroundColor: 'white',
+              color: 'black',
+              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.8)' },
+            }}>
+              Pre Outgoing
+            </Button>
+          </Link>
+          <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
+            <Button variant="contained" sx={{ mr: "5px"}} >
+              Partial Payment
+            </Button>
+          </Link>
+          <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
+            <Button variant="contained" color="primary" sx={{ mr: "5px"}} >Payment Done</Button>
+          </Link>
+          <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
+            <Button variant="contained" color="primary" sx={{ mr: "5px"}} >Ledger</Button>
+          </Link>
+          <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
+            <Button variant="contained" color="primary" sx={{ mr: "5px"}} >Purchase Return</Button>
+          </Link>
         </Box>
       </Box>
-      <Box mt={2} ml=
-      {2} sx={{ maxWidth: 500 }} display="flex" justifyContent="space-between" alignItems="center">
+      
+      <Box mt={2} ml={2} sx={{ maxWidth: 500 }} display="flex" justifyContent="space-between" alignItems="center">
         <Autocomplete
           options={vendorName}
           getOptionLabel={(option: VendorNameGet) => option.vendorName || ""}
@@ -273,9 +263,8 @@ const handleNewPaymentSubmit = async (values: any) => {
                 <TableCell>Advance ID</TableCell>
                 <TableCell>Vendor Name</TableCell>
                 <TableCell>Amount</TableCell>
-                <TableCell>Initial Paid</TableCell> {/* Added Initial Paid column */}
                 <TableCell>Pending Amount</TableCell>
-                <TableCell>Created Date</TableCell> {/* Changed to Created Date */}
+                <TableCell>Created Date</TableCell>
                 <TableCell>Status</TableCell>
               </TableRow>
             </TableHead>
@@ -293,7 +282,6 @@ const handleNewPaymentSubmit = async (values: any) => {
                     <TableCell>{payment.randomId || "N/A"}</TableCell>
                     <TableCell>{payment.vendorName || "N/A"}</TableCell>
                     <TableCell>{(payment.amount || 0).toFixed(2)}</TableCell>
-                    <TableCell>{(payment.initialPaid || 0).toFixed(2)}</TableCell> {/* Display initialPaid */}
                     <TableCell>{(payment.pendingAmount || 0).toFixed(2)}</TableCell>
                     <TableCell>
                       {payment.createdDate ? format(new Date(payment.createdDate), "dd-MM-yyyy") : "N/A"}
@@ -307,13 +295,13 @@ const handleNewPaymentSubmit = async (values: any) => {
         </TableContainer>
       </Box>
 
-      <Dialog open={openNewPaymentDialog} onClose={handleCloseNewPaymentDialog}>
+      <Dialog open={openNewPaymentDialog} onClose={handleCloseNewPaymentDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Create New Advance Payment</DialogTitle>
-        <DialogContent sx={{ width: "500px" }}>
+        <DialogContent>
           <Formik
             initialValues={{
+              vendor: selectedVendor || null,
               amount: "",
-              initialPaid: "", // Changed to initialPaid
               paymentMode: "",
               paymentMethod: "",
               bankName: "",
@@ -330,7 +318,24 @@ const handleNewPaymentSubmit = async (values: any) => {
               <Form onSubmit={handleSubmit}>
                 <Grid container spacing={2} mt={1}>
                   <Grid item xs={12}>
-                    <Typography>Vendor: {selectedVendor?.vendorName}</Typography>
+                    <Autocomplete
+                      options={vendorName}
+                      getOptionLabel={(option: VendorNameGet) => option.vendorName || ""}
+                      isOptionEqualToValue={(option: VendorNameGet, value: VendorNameGet | null) =>
+                        option.vendorId === value?.vendorId
+                      }
+                      value={values.vendor}
+                      onChange={(event, newValue) => setFieldValue("vendor", newValue)}
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          label="Select Vendor" 
+                          variant="outlined" 
+                          error={touched.vendor && !!errors.vendor}
+                          helperText={touched.vendor && errors.vendor}
+                        />
+                      )}
+                    />
                   </Grid>
                   <Grid item xs={12}>
                     <TextField
@@ -392,15 +397,22 @@ const handleNewPaymentSubmit = async (values: any) => {
                       </Grid>
                       <Grid item xs={12}>
                         <TextField
-                          label="Bank Name"
-                          fullWidth
+                          select
                           name="bankName"
+                          label="Bank Name"
                           value={values.bankName}
                           onChange={handleChange}
                           onBlur={handleBlur}
+                          fullWidth
                           error={touched.bankName && !!errors.bankName}
                           helperText={touched.bankName && errors.bankName}
-                        />
+                        >
+                          {banks.map((bank: any) => (
+                            <MenuItem key={bank.bankMasterId} value={bank.bankName}>
+                              {bank.bankName}
+                            </MenuItem>
+                          ))}
+                        </TextField>
                       </Grid>
                       {values.paymentMethod === "neft" && (
                         <Grid item xs={12}>
@@ -473,7 +485,7 @@ const handleNewPaymentSubmit = async (values: any) => {
                     />
                   </Grid>
                 </Grid>
-                <DialogActions>
+                <DialogActions sx={{ mt: 2 }}>
                   <Button onClick={handleCloseNewPaymentDialog}>Cancel</Button>
                   <Button type="submit" variant="contained" color="primary">
                     Submit

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { RootState } from '../../../redux/store';
 import { Bank, BulkPaymentRequest, BulkPaymentResponse, DebitNote, GRN, initialState, Outgoing, OutgoingState, PaymentDetails, PaymentDone, TaxDetail, VendorDetail, VendorPayment } from '@/Models/outgoingModel';
 
-interface ProcessPaymentRequest {
+export interface ProcessPaymentRequest {
   outgoingId: string;
   paymentMode: 'Bank' | 'Cash';
   paymentType: 'full' | 'partial' | 'advance';
@@ -17,9 +17,10 @@ interface ProcessPaymentRequest {
   rtgsNo?: string;
   impsNo?: string;
   upi?: string;
-  cashAmount:number;
+  cashAmount: number;
   bankName?: string;
-  selectedDebitNotes?: string[]; // Changed to array to support multiple debit notes
+  selectedDebitNotes?: string[];
+  selectedAdvancePayments?: string[]; // Added to support advance payments
 }
 // Define the argument type for fetchOutgoings
 interface FetchOutgoingsArgs {
@@ -158,6 +159,7 @@ export const processPayment = createAsyncThunk<
       totalPayableAmount,
       fullPaymentAmount,
       partialAmount,
+      advanceAmount,
       paymentMethod,
       chequeNo,
       neftNo,
@@ -167,6 +169,7 @@ export const processPayment = createAsyncThunk<
       cashAmount,
       bankName,
       selectedDebitNotes = [],
+      selectedAdvancePayments = [], // Added to payload
     },
     { rejectWithValue }
   ) => {
@@ -187,9 +190,10 @@ export const processPayment = createAsyncThunk<
         rtgsNo,
         impsNo,
         upi,
-      cashAmount,
+        cashAmount,
         bankName,
         selectedDebitNotes,
+        selectedAdvancePayments, // Include in payload
       };
 
       await axios.patch(`http://192.168.29.116:8000/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);

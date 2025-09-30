@@ -5,6 +5,7 @@ import { AdvancePayment, VendorDetail, AdvanceState } from '@/Models/advanceMode
 const initialState: AdvanceState = {
   advances: [],
   advanceVendors: [],
+  activeAdvances: [],
   loading: false,
   snackbarMessage: '',
   snackbarOpen: false,
@@ -74,7 +75,36 @@ export const createAdvancePayment = createAsyncThunk<
     }
   }
 );
-
+export const fetchActiveAdvancesVendor = createAsyncThunk(
+  'outgoings/fetchActiveAdvancesVendor',
+  async (vendorId: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(
+        `http://192.168.29.116:8000/purchaseapi/advancevendor/vendor/${vendorId}/advance-payments`
+      );
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch advance payments');
+    }
+  }
+);
+export const fetchActiveAdvancesVendorByName = createAsyncThunk(
+  'outgoings/fetchActiveAdvancesVendorByName',
+  async (vendorName: string, { rejectWithValue }) => {
+    try {
+      if (!vendorName || vendorName.trim() === '') {
+        return rejectWithValue('Vendor name is required');
+      }
+      const encodedVendorName = encodeURIComponent(vendorName);
+      const response = await axios.get(
+        `http://192.168.29.116:8000/purchaseapi/advancevendor/vendorname/${encodedVendorName}/advance-payments`
+      );
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch advance payments by vendor name');
+    }
+  }
+);
 const advancePaymentSlice = createSlice({
   name: 'advances',
   initialState,
@@ -135,6 +165,31 @@ const advancePaymentSlice = createSlice({
         state.snackbarOpen = true;
       })
       .addCase(createAdvancePayment.rejected, (state, action) => {
+        state.loading = false;
+        state.snackbarMessage = action.payload as string;
+        state.snackbarOpen = true;
+      })
+      // .addCase(fetchActiveAdvancesVendor.pending, (state) => {
+      //   state.loading = true;
+      // })
+      // .addCase(fetchActiveAdvancesVendor.fulfilled, (state, action) => {
+      //   state.loading = false;
+      //   state.activeAdvances = action.payload;
+      // })
+      // .addCase(fetchActiveAdvancesVendor.rejected, (state, action) => {
+      //   state.loading = false;
+      //   state.snackbarMessage = action.payload as string;
+      //   state.snackbarOpen = true;
+      // })
+      .addCase(fetchActiveAdvancesVendorByName.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchActiveAdvancesVendorByName.fulfilled, (state, action) => {
+        state.loading = false;
+        state.activeAdvances = action.payload;
+        state.totalItems = action.payload.length;
+      })
+      .addCase(fetchActiveAdvancesVendorByName.rejected, (state, action) => {
         state.loading = false;
         state.snackbarMessage = action.payload as string;
         state.snackbarOpen = true;

@@ -17,7 +17,6 @@ export interface AdvancePayment {
   vendorId?: string;
   vendorName?: string;
   amount?: number;
-  initialPaid?: number; // Added initialPaid
   pendingAmount?: number;
   paymentMethod?: string;
   paymentMode?: string;
@@ -50,6 +49,7 @@ export interface VendorNameGet {
 export interface AdvanceState {
   advances: AdvancePayment[];
   advanceVendors: VendorDetail[];
+  activeAdvances: AdvancePayment[]; // Added for active advance payments
   loading: boolean;
   snackbarMessage: string;
   snackbarOpen: boolean;

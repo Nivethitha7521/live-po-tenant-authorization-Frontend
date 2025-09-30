@@ -135,6 +135,7 @@ export interface OutgoingState {
   grns: GRN[];
   taxDetails: TaxDetail[];
   banks: Bank[];
+  activeAdvances: any[]; // Added for advance payments
   multiplePayments: PaymentDone[];
   debits: DebitNote[];
   loading: boolean;       // Loading state
@@ -198,6 +199,7 @@ export const initialState: OutgoingState = {
   taxDetails: [],
   grns: [],
   debits: [],
+  activeAdvances: [], // Added for advance payments
   multiplePayments: [],
   loading: false,
   snackbarOpen: false,
