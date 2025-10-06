@@ -72,6 +72,7 @@ export interface Outgoing {
   debitAmount?: number;
   selectedDebitNotes?: string[];
   paymentHistory?: PaymentHistory[];
+  selectedAdvancePayments?: string[]; // ADDED: Missing property
   itemDetails?: ItemDetails[];
 }
 
@@ -106,12 +107,14 @@ export interface DebitNote {
   finalAmount:number;
   status: string;
   createdDate: string;
+  pendingAmount:number;
 }
 export interface VendorPayment {
   outgoingIds: string[];
   paymentType: 'full' | 'partial' ;
   amount: number;
   selectedDebitNotes: string[];
+  selectedAdvancePayments?: string[]; // ADDED: Optional for advance payments
 }
 export interface PaymentHistory {
   amount?: number;
@@ -127,6 +130,8 @@ export interface PaymentHistory {
   date?: string; // ISO string to match datetime in Pydantic
   debitNotesApplied?: string[];
   debitAmount?: number;
+    advanceAmount?: number; // ADDED: For advance payments
+  advancePaymentsApplied?: string[]; // ADDED: For advance payment IDs
 }
 // Interface for Outgoing slice state
 export interface OutgoingState {
@@ -152,6 +157,7 @@ export interface OutgoingState {
   intimationData: Outgoing[];     // Assuming it's an array of Outgoing items
   vendorPayments: { [vendorName: string]: VendorPayment }; // Added for multiple payments
   vendorDebits: { [vendorName: string]: any[] }; // Added for debit notes per vendor
+  advances: AdvancePayment[]; // NEW: Add advances to state
 }
 
 
@@ -216,10 +222,10 @@ export const initialState: OutgoingState = {
   intimationData: [],
   vendorPayments: {},
   vendorDebits: {},
+  advances: [], // NEW: Initialize advances array
 };
 
-
-// Add this to your types
+// Add to your existing models
 export interface BulkPaymentResponse {
   results: Array<{
     outgoingId: string;
@@ -228,36 +234,55 @@ export interface BulkPaymentResponse {
     totalPayableAmount: number;
     paymentAmount: number;
     debitAmountApplied: number;
+    advanceAmountUsed: number; // NEW: Add advance amount used
     paymentType: string;
     status: string;
     debitNotesApplied: string[];
+    advancePaymentsApplied: string[]; // NEW: Add advance payments applied
   }>;
   errors: Array<{
     outgoingId?: string;
     debitNoteId?: string;
+    advanceId?: string; // NEW: Add advance payment errors
     error: string;
   }>;
   totalProcessed: number;
   totalFailed: number;
+  totalVendorReduction: number; // NEW: Add total vendor payable reduction
 }
 
 export interface PaymentInfo {
+  outgoingId: string; // NEW: Add outgoingId to each payment
   paymentMode: 'Bank' | 'Cash';
   paymentType: 'full' | 'partial';
-  fullPaymentAmount?: number;
-  partialAmount?: number;
-  paymentMethod?: string;
+  totalPayableAmount: number; // NEW: Add total payable amount
+  fullPaymentAmount: number;
+  partialAmount: number;
+  paymentMethod: string;
   chequeNo?: string;
   neftNo?: string;
   rtgsNo?: string;
   impsNo?: string;
   upi?: string;
-  cashAmount:number;
+  cashAmount: number;
   bankName?: string;
   selectedDebitNotes: string[];
+  selectedAdvancePayments: string[]; // NEW: Add advance payments selection
 }
 
 export interface BulkPaymentRequest {
   payments: PaymentInfo[];
   outgoingIds: string[];
+}
+
+// NEW: Add Advance Payment interface
+export interface AdvancePayment {
+  advanceId:string;
+  randomId: string;
+  vendorName: string;
+  advanceAmount: number;
+  pendingAmount: number;
+  status: string;
+  paymentDate?: string;
+  createdDate?: string;
 }

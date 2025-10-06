@@ -217,7 +217,7 @@ const ReturnnedApInvoicePage: React.FC = () => {
     setSelectedInvoice(invoice);
     setDetailsDialogOpen(true); // Open the details dialog
   };
-const toggleFullScreen = () => {
+  const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -633,20 +633,20 @@ const toggleFullScreen = () => {
       ['Vendor Details', 'Billing Address', 'Invoice Details'],
     ];
 
- const vendorDetailsRows = [
+    const vendorDetailsRows = [
       [
-        `${apinvoice.vendorName }\n` +
-        `GSTIN: ${apinvoice.gstNumber }\n` +
-        `Address: ${apinvoice.address }\n` +
-        `City: ${apinvoice.city }\n` +
-        `State: ${apinvoice.state }\n` +
-        `Country: ${apinvoice.country }\n` +
-        `Email: ${apinvoice.contactpersonEmail }`,
-        `Billing Address: ${apinvoice.billingAddress }`,
-        `PO No: ${apinvoice.poRandomId }\n` +
-        `GRN No: ${apinvoice.grnRandomId }\n` +
-        `AP No: ${apinvoice.randomId }\n` +
-        `Invoice No: ${apinvoice.invoiceNo }\n` +
+        `${apinvoice.vendorName}\n` +
+        `GSTIN: ${apinvoice.gstNumber}\n` +
+        `Address: ${apinvoice.address}\n` +
+        `City: ${apinvoice.city}\n` +
+        `State: ${apinvoice.state}\n` +
+        `Country: ${apinvoice.country}\n` +
+        `Email: ${apinvoice.contactpersonEmail}`,
+        `Billing Address: ${apinvoice.billingAddress}`,
+        `PO No: ${apinvoice.poRandomId}\n` +
+        `GRN No: ${apinvoice.grnRandomId}\n` +
+        `AP No: ${apinvoice.randomId}\n` +
+        `Invoice No: ${apinvoice.invoiceNo}\n` +
         `Invoice Date: ${apinvoice.invoiceDate ? format(new Date(apinvoice.invoiceDate), 'dd-MM-yyyy') : ''}\n` +
         `Payment Terms: ${apinvoice.paymentTerms || '15'} \n` +
         `Currency: ${'INR'}`,
@@ -685,7 +685,7 @@ const toggleFullScreen = () => {
     yOffset += 45;
 
     // Items Table Section
-    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count','Qty','Stock Qty', 'Unit Price', 'Tax', 'Amount'];
+    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count', 'Qty', 'Stock Qty', 'Unit Price', 'Tax', 'Amount'];
     const tableRows = apinvoice.itemDetails.map((item, index) => {
       const unitPrice = item.unitPrice || 0;
       const quantity = item.quantity || 0;
@@ -1020,6 +1020,7 @@ const toggleFullScreen = () => {
             <DateRangeDialog
               selectionRange={selectionRange}
               setSelectionRange={setSelectionRange}
+              onApply={handleFilterClick}
             />
           </Grid>
 
@@ -1122,7 +1123,7 @@ const toggleFullScreen = () => {
           </Menu>
         </Grid>
 
-        <Grid container spacing={1} sx={{ px:1 ,pl:1 }}>
+        <Grid container spacing={1} sx={{ px: 1, pl: 1 }}>
           <TableContainer
             component={Paper}
             sx={{
@@ -1231,9 +1232,9 @@ const toggleFullScreen = () => {
                 <Typography variant="h6">
                   <strong>AP ID:</strong> {selectedInvoice.randomId}
                 </Typography>
-                  <IconButton onClick={toggleFullScreen} color="primary" edge="end">
-              {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-            </IconButton>
+                <IconButton onClick={toggleFullScreen} color="primary" edge="end">
+                  {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                </IconButton>
               </Box>
 
               {/* Vendor and date in a single row */}

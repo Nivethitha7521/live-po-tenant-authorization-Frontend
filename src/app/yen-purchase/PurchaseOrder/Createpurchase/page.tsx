@@ -69,6 +69,7 @@ const PurchaseOrder: React.FC = () => {
   const [newItemsearch, setNewItemsearch] = useState<PurchaseItemSearchAdd | null>(null);
   const [vendorSearch, setVendorSearch] = useState<VendorSummary | null>(null);
   const [showNavigationConfirm, setShowNavigationConfirm] = useState(false);
+  const [hasItemWiseDiscount, setHasItemWiseDiscount] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const [isHoldOrderDialog, setIsHoldOrderDialog] = useState(false);
   const [countInput, setCountInput] = useState<string>('');
@@ -122,6 +123,23 @@ const PurchaseOrder: React.FC = () => {
     dispatch(fetchBusinesses());
     dispatch(fetchShipping());
   }, [dispatch, searchQuery, skip, limit]);
+  // Check if any item has item-wise discount
+  useEffect(() => {
+    const hasDiscount = purchaseOrderData.items.some(item =>
+      item.befTaxDiscount > 0 ||
+      item.befTaxDiscountAmount > 0 ||
+      item.afTaxDiscount > 0 ||
+      item.afTaxDiscountAmount > 0
+    );
+    setHasItemWiseDiscount(hasDiscount);
+
+    // If item-wise discounts exist, reset overall discount
+    if (hasDiscount && overallDiscountValue > 0) {
+      setOverallDiscountValue(0);
+      dispatch(setSnackbarMessage('Overall discount disabled due to existing item-wise discounts'));
+      dispatch(setSnackbarOpen(true));
+    }
+  }, [purchaseOrderData.items, overallDiscountValue, dispatch]);
   // Re-validate billingAddress to clear error when a value is selected
   useEffect(() => {
     if (purchaseOrderData.billingAddress && purchaseOrderData.billingAddress.trim() !== '') {
@@ -129,37 +147,37 @@ const PurchaseOrder: React.FC = () => {
     }
   }, [purchaseOrderData.billingAddress]);
   // Calculate totals with updated logic for discount conversion
-const calculateTotals = useMemo(() => {
-  let subTotal = 0;
-  let itemDiscountAmount = 0;
-  let taxAmount = 0;
-  // Sum up item-level totals
-  purchaseOrderData.items.forEach((item) => {
-    subTotal += item.pendingTotalPrice || 0;
-    itemDiscountAmount += item.pendingDiscountAmount || 0;
-    taxAmount += item.pendingTaxAmount || 0;
-  });
-  // Calculate overall discount based on mode
-  const overallDiscountAmount = overallDiscountMode === 'percentage'
-    ? subTotal * (overallDiscountValue / 100)
-    : overallDiscountValue;
-  // Total discount includes both item-level and overall discounts
-  const totalDiscount = itemDiscountAmount + overallDiscountAmount;
-  // Amount after discounts
-  const afterDiscount = Math.max(0, subTotal - totalDiscount);
-  // Final amount after tax and round-off
-  const finalAmount = afterDiscount + taxAmount + roundOffValue;
-  return {
-    subTotal: roundPrice(subTotal),
-    roundedTotalOrderAmount: roundPrice(finalAmount),
-    roundedTotalDiscount: roundPrice(totalDiscount),
-    roundedTotalTax: roundPrice(taxAmount),
-    overallDiscountAmount: roundPrice(overallDiscountAmount),
-    itemDiscountAmount: roundPrice(itemDiscountAmount),
-    taxAmount: roundPrice(taxAmount),
-    afterDiscount: roundPrice(afterDiscount),
-  };
-}, [purchaseOrderData.items, overallDiscountMode, overallDiscountValue, roundOffValue]);
+  const calculateTotals = useMemo(() => {
+    let subTotal = 0;
+    let itemDiscountAmount = 0;
+    let taxAmount = 0;
+    // Sum up item-level totals
+    purchaseOrderData.items.forEach((item) => {
+      subTotal += item.pendingTotalPrice || 0;
+      itemDiscountAmount += item.pendingDiscountAmount || 0;
+      taxAmount += item.pendingTaxAmount || 0;
+    });
+    // Calculate overall discount based on mode
+    const overallDiscountAmount = overallDiscountMode === 'percentage'
+      ? subTotal * (overallDiscountValue / 100)
+      : overallDiscountValue;
+    // Total discount includes both item-level and overall discounts
+    const totalDiscount = itemDiscountAmount + overallDiscountAmount;
+    // Amount after discounts
+    const afterDiscount = Math.max(0, subTotal - totalDiscount);
+    // Final amount after tax and round-off
+    const finalAmount = afterDiscount + taxAmount + roundOffValue;
+    return {
+      subTotal: roundPrice(subTotal),
+      roundedTotalOrderAmount: roundPrice(finalAmount),
+      roundedTotalDiscount: roundPrice(totalDiscount),
+      roundedTotalTax: roundPrice(taxAmount),
+      overallDiscountAmount: roundPrice(overallDiscountAmount),
+      itemDiscountAmount: roundPrice(itemDiscountAmount),
+      taxAmount: roundPrice(taxAmount),
+      afterDiscount: roundPrice(afterDiscount),
+    };
+  }, [purchaseOrderData.items, overallDiscountMode, overallDiscountValue, roundOffValue]);
   // Update totals and Redux state
   useEffect(() => {
     const newTotals = calculateTotals;
@@ -212,125 +230,130 @@ const calculateTotals = useMemo(() => {
     }
   };
 
-const setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amount') => {
-  if (newMode === overallDiscountMode) return;
-  let newValue = 0;
-  if (overallDiscountValue > 0 && totals.subTotal > 0) {
-    newValue = overallDiscountMode === 'percentage'
-      ? (overallDiscountValue / 100) * totals.subTotal
-      : (overallDiscountValue / totals.subTotal) * 100;
-    newValue = roundPrice(newValue);
-  }
-  setOverallDiscountMode(newMode);
-  setOverallDiscountValue(newValue);
+  const setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amount') => {
+    if (hasItemWiseDiscount) {
+      dispatch(setSnackbarMessage('Cannot change discount mode when item-wise discounts exist'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    if (newMode === overallDiscountMode) return;
+    let newValue = 0;
+    if (overallDiscountValue > 0 && totals.subTotal > 0) {
+      newValue = overallDiscountMode === 'percentage'
+        ? (overallDiscountValue / 100) * totals.subTotal
+        : (overallDiscountValue / totals.subTotal) * 100;
+      newValue = roundPrice(newValue);
+    }
+    setOverallDiscountMode(newMode);
+    setOverallDiscountValue(newValue);
 
-  if (newValue > 0 && purchaseOrderData.items.length > 0) {
-    setLoading(true);
-    try {
-      const allItems = purchaseOrderData.items.map(item => {
-        const priceAfterBefDiscount = item.pendingTotalPrice - (item.befTaxDiscountAmount || 0);
-        const priceAfterTax = priceAfterBefDiscount + (item.pendingTaxAmount || 0);
-        const afTaxDiscountAmount = item.afTaxDiscountType === 'percentage' && item.afTaxDiscount > 0
-          ? priceAfterTax * (item.afTaxDiscount / 100)
-          : (item.afTaxDiscountAmount || 0);
-        return {
-          id: item.itemId,
-          pendingTotalQuantity: item.pendingTotalQuantity || 0,
-          poQuantity: item.pendingTotalQuantity || 0,
-          newPrice: item.newPrice || 0,
-          befTaxDiscount: item.befTaxDiscount || 0,
-          afTaxDiscount: item.afTaxDiscount || 0,
-          befTaxDiscountAmount: item.befTaxDiscountAmount || 0,
-          afTaxDiscountAmount: roundPrice(afTaxDiscountAmount),
-          befTaxDiscountType: (item.befTaxDiscountType || 'percentage') as 'percentage' | 'amount',
-          afTaxDiscountType: (item.afTaxDiscountType || 'percentage') as 'percentage' | 'amount',
-          taxPercentage: item.taxPercentage || 0,
-          taxType: item.taxType || 'cgst_sgst',
-        };
-      });
-      const payload = {
-        items: allItems,
-        overallDiscount: newMode === 'percentage' ? newValue : 0,
-        overallDiscountAmount: newMode === 'amount' ? newValue : 0,
-        overallDiscountType: newMode,
-        applyOverallDiscount: true,
-      };
-      const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to convert discount mode');
-      }
-      const updatedItems = purchaseOrderData.items.map(item => {
-        const calculatedItem = result.items.find(calc => calc.id === item.itemId);
-        if (calculatedItem) {
+    if (newValue > 0 && purchaseOrderData.items.length > 0) {
+      setLoading(true);
+      try {
+        const allItems = purchaseOrderData.items.map(item => {
+          const priceAfterBefDiscount = item.pendingTotalPrice - (item.befTaxDiscountAmount || 0);
+          const priceAfterTax = priceAfterBefDiscount + (item.pendingTaxAmount || 0);
+          const afTaxDiscountAmount = item.afTaxDiscountType === 'percentage' && item.afTaxDiscount > 0
+            ? priceAfterTax * (item.afTaxDiscount / 100)
+            : (item.afTaxDiscountAmount || 0);
           return {
-            ...item,
-            pendingFinalPrice: calculatedItem.pendingFinalPrice,
-            pendingOrderAmount: calculatedItem.pendingOrderAmount,
-            pendingAfTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,
-            afTaxDiscount: calculatedItem.afTaxDiscount,
-            pendingTaxAmount: calculatedItem.pendingTaxAmount,
-            pendingDiscountAmount: calculatedItem.pendingDiscountAmount,
-            pendingTotalPrice: calculatedItem.pendingTotalPrice,
-            pendingSgst: calculatedItem.pendingSgst,
-            pendingCgst: calculatedItem.pendingCgst,
-            pendingIgst: calculatedItem.pendingIgst,
-            befTaxDiscount: calculatedItem.befTaxDiscount,
-            befTaxDiscountAmount: calculatedItem.befTaxDiscountAmount,
-            afTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,
-            befTaxDiscountType: newMode,
-            afTaxDiscountType: newMode,
+            id: item.itemId,
+            pendingTotalQuantity: item.pendingTotalQuantity || 0,
+            poQuantity: item.pendingTotalQuantity || 0,
+            newPrice: item.newPrice || 0,
+            befTaxDiscount: item.befTaxDiscount || 0,
+            afTaxDiscount: item.afTaxDiscount || 0,
+            befTaxDiscountAmount: item.befTaxDiscountAmount || 0,
+            afTaxDiscountAmount: roundPrice(afTaxDiscountAmount),
+            befTaxDiscountType: (item.befTaxDiscountType || 'percentage') as 'percentage' | 'amount',
+            afTaxDiscountType: (item.afTaxDiscountType || 'percentage') as 'percentage' | 'amount',
+            taxPercentage: item.taxPercentage || 0,
+            taxType: item.taxType || 'cgst_sgst',
           };
+        });
+        const payload = {
+          items: allItems,
+          overallDiscount: newMode === 'percentage' ? newValue : 0,
+          overallDiscountAmount: newMode === 'amount' ? newValue : 0,
+          overallDiscountType: newMode,
+          applyOverallDiscount: true,
+        };
+        const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to convert discount mode');
         }
-        return item;
-      });
-      dispatch(setPurchaseOrderData({
-        ...purchaseOrderData,
-        items: updatedItems,
-        pendingOrderAmount: result.summary.totalFinalAmount,
-        pendingDiscountAmount: result.summary.totalDiscountAmount,
-        pendingTaxAmount: result.summary.totalTaxAmount,
-      }));
-      dispatch(setSnackbarMessage(`Discount mode changed to ${newMode} and applied successfully`));
-      dispatch(setSnackbarOpen(true));
-    } catch (error) {
-      console.error('Error converting discount mode:', error);
-      dispatch(setSnackbarMessage(error instanceof Error ? error.message : 'Error converting discount mode. Please try again.'));
-      dispatch(setSnackbarOpen(true));
-    } finally {
-      setLoading(false);
+        const updatedItems = purchaseOrderData.items.map(item => {
+          const calculatedItem = result.items.find(calc => calc.id === item.itemId);
+          if (calculatedItem) {
+            return {
+              ...item,
+              pendingFinalPrice: calculatedItem.pendingFinalPrice,
+              pendingOrderAmount: calculatedItem.pendingOrderAmount,
+              pendingAfTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,
+              afTaxDiscount: calculatedItem.afTaxDiscount,
+              pendingTaxAmount: calculatedItem.pendingTaxAmount,
+              pendingDiscountAmount: calculatedItem.pendingDiscountAmount,
+              pendingTotalPrice: calculatedItem.pendingTotalPrice,
+              pendingSgst: calculatedItem.pendingSgst,
+              pendingCgst: calculatedItem.pendingCgst,
+              pendingIgst: calculatedItem.pendingIgst,
+              befTaxDiscount: calculatedItem.befTaxDiscount,
+              befTaxDiscountAmount: calculatedItem.befTaxDiscountAmount,
+              afTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,
+              befTaxDiscountType: newMode,
+              afTaxDiscountType: newMode,
+            };
+          }
+          return item;
+        });
+        dispatch(setPurchaseOrderData({
+          ...purchaseOrderData,
+          items: updatedItems,
+          pendingOrderAmount: result.summary.totalFinalAmount,
+          pendingDiscountAmount: result.summary.totalDiscountAmount,
+          pendingTaxAmount: result.summary.totalTaxAmount,
+        }));
+        dispatch(setSnackbarMessage(`Discount mode changed to ${newMode} and applied successfully`));
+        dispatch(setSnackbarOpen(true));
+      } catch (error) {
+        console.error('Error converting discount mode:', error);
+        dispatch(setSnackbarMessage(error instanceof Error ? error.message : 'Error converting discount mode. Please try again.'));
+        dispatch(setSnackbarOpen(true));
+      } finally {
+        setLoading(false);
+      }
     }
-  }
-};
+  };
   const setItemDiscountModeWithConversion = (newMode: 'percentage' | 'amount') => {
-  if (newMode === discountMode) return;
-  let newBefTaxDiscount = 0;
-  let newAfTaxDiscount = 0;
-  let newBefTaxDiscountAmount = 0;
-  let newAfTaxDiscountAmount = 0;
-  const totalPrice = newItem.pendingTotalQuantity * newItem.newPrice;
-  const priceAfterBefDiscount = totalPrice - (newItem.befTaxDiscountAmount || 0);
-  const priceAfterTax = priceAfterBefDiscount + (newItem.taxPercentage / 100 * priceAfterBefDiscount);
-  if (totalPrice > 0) {
-    if (discountMode === 'percentage') {
-      newBefTaxDiscountAmount = newItem.befTaxDiscount > 0 ? (newItem.befTaxDiscount / 100) * totalPrice : 0;
-      newAfTaxDiscountAmount = newItem.afTaxDiscount > 0 ? (newItem.afTaxDiscount / 100) * priceAfterTax : 0;
-    } else {
-      newBefTaxDiscount = newItem.befTaxDiscountAmount > 0 ? (newItem.befTaxDiscountAmount / totalPrice) * 100 : 0;
-      newAfTaxDiscount = newItem.afTaxDiscountAmount > 0 ? (newItem.afTaxDiscountAmount / priceAfterTax) * 100 : 0;
+    if (newMode === discountMode) return;
+    let newBefTaxDiscount = 0;
+    let newAfTaxDiscount = 0;
+    let newBefTaxDiscountAmount = 0;
+    let newAfTaxDiscountAmount = 0;
+    const totalPrice = newItem.pendingTotalQuantity * newItem.newPrice;
+    const priceAfterBefDiscount = totalPrice - (newItem.befTaxDiscountAmount || 0);
+    const priceAfterTax = priceAfterBefDiscount + (newItem.taxPercentage / 100 * priceAfterBefDiscount);
+    if (totalPrice > 0) {
+      if (discountMode === 'percentage') {
+        newBefTaxDiscountAmount = newItem.befTaxDiscount > 0 ? (newItem.befTaxDiscount / 100) * totalPrice : 0;
+        newAfTaxDiscountAmount = newItem.afTaxDiscount > 0 ? (newItem.afTaxDiscount / 100) * priceAfterTax : 0;
+      } else {
+        newBefTaxDiscount = newItem.befTaxDiscountAmount > 0 ? (newItem.befTaxDiscountAmount / totalPrice) * 100 : 0;
+        newAfTaxDiscount = newItem.afTaxDiscountAmount > 0 ? (newItem.afTaxDiscountAmount / priceAfterTax) * 100 : 0;
+      }
     }
-  }
-  dispatch(setDiscountMode({ mode: newMode }));
-  dispatch(setNewItemData({
-    ...newItem,
-    befTaxDiscount: roundPrice(newBefTaxDiscount),
-    afTaxDiscount: roundPrice(newAfTaxDiscount),
-    befTaxDiscountAmount: roundPrice(newBefTaxDiscountAmount),
-    afTaxDiscountAmount: roundPrice(newAfTaxDiscountAmount),
-    pendingAfTaxDiscountAmount: roundPrice(newAfTaxDiscountAmount),
-    befTaxDiscountType: newMode,
-    afTaxDiscountType: newMode,
-  }));
-};
+    dispatch(setDiscountMode({ mode: newMode }));
+    dispatch(setNewItemData({
+      ...newItem,
+      befTaxDiscount: roundPrice(newBefTaxDiscount),
+      afTaxDiscount: roundPrice(newAfTaxDiscount),
+      befTaxDiscountAmount: roundPrice(newBefTaxDiscountAmount),
+      afTaxDiscountAmount: roundPrice(newAfTaxDiscountAmount),
+      pendingAfTaxDiscountAmount: roundPrice(newAfTaxDiscountAmount),
+      befTaxDiscountType: newMode,
+      afTaxDiscountType: newMode,
+    }));
+  };
   // Form handlers
   const handleSelectAddressChange = useCallback(
     (name: string, value: string | null) => {
@@ -514,18 +537,18 @@ const setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo
     setIsFormDirty(false);
     setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, paymentTerms: false, creditLimit: false });
   };
-const enforceOneDiscount = (name: string, value: number) => {
-  const updatedItem = { ...newItem, [name]: value };
-  if (name === 'befTaxDiscount' || name === 'befTaxDiscountAmount') {
-    updatedItem.afTaxDiscount = 0;
-    updatedItem.afTaxDiscountAmount = 0;
-    updatedItem.pendingAfTaxDiscountAmount = 0;
-  } else if (name === 'afTaxDiscount' || name === 'afTaxDiscountAmount') {
-    updatedItem.befTaxDiscount = 0;
-    updatedItem.befTaxDiscountAmount = 0;
-  }
-  dispatch(setNewItemData(updatedItem));
-};
+  const enforceOneDiscount = (name: string, value: number) => {
+    const updatedItem = { ...newItem, [name]: value };
+    if (name === 'befTaxDiscount' || name === 'befTaxDiscountAmount') {
+      updatedItem.afTaxDiscount = 0;
+      updatedItem.afTaxDiscountAmount = 0;
+      updatedItem.pendingAfTaxDiscountAmount = 0;
+    } else if (name === 'afTaxDiscount' || name === 'afTaxDiscountAmount') {
+      updatedItem.befTaxDiscount = 0;
+      updatedItem.befTaxDiscountAmount = 0;
+    }
+    dispatch(setNewItemData(updatedItem));
+  };
   const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     // Different validation patterns for different fields
@@ -625,6 +648,13 @@ const enforceOneDiscount = (name: string, value: number) => {
         setErrors({ ...errors, [name]: false });
       }
     }
+     if (['befTaxDiscount', 'afTaxDiscount', 'befTaxDiscountAmount', 'afTaxDiscountAmount'].includes(name)) {
+    if (value !== '' && parseFloat(value) > 0 && overallDiscountValue > 0) {
+      setOverallDiscountValue(0);
+      dispatch(setSnackbarMessage('Overall discount reset due to item-wise discount'));
+      dispatch(setSnackbarOpen(true));
+    }
+  }
   };
   const handleVendorSelection = (vendor: VendorSummary | null) => {
     setVendorSearch(vendor);
@@ -800,13 +830,22 @@ const enforceOneDiscount = (name: string, value: number) => {
       setNewPriceTypeInput('');
       setTotals(calculateTotals);
       if (itemNameRef.current) itemNameRef.current.focus();
-    } catch (error) {
+    } 
+    catch (error) {
       dispatch(setSnackbarMessage('Failed to add item. Please try again.'));
       dispatch(setSnackbarOpen(true));
     } finally {
       setLoading(false);
     }
-  }, [dispatch, newItem, calculateTotals, discountMode]);
+    // If item has discount and overall discount exists, reset overall
+  if ((newItem.befTaxDiscount > 0 || newItem.afTaxDiscount > 0 || 
+       newItem.befTaxDiscountAmount > 0 || newItem.afTaxDiscountAmount > 0) && 
+      overallDiscountValue > 0) {
+    setOverallDiscountValue(0);
+    dispatch(setSnackbarMessage('Overall discount reset - item with discount added'));
+    dispatch(setSnackbarOpen(true));
+  }
+  }, [dispatch, newItem, calculateTotals, discountMode,overallDiscountValue]);
   const saveShippingAddress = () => {
     if (updatedShippingRow) {
       dispatch(addShipping({ ...updatedShippingRow, shippingId: '', randomId: '' }))
@@ -845,164 +884,172 @@ const enforceOneDiscount = (name: string, value: number) => {
       });
   };
   const applyOverallDiscountToItems = () => {
-  if (overallDiscountValue <= 0) return;
-  const items = [...purchaseOrderData.items];
-  const totalOrderAmount = items.reduce((sum, item) => sum + (item.pendingTotalPrice || 0), 0);
-  if (totalOrderAmount <= 0) {
-    dispatch(setSnackbarMessage('Cannot apply discount to zero amount order'));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-  const totalDiscount = overallDiscountMode === 'percentage'
-    ? totalOrderAmount * (overallDiscountValue / 100)
-    : overallDiscountValue;
-  if (totalDiscount >= totalOrderAmount) {
-    dispatch(setSnackbarMessage(`Discount cannot be ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} as it would make the total negative.`));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-  let remainingDiscount = totalDiscount;
-  let appliedDiscount = 0;
-  const updatedItems = items.map(item => {
-    if (!item.pendingTotalPrice || item.pendingTotalPrice <= 0) return item;
-    const itemShare = roundPrice((item.pendingTotalPrice / totalOrderAmount) * totalDiscount);
-    const discountAmount = Math.min(itemShare, item.pendingTotalPrice - 0.01); // prevent negative
-    const discountPercentage = roundPrice((discountAmount / (item.pendingTotalPrice + (item.pendingTaxAmount || 0))) * 100);
-    const updatedItem = { ...item };
-    updatedItem.afTaxDiscount = discountPercentage;
-    updatedItem.afTaxDiscountAmount = discountAmount; // Update afTaxDiscountAmount
-    updatedItem.pendingAfTaxDiscountAmount = discountAmount; // Update pendingAfTaxDiscountAmount
-    updatedItem.befTaxDiscount = 0;
-    updatedItem.befTaxDiscountAmount = 0;
-    const priceAfterDiscount = item.pendingTotalPrice - discountAmount;
-    const taxPercentage = item.taxPercentage || 0;
-    if (item.taxType === 'igst') {
-      updatedItem.pendingIgst = roundPrice((taxPercentage / 100) * priceAfterDiscount);
-      updatedItem.pendingSgst = 0;
-      updatedItem.pendingCgst = 0;
-    } else {
-      const halfTax = taxPercentage / 2;
-      updatedItem.pendingSgst = roundPrice((halfTax / 100) * priceAfterDiscount);
-      updatedItem.pendingCgst = roundPrice((halfTax / 100) * priceAfterDiscount);
-      updatedItem.pendingIgst = 0;
+    if (overallDiscountValue <= 0) return;
+    const items = [...purchaseOrderData.items];
+    const totalOrderAmount = items.reduce((sum, item) => sum + (item.pendingTotalPrice || 0), 0);
+    if (totalOrderAmount <= 0) {
+      dispatch(setSnackbarMessage('Cannot apply discount to zero amount order'));
+      dispatch(setSnackbarOpen(true));
+      return;
     }
-    const taxAmount = (updatedItem.pendingSgst || 0) + (updatedItem.pendingCgst || 0) + (updatedItem.pendingIgst || 0);
-    updatedItem.pendingDiscountAmount = roundPrice((item.pendingDiscountAmount || 0) + discountAmount);
-    updatedItem.pendingTaxAmount = roundPrice(taxAmount);
-    updatedItem.pendingFinalPrice = roundPrice(priceAfterDiscount + taxAmount);
-    updatedItem.pendingTotalPrice = roundPrice(priceAfterDiscount);
-    appliedDiscount += discountAmount;
-    remainingDiscount -= discountAmount;
-    return updatedItem;
-  });
-  dispatch(setPurchaseOrderData({
-    ...purchaseOrderData,
-    items: updatedItems,
-    pendingDiscountAmount: roundPrice((purchaseOrderData.pendingDiscountAmount || 0) + appliedDiscount),
-    pendingOrderAmount: roundPrice(purchaseOrderData.pendingOrderAmount - appliedDiscount)
-  }));
-  if (remainingDiscount > 0) {
-    dispatch(setSnackbarMessage(`Applied ₹${appliedDiscount.toFixed(2)} of ₹${totalDiscount.toFixed(2)} discount`));
-  } else {
-    dispatch(setSnackbarMessage(`Successfully applied ₹${totalDiscount.toFixed(2)} discount across all items`));
-  }
-  dispatch(setSnackbarOpen(true));
-  setOverallDiscountValue(0);
-};
-const handleApplyDiscount = async () => {
-  if (overallDiscountValue <= 0) {
-    dispatch(setSnackbarMessage('Please enter a valid discount amount'));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-  if (purchaseOrderData.items.length === 0) {
-    dispatch(setSnackbarMessage('Add items before applying discount'));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-  setLoading(true);
-  try {
-    const allItems = purchaseOrderData.items.map((item) => {
-      const totalPrice = item.pendingTotalQuantity * item.newPrice;
-      const priceAfterBefDiscount = totalPrice - (item.befTaxDiscountAmount || 0);
-      const taxAmount = (item.taxPercentage / 100) * totalPrice; // Use full price for tax
-      const priceAfterTax = totalPrice + taxAmount;
-      return {
-        id: item.itemId,
-        pendingTotalQuantity: item.pendingTotalQuantity || 0,
-        poQuantity: item.pendingTotalQuantity || 0,
-        newPrice: item.newPrice || 0,
-        befTaxDiscount: item.befTaxDiscount || 0,
-        afTaxDiscount: item.afTaxDiscount || 0,
-        befTaxDiscountAmount: item.befTaxDiscountAmount || 0,
-        afTaxDiscountAmount: item.afTaxDiscountAmount || 0,
-        befTaxDiscountType: (item.befTaxDiscountType || 'percentage') as 'percentage' | 'amount',
-        afTaxDiscountType: (item.afTaxDiscountType || 'percentage') as 'percentage' | 'amount',
-        taxPercentage: item.taxPercentage || 0,
-        taxType: item.taxType || 'cgst_sgst',
-        priceAfterTax, // Include for backend calculation
-      };
-    });
-    const payload = {
-      items: allItems,
-      overallDiscount: overallDiscountMode === 'percentage' ? overallDiscountValue : 0,
-      overallDiscountAmount: overallDiscountMode === 'amount' ? overallDiscountValue : 0,
-      overallDiscountType: overallDiscountMode,
-      applyOverallDiscount: true,
-    };
-    const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to apply discount');
+    const totalDiscount = overallDiscountMode === 'percentage'
+      ? totalOrderAmount * (overallDiscountValue / 100)
+      : overallDiscountValue;
+    if (totalDiscount >= totalOrderAmount) {
+      dispatch(setSnackbarMessage(`Discount cannot be ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} as it would make the total negative.`));
+      dispatch(setSnackbarOpen(true));
+      return;
     }
-    const updatedItems = purchaseOrderData.items.map(item => {
-      const calculatedItem = result.items.find(calc => calc.id === item.itemId);
-      if (calculatedItem) {
-        const taxAmount = item.taxType === 'igst'
-          ? calculatedItem.pendingIgst
-          : (calculatedItem.pendingSgst || 0) + (calculatedItem.pendingCgst || 0);
-        return {
-          ...item,
-          befTaxDiscount: calculatedItem.befTaxDiscount,
-          afTaxDiscount: calculatedItem.afTaxDiscount,
-          befTaxDiscountAmount: calculatedItem.befTaxDiscountAmount,
-          afTaxDiscountAmount: calculatedItem.afTaxDiscountAmount, // Update from backend
-          pendingAfTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount, // Update from backend
-          befTaxDiscountType: overallDiscountMode,
-          afTaxDiscountType: overallDiscountMode,
-          pendingFinalPrice: calculatedItem.pendingFinalPrice,
-          pendingOrderAmount: calculatedItem.pendingOrderAmount,
-          pendingTaxAmount: taxAmount,
-          pendingDiscountAmount: calculatedItem.pendingDiscountAmount,
-          pendingTotalPrice: calculatedItem.pendingTotalPrice,
-          pendingSgst: calculatedItem.pendingSgst,
-          pendingCgst: calculatedItem.pendingCgst,
-          pendingIgst: calculatedItem.pendingIgst,
-        };
+    let remainingDiscount = totalDiscount;
+    let appliedDiscount = 0;
+    const updatedItems = items.map(item => {
+      if (!item.pendingTotalPrice || item.pendingTotalPrice <= 0) return item;
+      const itemShare = roundPrice((item.pendingTotalPrice / totalOrderAmount) * totalDiscount);
+      const discountAmount = Math.min(itemShare, item.pendingTotalPrice - 0.01); // prevent negative
+      const discountPercentage = roundPrice((discountAmount / (item.pendingTotalPrice + (item.pendingTaxAmount || 0))) * 100);
+      const updatedItem = { ...item };
+      updatedItem.afTaxDiscount = discountPercentage;
+      updatedItem.afTaxDiscountAmount = discountAmount; // Update afTaxDiscountAmount
+      updatedItem.pendingAfTaxDiscountAmount = discountAmount; // Update pendingAfTaxDiscountAmount
+      updatedItem.befTaxDiscount = 0;
+      updatedItem.befTaxDiscountAmount = 0;
+      const priceAfterDiscount = item.pendingTotalPrice - discountAmount;
+      const taxPercentage = item.taxPercentage || 0;
+      if (item.taxType === 'igst') {
+        updatedItem.pendingIgst = roundPrice((taxPercentage / 100) * priceAfterDiscount);
+        updatedItem.pendingSgst = 0;
+        updatedItem.pendingCgst = 0;
+      } else {
+        const halfTax = taxPercentage / 2;
+        updatedItem.pendingSgst = roundPrice((halfTax / 100) * priceAfterDiscount);
+        updatedItem.pendingCgst = roundPrice((halfTax / 100) * priceAfterDiscount);
+        updatedItem.pendingIgst = 0;
       }
-      return item;
+      const taxAmount = (updatedItem.pendingSgst || 0) + (updatedItem.pendingCgst || 0) + (updatedItem.pendingIgst || 0);
+      updatedItem.pendingDiscountAmount = roundPrice((item.pendingDiscountAmount || 0) + discountAmount);
+      updatedItem.pendingTaxAmount = roundPrice(taxAmount);
+      updatedItem.pendingFinalPrice = roundPrice(priceAfterDiscount + taxAmount);
+      updatedItem.pendingTotalPrice = roundPrice(priceAfterDiscount);
+      appliedDiscount += discountAmount;
+      remainingDiscount -= discountAmount;
+      return updatedItem;
     });
     dispatch(setPurchaseOrderData({
       ...purchaseOrderData,
       items: updatedItems,
-      pendingOrderAmount: result.summary.totalFinalAmount,
-      pendingDiscountAmount: result.summary.totalDiscountAmount,
-      pendingTaxAmount: result.summary.totalTaxAmount,
+      pendingDiscountAmount: roundPrice((purchaseOrderData.pendingDiscountAmount || 0) + appliedDiscount),
+      pendingOrderAmount: roundPrice(purchaseOrderData.pendingOrderAmount - appliedDiscount)
     }));
-    dispatch(setSnackbarMessage(
-      `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} discount across all items`
-    ));
+    if (remainingDiscount > 0) {
+      dispatch(setSnackbarMessage(`Applied ₹${appliedDiscount.toFixed(2)} of ₹${totalDiscount.toFixed(2)} discount`));
+    } else {
+      dispatch(setSnackbarMessage(`Successfully applied ₹${totalDiscount.toFixed(2)} discount across all items`));
+    }
     dispatch(setSnackbarOpen(true));
     setOverallDiscountValue(0);
-  } catch (error) {
-    console.error('Error applying overall discount:', error);
-    dispatch(setSnackbarMessage(
-      error instanceof Error ? error.message : 'Error applying overall discount. Please try again.'
-    ));
-    dispatch(setSnackbarOpen(true));
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+  const handleApplyDiscount = async () => {
+    if (hasItemWiseDiscount) {
+      dispatch(setSnackbarMessage('Cannot apply overall discount when item-wise discounts exist'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    if (overallDiscountValue <= 0) {
+      dispatch(setSnackbarMessage('Please enter a valid discount amount'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    if (purchaseOrderData.items.length === 0) {
+      dispatch(setSnackbarMessage('Add items before applying discount'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    setLoading(true);
+    try {
+      // Reset all item discounts first before applying new overall discount
+      const allItems = purchaseOrderData.items.map((item) => {
+        return {
+          id: item.itemId,
+          pendingTotalQuantity: item.pendingTotalQuantity || 0,
+          poQuantity: item.pendingTotalQuantity || 0,
+          newPrice: item.newPrice || 0,
+          befTaxDiscount: 0, // Reset before tax discount
+          afTaxDiscount: 0, // Reset after tax discount
+          befTaxDiscountAmount: 0, // Reset before tax discount amount
+          afTaxDiscountAmount: 0, // Reset after tax discount amount
+          befTaxDiscountType: overallDiscountMode,
+          afTaxDiscountType: overallDiscountMode,
+          taxPercentage: item.taxPercentage || 0,
+          taxType: item.taxType || 'cgst_sgst',
+        };
+      });
+
+      const payload = {
+        items: allItems,
+        overallDiscount: overallDiscountMode === 'percentage' ? overallDiscountValue : 0,
+        overallDiscountAmount: overallDiscountMode === 'amount' ? overallDiscountValue : 0,
+        overallDiscountType: overallDiscountMode,
+        applyOverallDiscount: true,
+      };
+
+      const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to apply discount');
+      }
+
+      const updatedItems = purchaseOrderData.items.map(item => {
+        const calculatedItem = result.items.find(calc => calc.id === item.itemId);
+        if (calculatedItem) {
+          const taxAmount = item.taxType === 'igst'
+            ? calculatedItem.pendingIgst
+            : (calculatedItem.pendingSgst || 0) + (calculatedItem.pendingCgst || 0);
+          return {
+            ...item,
+            // Reset individual discounts and apply only overall discount
+            befTaxDiscount: 0,
+            afTaxDiscount: calculatedItem.afTaxDiscount,
+            befTaxDiscountAmount: 0,
+            afTaxDiscountAmount: calculatedItem.afTaxDiscountAmount,
+            pendingAfTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,
+            befTaxDiscountType: overallDiscountMode,
+            afTaxDiscountType: overallDiscountMode,
+            pendingFinalPrice: calculatedItem.pendingFinalPrice,
+            pendingOrderAmount: calculatedItem.pendingOrderAmount,
+            pendingTaxAmount: taxAmount,
+            pendingDiscountAmount: calculatedItem.pendingDiscountAmount,
+            pendingTotalPrice: calculatedItem.pendingTotalPrice,
+            pendingSgst: calculatedItem.pendingSgst,
+            pendingCgst: calculatedItem.pendingCgst,
+            pendingIgst: calculatedItem.pendingIgst,
+          };
+        }
+        return item;
+      });
+
+      dispatch(setPurchaseOrderData({
+        ...purchaseOrderData,
+        items: updatedItems,
+        pendingOrderAmount: result.summary.totalFinalAmount,
+        pendingDiscountAmount: result.summary.totalDiscountAmount,
+        pendingTaxAmount: result.summary.totalTaxAmount,
+      }));
+
+      dispatch(setSnackbarMessage(
+        `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} discount across all items`
+      ));
+      dispatch(setSnackbarOpen(true));
+      setOverallDiscountValue(0);
+    } catch (error) {
+      console.error('Error applying overall discount:', error);
+      dispatch(setSnackbarMessage(
+        error instanceof Error ? error.message : 'Error applying overall discount. Please try again.'
+      ));
+      dispatch(setSnackbarOpen(true));
+    } finally {
+      setLoading(false);
+    }
+  };
   const removeOverallDiscount = async () => {
     setLoading(true);
     try {
@@ -1704,12 +1751,13 @@ const handleApplyDiscount = async () => {
                             step: '0.01',
                           }}
                           sx={{ width: 10 }}
+                          disabled={hasItemWiseDiscount} // Disable when item discounts exist
                         />
                         <Button
                           variant="contained"
                           size="small"
                           onClick={handleApplyDiscount}
-                          disabled={loading || overallDiscountValue <= 0 || purchaseOrderData.items.length === 0}
+                          disabled={loading || overallDiscountValue <= 0 || purchaseOrderData.items.length === 0 || hasItemWiseDiscount}
                           startIcon={loading ? <CircularProgress size={16} /> : null}
                         >
                           {loading ? 'Applying...' : 'Apply'}
@@ -1730,6 +1778,7 @@ const handleApplyDiscount = async () => {
                             checked={overallDiscountMode === 'amount'}
                             onChange={() => setOverallDiscountModeWithConversion(overallDiscountMode === 'percentage' ? 'amount' : 'percentage')}
                             size="small"
+                            disabled={hasItemWiseDiscount} // Disable switch when item discounts exist
                           />
                         }
                         label={overallDiscountMode === 'amount' ? '₹' : '%'}

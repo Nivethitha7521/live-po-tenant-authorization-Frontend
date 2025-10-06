@@ -4,15 +4,20 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem,
   Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, CircularProgress, Select, FormControl, InputLabel, Chip, Alert, Checkbox,
-  ListItemText, Snackbar,
+  ListItemText, Snackbar, FormHelperText,
 } from '@mui/material';
 import { Outgoing, PaymentInfo } from '@/Models/outgoingModel';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch } from '@/redux/store';
 import {
-  fetchActiveDebitsMultipleVendor, processBulkPayment, selectOutgoings, fetchOutgoings,
+  fetchActiveDebitsMultipleVendor,
+  processBulkPayment,
+  selectOutgoings,
+  fetchOutgoings,
+  clearAdvances,
 } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import type { SelectChangeEvent } from '@mui/material/Select';
+import { fetchActiveAdvancesMultipleVendor, selectAdvances } from '@/features/yen-purchase/Outgoing/advancePaymentSlice';
 
 interface PaymentDialogProps {
   open: boolean;
@@ -27,6 +32,19 @@ interface DebitNote {
   finalAmount: number;
   status: string;
   totalAmount: number;
+  pendingAmount?: number; // ADDED
+}
+
+interface AdvancePayment {
+  advanceId?: string;
+  randomId?: string;
+  vendorName?: string;
+  amount?: number;
+  pendingAmount?: number;
+  status?: string;
+  paymentDate?: string;
+  createdDate?: string;
+  // Add other fields as needed from backend response
 }
 
 interface PaymentDetailsState {
@@ -34,32 +52,35 @@ interface PaymentDetailsState {
   paymentMethod: string;
   bankName: string;
   cashAmount: number;
+  referenceNumber: string; // ADDED: Reference number field
 }
 
 const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
   open, onClose, selectedOutgoings
 }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { banks, debits, loading, error } = useSelector(selectOutgoings);
-
+  const { banks, debits, loading, error } = useSelector(selectOutgoings); // UPDATED: Include advances
+  const {activeAdvances } =useSelector(selectAdvances);
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetailsState>({
     paymentMode: '',
     paymentMethod: '',
     bankName: '',
     cashAmount: 0,
+    referenceNumber: '', // ADDED
   });
   const [paymentTypeMultiple, setPaymentTypeMultiple] = useState<Record<string, 'full' | 'partial'>>({});
   const [partialAmount, setPartialAmount] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedDebitNotes, setSelectedDebitNotes] = useState<Record<string, string[]>>({});
-  const [isLoadingDebits, setIsLoadingDebits] = useState(false);
+  const [selectedAdvancePayments, setSelectedAdvancePayments] = useState<Record<string, string[]>>({}); // NEW: Advance payments
+  const [isLoading, setIsLoading] = useState(false);
   const [showPaymentModeDialog, setShowPaymentModeDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Fetch debit notes when dialog opens
+  // Fetch debit notes AND advance payments when dialog opens
   useEffect(() => {
     if (open && selectedOutgoings.length > 0) {
-      setIsLoadingDebits(true);
+      setIsLoading(true);
       setErrors((prev) => ({ ...prev, _general: '' }));
 
       const vendorNames = [
@@ -69,23 +90,33 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       ].filter((name) => name && name !== 'Unknown Vendor');
 
       if (vendorNames.length > 0) {
-        dispatch(fetchActiveDebitsMultipleVendor(vendorNames))
-          .unwrap()
-          .then(() => {
-            console.log(`Fetched debits for all vendors`);
-          })
-          .catch((error) => {
-            console.error('Error fetching debits:', error);
-            setErrors((prev) => ({ ...prev, _general: 'Failed to load debit notes' }));
-          })
-          .finally(() => {
-            setIsLoadingDebits(false);
-          });
+        // Fetch both debits and advances in parallel
+        Promise.all([
+          dispatch(fetchActiveDebitsMultipleVendor(vendorNames)).unwrap(),
+          dispatch(fetchActiveAdvancesMultipleVendor(vendorNames)).unwrap()
+        ])
+        .then(() => {
+          console.log(`Fetched payment options for ${vendorNames.length} vendors`);
+        })
+        .catch((error) => {
+          console.error('Error fetching payment options:', error);
+          setErrors((prev) => ({ ...prev, _general: 'Failed to load payment options' }));
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
       } else {
-        setIsLoadingDebits(false);
+        setIsLoading(false);
         setErrors((prev) => ({ ...prev, _general: 'No vendors selected' }));
       }
     }
+
+    // Cleanup when dialog closes
+    return () => {
+      if (!open) {
+        dispatch(clearAdvances());
+      }
+    };
   }, [open, selectedOutgoings, dispatch]);
 
   // Group outgoings by vendor
@@ -113,8 +144,23 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     return debits.filter(
       (debit) => debit.vendorName === vendorName &&
                 debit.status !== 'Cleared' &&
-                debit.status !== 'Applied'
+                (debit.pendingAmount || debit.finalAmount) > 0
     );
+  };
+
+  // Get vendor-specific advance payments
+  const getVendorAdvancePayments = (vendorName: string) => {
+    return activeAdvances.filter(
+      (advance) => advance.vendorName === vendorName &&
+                  advance.status !== 'Completed' &&
+                  (advance.pendingAmount || 0) > 0
+    );
+  };
+
+  // Calculate total available advance for vendor
+  const calculateVendorAdvanceTotal = (vendorName: string) => {
+    const vendorAdvances = getVendorAdvancePayments(vendorName);
+    return vendorAdvances.reduce((sum, advance) => sum + (advance.pendingAmount || 0), 0);
   };
 
   // Calculate total debit amount for a vendor
@@ -122,7 +168,16 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     const debitNotes = selectedDebitNotes[vendorName] || [];
     return debitNotes.reduce((sum, debitId) => {
       const debit = debits.find((d) => d.randomId === debitId);
-      return sum + (debit ? debit.finalAmount : 0);
+      return sum + (debit ? (debit.pendingAmount || debit.finalAmount || 0) : 0);
+    }, 0);
+  };
+
+  // Calculate total advance amount used for a vendor
+  const calculateVendorAdvanceAmount = (vendorName: string) => {
+    const advanceIds = selectedAdvancePayments[vendorName] || [];
+    return advanceIds.reduce((sum, advanceId) => {
+      const advance = activeAdvances.find((a) => a.randomId === advanceId || a.advanceId === advanceId);
+      return sum + (advance ? (advance.pendingAmount || 0) : 0);
     }, 0);
   };
 
@@ -133,6 +188,23 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       (sum, outgoing) => sum + (outgoing.totalPayableAmount || 0),
       0
     );
+  };
+
+  // Calculate maximum allowed payment for an outgoing (considering debits and advances)
+  const calculateMaxAllowedPayment = (outgoing: Outgoing) => {
+    const vendorName = outgoing.vendorName || 'Unknown Vendor';
+    const vendorDebitAmount = calculateVendorDebitAmount(vendorName);
+    const vendorAdvanceAmount = calculateVendorAdvanceAmount(vendorName);
+    const totalVendorPayable = calculateVendorPayableAmount(vendorName);
+    
+    if (totalVendorPayable <= 0) return 0;
+    
+    // Distribute debits and advances proportionally across vendor's outgoings
+    const outgoingProportion = (outgoing.totalPayableAmount || 0) / totalVendorPayable;
+    const allocatedDebits = vendorDebitAmount * outgoingProportion;
+    const allocatedAdvances = vendorAdvanceAmount * outgoingProportion;
+    
+    return Math.max(0, (outgoing.totalPayableAmount || 0) - allocatedDebits - allocatedAdvances);
   };
 
   // Validate amount for individual outgoing
@@ -148,7 +220,9 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     const numAmount = parseFloat(amount || '0');
     if (isNaN(numAmount)) return 'Invalid amount format';
     if (numAmount < 0) return 'Amount cannot be negative';
-    if (numAmount > maxAllowed) return `Payment amount cannot exceed payable amount (₹${maxAllowed.toFixed(2)})`;
+    if (numAmount > maxAllowed) {
+      return `Payment amount cannot exceed ₹${maxAllowed.toFixed(2)} (after debits/advances)`;
+    }
 
     return '';
   };
@@ -156,12 +230,17 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
   // Handle payment type change for individual outgoing
   const handlePaymentTypeChangeMultiple = (
     outgoingId: string,
-    event: SelectChangeEvent<'full' | 'partial'>
+    event: SelectChangeEvent<'full' | 'partial'>,
+    outgoing: Outgoing
   ) => {
     const value = event.target.value as 'full' | 'partial';
     setPaymentTypeMultiple((prev) => ({ ...prev, [outgoingId]: value }));
 
     if (value === 'full') {
+      const maxAllowed = calculateMaxAllowedPayment(outgoing);
+      setPartialAmount((prev) => ({ ...prev, [outgoingId]: maxAllowed.toFixed(2) }));
+      setErrors((prev) => ({ ...prev, [outgoingId]: '' }));
+    } else {
       setPartialAmount((prev) => ({ ...prev, [outgoingId]: '' }));
       setErrors((prev) => ({ ...prev, [outgoingId]: '' }));
     }
@@ -176,6 +255,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       paymentMethod: value === 'Bank' ? 'neft' : 'cash',
       bankName: value === 'Bank' ? prev.bankName : '',
       cashAmount: 0,
+      referenceNumber: '', // ADDED: Reset reference on mode change
     }));
     setErrors((prev) => ({ ...prev, _paymentMode: '' }));
   };
@@ -188,7 +268,17 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
 
   // Handle payment method change
   const handlePaymentMethodChange = (event: SelectChangeEvent) => {
-    setPaymentDetails((prev) => ({ ...prev, paymentMethod: event.target.value }));
+    setPaymentDetails((prev) => ({ 
+      ...prev, 
+      paymentMethod: event.target.value,
+      referenceNumber: '' // ADDED: Reset reference on method change
+    }));
+    setErrors((prev) => ({ ...prev, _paymentMode: '' }));
+  };
+
+  // ADDED: Handle reference number change
+  const handleReferenceNumberChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPaymentDetails((prev) => ({ ...prev, referenceNumber: event.target.value }));
     setErrors((prev) => ({ ...prev, _paymentMode: '' }));
   };
 
@@ -196,7 +286,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
   const handlePartialAmountChange = (
     outgoingId: string,
     value: string,
-    maxAmount: number
+    outgoing: Outgoing
   ) => {
     if (value === '') {
       setPartialAmount((prev) => ({ ...prev, [outgoingId]: '' }));
@@ -204,7 +294,8 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       return;
     }
 
-    const validationError = validateAmount(outgoingId, value, maxAmount);
+    const maxAllowed = calculateMaxAllowedPayment(outgoing);
+    const validationError = validateAmount(outgoingId, value, maxAllowed);
     setErrors((prev) => ({ ...prev, [outgoingId]: validationError }));
     setPartialAmount((prev) => ({ ...prev, [outgoingId]: value }));
   };
@@ -232,11 +323,38 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       const currentAmount = partialAmount[outgoingId] || '';
 
       if (currentAmount) {
-        const validationError = validateAmount(
-          outgoingId,
-          currentAmount,
-          outgoing.totalPayableAmount || 0
-        );
+        const maxAllowed = calculateMaxAllowedPayment(outgoing);
+        const validationError = validateAmount(outgoingId, currentAmount, maxAllowed);
+        setErrors((prev) => ({ ...prev, [outgoingId]: validationError }));
+      }
+    });
+  };
+
+  // Handle advance payment selection
+  const handleAdvancePaymentSelection = (
+    vendorName: string,
+    event: SelectChangeEvent<string[]>
+  ) => {
+    const selectedAdvanceIds = event.target.value as string[];
+    const validAdvanceIds = selectedAdvanceIds.filter((advanceId) => {
+      const advance = activeAdvances.find((a) => a.randomId === advanceId || a.advanceId === advanceId);
+      return advance && advance.vendorName === vendorName;
+    });
+
+    setSelectedAdvancePayments((prev) => ({
+      ...prev,
+      [vendorName]: validAdvanceIds,
+    }));
+
+    // Revalidate amounts after advance payment selection
+    const vendorOutgoings = groupedOutgoings[vendorName] || [];
+    vendorOutgoings.forEach((outgoing) => {
+      const outgoingId = outgoing.outgoingId as string;
+      const currentAmount = partialAmount[outgoingId] || '';
+
+      if (currentAmount) {
+        const maxAllowed = calculateMaxAllowedPayment(outgoing);
+        const validationError = validateAmount(outgoingId, currentAmount, maxAllowed);
         setErrors((prev) => ({ ...prev, [outgoingId]: validationError }));
       }
     });
@@ -252,34 +370,22 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       isValid = false;
     }
 
-    Object.keys(groupedOutgoings).forEach((vendorName) => {
-      const vendorDebitAmount = calculateVendorDebitAmount(vendorName);
-      const vendorPayableAmount = calculateVendorPayableAmount(vendorName);
-
-      if (vendorDebitAmount > vendorPayableAmount) {
-        newErrors[vendorName] = `Debit notes exceed vendor's total payable amount`;
-        isValid = false;
-      }
-    });
-
-    for (const outgoing of selectedOutgoings) {
+    // Validate each outgoing individually
+    selectedOutgoings.forEach((outgoing) => {
       const outgoingId = outgoing.outgoingId as string;
       const paymentType = paymentTypeMultiple[outgoingId] || 'full';
 
       if (paymentType === 'partial') {
         const amount = partialAmount[outgoingId] || '';
-        const validationError = validateAmount(
-          outgoingId,
-          amount,
-          outgoing.totalPayableAmount || 0
-        );
+        const maxAllowed = calculateMaxAllowedPayment(outgoing);
+        const validationError = validateAmount(outgoingId, amount, maxAllowed);
 
         if (validationError) {
           newErrors[outgoingId] = validationError;
           isValid = false;
         }
       }
-    }
+    });
 
     setErrors((prev) => ({ ...prev, ...newErrors }));
     return isValid;
@@ -301,8 +407,26 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       return false;
     }
 
+    // ADDED: Validate reference number for bank payments
+    if (paymentDetails.paymentMode === 'Bank' && !paymentDetails.referenceNumber.trim()) {
+      newErrors._paymentMode = `Please enter ${getReferenceLabel(paymentDetails.paymentMethod)}`;
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return false;
+    }
+
     setErrors((prev) => ({ ...prev, _paymentMode: '' }));
     return true;
+  };
+
+  // ADDED: Helper to get reference label based on payment method
+  const getReferenceLabel = (method: string): string => {
+    switch (method) {
+      case 'neft': return 'NEFT Reference Number';
+      case 'rtgs': return 'RTGS Reference Number';
+      case 'imps': return 'IMPS Reference Number';
+      case 'upi': return 'UPI ID';
+      default: return 'Reference Number';
+    }
   };
 
   // Handle opening the payment mode dialog
@@ -320,22 +444,24 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         const outgoingId = outgoing.outgoingId as string;
         const vendorName = outgoing.vendorName || 'Unknown Vendor';
         const paymentType = paymentTypeMultiple[outgoingId] || 'full';
-        const vendorSelectedDebitNotes = selectedDebitNotes[vendorName] || [];
-
+        
         const amount = paymentType === 'partial'
           ? parseFloat(partialAmount[outgoingId] || '0')
-          : outgoing.totalPayableAmount || 0;
+          : calculateMaxAllowedPayment(outgoing);
 
         return {
           outgoingId,
           paymentMode: paymentDetails.paymentMode as 'Bank' | 'Cash',
           paymentType,
+          totalPayableAmount: outgoing.totalPayableAmount || 0,
           fullPaymentAmount: paymentType === 'full' ? amount : 0,
           partialAmount: paymentType === 'partial' ? amount : 0,
           paymentMethod: paymentDetails.paymentMethod,
           cashAmount: paymentDetails.paymentMode === 'Cash' ? amount : 0,
           bankName: paymentDetails.bankName,
-          selectedDebitNotes: vendorSelectedDebitNotes,
+          referenceNumber: paymentDetails.referenceNumber, // ADDED: Include reference number
+          selectedDebitNotes: selectedDebitNotes[vendorName] || [],
+          selectedAdvancePayments: selectedAdvancePayments[vendorName] || [], // NEW: Include advances
         };
       });
 
@@ -355,7 +481,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       })).unwrap();
 
       // Show success notification
-      setSuccessMessage('Payment processed and data updated successfully');
+      setSuccessMessage('Bulk payment processed successfully!');
 
       // Reset state
       setPaymentDetails({
@@ -363,10 +489,12 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         paymentMethod: '',
         bankName: '',
         cashAmount: 0,
+        referenceNumber: '', // ADDED
       });
       setPaymentTypeMultiple({});
       setPartialAmount({});
       setSelectedDebitNotes({});
+      setSelectedAdvancePayments({});
       setErrors({});
       setShowPaymentModeDialog(false);
       onClose();
@@ -386,10 +514,12 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       paymentMethod: '',
       bankName: '',
       cashAmount: 0,
+      referenceNumber: '', // ADDED
     });
     setPaymentTypeMultiple({});
     setPartialAmount({});
     setSelectedDebitNotes({});
+    setSelectedAdvancePayments({});
     setErrors({});
     setShowPaymentModeDialog(false);
     setSuccessMessage(null);
@@ -415,13 +545,25 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
 
       {/* Main Bulk Payment Dialog */}
       <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
-        <DialogTitle>Bulk Payment Processing</DialogTitle>
-        <DialogContent>
-          <Typography variant="h6" gutterBottom>
-            Total Amount: ₹{totalOverallAmount.toLocaleString('en-IN', {
-              minimumFractionDigits: 2
-            })}
+        <DialogTitle>
+          <Typography variant="h5" component="div">
+            Bulk Payment Processing
           </Typography>
+          <Typography variant="subtitle1" color="text.secondary">
+            Process payments for multiple vendors and invoices
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 3, p: 2, backgroundColor: 'primary.light', borderRadius: 1 }}>
+            <Typography variant="h6" gutterBottom>
+              Total Amount: ₹{totalOverallAmount.toLocaleString('en-IN', {
+                minimumFractionDigits: 2
+              })}
+            </Typography>
+            <Typography variant="body2">
+              Processing {selectedOutgoings.length} invoices across {Object.keys(groupedOutgoings).length} vendors
+            </Typography>
+          </Box>
 
           {errors._general && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -429,46 +571,64 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
             </Alert>
           )}
 
-          {(isLoadingDebits || loading) && (
+          {isLoading && (
             <Box display="flex" alignItems="center" gap={1} mb={2}>
               <CircularProgress size={20} />
-              <Typography>Loading debit notes...</Typography>
+              <Typography>Loading payment options...</Typography>
             </Box>
           )}
 
           {/* Vendor Sections */}
           {Object.entries(groupedOutgoings).map(([vendorName, vendorOutgoings]) => {
             const vendorDebitNotes = getVendorDebitNotes(vendorName);
+            const vendorAdvancePayments = getVendorAdvancePayments(vendorName);
             const vendorTotal = calculateVendorPayableAmount(vendorName);
             const vendorDebitAmount = calculateVendorDebitAmount(vendorName);
+            const vendorAdvanceAmount = calculateVendorAdvanceAmount(vendorName);
+            const vendorAdvanceTotal = calculateVendorAdvanceTotal(vendorName);
 
             return (
-              <Paper key={vendorName} sx={{ p: 2, mb: 2 }}>
-                <Typography variant="h6" gutterBottom>
+              <Paper key={vendorName} sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="h6" gutterBottom color="primary">
                   {vendorName}
                 </Typography>
 
-                {vendorDebitAmount > 0 && (
+                {/* Vendor Summary */}
+                <Box display="flex" gap={2} sx={{ mb: 3 }} flexWrap="wrap">
                   <Chip
-                    label={`Debit Applied: ₹${vendorDebitAmount.toLocaleString('en-IN')}`}
-                    color="primary"
-                    sx={{ mb: 2 }}
+                    label={`Total Payable: ₹${vendorTotal.toLocaleString('en-IN')}`}
+                    color="default"
+                    variant="outlined"
                   />
-                )}
+                  {vendorDebitAmount > 0 && (
+                    <Chip
+                      label={`Debit Applied: ₹${vendorDebitAmount.toLocaleString('en-IN')}`}
+                      color="primary"
+                    />
+                  )}
+                  {vendorAdvanceAmount > 0 && (
+                    <Chip
+                      label={`Advance Applied: ₹${vendorAdvanceAmount.toLocaleString('en-IN')}`}
+                      color="secondary"
+                    />
+                  )}
+                  {vendorAdvanceTotal > 0 && (
+                    <Chip
+                      label={`Available Advance: ₹${vendorAdvanceTotal.toLocaleString('en-IN')}`}
+                      color="success"
+                      variant="outlined"
+                    />
+                  )}
+                </Box>
 
-                {errors[vendorName] && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {errors[vendorName]}
-                  </Alert>
-                )}
-
+                {/* Debit Notes Selection */}
                 {vendorDebitNotes.length > 0 && (
                   <FormControl fullWidth sx={{ mb: 2 }}>
-                    <InputLabel>Available Debit Notes for {vendorName}</InputLabel>
+                    <InputLabel>Select Debit Notes for {vendorName}</InputLabel>
                     <Select
                       multiple
                       value={selectedDebitNotes[vendorName] || []}
-                      label={`Available Debit Notes for ${vendorName}`}
+                      label={`Select Debit Notes for ${vendorName}`}
                       onChange={(e) =>
                         handleDebitNoteSelection(vendorName, e as SelectChangeEvent<string[]>)
                       }
@@ -479,7 +639,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                             return debit ? (
                               <Chip
                                 key={value}
-                                label={`${debit.noteId} (₹${debit.finalAmount})`}
+                                label={`${debit.noteId} (₹${(debit.pendingAmount || debit.finalAmount).toLocaleString('en-IN')})`}
                                 size="small"
                               />
                             ) : null;
@@ -493,8 +653,8 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                             checked={(selectedDebitNotes[vendorName] || []).includes(debit.randomId)}
                           />
                           <ListItemText
-                            primary={`${debit.noteId} - ₹${debit.finalAmount.toLocaleString('en-IN')}`}
-                            secondary={`Status: ${debit.status}`}
+                            primary={`${debit.noteId} - ₹${(debit.pendingAmount || debit.finalAmount).toLocaleString('en-IN')}`}
+                            secondary={`Pending: ₹${(debit.pendingAmount || debit.finalAmount).toLocaleString('en-IN')} | Status: ${debit.status}`}
                           />
                         </MenuItem>
                       ))}
@@ -502,15 +662,59 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                   </FormControl>
                 )}
 
+                {/* Advance Payments Selection */}
+                {vendorAdvancePayments.length > 0 && (
+                  <FormControl fullWidth sx={{ mb: 3 }}>
+                    <InputLabel>Select Advance Payments for {vendorName}</InputLabel>
+                    <Select
+                      multiple
+                      value={selectedAdvancePayments[vendorName] || []}
+                      label={`Select Advance Payments for ${vendorName}`}
+                      onChange={(e) =>
+                        handleAdvancePaymentSelection(vendorName, e as SelectChangeEvent<string[]>)
+                      }
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selected.map((value) => {
+                            const advance = vendorAdvancePayments.find((a) => a.randomId === value || a.advanceId === value);
+                            return advance ? (
+                              <Chip
+                                key={value}
+                                label={`Advance (₹${(advance.pendingAmount || 0).toLocaleString('en-IN')})`}
+                                size="small"
+                                color="secondary"
+                              />
+                            ) : null;
+                          })}
+                        </Box>
+                      )}
+                    >
+                      {vendorAdvancePayments.map((advance) => (
+                        <MenuItem key={advance.randomId || advance.advanceId} value={advance.randomId || advance.advanceId || ''}>
+                          <Checkbox
+                            checked={(selectedAdvancePayments[vendorName] || []).includes(advance.randomId || advance.advanceId || '')}
+                          />
+                          <ListItemText
+                            primary={`Advance - ₹${(advance.pendingAmount || 0).toLocaleString('en-IN')}`}
+                            secondary={`Pending: ₹${(advance.pendingAmount || 0).toLocaleString('en-IN')} | Status: ${advance.status}`}
+                          />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
+                {/* Outgoing Payments Table */}
                 <TableContainer>
                   <Table>
                     <TableHead>
                       <TableRow>
                         <TableCell>Invoice No</TableCell>
                         <TableCell>Payable Amount</TableCell>
+                        <TableCell>Max Allowed</TableCell>
                         <TableCell>Payment Type</TableCell>
-                        <TableCell>Partial Amount</TableCell>
-                        <TableCell>Error</TableCell>
+                        <TableCell>Payment Amount</TableCell>
+                        <TableCell>Status</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -518,28 +722,54 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                         const outgoingId = outgoing.outgoingId as string;
                         const paymentType = paymentTypeMultiple[outgoingId] || 'full';
                         const payableAmount = outgoing.totalPayableAmount || 0;
+                        const maxAllowed = calculateMaxAllowedPayment(outgoing);
                         const currentError = errors[outgoingId] || '';
+                        const paymentAmount = paymentType === 'partial' 
+                          ? parseFloat(partialAmount[outgoingId] || '0')
+                          : maxAllowed;
 
                         return (
-                          <TableRow key={outgoingId}>
-                            <TableCell>{outgoing.invoiceNo}</TableCell>
+                          <TableRow key={outgoingId} hover>
                             <TableCell>
-                              ₹{payableAmount.toLocaleString('en-IN', {
-                                minimumFractionDigits: 2
-                              })}
+                              <Typography variant="body2" fontWeight="medium">
+                                {outgoing.invoiceNo || 'N/A'}
+                              </Typography>
                             </TableCell>
                             <TableCell>
-                              <FormControl size="small">
+                              <Typography>
+                                ₹{payableAmount.toLocaleString('en-IN', {
+                                  minimumFractionDigits: 2
+                                })}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography 
+                                variant="body2" 
+                                color={maxAllowed < payableAmount ? "warning.main" : "text.primary"}
+                                fontWeight="medium"
+                              >
+                                ₹{maxAllowed.toLocaleString('en-IN', {
+                                  minimumFractionDigits: 2
+                                })}
+                              </Typography>
+                              {maxAllowed < payableAmount && (
+                                <FormHelperText>
+                                  After debits/advances
+                                </FormHelperText>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <FormControl size="small" fullWidth>
                                 <Select
                                   value={paymentType}
                                   onChange={(e) =>
                                     handlePaymentTypeChangeMultiple(
                                       outgoingId,
-                                      e as SelectChangeEvent<'full' | 'partial'>
+                                      e as SelectChangeEvent<'full' | 'partial'>,
+                                      outgoing
                                     )
                                   }
                                   size="small"
-                                  sx={{ minWidth: 100 }}
                                 >
                                   <MenuItem value="full">Full</MenuItem>
                                   <MenuItem value="partial">Partial</MenuItem>
@@ -547,7 +777,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                               </FormControl>
                             </TableCell>
                             <TableCell>
-                              {paymentType === 'partial' && (
+                              {paymentType === 'partial' ? (
                                 <TextField
                                   type="number"
                                   value={partialAmount[outgoingId] || ''}
@@ -555,32 +785,39 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                                     handlePartialAmountChange(
                                       outgoingId,
                                       e.target.value,
-                                      payableAmount
+                                      outgoing
                                     )
                                   }
                                   error={!!currentError}
                                   helperText={currentError}
-                                  sx={{ width: 120 }}
+                                  sx={{ width: 140 }}
                                   inputProps={{
                                     min: 0,
-                                    max: payableAmount,
+                                    max: maxAllowed,
                                     step: '0.01',
                                   }}
+                                  size="small"
                                 />
-                              )}
-                              {paymentType === 'full' && (
-                                <Typography>
-                                  ₹{payableAmount.toLocaleString('en-IN', {
+                              ) : (
+                                <Typography fontWeight="medium">
+                                  ₹{paymentAmount.toLocaleString('en-IN', {
                                     minimumFractionDigits: 2
                                   })}
                                 </Typography>
                               )}
                             </TableCell>
                             <TableCell>
-                              {currentError && (
+                              {currentError ? (
                                 <Typography color="error" variant="caption">
                                   {currentError}
                                 </Typography>
+                              ) : (
+                                <Chip 
+                                  label={paymentType === 'full' ? 'Full Payment' : 'Partial Payment'} 
+                                  size="small" 
+                                  color={paymentType === 'full' ? 'success' : 'warning'}
+                                  variant="outlined"
+                                />
                               )}
                             </TableCell>
                           </TableRow>
@@ -593,15 +830,16 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
             );
           })}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} color="inherit">
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={handleClose} color="inherit" size="large">
             Cancel
           </Button>
           <Button
             onClick={handleProcessPayment}
             variant="contained"
+            size="large"
             disabled={
-              isLoadingDebits ||
+              isLoading ||
               loading ||
               Object.keys(errors).some(key =>
                 key !== '_general' && key !== '_paymentMode' && errors[key]
@@ -609,7 +847,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
             }
             startIcon={loading ? <CircularProgress size={20} /> : null}
           >
-            {loading ? 'Processing...' : 'Confirm Payment'}
+            {loading ? 'Processing...' : 'Process Payment'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -620,7 +858,9 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         onClose={() => setShowPaymentModeDialog(false)}
         maxWidth="sm"
       >
-        <DialogTitle>Confirm Payment Details</DialogTitle>
+        <DialogTitle>
+          <Typography variant="h6">Confirm Payment Details</Typography>
+        </DialogTitle>
         <DialogContent>
           {errors._paymentMode && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -628,32 +868,42 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
             </Alert>
           )}
 
-          <Typography variant="h6" gutterBottom>
-            Total Amount: ₹{totalOverallAmount.toLocaleString('en-IN', {
-              minimumFractionDigits: 2
-            })}
-          </Typography>
+          <Box sx={{ mb: 3, p: 2, backgroundColor: 'success.light', borderRadius: 1 }}>
+            <Typography variant="h6" gutterBottom>
+              Total Payment: ₹{totalOverallAmount.toLocaleString('en-IN', {
+                minimumFractionDigits: 2
+              })}
+            </Typography>
+            <Typography variant="body2">
+              Confirm payment details before proceeding
+            </Typography>
+          </Box>
 
           <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Payment Mode</InputLabel>
+            <InputLabel>Payment Mode *</InputLabel>
             <Select
               value={paymentDetails.paymentMode}
-              label="Payment Mode"
+              label="Payment Mode *"
               onChange={handlePaymentModeChange}
+              error={!!errors._paymentMode}
             >
               <MenuItem value="Cash">Cash</MenuItem>
               <MenuItem value="Bank">Bank</MenuItem>
             </Select>
+            {errors._paymentMode && (
+              <FormHelperText error>{errors._paymentMode}</FormHelperText>
+            )}
           </FormControl>
 
           {paymentDetails.paymentMode === 'Bank' && (
             <>
               <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Bank Name</InputLabel>
+                <InputLabel>Bank Name *</InputLabel>
                 <Select
                   value={paymentDetails.bankName}
-                  label="Bank Name"
+                  label="Bank Name *"
                   onChange={handleBankNameChange}
+                  error={!!errors._paymentMode}
                 >
                   {banks.map((bank) => (
                     <MenuItem key={bank.bankName} value={bank.bankName}>
@@ -664,10 +914,10 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
               </FormControl>
 
               <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Payment Method</InputLabel>
+                <InputLabel>Payment Method *</InputLabel>
                 <Select
                   value={paymentDetails.paymentMethod}
-                  label="Payment Method"
+                  label="Payment Method *"
                   onChange={handlePaymentMethodChange}
                 >
                   <MenuItem value="neft">NEFT</MenuItem>
@@ -676,20 +926,37 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                   <MenuItem value="upi">UPI</MenuItem>
                 </Select>
               </FormControl>
+
+              {/* ADDED: Reference Number Field */}
+              <TextField
+                fullWidth
+                label={getReferenceLabel(paymentDetails.paymentMethod)}
+                value={paymentDetails.referenceNumber}
+                onChange={handleReferenceNumberChange}
+                error={!!errors._paymentMode}
+                helperText={errors._paymentMode}
+                placeholder={`Enter ${getReferenceLabel(paymentDetails.paymentMethod)}`}
+                sx={{ mb: 2 }}
+              />
             </>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowPaymentModeDialog(false)} color="inherit">
-            Cancel
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button 
+            onClick={() => setShowPaymentModeDialog(false)} 
+            color="inherit"
+            size="large"
+          >
+            Back
           </Button>
           <Button
             onClick={handleConfirmPayment}
             variant="contained"
+            size="large"
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : null}
           >
-            {loading ? 'Processing...' : 'Confirm Payment'}
+            {loading ? 'Processing...' : 'Confirm & Pay'}
           </Button>
         </DialogActions>
       </Dialog>

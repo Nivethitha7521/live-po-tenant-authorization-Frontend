@@ -5,6 +5,7 @@ import { AdvancePayment, VendorDetail, AdvanceState } from '@/Models/advanceMode
 const initialState: AdvanceState = {
   advances: [],
   advanceVendors: [],
+  singleadvance:[],
   activeAdvances: [],
   loading: false,
   snackbarMessage: '',
@@ -16,15 +17,19 @@ const initialState: AdvanceState = {
 
 export const fetchAdvances = createAsyncThunk<
   { data: AdvancePayment[]; totalItems: number },
-  { page: number; size: number; status?: string; filterBy?: string; fromDate?: Date; toDate?: Date; vendorName?: string },
+  { status?: string; filterBy?: string; fromDate?: Date; toDate?: Date; vendorName?: string },
   { rejectValue: string }
 >(
   'advances/fetchAdvances',
-  async ({ page, size, status, filterBy, fromDate, toDate, vendorName }, { rejectWithValue }) => {
+  async ({ status, filterBy, fromDate, toDate, vendorName }, { rejectWithValue }) => {
     try {
+      // Validate status to only allow 'pending' or 'partially cleared'
+      if (status && !['pending', 'partially cleared'].includes(status.toLowerCase())) {
+        console.warn(`Invalid status: ${status}. Allowed statuses: pending, partially cleared`);
+        return { data: [], totalItems: 0 };
+      }
+
       const params = new URLSearchParams({
-        page: page.toString(),
-        size: size.toString(),
         ...(status && { status }),
         ...(filterBy && { filterBy }),
         ...(fromDate && { fromDate: fromDate.toISOString() }),
@@ -32,7 +37,7 @@ export const fetchAdvances = createAsyncThunk<
         ...(vendorName && { vendorName }),
       });
 
-      const response = await axios.get(`http://192.168.29.116:8000/purchaseapi/advancevendor/vendorwise/advance?${params}`);
+      const response = await axios.get(`https://yenerp.com/purchaseapi/advancevendor/vendorwise/advance?${params}`);
       return {
         data: response.data.data || [],
         totalItems: response.data.totalItems || 0,
@@ -43,14 +48,13 @@ export const fetchAdvances = createAsyncThunk<
     }
   }
 );
-
 export const fetchVendorDetails = createAsyncThunk<VendorDetail[], { status?: string }, { rejectValue: string }>(
   'advances/fetchVendorDetails',
   async ({ status }, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams();
       if (status) params.append('status', status);
-      const response = await axios.get(`http://192.168.29.116:8000/purchaseapi/advancevendor/vendors`, { params });
+      const response = await axios.get(`https://yenerp.com/purchaseapi/advancevendor/vendors`, { params });
       return response.data || [];
     } catch (error: any) {
       console.error('Error in fetchVendorDetails:', error);
@@ -67,7 +71,7 @@ export const createAdvancePayment = createAsyncThunk<
   'advances/createAdvancePayment',
   async (payment, { rejectWithValue }) => {
     try {
-      const response = await axios.post('http://192.168.29.116:8000/purchaseapi/advancevendor/advance', payment);
+      const response = await axios.post('https://yenerp.com/purchaseapi/advancevendor/advance', payment);
       return response.data;
     } catch (error: any) {
       console.error('Error in createAdvancePayment:', error);
@@ -80,7 +84,7 @@ export const fetchActiveAdvancesVendor = createAsyncThunk(
   async (vendorId: string, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        `http://192.168.29.116:8000/purchaseapi/advancevendor/vendor/${vendorId}/advance-payments`
+        `https://yenerp.com/purchaseapi/advancevendor/vendor/${vendorId}/advance-payments`
       );
       return response.data.data;
     } catch (error: any) {
@@ -97,11 +101,37 @@ export const fetchActiveAdvancesVendorByName = createAsyncThunk(
       }
       const encodedVendorName = encodeURIComponent(vendorName);
       const response = await axios.get(
-        `http://192.168.29.116:8000/purchaseapi/advancevendor/vendorname/${encodedVendorName}/advance-payments`
+        `https://yenerp.com/purchaseapi/advancevendor/vendorname/${encodedVendorName}/advance-payments`
       );
       return response.data.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to fetch advance payments by vendor name');
+    }
+  }
+);
+// Add these new async thunks for fetching advances
+export const fetchActiveAdvancesMultipleVendor = createAsyncThunk<
+  AdvancePayment[],
+  string[], // vendorNames array
+  {
+    rejectValue: string;
+  }
+>(
+  'advancePayments/fetchActiveAdvancesMultipleVendor',
+  async (vendorNames, { rejectWithValue }) => {
+    try {
+      if (vendorNames.length === 0) {
+        return [];
+      }
+
+      const vendorNamesStr = vendorNames.join(',');
+      const response = await axios.get(
+        `https://yenerp.com/purchaseapi/advancevendor/vendors/active-advances?vendorNames=${encodeURIComponent(vendorNamesStr)}`
+      );
+      return response.data.advances || [];
+    } catch (error: any) {
+      console.error('Failed to fetch active advances for multiple vendors:', error);
+      return rejectWithValue(error.message || 'Failed to fetch active advances');
     }
   }
 );
@@ -122,6 +152,14 @@ const advancePaymentSlice = createSlice({
     setPagination(state, action) {
       state.currentPage = action.payload.page;
       state.pageSize = action.payload.size;
+    },
+    clearAdvances: (state) => {
+      state.advances = [];
+    },
+    clearBulkPaymentState: (state) => {
+      state.loading = false;
+      state.snackbarOpen = false;
+      state.snackbarMessage = '';
     },
   },
   extraReducers: (builder) => {
@@ -169,31 +207,27 @@ const advancePaymentSlice = createSlice({
         state.snackbarMessage = action.payload as string;
         state.snackbarOpen = true;
       })
-      // .addCase(fetchActiveAdvancesVendor.pending, (state) => {
-      //   state.loading = true;
-      // })
-      // .addCase(fetchActiveAdvancesVendor.fulfilled, (state, action) => {
-      //   state.loading = false;
-      //   state.activeAdvances = action.payload;
-      // })
-      // .addCase(fetchActiveAdvancesVendor.rejected, (state, action) => {
-      //   state.loading = false;
-      //   state.snackbarMessage = action.payload as string;
-      //   state.snackbarOpen = true;
-      // })
-      .addCase(fetchActiveAdvancesVendorByName.pending, (state) => {
+      .addCase(fetchActiveAdvancesMultipleVendor.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchActiveAdvancesMultipleVendor.fulfilled, (state, action) => {
+        state.loading = false;
+        state.activeAdvances = action.payload;
+        state.totalItems = action.payload.length;
+      })
+    .addCase(fetchActiveAdvancesVendorByName.pending, (state) => {
         state.loading = true;
       })
       .addCase(fetchActiveAdvancesVendorByName.fulfilled, (state, action) => {
         state.loading = false;
-        state.activeAdvances = action.payload;
+        state.singleadvance = action.payload;
         state.totalItems = action.payload.length;
       })
       .addCase(fetchActiveAdvancesVendorByName.rejected, (state, action) => {
         state.loading = false;
         state.snackbarMessage = action.payload as string;
         state.snackbarOpen = true;
-      });
+      })
   },
 });
 

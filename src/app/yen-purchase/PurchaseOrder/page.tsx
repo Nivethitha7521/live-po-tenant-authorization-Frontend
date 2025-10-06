@@ -1341,6 +1341,7 @@ const handleViewDetailsClick = (orderId: string) => {
               <DateRangeDialog
                 selectionRange={selectionRange}
                 setSelectionRange={setSelectionRange}
+                onApply={handleFilterClick}
               />
             </Box>
           </Grid>

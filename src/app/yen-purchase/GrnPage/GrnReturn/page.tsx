@@ -808,6 +808,7 @@ const generateSummaryPDF = () => {
               <DateRangeDialog
                 selectionRange={selectionRange}
                 setSelectionRange={setSelectionRange}
+                onApply={handleFilterClick}
               />
             </Grid>
             <Grid item xs={2}>

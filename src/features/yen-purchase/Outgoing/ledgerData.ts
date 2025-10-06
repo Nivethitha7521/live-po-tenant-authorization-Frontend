@@ -39,6 +39,7 @@ export interface VendorLedgerResponse {
   totalDebitAmount: number;
   totalCreditAmount: number;
   outstandingAmount: number;
+  openingBalance:number;
   invoices: InvoiceDetail[];
   transactions: Transaction[];
   lastTransactionDate: string | null;

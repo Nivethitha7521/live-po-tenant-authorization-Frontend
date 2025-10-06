@@ -49,7 +49,6 @@ import "jspdf-autotable"; // Ensure this plugin is available for autoTable funct
 import { fetchBusinesses, fetchPhoto, selectBusinesses } from '@/features/account-setting/businessSlice';
 import { fetchGrnById, fetchItemwiseGrns, selectGrn } from '@/features/yen-purchase/GRN/grnSlice';
 import { format } from "date-fns";
-import DateRangeFilter from "@/components/agingFilter";
 import { Outgoing } from "@/Models/apModel";
 import Link from "next/link";
 import Papa from "papaparse";
@@ -669,7 +668,7 @@ const PaidPaymentComponent = () => {
 
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
-                <Button variant="contained" color="primary">Pre Outgoing</Button>
+                <Button variant="contained" color="primary">Advance Payment</Button>
               </Link>
             </Grid>
 {/* 
@@ -739,6 +738,7 @@ const PaidPaymentComponent = () => {
                 <DateRangeDialog
                   selectionRange={selectionRange}
                   setSelectionRange={setSelectionRange}
+                  onApply={handleFilterClick}
                 />
               </Box>
             </Grid>

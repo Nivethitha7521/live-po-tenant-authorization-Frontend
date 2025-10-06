@@ -2311,7 +2311,7 @@ const handleSaveChanges = useCallback(async () => {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap", width: "100%", mb: 1 }}>
           <Grid container spacing={1} alignItems="center" wrap="nowrap" sx={{ width: "auto", flexGrow: 1 }}>
             <Grid item>
-              <DateRangeDialog selectionRange={selectionRange} setSelectionRange={setSelectionRange} />
+              <DateRangeDialog selectionRange={selectionRange} setSelectionRange={setSelectionRange} onApply={handleFilterClick}/>
             </Grid>
             <Grid item xs={6} sm={4} md={2}>
               <VendorSearchAutocomplete value={selectedVendor} onChange={handleVendorChange} label="All Vendors" />

@@ -18,25 +18,14 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem,
   Box,
   FormControl,
-  InputLabel,
-  Select,
   Checkbox,
   Snackbar,
-  InputAdornment,
-  CircularProgress,
   Tooltip,
-  SelectChangeEvent,
   IconButton,
   Autocomplete,
-  AutocompleteChangeReason,
-  AutocompleteChangeDetails,
-  List,
-  FormControlLabel,
-  ListItem,
-  ListItemText,
+  AutocompleteChangeReason
 } from '@mui/material';
 import YenBookPage from '../page';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -47,14 +36,8 @@ import PaymentsIcon from '@mui/icons-material/Payments';
 import PaymentIcon from '@mui/icons-material/Payment';
 import {
   fetchOutgoings,
-  selectOutgoings, fetchVendorDetails,
-  processPayment, fetchBank,
-  setSnackbarMessage, clearSnackbarMessage, setSnackbarOpen,
-  selectCurrentPage,
-  selectPageSize,
-  selectTotalItems,
-  setPagination,
-  fetchActiveDebitsVendor,
+  selectOutgoings, fetchVendorDetails, fetchBank, selectTotalItems, setPagination,
+  setSnackbarMessage, clearSnackbarMessage, setSnackbarOpen, selectCurrentPage, selectPageSize,
 } from '../../../features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import { fetchGrnById, fetchItemwiseGrns, selectGrn } from '@/features/yen-purchase/GRN/grnSlice';
 import { AppDispatch, RootState } from '@/redux/store';
@@ -92,7 +75,6 @@ const OutgoingPaymentComponent = React.memo(() => {
   const { selectedPo, poDialogOpen, loading } = useSelector(selectPurchaseListState);
   const [selectedOutgoing, setSelectedOutgoing] = useState<any>(null);
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
-
   const [selectedVendorName, setSelectedVendorName] = useState<VendorDetail | null>(null); // Default is null
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedOutgoings, setSelectedOutgoings] = useState<Outgoing[]>([]);
@@ -150,6 +132,7 @@ const OutgoingPaymentComponent = React.memo(() => {
         page: newPage,
         size: pageSize,
         filterByAmount: true,
+        filterBy: 'invoiceDate'
       }));
     }
   }, [dispatch, loadingState, dateField, newPage, pageSize]); // Depend on loading, newPage, pageSize, currentDate
@@ -951,7 +934,7 @@ const OutgoingPaymentComponent = React.memo(() => {
       paidAmount = totalPayableAmount;
     } else if (outgoingdetail.status === 'Partially Paid') {
       paidAmount = partialAmount;
-    } 
+    }
 
     // Now you can update the summaryTable with payment status, paid amount, and pending amount.
     const summaryTable = [
@@ -1070,7 +1053,7 @@ const OutgoingPaymentComponent = React.memo(() => {
               <Grid item>
                 <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
                   <Button variant="contained" color="primary" sx={{ mr: 1 }}>
-                    Pre Outgoing
+                    Advance Payment
                   </Button>
                 </Link>
               </Grid>
@@ -1134,6 +1117,7 @@ Description:<br />
                 <DateRangeDialog
                   selectionRange={selectionRange}
                   setSelectionRange={setSelectionRange}
+                  onApply={handleFilterClick}
                 />
               </Box>
             </Grid>

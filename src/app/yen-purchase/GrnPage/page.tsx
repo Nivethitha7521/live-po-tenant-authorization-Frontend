@@ -1453,6 +1453,7 @@ const GrnPage = () => {
               <DateRangeDialog
                 selectionRange={selectionRange}
                 setSelectionRange={setSelectionRange}
+                onApply={handleFilterClick}
               />
             </Grid>
 

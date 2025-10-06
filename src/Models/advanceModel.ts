@@ -48,6 +48,7 @@ export interface VendorNameGet {
 
 export interface AdvanceState {
   advances: AdvancePayment[];
+  singleadvance:AdvancePayment[];
   advanceVendors: VendorDetail[];
   activeAdvances: AdvancePayment[]; // Added for active advance payments
   loading: boolean;

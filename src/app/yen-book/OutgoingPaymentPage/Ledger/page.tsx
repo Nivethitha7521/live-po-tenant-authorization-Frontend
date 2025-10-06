@@ -48,6 +48,8 @@ import moment from 'moment';
 import Link from 'next/link';
 import DateRangeDialog from '@/components/dateRange';
 import YenBookPage from '../../page';
+import 'react-date-range/dist/styles.css'; // main style file
+import 'react-date-range/dist/theme/default.css'; // theme css file
 
 const LedgerPage = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -57,10 +59,10 @@ const LedgerPage = () => {
   const [outgoingVendor, setOutgoingVendor] = useState<VendorDetail[]>([]);
   const isFetchingRef = useRef(false);
   const isInitialLoad = useRef(true);
-  const today = new Date(); // Current date: September 15, 2025, 03:38 PM IST
+  const today = new Date(); // Current date: October 01, 2025, 03:38 PM IST
   const [selectionRange, setSelectionRange] = useState({
-    startDate: startOfMonth(today), // Start of current month: September 1, 2025
-    endDate: endOfDay(today),      // End of today: September 15, 2025, 11:59 PM
+    startDate: startOfMonth(today), // Start of current month: October 1, 2025
+    endDate: endOfDay(today),      // End of today: October 1, 2025, 11:59 PM
     key: 'selection',
   });
 
@@ -113,24 +115,6 @@ const LedgerPage = () => {
     }
   }, [dispatch]);
 
-  // Fetch ledger data when vendor or date range changes
-  useEffect(() => {
-    const fetchData = async () => {
-      if (isFetchingRef.current || !selectedVendorName) return;
-      isFetchingRef.current = true;
-      try {
-        const startDate = moment(selectionRange.startDate).format('YYYY-MM-DD');
-        const endDate = moment(selectionRange.endDate).format('YYYY-MM-DD');
-        await dispatch(fetchLedgerData({ vendorName: selectedVendorName, startDate, endDate }));
-      } catch (error) {
-        console.error('Error fetching ledger data:', error);
-      } finally {
-        isFetchingRef.current = false;
-      }
-    };
-    fetchData();
-  }, [dispatch, selectedVendorName, selectionRange.startDate, selectionRange.endDate]);
-
   const handleVendorChange = (event: React.SyntheticEvent, newValue: VendorDetail | null) => {
     dispatch(setSelectedVendorName(newValue?.vendorName || null));
   };
@@ -161,10 +145,11 @@ const LedgerPage = () => {
     const endDate = moment(selectionRange.endDate).format('DD-MM-YYYY');
     doc.text(`Period: ${startDate} to ${endDate}`, 20, 47);
 
-    // Add opening balance note
-    const openingBalance = ledgerData?.outstandingAmount || 0;
+    // Period opening balance for PDF
+    const periodOpeningTransaction = transactions?.find(t => t.type === 'opening_balance');
+    const periodOpeningBalance = periodOpeningTransaction?.balance || 0;
     doc.text(
-      `Opening Balance as of ${startDate}: ${formatCurrency(Math.abs(openingBalance))} ${openingBalance >= 0 ? 'Dr' : 'Cr'}`,
+      `Opening Balance as of ${startDate}: ${formatCurrency(Math.abs(periodOpeningBalance))} ${periodOpeningBalance >= 0 ? 'Cr' : 'Dr'}`,
       20,
       54
     );
@@ -178,22 +163,22 @@ const LedgerPage = () => {
       transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00',
       transaction.balance === 0 
         ? '0.00'
-        : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Dr' : 'Cr'}`,
+        : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Cr' : 'Dr'}`,
     ]) || [];
 
-    // Add totals
+    // Add totals (period)
     const totalDebit = transactions?.reduce((sum, t) => sum + t.debit_amount, 0) || 0;
     const totalCredit = transactions?.reduce((sum, t) => sum + t.credit_amount, 0) || 0;
-    const finalBalance = transactions?.[transactions.length - 1]?.balance || openingBalance;
+    const periodFinalBalance = transactions?.[transactions.length - 1]?.balance || periodOpeningBalance;
 
     rows.push([
       '',
       'Total',
       formatAmount(totalDebit),
       formatAmount(totalCredit),
-      finalBalance === 0 
+      periodFinalBalance === 0 
         ? '0.00'
-        : `${formatAmount(Math.abs(finalBalance))} ${finalBalance >= 0 ? 'Dr' : 'Cr'}`,
+        : `${formatAmount(Math.abs(periodFinalBalance))} ${periodFinalBalance >= 0 ? 'Cr' : 'Dr'}`,
     ]);
 
     doc.autoTable({
@@ -224,7 +209,7 @@ const LedgerPage = () => {
       transaction.credit_amount || '0.00',
       transaction.balance === 0 
         ? '0.00'
-        : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Dr' : 'Cr'}`,
+        : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Cr' : 'Dr'}`,
     ]) || [];
 
     const csvData = [columns, ...rows];
@@ -240,11 +225,22 @@ const LedgerPage = () => {
     setOpenDialog(false);
   };
 
-  // Calculate totals
+  // All-time summary values from ledgerData
+  const allTimeOpeningBalance = ledgerData?.openingBalance || 0;
+  const totalPayableAll = ledgerData?.totalPayableAmount || 0;
+  const totalPaidAll = ledgerData?.totalPaidAmount || 0;
+  const totalDebitAll = ledgerData?.totalDebitAmount || 0;
+  const totalCreditAll = ledgerData?.totalCreditAmount || 0;
+  const outstandingAll = ledgerData?.outstandingAmount || 0;
+
+  // Period opening balance
+  const periodOpeningTransaction = transactions?.find((t: Transaction) => t.type === 'opening_balance');
+  const periodOpeningBalance = periodOpeningTransaction?.balance || 0;
+
+  // Period values for table
   const totalDebit = transactions?.reduce((sum, t) => sum + t.debit_amount, 0) || 0;
   const totalCredit = transactions?.reduce((sum, t) => sum + t.credit_amount, 0) || 0;
-  const finalBalance = transactions?.[transactions.length - 1]?.balance || ledgerData?.outstandingAmount || 0;
-  const openingBalance = ledgerData?.outstandingAmount || 0;
+  const finalBalance = transactions?.[transactions.length - 1]?.balance || periodOpeningBalance;
 
   if (loading) {
     return (
@@ -275,7 +271,7 @@ const LedgerPage = () => {
     <Box maxWidth="xl" sx={{ py: 2 }}>
       {/* Navigation Buttons */}
       <YenBookPage />
-      <Paper sx={{ pl: 2, mb: 2 }}>
+      <Paper sx={{ pl: 2, mb: 2,mt:1 }}>
         <Grid container spacing={1} alignItems="center">
           <Grid item>
             <Link href="/yen-book/OutgoingPaymentPage" passHref>
@@ -287,17 +283,10 @@ const LedgerPage = () => {
           <Grid item>
             <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
               <Button variant="contained" size="small">
-                Pre Outgoing
-              </Button>
-            </Link>
-          </Grid>
-          {/* <Grid item>
-            <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>
-              <Button variant="contained" size="small">
                 Advance Payment
               </Button>
             </Link>
-          </Grid> */}
+          </Grid>
           <Grid item>
             <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
               <Button variant="contained" size="small">
@@ -313,14 +302,12 @@ const LedgerPage = () => {
             </Link>
           </Grid>
           <Grid item>
-            <Button variant="outlined" size="small"  sx={{
-                      backgroundColor: 'white', // White background
-                      color: 'black', // Black text
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.8)', // Slightly darker on hover
-                      },
-                      mr: 1,
-                    }}>
+            <Button variant="contained" size="small" sx={{ 
+              mr: "5px",
+              backgroundColor: 'white',
+              color: 'black',
+              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.8)' },
+            }}>
               Ledger
             </Button>
           </Grid>
@@ -358,6 +345,7 @@ const LedgerPage = () => {
             <DateRangeDialog
               selectionRange={selectionRange}
               setSelectionRange={setSelectionRange}
+              onApply={handleFilterClick}
             />
           </Grid>
           <Grid item>
@@ -397,17 +385,17 @@ const LedgerPage = () => {
       </Paper>
 
      
-      {/* Summary Cards */}
+      {/* Summary Cards - All-time */}
       {selectedVendorName && (
         <Grid container spacing={2} mb={2}>
           <Grid item xs={6} md={3}>
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Typography variant="h6" color="primary.main">
-                  {formatCurrency(Math.abs(openingBalance))}
+                  {formatCurrency(Math.abs(allTimeOpeningBalance))}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  Opening Balance {openingBalance >= 0 ? '(Dr)' : '(Cr)'}
+                  Opening Balance {allTimeOpeningBalance >= 0 ? '(Cr)' : '(Dr)'}
                 </Typography>
               </CardContent>
             </Card>
@@ -416,7 +404,7 @@ const LedgerPage = () => {
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Typography variant="h6" color="error.main">
-                  {formatCurrency(totalDebit)}
+                  {formatCurrency(totalPaidAll)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Total Payments Made
@@ -428,7 +416,7 @@ const LedgerPage = () => {
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Typography variant="h6" color="success.main">
-                  {formatCurrency(totalCredit)}
+                  {formatCurrency(totalPayableAll)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Total Bills/Invoices
@@ -440,7 +428,7 @@ const LedgerPage = () => {
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Typography variant="h6" color="warning.main">
-                  {formatCurrency(Math.max(0, finalBalance))}
+                  {formatCurrency(Math.max(0, outstandingAll))}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Outstanding Amount
@@ -451,7 +439,7 @@ const LedgerPage = () => {
         </Grid>
       )}
 
-      {/* Ledger Table */}
+      {/* Ledger Table - Filtered */}
       <Paper sx={{ mb: 2,ml:2}}>
         <TableContainer sx={{ maxHeight: 500 }}>
           <Table stickyHeader sx={{ border: '1px solid #ddd' }}>
@@ -503,7 +491,7 @@ const LedgerPage = () => {
                       <TableCell align="right" sx={{ fontSize: '14px', fontWeight: 'medium', border: '1px solid #ddd' }}>
                         {transaction.balance === 0 
                           ? '0.00'
-                          : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Dr' : 'Cr'}`}
+                          : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Cr' : 'Dr'}`}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -519,7 +507,7 @@ const LedgerPage = () => {
                     <TableCell align="right" sx={{ fontWeight: 'bold', border: '1px solid #ddd' }}>
                       {finalBalance === 0 
                         ? '0.00'
-                        : `${formatAmount(Math.abs(finalBalance))} ${finalBalance >= 0 ? 'Dr' : 'Cr'}`}
+                        : `${formatAmount(Math.abs(finalBalance))} ${finalBalance >= 0 ? 'Cr' : 'Dr'}`}
                     </TableCell>
                   </TableRow>
                 </>
@@ -531,9 +519,9 @@ const LedgerPage = () => {
                         ? 'No transactions found for this vendor in the selected date range'
                         : 'Please select a vendor to view ledger'}
                     </Typography>
-                    {selectedVendorName && openingBalance !== 0 && (
+                    {Math.abs(periodOpeningBalance) > 0 && (
                       <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                        Opening Balance: {formatCurrency(Math.abs(openingBalance))} {openingBalance >= 0 ? 'Dr' : 'Cr'}
+                        Opening Balance: {formatCurrency(Math.abs(periodOpeningBalance))} {periodOpeningBalance >= 0 ? 'Cr' : 'Dr'}
                       </Typography>
                     )}
                   </TableCell>

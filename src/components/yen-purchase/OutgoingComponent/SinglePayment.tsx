@@ -49,7 +49,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { banks, debits } = useSelector((state: RootState) => state.outgoingPayment);
-  const { activeAdvances } = useSelector((state: RootState) => state.advances);
+  const { singleadvance } = useSelector((state: RootState) => state.advances);
 
   const [paymentDetails, setPaymentDetails] = useState({
     paymentMethod: 'cash',
@@ -69,11 +69,13 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
+
   useEffect(() => {
     if (selectedOutgoing && open) {
       dispatch(fetchActiveDebitsVendor(selectedOutgoing.vendorName));
       dispatch(fetchActiveAdvancesVendorByName(selectedOutgoing.vendorName));
-      const initialAmount = selectedOutgoing?.totalPayableAmount?.toFixed(2) || '';
+      const initialAmount = totalPayable.toFixed(2);
       setPaymentDetails({
         paymentMethod: 'cash',
         neftNo: '',
@@ -82,68 +84,64 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
         paymentType: 'full',
         rtgsNo: '',
         paymentMode: 'Cash',
-        cashAmount: parseFloat(initialAmount) || 0,
+        cashAmount: parseFloat(initialAmount),
         upi: '',
         impsNo: '',
         selectedDebitNotes: [],
         selectedAdvancePayments: [],
       });
+      setError('');
     }
-  }, [selectedOutgoing, open, dispatch]);
+  }, [selectedOutgoing, open, dispatch, totalPayable]);
 
-  // Define remainingPayable before totalAdvanceAmount
-  const remainingPayable = () => {
-    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
-    const totalDebit = paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
-      const debit = debits.find((d: any) => d.randomId === debitId);
-      return sum + (debit ? (debit.finalAmount || 0) : 0);
-    }, 0);
-    const paymentAmount = parseFloat(paymentDetails.amount || '0');
-    return totalPayable - totalDebit - (paymentDetails.paymentType === 'partial' ? paymentAmount : 0);
-  };
-
-  const totalAdvanceAmount = paymentDetails.selectedAdvancePayments.reduce((sum, advanceId, index, array) => {
-    const advance = activeAdvances.find((a: any) => a.randomId === advanceId);
-    if (!advance) return sum;
-    // Calculate previously applied advance amounts (excluding current)
-    const prevAdvanceSum = array.slice(0, index).reduce((prevSum, prevId) => {
-      const prevAdvance = activeAdvances.find((a: any) => a.randomId === prevId);
-      return prevSum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
-    }, 0);
-    // Cap advance to remaining payable after previous advances
-    const remaining = remainingPayable() - prevAdvanceSum;
-    return sum + Math.min(advance.pendingAmount || 0, Math.max(0, remaining));
-  }, 0);
-
-  const totalDebitAmount = paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
+  const uncappedDebitSum = paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
     const debit = debits.find((d: any) => d.randomId === debitId);
     return sum + (debit ? (debit.finalAmount || 0) : 0);
   }, 0);
 
-  const validateAmount = (amount: string, maxAllowed: number): string => {
-    if (!amount && paymentDetails.paymentType === 'partial') return 'Please enter an amount';
+  const uncappedAdvanceSum = paymentDetails.selectedAdvancePayments.reduce((sum, advanceId) => {
+    const advance = singleadvance.find((a: any) => a.randomId === advanceId);
+    return sum + (advance ? (advance.pendingAmount || 0) : 0);
+  }, 0);
+
+  const paymentNum = parseFloat(paymentDetails.amount || '0');
+  const isPartial = paymentDetails.paymentType === 'partial';
+  const available = isPartial ? Math.max(0, totalPayable - paymentNum) : totalPayable;
+  const effectiveDebit = Math.min(uncappedDebitSum, available);
+  const effectiveAdvance = Math.min(uncappedAdvanceSum, available - effectiveDebit);
+  const totalDebitAmount = effectiveDebit;
+  const totalAdvanceAmount = effectiveAdvance;
+
+  const getBaseRemainingForAdjustments = () => totalPayable - uncappedDebitSum - (isPartial ? paymentNum : 0);
+
+  const validateAmount = (amount: string, maxAllowed: number, isPartialCheck: boolean): string => {
+    if (isPartialCheck && !amount) return 'Please enter an amount';
     const numAmount = parseFloat(amount || '0');
     if (isNaN(numAmount)) return 'Invalid amount format';
     if (numAmount < 0) return 'Amount cannot be negative';
-
-    const totalApplied = totalDebitAmount + totalAdvanceAmount + numAmount;
-    if (totalApplied > maxAllowed) {
-      return `Total payment (₹${totalApplied.toFixed(2)}) exceeds remaining payable amount (₹${maxAllowed.toFixed(2)})`;
+    if (isPartialCheck && numAmount > maxAllowed) {
+      return `Payment amount (₹${numAmount.toFixed(2)}) exceeds total payable amount (₹${maxAllowed.toFixed(2)})`;
     }
     return '';
   };
 
   const handlePaymentTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedType = e.target.value as 'full' | 'partial';
-    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
-    const newAmount = selectedType === 'full' ? (totalPayable - totalDebitAmount - totalAdvanceAmount).toFixed(2) : paymentDetails.amount;
+    let newAmount;
+    if (selectedType === 'full') {
+      const cappedDebit = Math.min(uncappedDebitSum, totalPayable);
+      const cappedAdvance = Math.min(uncappedAdvanceSum, totalPayable - cappedDebit);
+      newAmount = (totalPayable - cappedDebit - cappedAdvance).toFixed(2);
+    } else {
+      newAmount = paymentDetails.amount;
+    }
     setPaymentDetails((prev) => ({
       ...prev,
       paymentType: selectedType,
       amount: newAmount,
       cashAmount: prev.paymentMode === 'Cash' ? parseFloat(newAmount || '0') : 0,
     }));
-    setError(validateAmount(newAmount, totalPayable));
+    setError(validateAmount(newAmount, totalPayable, selectedType === 'partial'));
   };
 
   const handlePaymentModeChange = (e: React.ChangeEvent<{ value: unknown }>) => {
@@ -177,7 +175,6 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     const { name, value } = e.target;
     if (name === 'amount' && !/^\d*\.?\d*$/.test(value)) return;
 
-    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
     setPaymentDetails((prev) => {
       const newDetails = {
         ...prev,
@@ -187,62 +184,50 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
           : {}),
       };
       if (name === 'amount') {
-        setError(validateAmount(value, totalPayable));
+        setError(validateAmount(value, totalPayable, true));
       }
       return newDetails;
     });
   };
 
   const handleDebitNoteChange = (selectedValues: string[]) => {
-    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
-    const totalDebit = selectedValues.reduce((sum, id) => {
+    const newUncappedDebit = selectedValues.reduce((sum, id) => {
       const debit = debits.find((d: any) => d.randomId === id);
       return sum + (debit ? (debit.finalAmount || 0) : 0);
     }, 0);
-
-    // Check if adding the new debit notes exceeds the remaining payable
-    const tempRemaining = totalPayable - totalDebit - totalAdvanceAmount - (paymentDetails.paymentType === 'partial' ? parseFloat(paymentDetails.amount || '0') : 0);
-    if (tempRemaining < 0) {
-      setError(`Total debit notes and advance payments (₹${(totalDebit + totalAdvanceAmount).toFixed(2)}) exceed remaining payable amount (₹${totalPayable.toFixed(2)})`);
-      return;
+    let newAmount = paymentDetails.amount;
+    if (paymentDetails.paymentType === 'full') {
+      const cappedDebit = Math.min(newUncappedDebit, totalPayable);
+      const cappedAdvance = Math.min(uncappedAdvanceSum, totalPayable - cappedDebit);
+      newAmount = (totalPayable - cappedDebit - cappedAdvance).toFixed(2);
     }
-
-    const newAmount = paymentDetails.paymentType === 'full' ? (totalPayable - totalDebit - totalAdvanceAmount).toFixed(2) : paymentDetails.amount;
     setPaymentDetails((prev) => ({
       ...prev,
       selectedDebitNotes: selectedValues,
       amount: newAmount,
       cashAmount: prev.paymentMode === 'Cash' ? parseFloat(newAmount || '0') : 0,
     }));
-    setError(validateAmount(newAmount, totalPayable));
+    setError(paymentDetails.paymentType === 'partial' ? validateAmount(newAmount, totalPayable, true) : '');
   };
 
   const handleAdvancePaymentChange = (selectedValues: string[]) => {
-    const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
-    const totalAdvance = selectedValues.reduce((sum, id, index, array) => {
-      const advance = activeAdvances.find((a: any) => a.randomId === id);
-      if (!advance) return sum;
-      const prevAdvanceSum = array.slice(0, index).reduce((prevSum, prevId) => {
-        const prevAdvance = activeAdvances.find((a: any) => a.randomId === prevId);
-        return prevSum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
-      }, 0);
-      const remaining = totalPayable - totalDebitAmount - (paymentDetails.paymentType === 'partial' ? parseFloat(paymentDetails.amount || '0') : 0) - prevAdvanceSum;
-      return sum + Math.min(advance.pendingAmount || 0, Math.max(0, remaining));
+    const newUncappedAdvance = selectedValues.reduce((sum, id) => {
+      const advance = singleadvance.find((a: any) => a.randomId === id);
+      return sum + (advance ? (advance.pendingAmount || 0) : 0);
     }, 0);
-
-    if (totalDebitAmount + totalAdvance > totalPayable) {
-      setError(`Total debit notes and advance payments (₹${(totalDebitAmount + totalAdvance).toFixed(2)}) exceed remaining payable amount (₹${totalPayable.toFixed(2)})`);
-      return;
+    let newAmount = paymentDetails.amount;
+    if (paymentDetails.paymentType === 'full') {
+      const cappedDebit = Math.min(uncappedDebitSum, totalPayable);
+      const cappedAdvance = Math.min(newUncappedAdvance, totalPayable - cappedDebit);
+      newAmount = (totalPayable - cappedDebit - cappedAdvance).toFixed(2);
     }
-
-    const newAmount = paymentDetails.paymentType === 'full' ? (totalPayable - totalDebitAmount - totalAdvance).toFixed(2) : paymentDetails.amount;
     setPaymentDetails((prev) => ({
       ...prev,
       selectedAdvancePayments: selectedValues,
       amount: newAmount,
       cashAmount: prev.paymentMode === 'Cash' ? parseFloat(newAmount || '0') : 0,
     }));
-    setError(validateAmount(newAmount, totalPayable));
+    setError(paymentDetails.paymentType === 'partial' ? validateAmount(newAmount, totalPayable, true) : '');
   };
 
   const resetPaymentDetails = () => {
@@ -275,8 +260,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       return;
     }
 
-    const totalPayable = selectedOutgoing.totalPayableAmount || 0;
-    const validationError = validateAmount(paymentDetails.amount, totalPayable);
+    const validationError = validateAmount(paymentDetails.amount, totalPayable, isPartial);
     if (validationError) {
       setError(validationError);
       dispatch(setSnackbarMessage(validationError));
@@ -339,7 +323,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       <DialogTitle>Payment Details</DialogTitle>
       <DialogContent>
         <Typography variant="body1" gutterBottom>
-          Total Amount: ₹{selectedOutgoing?.totalPayableAmount?.toFixed(2) || 'N/A'}
+          Total Amount: ₹{totalPayable.toFixed(2)}
         </Typography>
         <Typography variant="body2" color="textSecondary">
           Total Debit Amount: ₹{totalDebitAmount.toFixed(2)}
@@ -348,7 +332,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
           Total Advance Amount: ₹{totalAdvanceAmount.toFixed(2)}
         </Typography>
         <Typography variant="body2" color="textSecondary">
-          Remaining Payable: ₹{(selectedOutgoing?.totalPayableAmount - totalDebitAmount - totalAdvanceAmount).toFixed(2)}
+          Remaining Payable: ₹{(totalPayable - totalDebitAmount - totalAdvanceAmount).toFixed(2)}
         </Typography>
 
         <TextField
@@ -523,7 +507,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
           </Box>
         )}
 
-        {activeAdvances.length > 0 && (
+        {singleadvance.length > 0 && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle2">Apply Advance Payments</Typography>
             <FormControl fullWidth sx={{ mb: 2 }}>
@@ -539,26 +523,27 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
                     ? 'No advance payments selected'
                     : selected
                         .map((id, index, array) => {
-                          const advance = activeAdvances.find((a: any) => a.randomId === id);
+                          const advance = singleadvance.find((a: any) => a.randomId === id);
                           const prevAdvanceSum = array.slice(0, index).reduce((sum, prevId) => {
-                            const prevAdvance = activeAdvances.find((a: any) => a.randomId === prevId);
+                            const prevAdvance = singleadvance.find((a: any) => a.randomId === prevId);
                             return sum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
                           }, 0);
-                          const remaining = remainingPayable() - prevAdvanceSum;
+                          const remaining = getBaseRemainingForAdjustments() - prevAdvanceSum;
                           const cappedAmount = advance ? Math.min(advance.pendingAmount || 0, Math.max(0, remaining)) : 0;
                           return advance ? `${advance.randomId} (₹${cappedAmount.toFixed(2)})` : '';
                         })
                         .join(', ')
                 }
               >
-                {activeAdvances.map((advance: any) => {
-                  const prevSelected = paymentDetails.selectedAdvancePayments
-                    .slice(0, paymentDetails.selectedAdvancePayments.indexOf(advance.randomId))
+                {singleadvance.map((advance: any) => {
+                  const index = paymentDetails.selectedAdvancePayments.indexOf(advance.randomId);
+                  const prevSelectedSum = index >= 0 ? paymentDetails.selectedAdvancePayments
+                    .slice(0, index)
                     .reduce((sum, prevId) => {
-                      const prevAdvance = activeAdvances.find((a: any) => a.randomId === prevId);
+                      const prevAdvance = singleadvance.find((a: any) => a.randomId === prevId);
                       return sum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
-                    }, 0);
-                  const remaining = remainingPayable() - prevSelected;
+                    }, 0) : 0;
+                  const remaining = getBaseRemainingForAdjustments() - prevSelectedSum;
                   const cappedAmount = Math.min(advance.pendingAmount || 0, Math.max(0, remaining));
                   return (
                     <MenuItem key={advance.randomId} value={advance.randomId} disabled={cappedAmount <= 0}>

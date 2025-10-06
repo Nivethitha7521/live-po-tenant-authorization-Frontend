@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
-import { Bank, BulkPaymentRequest, BulkPaymentResponse, DebitNote, GRN, initialState, Outgoing, OutgoingState, PaymentDetails, PaymentDone, TaxDetail, VendorDetail, VendorPayment } from '@/Models/outgoingModel';
+import { Bank, BulkPaymentRequest, BulkPaymentResponse, DebitNote, GRN, initialState, Outgoing,  PaymentDetails, PaymentDone, PaymentHistory, TaxDetail, VendorDetail, VendorPayment } from '@/Models/outgoingModel';
 
 export interface ProcessPaymentRequest {
   outgoingId: string;
@@ -50,7 +50,7 @@ export const fetchOutgoings = createAsyncThunk<
       size,
       fromDate,
       toDate,
-      vendorName, 
+      vendorName,
       filterBy,
       status,
       filterByAmount,
@@ -61,7 +61,7 @@ export const fetchOutgoings = createAsyncThunk<
     { rejectWithValue }
   ) => {
     try {
-      const url = 'http://192.168.29.116:8000/purchaseapi/outgoingpayments/';
+      const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
       const params: any = {
         skip: (page - 1) * size,
         limit: size,
@@ -196,7 +196,7 @@ export const processPayment = createAsyncThunk<
         selectedAdvancePayments, // Include in payload
       };
 
-      await axios.patch(`http://192.168.29.116:8000/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.message || 'Payment processing failed');
     }
@@ -266,7 +266,7 @@ export const processBulkPayment = createAsyncThunk<
   async (bulkPaymentRequest, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        'https://yenerp.com/purchaseapi/outgoingpayments/bulkpayment/bulk-payment',
+        'https://yenerp.com/purchaseapi/outgoingpayments/bulk/bulk-payment',
         bulkPaymentRequest
       );
       return response.data;
@@ -471,6 +471,16 @@ const outgoingSlice = createSlice({
     clearVendorDebits(state) {
       state.vendorDebits = {};
     },
+        // ... your existing reducers
+    clearAdvances: (state) => {
+      state.advances = [];
+    },
+    clearBulkPaymentState: (state) => {
+      state.loading = false;
+      state.error = null;
+      state.snackbarOpen = false;
+      state.snackbarMessage = '';
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -618,21 +628,98 @@ const outgoingSlice = createSlice({
           );
 
           if (index !== -1) {
-            state.outgoings[index] = {
+            // Create updated outgoing with all fields
+            const updatedOutgoing: Outgoing = {
               ...state.outgoings[index],
               totalPayableAmount: result.pendingAmount,
               paidAmount: (state.outgoings[index].paidAmount || 0) + result.paymentAmount,
               debitAmount: (state.outgoings[index].debitAmount || 0) + result.debitAmountApplied,
+              advanceAmount: (state.outgoings[index].advanceAmount || 0) + (result.advanceAmountUsed || 0),
               status: result.status,
               paymentType: result.paymentType,
-              lastUpdatedDate: new Date(),
-              paymentDate: new Date(),
+              lastUpdatedDate: new Date().toISOString(),
+              paymentDate: new Date(), // FIXED: Convert to string
               selectedDebitNotes: [
-                ...(state.outgoings[index].selectedDebitNotes || []),
-                ...result.debitNotesApplied
+                ...new Set([
+                  ...(state.outgoings[index].selectedDebitNotes || []),
+                  ...(result.debitNotesApplied || [])
+                ])
               ],
-              hasDebitCreditNotes: result.debitNotesApplied.length > 0
+              selectedAdvancePayments: [ // ADDED: This property now exists
+                ...new Set([
+                  ...(state.outgoings[index].selectedAdvancePayments || []),
+                  ...(result.advancePaymentsApplied || [])
+                ])
+              ],
+              hasDebitCreditNotes: (result.debitNotesApplied?.length > 0) || (result.advancePaymentsApplied?.length > 0)
             };
+
+            // Update payment history
+            const newPaymentHistory: PaymentHistory = {
+              amount: result.paymentAmount,
+              advanceAmount: result.advanceAmountUsed || 0,
+              paymentType: result.paymentType,
+              paymentMethod: state.outgoings[index].paymentMethod || '',
+              paymentMode: state.outgoings[index].paymentMode || '',
+              cashAmount: state.outgoings[index].cashAmount || 0,
+              bankName: state.outgoings[index].bankName || '',
+              date: new Date().toISOString(),
+              debitNotesApplied: result.debitNotesApplied || [],
+              debitAmount: result.debitAmountApplied || 0,
+              advancePaymentsApplied: result.advancePaymentsApplied || []
+            };
+
+            updatedOutgoing.paymentHistory = [
+              ...(state.outgoings[index].paymentHistory || []),
+              newPaymentHistory
+            ];
+
+            state.outgoings[index] = updatedOutgoing;
+          }
+        });
+
+        // Update advance payments status in local state
+        results.forEach((result) => {
+          if (result.advancePaymentsApplied && result.advancePaymentsApplied.length > 0) {
+            result.advancePaymentsApplied.forEach((advanceId) => {
+              const advanceIndex = state.advances.findIndex(
+                (advance) => advance.randomId === advanceId
+              );
+              if (advanceIndex !== -1) {
+                // Update advance payment status based on usage
+                const usedAmount = result.advanceAmountUsed || 0;
+                const currentPending = state.advances[advanceIndex].pendingAmount || 0;
+                const newPending = Math.max(0, currentPending - usedAmount);
+
+                state.advances[advanceIndex] = {
+                  ...state.advances[advanceIndex],
+                  pendingAmount: newPending,
+                  status: newPending <= 0 ? 'Completed' : 'Partially Cleared'
+                };
+              }
+            });
+          }
+        });
+
+        // Update debit notes status in local state
+        results.forEach((result) => {
+          if (result.debitNotesApplied && result.debitNotesApplied.length > 0) {
+            result.debitNotesApplied.forEach((debitId) => {
+              const debitIndex = state.debits.findIndex(
+                (debit) => debit.randomId === debitId
+              );
+              if (debitIndex !== -1) {
+                const usedAmount = result.debitAmountApplied || 0;
+                const currentPending = state.debits[debitIndex].pendingAmount || 0;
+                const newPending = Math.max(0, currentPending - usedAmount);
+
+                state.debits[debitIndex] = {
+                  ...state.debits[debitIndex],
+                  pendingAmount: newPending,
+                  status: newPending <= 0 ? 'Cleared' : 'Partially Cleared'
+                };
+              }
+            });
           }
         });
 
@@ -686,7 +773,8 @@ export const {
   setSnackbarOpen,
   setSnackbarMessage,
   clearSnackbarMessage,
-  setEditIndex, setPagination, setVendorDebits, setVendorPayment, clearVendorDebits
+  setEditIndex, setPagination, setVendorDebits, setVendorPayment, clearVendorDebits,  clearAdvances, 
+  clearBulkPaymentState // ADDED: Export new actions
 } = outgoingSlice.actions;
 
 // Selector to get Outgoing items from state

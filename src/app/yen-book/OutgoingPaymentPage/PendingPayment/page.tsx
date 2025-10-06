@@ -27,7 +27,6 @@ import {
 import {
   fetchOutgoings,
   selectOutgoings,
-  processPayment,
   setSnackbarMessage,
   setSnackbarOpen,
   clearSnackbarMessage,
@@ -575,7 +574,7 @@ const PendingPaymentComponent = React.memo(() => {
               </Grid>
               <Grid item>
                 <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
-                  <Button variant="contained" color="primary">Pre Outgoing</Button>
+                  <Button variant="contained" color="primary">Advance Payment</Button>
                 </Link>
               </Grid>
               {/* <Grid item>
@@ -617,6 +616,7 @@ const PendingPaymentComponent = React.memo(() => {
                   <DateRangeDialog
                     selectionRange={selectionRange}
                     setSelectionRange={setSelectionRange}
+                    onApply={handleFilterClick}
                   />
                 </Box>
               </Grid>

@@ -13,9 +13,10 @@ interface SelectionRange {
 interface DateRangeDialogProps {
   selectionRange: SelectionRange;
   setSelectionRange: React.Dispatch<React.SetStateAction<SelectionRange>>;
+  onApply?: () => void;
 }
 
-const DateRangeDialog: React.FC<DateRangeDialogProps> = ({ selectionRange, setSelectionRange }) => {
+const DateRangeDialog: React.FC<DateRangeDialogProps> = ({ selectionRange, setSelectionRange, onApply }) => {
   const [open, setOpen] = React.useState(false);
 
   const handleOpen = () => setOpen(true);
@@ -64,7 +65,9 @@ const DateRangeDialog: React.FC<DateRangeDialogProps> = ({ selectionRange, setSe
   };
 
   const handleApply = () => {
-    // Just close the dialog without clearing the selection
+    if (onApply) {
+      onApply();
+    }
     handleClose();
   };
 

@@ -601,19 +601,19 @@ const RejectedPo: React.FC = () => {
     const tableHeader = [['Vendor Details', 'Billing Address', 'PO Details']];
     const vendorDetailsRows = [
       [
-        `${purchaseOrder.vendorName }\n` +
-        `GSTIN: ${purchaseOrder.gstNumber }\n` +
-        `Address: ${purchaseOrder.address }\n` +
-        `City: ${purchaseOrder.city }\n` +
-        `State: ${purchaseOrder.state }\n` +
-        `Country: ${purchaseOrder.country }\n` +
-        `Email: ${purchaseOrder.contactpersonEmail }\n` +
-        `Phone: ${purchaseOrder.vendorContact }`,
-        `Billing Address: ${purchaseOrder.billingAddress }`,
-        `PO No: ${purchaseOrder.randomId }\n` +
+        `${purchaseOrder.vendorName}\n` +
+        `GSTIN: ${purchaseOrder.gstNumber}\n` +
+        `Address: ${purchaseOrder.address}\n` +
+        `City: ${purchaseOrder.city}\n` +
+        `State: ${purchaseOrder.state}\n` +
+        `Country: ${purchaseOrder.country}\n` +
+        `Email: ${purchaseOrder.contactpersonEmail}\n` +
+        `Phone: ${purchaseOrder.vendorContact}`,
+        `Billing Address: ${purchaseOrder.billingAddress}`,
+        `PO No: ${purchaseOrder.randomId}\n` +
         `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
         `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-        `Payment Terms: ${purchaseOrder.paymentTerms }\n` +
+        `Payment Terms: ${purchaseOrder.paymentTerms}\n` +
         `Currency: ${'INR'}`,
       ],
     ];
@@ -882,7 +882,7 @@ const RejectedPo: React.FC = () => {
     setSelectedVendorName(vendor ? vendor.vendorName : '');
   };
 
-const toggleFullScreen = () => {
+  const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
   // Handle input change and update the search query for items
@@ -1197,6 +1197,7 @@ const toggleFullScreen = () => {
                 <DateRangeDialog
                   selectionRange={selectionRange}
                   setSelectionRange={setSelectionRange}
+                  onApply={handleFilterClick}
                 />
               </Grid>
 
@@ -1204,6 +1205,7 @@ const toggleFullScreen = () => {
               <Grid item xs={6} md={2}>
                 <VendorSearchAutocomplete
                   value={selectedVendor}
+                  
                   onChange={handleVendorChange}
                   label="All Vendors"
                 />
@@ -1464,60 +1466,60 @@ const toggleFullScreen = () => {
       </Box>
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth={false}
-          fullWidth={true}
-          fullScreen={isFullScreen}
-          container={document.body} // Always render in document.body
-          disablePortal={false} // Use portal to break out of parent containers
-          sx={isFullScreen ? {
-            '& .MuiDialog-container': {
-              position: 'fixed !important',
-              top: '0 !important',
-              left: '0 !important',
-              right: '0 !important',
-              bottom: '0 !important',
-              width: '100vw !important',
-              height: '100vh !important',
-              maxWidth: 'none !important',
-              maxHeight: 'none !important',
-              margin: '0 !important',
-              zIndex: 9999,
-            },
-            '& .MuiDialog-paper': {
-              width: '100vw !important',
-              height: '100vh !important',
-              maxWidth: 'none !important',
-              maxHeight: 'none !important',
-              margin: '0 !important',
-              borderRadius: '0 !important',
-            }
-          } : {}}
-          PaperProps={{
-            style: {
-              height: isFullScreen ? '100vh' : 'auto',
-              width: isFullScreen ? '100vw' : '90vw',
-              maxWidth: isFullScreen ? 'none' : 'none',
-              margin: isFullScreen ? 0 : 'auto',
-              borderRadius: isFullScreen ? 0 : undefined,
-            },
-          }}>
+        fullWidth={true}
+        fullScreen={isFullScreen}
+        container={document.body} // Always render in document.body
+        disablePortal={false} // Use portal to break out of parent containers
+        sx={isFullScreen ? {
+          '& .MuiDialog-container': {
+            position: 'fixed !important',
+            top: '0 !important',
+            left: '0 !important',
+            right: '0 !important',
+            bottom: '0 !important',
+            width: '100vw !important',
+            height: '100vh !important',
+            maxWidth: 'none !important',
+            maxHeight: 'none !important',
+            margin: '0 !important',
+            zIndex: 9999,
+          },
+          '& .MuiDialog-paper': {
+            width: '100vw !important',
+            height: '100vh !important',
+            maxWidth: 'none !important',
+            maxHeight: 'none !important',
+            margin: '0 !important',
+            borderRadius: '0 !important',
+          }
+        } : {}}
+        PaperProps={{
+          style: {
+            height: isFullScreen ? '100vh' : 'auto',
+            width: isFullScreen ? '100vw' : '90vw',
+            maxWidth: isFullScreen ? 'none' : 'none',
+            margin: isFullScreen ? 0 : 'auto',
+            borderRadius: isFullScreen ? 0 : undefined,
+          },
+        }}>
         <DialogTitle sx={{
-            fontWeight: 'bold',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: isFullScreen ? '16px 24px' : '16px' // Adjust padding for fullscreen
-          }}>
+          fontWeight: 'bold',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: isFullScreen ? '16px 24px' : '16px' // Adjust padding for fullscreen
+        }}>
           <span>Rejected Order Details {selectedOrder?.randomId ? `${selectedOrder.randomId}` : ''}</span>
           <span>Vendor Name:{selectedOrder?.vendorName || 'Unknown Vendor'}</span>
-           <IconButton onClick={toggleFullScreen} color="primary" edge="end">
-              {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-            </IconButton>
+          <IconButton onClick={toggleFullScreen} color="primary" edge="end">
+            {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+          </IconButton>
         </DialogTitle>
         <DialogContent sx={{
-            padding: isFullScreen ? '0 24px' : '20px', // Adjust content padding
-            height: isFullScreen ? 'calc(100vh - 120px)' : 'auto', // Account for header/footer height
-            overflow: 'auto'
-          }}>
+          padding: isFullScreen ? '0 24px' : '20px', // Adjust content padding
+          height: isFullScreen ? 'calc(100vh - 120px)' : 'auto', // Account for header/footer height
+          overflow: 'auto'
+        }}>
           <TableContainer
             component={Paper}
             sx={{

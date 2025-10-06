@@ -47,7 +47,7 @@ import AddIcon from "@mui/icons-material/Add";
 import { format } from "date-fns";
 import { fetchBank } from "@/features/yen-purchase/Outgoing/outgoingPaymentSlice";
 
-const VendorPage: React.FC = () => {
+const AdvancePaymentPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { vendorName, loading: vendorLoading, dialogOpen } = useSelector(selectVendorItems);
   const { advances, loading: paymentLoading, snackbarMessage, snackbarOpen } = useSelector(selectAdvances);
@@ -55,12 +55,34 @@ const VendorPage: React.FC = () => {
   const [openNewPaymentDialog, setOpenNewPaymentDialog] = useState(false);
   const { banks } = useSelector((state: RootState) => state.outgoingPayment);
 
+  const uniqueVendorNames = Array.from(
+    new Map(vendorName.map((item: VendorNameGet) => [item.vendorId, item])).values()
+  );
+
+  const uniqueBanks = Array.from(
+    new Map(banks.map((bank: any) => [bank.bankMasterId, bank])).values()
+  );
+
+  // Improved unique advances with better duplicate detection
+  const getUniqueAdvances = (advances: AdvancePayment[]) => {
+    const seen = new Set();
+    return advances.filter(payment => {
+      const key = `${payment.advanceId}-${payment.vendorName}-${payment.createdDate}-${payment.amount}`;
+      if (seen.has(key)) {
+        console.warn(`Duplicate advance payment detected: ${key}`);
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const displayAdvances = getUniqueAdvances(advances);
+
   useEffect(() => {
     dispatch(fetchVendorNames());
     dispatch(
       fetchAdvances({
-        page: 1,
-        size: 10,
         filterBy: "createdDate",
       })
     );
@@ -75,8 +97,6 @@ const VendorPage: React.FC = () => {
     if (vendor) {
       dispatch(
         fetchAdvances({
-          page: 1,
-          size: 10,
           filterBy: "createdDate",
           vendorName: vendor.vendorName,
         })
@@ -84,8 +104,6 @@ const VendorPage: React.FC = () => {
     } else {
       dispatch(
         fetchAdvances({
-          page: 1,
-          size: 10,
           filterBy: "createdDate",
         })
       );
@@ -171,8 +189,6 @@ const VendorPage: React.FC = () => {
       setSelectedVendor(values.vendor);
       dispatch(
         fetchAdvances({
-          page: 1,
-          size: 10,
           filterBy: "createdDate",
           vendorName: values.vendor.vendorName,
         })
@@ -196,35 +212,36 @@ const VendorPage: React.FC = () => {
             </Button>
           </Link>
           <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
-            <Button variant="contained" color="primary" sx={{ 
+            <Button variant="contained" color="primary" sx={{
               mr: "5px",
               backgroundColor: 'white',
               color: 'black',
               '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.8)' },
             }}>
-              Pre Outgoing
+              Advance Payment
             </Button>
           </Link>
           <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
-            <Button variant="contained" sx={{ mr: "5px"}} >
+            <Button variant="contained" sx={{ mr: "5px" }} >
               Partial Payment
             </Button>
           </Link>
           <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
-            <Button variant="contained" color="primary" sx={{ mr: "5px"}} >Payment Done</Button>
+            <Button variant="contained" color="primary" sx={{ mr: "5px" }} >Payment Done</Button>
           </Link>
           <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
-            <Button variant="contained" color="primary" sx={{ mr: "5px"}} >Ledger</Button>
+            <Button variant="contained" color="primary" sx={{ mr: "5px" }} >Ledger</Button>
           </Link>
           <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
-            <Button variant="contained" color="primary" sx={{ mr: "5px"}} >Purchase Return</Button>
+            <Button variant="contained" color="primary" sx={{ mr: "5px" }} >Purchase Return</Button>
           </Link>
         </Box>
       </Box>
-      
+
       <Box mt={2} ml={2} sx={{ maxWidth: 500 }} display="flex" justifyContent="space-between" alignItems="center">
         <Autocomplete
-          options={vendorName}
+          key={`vendor-select-${uniqueVendorNames.length}`}
+          options={uniqueVendorNames}
           getOptionLabel={(option: VendorNameGet) => option.vendorName || ""}
           isOptionEqualToValue={(option: VendorNameGet, value: VendorNameGet | null) =>
             option.vendorId === value?.vendorId
@@ -236,12 +253,15 @@ const VendorPage: React.FC = () => {
           )}
         />
         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <IconButton color="primary" onClick={handleDialogOpen} size="small" sx={{ p: 0.3 }}>
-            <AddIcon />
-          </IconButton>
-          <Typography variant="caption" align="center" sx={{ maxWidth: 40, mt: 0.2 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            size="small"
+            onClick={handleDialogOpen}
+          >
             Add Vendor
-          </Typography>
+          </Button>
         </Box>
       </Box>
 
@@ -253,7 +273,7 @@ const VendorPage: React.FC = () => {
           onClick={handleOpenNewPaymentDialog}
           sx={{ mb: 2 }}
         >
-          New Advance Payment
+          Advance Payment
         </Button>
         <TableContainer component={Paper}>
           <Table>
@@ -269,15 +289,15 @@ const VendorPage: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {advances.length === 0 ? (
+              {displayAdvances.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} style={{ textAlign: "center" }}>
+                  <TableCell colSpan={7} style={{ textAlign: "center" }}>
                     No advance payments found
                   </TableCell>
                 </TableRow>
               ) : (
-                advances.map((payment: AdvancePayment, index: number) => (
-                  <TableRow key={payment.advanceId}>
+                displayAdvances.map((payment: AdvancePayment, index: number) => (
+                  <TableRow key={`${payment.advanceId}-${index}-${payment.createdDate}`}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{payment.randomId || "N/A"}</TableCell>
                     <TableCell>{payment.vendorName || "N/A"}</TableCell>
@@ -295,7 +315,7 @@ const VendorPage: React.FC = () => {
         </TableContainer>
       </Box>
 
-      <Dialog open={openNewPaymentDialog} onClose={handleCloseNewPaymentDialog} maxWidth="sm" fullWidth>
+      <Dialog open={openNewPaymentDialog} onClose={handleCloseNewPaymentDialog} maxWidth="sm">
         <DialogTitle>Create New Advance Payment</DialogTitle>
         <DialogContent>
           <Formik
@@ -319,7 +339,7 @@ const VendorPage: React.FC = () => {
                 <Grid container spacing={2} mt={1}>
                   <Grid item xs={12}>
                     <Autocomplete
-                      options={vendorName}
+                      options={uniqueVendorNames}
                       getOptionLabel={(option: VendorNameGet) => option.vendorName || ""}
                       isOptionEqualToValue={(option: VendorNameGet, value: VendorNameGet | null) =>
                         option.vendorId === value?.vendorId
@@ -327,10 +347,10 @@ const VendorPage: React.FC = () => {
                       value={values.vendor}
                       onChange={(event, newValue) => setFieldValue("vendor", newValue)}
                       renderInput={(params) => (
-                        <TextField 
-                          {...params} 
-                          label="Select Vendor" 
-                          variant="outlined" 
+                        <TextField
+                          {...params}
+                          label="Select Vendor"
+                          variant="outlined"
                           error={touched.vendor && !!errors.vendor}
                           helperText={touched.vendor && errors.vendor}
                         />
@@ -407,7 +427,7 @@ const VendorPage: React.FC = () => {
                           error={touched.bankName && !!errors.bankName}
                           helperText={touched.bankName && errors.bankName}
                         >
-                          {banks.map((bank: any) => (
+                          {uniqueBanks.map((bank: any) => (
                             <MenuItem key={bank.bankMasterId} value={bank.bankName}>
                               {bank.bankName}
                             </MenuItem>
@@ -497,7 +517,7 @@ const VendorPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <VendorDialog loading={vendorLoading} setLoading={() => {}} />
+      <VendorDialog loading={vendorLoading} setLoading={() => { }} />
 
       <Snackbar
         open={snackbarOpen}
@@ -509,4 +529,4 @@ const VendorPage: React.FC = () => {
   );
 };
 
-export default VendorPage;
+export default AdvancePaymentPage;
