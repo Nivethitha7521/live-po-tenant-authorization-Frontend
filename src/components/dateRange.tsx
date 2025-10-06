@@ -23,6 +23,7 @@ const DateRangeDialog: React.FC<DateRangeDialogProps> = ({ selectionRange, setSe
   const handleClose = () => setOpen(false);
 
   const handleSelect = (ranges: any) => {
+    
     // Set start and end of the selected day
     setSelectionRange({
       startDate: startOfDay(ranges.selection.startDate),
