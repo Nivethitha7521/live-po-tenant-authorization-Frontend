@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../redux/store';
-import { initializeAuth, logout } from '../features/authSlice';
+import { initializeAuth, logout, validateToken, checkExistingSession, addNewTab, setTabSession } from '../features/authSlice';
 import SideMenu from '@/components/SideMenu';
 import Navbar from '@/components/Navbar';
 
@@ -32,6 +32,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const { isLoggedIn, isInitialized, username } = useSelector((state: RootState) => state.auth);
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [selectedModule, setSelectedModule] = useState('');
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   const isLoginRoute = useMemo(() => pathname === '/', [pathname]);
   const isProtectedRoute = useMemo(() =>
@@ -39,63 +40,127 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     [pathname]
   );
 
-  // Initialize auth, set module, and manage tab tracking
+  // Check for existing session and handle tab management
   useEffect(() => {
-    dispatch(initializeAuth());
-    const modulename = pathname?.split('/')[1] || '';
-    setSelectedModule(modulename);
-
-    // Generate a unique tab ID and browser session ID
-    const tabId = crypto.randomUUID();
-    const browserSessionId = sessionStorage.getItem('browserSessionId') || crypto.randomUUID();
-    sessionStorage.setItem('browserSessionId', browserSessionId);
-
-    // Initialize or update active tabs list
-    let activeTabs = JSON.parse(sessionStorage.getItem('activeTabs') || '[]') as string[];
-    if (!activeTabs.includes(tabId)) {
-      activeTabs.push(tabId);
-      sessionStorage.setItem('activeTabs', JSON.stringify(activeTabs));
-    }
-
-    // Handle beforeunload for tab/browser close
-    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
-      let currentActiveTabs = JSON.parse(sessionStorage.getItem('activeTabs') || '[]') as string[];
-      currentActiveTabs = currentActiveTabs.filter(id => id !== tabId);
-      sessionStorage.setItem('activeTabs', JSON.stringify(currentActiveTabs));
-
-      // Only logout if this is the last tab and user is logged in
-      if (currentActiveTabs.length === 0 && isLoggedIn) {
+    const initializeSession = async () => {
+      const storedUsername = sessionStorage.getItem('username');
+      const existingToken = sessionStorage.getItem('accessToken');
+      
+      // Set reload flag for this page load
+      sessionStorage.setItem('isReloading', 'true');
+      
+      if (existingToken && storedUsername) {
         try {
-          await dispatch(logout('browser_closed')).unwrap();
-          sessionStorage.removeItem('browserSessionId'); // Clean up session ID
+          await dispatch(validateToken()).unwrap();
+          dispatch(initializeAuth());
+          setIsCheckingSession(false);
+          return;
         } catch (error) {
-          console.error('Logout on browser close failed:', error);
+          console.error('Token validation failed:', error);
+          // Only clear if it's a real validation failure, not reload
+          sessionStorage.removeItem('accessToken');
+          sessionStorage.removeItem('username');
+          sessionStorage.removeItem('tabId');
         }
       }
+
+      // Check if there's an existing session for this browser
+      if (storedUsername) {
+        try {
+          const sessionResult = await dispatch(checkExistingSession(storedUsername)).unwrap();
+          
+          if (sessionResult.has_valid_session) {
+            const tabId = crypto.randomUUID();
+            const addTabResult = await dispatch(addNewTab(tabId)).unwrap();
+            
+            if (addTabResult) {
+              sessionStorage.setItem('accessToken', addTabResult.access_token);
+              sessionStorage.setItem('username', storedUsername);
+              sessionStorage.setItem('tabId', tabId);
+              
+              dispatch(setTabSession({
+                username: storedUsername,
+                browserSessionId: addTabResult.browser_session_id,
+                tabId: tabId
+              }));
+              
+              setIsCheckingSession(false);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Session check failed:', error);
+        }
+      }
+
+      dispatch(initializeAuth());
+      setIsCheckingSession(false);
+    };
+
+    initializeSession();
+  }, [dispatch]);
+
+  // Handle tab/browser close events (NOT reloads)
+  useEffect(() => {
+    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
+      // Check if this is a reload or actual close
+      const isReloading = sessionStorage.getItem('isReloading') === 'true';
+      
+      if (!isReloading && isLoggedIn) {
+        // This is an actual tab/browser close, not reload
+        const browserSessionId = localStorage.getItem('browserSessionId');
+        const tabId = sessionStorage.getItem('tabId');
+        
+        if (browserSessionId && tabId) {
+          // Remove this tab from active tabs
+          let activeTabs = JSON.parse(localStorage.getItem(`activeTabs_${browserSessionId}`) || '[]');
+          activeTabs = activeTabs.filter((id: string) => id !== tabId);
+          localStorage.setItem(`activeTabs_${browserSessionId}`, JSON.stringify(activeTabs));
+
+          // If this is the last tab, logout the browser session
+          if (activeTabs.length === 0) {
+            try {
+              await dispatch(logout('browser_closed')).unwrap();
+              localStorage.removeItem(`activeTabs_${browserSessionId}`);
+            } catch (error) {
+              console.error('Logout on browser close failed:', error);
+            }
+          } else {
+            // Just logout this tab
+            try {
+              await dispatch(logout('tab_closed')).unwrap();
+            } catch (error) {
+              console.error('Logout on tab close failed:', error);
+            }
+          }
+        }
+      }
+      
+      // Clear the reload flag for next navigation
+      sessionStorage.removeItem('isReloading');
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      // Remove tab ID from active tabs on cleanup
-      let currentActiveTabs = JSON.parse(sessionStorage.getItem('activeTabs') || '[]') as string[];
-      currentActiveTabs = currentActiveTabs.filter(id => id !== tabId);
-      sessionStorage.setItem('activeTabs', JSON.stringify(currentActiveTabs));
     };
-  }, [dispatch, pathname, isLoggedIn]);
+  }, [dispatch, isLoggedIn]);
 
   // Handle redirects for protected routes
   useEffect(() => {
-    if (!isInitialized) return;
+    if (!isInitialized || isCheckingSession) return;
 
-    // Redirect to login if trying to access protected route without login
     if (!isLoggedIn && isProtectedRoute) {
       router.replace('/');
+    } else if (isLoggedIn && isLoginRoute) {
+      router.replace('/yen-purchase');
     }
-  }, [isLoggedIn, isInitialized, isProtectedRoute, router]);
+  }, [isLoggedIn, isInitialized, isProtectedRoute, isLoginRoute, router, isCheckingSession]);
 
-  if (!isInitialized) return <LoadingSpinner />;
+  if (!isInitialized || isCheckingSession) {
+    return <LoadingSpinner />;
+  }
 
   // Show layout with Navbar and SideMenu for logged-in users
   if (isLoggedIn) {
@@ -105,7 +170,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
           <SideMenu
             onMenuClick={(menuItem) => {
               setSelectedModule(menuItem.text);
-              router.push(menuItem.path); // Client-side navigation
+              router.push(menuItem.path);
             }}
             activePath={pathname || '/yen-purchase'}
           />

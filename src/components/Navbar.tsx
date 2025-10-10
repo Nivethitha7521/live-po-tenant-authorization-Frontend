@@ -43,16 +43,20 @@ const Navbar: React.FC<NavbarProps> = ({ moduleName, username, onToggleMenu }) =
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
   };
-
- const handleConfirmLogout = async () => {
+// In your Navbar component, update the logout handler:
+const handleConfirmLogout = async () => {
   setIsDialogOpen(false);
   try {
-    await dispatch(logout('manual')).unwrap(); // Pass 'manual' or another reason
+    await dispatch(logout('manual')).unwrap();
+    // Clear all storage on manual logout
+    sessionStorage.clear();
+    localStorage.removeItem('browserSessionId');
     router.push('/');
   } catch (error) {
-    if (error !== 'Request canceled') {
-      console.error('Logout failed:', error);
-    }
+    console.error('Logout failed:', error);
+    // Force cleanup even if API call fails
+    sessionStorage.clear();
+    localStorage.removeItem('browserSessionId');
     router.push('/');
   }
 };
