@@ -686,7 +686,7 @@ const purchaseOrderSlice = createSlice({
         state.snackbarOpen = true;
         state.importDialogOpen = true;
       })
-      .addCase(setDiscountMode, (state, action) => {
+      .addCase(setDiscountMode, (state, action) => { 
         const { mode, recalculate = true } = action.payload;
         state.discountMode = mode;
 

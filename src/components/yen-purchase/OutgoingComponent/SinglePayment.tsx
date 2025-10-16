@@ -52,21 +52,24 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
   const { singleadvance } = useSelector((state: RootState) => state.advances);
 
   const [paymentDetails, setPaymentDetails] = useState({
-    paymentMethod: 'cash',
+    paymentMethod: '',
     neftNo: '',
     amount: '',
     bankName: '',
     paymentType: 'full' as 'full' | 'partial',
     rtgsNo: '',
-    paymentMode: 'Cash' as 'Cash' | 'Bank',
+    paymentMode: 'Bank' as 'Cash' | 'Bank',
     cashAmount: 0,
     upi: '',
     impsNo: '',
     selectedDebitNotes: [] as string[],
     selectedAdvancePayments: [] as string[],
+    paymentDate: '',
   });
 
   const [error, setError] = useState('');
+  const [dateError, setDateError] = useState('');
+  const [dateWarning, setDateWarning] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
@@ -76,21 +79,25 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       dispatch(fetchActiveDebitsVendor(selectedOutgoing.vendorName));
       dispatch(fetchActiveAdvancesVendorByName(selectedOutgoing.vendorName));
       const initialAmount = totalPayable.toFixed(2);
+      const currentDateStr = new Date().toISOString().split('T')[0];
       setPaymentDetails({
-        paymentMethod: 'cash',
+        paymentMethod: '',
         neftNo: '',
         amount: initialAmount,
         bankName: '',
         paymentType: 'full',
         rtgsNo: '',
-        paymentMode: 'Cash',
-        cashAmount: parseFloat(initialAmount),
+        paymentMode: 'Bank',
+        cashAmount: 0,
         upi: '',
         impsNo: '',
         selectedDebitNotes: [],
         selectedAdvancePayments: [],
+        paymentDate: currentDateStr,
       });
       setError('');
+      setDateError('');
+      setDateWarning('');
     }
   }, [selectedOutgoing, open, dispatch, totalPayable]);
 
@@ -123,6 +130,18 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       return `Payment amount (₹${numAmount.toFixed(2)}) exceeds total payable amount (₹${maxAllowed.toFixed(2)})`;
     }
     return '';
+  };
+
+  const validateDate = (value: string): { error: string | null; warning: string | null } => {
+    if (!value) return { error: 'Payment date is required', warning: null };
+    const selectedDate = new Date(value);
+    if (isNaN(selectedDate.getTime())) return { error: 'Invalid date format', warning: null };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+    if (selectedDate > today) return { error: 'Future date not allowed', warning: null };
+    if (selectedDate < today) return { error: null, warning: 'Backdated payment selected' };
+    return { error: null, warning: null };
   };
 
   const handlePaymentTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,6 +205,11 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       if (name === 'amount') {
         setError(validateAmount(value, totalPayable, true));
       }
+      if (name === 'paymentDate') {
+        const validation = validateDate(value);
+        setDateError(validation.error || '');
+        setDateWarning(validation.warning || '');
+      }
       return newDetails;
     });
   };
@@ -232,20 +256,23 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
 
   const resetPaymentDetails = () => {
     setPaymentDetails({
-      paymentMethod: 'cash',
+      paymentMethod: '',
       neftNo: '',
       amount: '',
       bankName: '',
       paymentType: 'full',
       rtgsNo: '',
-      paymentMode: 'Cash',
+      paymentMode: 'Bank',
       cashAmount: 0,
       upi: '',
       impsNo: '',
       selectedDebitNotes: [],
       selectedAdvancePayments: [],
+      paymentDate: '',
     });
     setError('');
+    setDateError('');
+    setDateWarning('');
   };
 
   const handleClose = () => {
@@ -268,6 +295,19 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       return;
     }
 
+    const dateValidation = validateDate(paymentDetails.paymentDate);
+    if (dateValidation.error) {
+      setDateError(dateValidation.error);
+      dispatch(setSnackbarMessage(dateValidation.error));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    if (dateValidation.warning) {
+      dispatch(setSnackbarMessage(dateValidation.warning));
+      dispatch(setSnackbarOpen(true));
+    }
+
     const paymentAmount = parseFloat(paymentDetails.amount || '0');
     const paymentDetailsToSend: ProcessPaymentRequest = {
       outgoingId: selectedOutgoing.outgoingId,
@@ -286,6 +326,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       chequeNo: '',
       selectedDebitNotes: paymentDetails.selectedDebitNotes,
       selectedAdvancePayments: paymentDetails.selectedAdvancePayments,
+      paymentDate: new Date(paymentDetails.paymentDate),
     };
 
     try {
@@ -306,6 +347,8 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
   };
 
   if (!selectedOutgoing) return null;
+
+  const currentDate = new Date().toISOString().split('T')[0];
 
   return (
     <Dialog
@@ -334,6 +377,23 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
         <Typography variant="body2" color="textSecondary">
           Remaining Payable: ₹{(totalPayable - totalDebitAmount - totalAdvanceAmount).toFixed(2)}
         </Typography>
+
+        <TextField
+          type="date"
+          name="paymentDate"
+          label="Payment Date"
+          value={paymentDetails.paymentDate}
+          onChange={handleInputChange}
+          fullWidth
+          margin="normal"
+          required
+          error={!!dateError}
+          helperText={dateError || dateWarning || 'Select a date up to today'}
+          size="small"
+          inputProps={{
+            max: currentDate,
+          }}
+        />
 
         <TextField
           select
@@ -567,7 +627,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
         <Button
           onClick={handleConfirmPayment}
           color="primary"
-          disabled={isLoading || !!error || (paymentDetails.paymentType === 'partial' && !parseFloat(paymentDetails.amount))}
+          disabled={isLoading || !!error || !!dateError || (paymentDetails.paymentType === 'partial' && !parseFloat(paymentDetails.amount))}
           size="small"
         >
           {isLoading ? <CircularProgress size={24} /> : 'Confirm Payment'}

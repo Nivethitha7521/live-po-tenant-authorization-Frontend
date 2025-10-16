@@ -53,6 +53,7 @@ import { fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditD
 import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import SmartDatePicker from '@/components/SmartDatePicker';
 
 const customRound = (amount: number) => {
   const roundedAmount = Math.round(amount);
@@ -677,6 +678,7 @@ const GrnPage = () => {
   const handleDialogClose = () => {
     setDialogueViewOpen(false);
     dispatch(setSelectedGrnId(null));
+    setApInvoiceDate(null);
   };
 
   const handleSearchChange = (event: React.ChangeEvent<{}>, newValue: string) => {
@@ -817,6 +819,7 @@ const GrnPage = () => {
       );
       setEditedItems(initialEditedItems);
       // Set apInvoiceDate to invoiceDate if available, else current date
+      setApInvoiceDate(selectedGrn?.invoiceDate ? new Date(selectedGrn.invoiceDate) : new Date());
     }
     setDialogueViewOpen(true);
   };
@@ -1762,16 +1765,12 @@ const GrnPage = () => {
                       <Typography variant="h6" sx={{ whiteSpace: 'nowrap', mr: 2 }}>
                         GRN Date: {selectedGrn?.grnDate ? format(new Date(selectedGrn.grnDate), 'dd-MM-yyyy') : '26-09-2025'}
                       </Typography>
-                      <TextField
+                     {/* Replace the original TextField with SmartDatePicker */}
+                      <SmartDatePicker
                         label="AP Invoice Date"
-                        type="date"
-                        value={apInvoiceDate ? format(apInvoiceDate, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => {
-                          const selectedDate = e.target.value;
-                          setApInvoiceDate(selectedDate ? new Date(selectedDate) : null);
-                        }}
-                        InputLabelProps={{ shrink: true }}
-                        sx={{ width: '200px' }}
+                        value={apInvoiceDate}
+                        onChange={setApInvoiceDate}
+                        maxDate={new Date()} // Optional: Restrict to today or future if needed; remove if past dates allowed
                       />
                     </Box>
                   </Box>
@@ -2132,5 +2131,3 @@ const GrnPage = () => {
 };
 
 export default React.memo(GrnPage);
-
-

@@ -31,6 +31,7 @@ import * as Yup from 'yup';
 import { useBeforeUnload } from 'react-use';
 import { VendorSummary } from '@/Models/vendor';
 import ClearIcon from '@mui/icons-material/Clear'; // Add this import at the top with other MUI icon imports
+import SmartDatePicker from '@/components/SmartDatePicker';
 
 // Validation schema
 const validationSchema = Yup.object({
@@ -82,7 +83,19 @@ const PurchaseOrder: React.FC = () => {
   const today = new Date();
   const formattedDate = today.toISOString().split('T')[0];
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  // Set default shipping address if shippingaddress has entries and none is selected
+  useEffect(() => {
+    if (shippingaddress.length > 0 && !purchaseOrderData.shippingAddress) {
+      const defaultShippingAddress = shippingaddress[0].address ?? '';
+      dispatch(setPurchaseOrderData({
+        ...purchaseOrderData,
+        shippingAddress: defaultShippingAddress
+      }));
+      // Clear error if set
+      setFormErrors(prev => ({ ...prev, shippingAddress: false }));
+    }
+  }, [shippingaddress, purchaseOrderData.shippingAddress, dispatch]);
   // Set default billingAddress if businesses has exactly one entry
   useEffect(() => {
     if (businesses.length === 1 && !purchaseOrderData.billingAddress) {
@@ -146,6 +159,19 @@ const PurchaseOrder: React.FC = () => {
       setFormErrors((prev) => ({ ...prev, billingAddress: false }));
     }
   }, [purchaseOrderData.billingAddress]);
+  const handleOrderDateChange = (date: Date | null) => {
+    dispatch(setPurchaseOrderData({
+      ...purchaseOrderData,
+      orderDate: date
+    }));
+  };
+
+  const handleExpectedDeliveryDateChange = (date: Date | null) => {
+    dispatch(setPurchaseOrderData({
+      ...purchaseOrderData,
+      expectedDeliveryDate: date
+    }));
+  };
   // Calculate totals with updated logic for discount conversion
   const calculateTotals = useMemo(() => {
     let subTotal = 0;
@@ -375,6 +401,21 @@ const PurchaseOrder: React.FC = () => {
     },
     [dispatch, purchaseOrderData, businesses, shippingaddress]
   );
+  const handleShippingAddressChange = (newValue: string | null) => {
+    const selectedShipping = shippingaddress.find((address) => address.address === newValue);
+    const addressToSet = selectedShipping ? selectedShipping.address : newValue ?? '';
+
+    // Direct update
+    dispatch(setPurchaseOrderData({
+      ...purchaseOrderData,
+      shippingAddress: addressToSet
+    }));
+
+    if (addressToSet.trim() !== '') {
+      setFormErrors(prev => ({ ...prev, shippingAddress: false }));
+    }
+  };
+
   const handleTextFieldChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index?: number) => {
     const { name, value } = e.target;
     if (index !== undefined) {
@@ -419,7 +460,7 @@ const PurchaseOrder: React.FC = () => {
       dispatch(setNewItemData({
         itemId: item.purchaseitemId,
         itemName: item.itemName,
-        pendingCount: 0,
+        pendingCount: 1,
         pendingQuantity: 0,
         pendingTotalQuantity: 0,
         existingPrice: item.purchasePrice,
@@ -439,7 +480,7 @@ const PurchaseOrder: React.FC = () => {
         befTaxDiscountType: discountMode,
         afTaxDiscountType: discountMode,
       }));
-      setCountInput('');
+      setCountInput('1');
       setQuantityInput('');
       setNewPriceTypeInput(item.purchasePrice.toString()); // Use raw string, no .toFixed(2)
     } else {
@@ -465,11 +506,11 @@ const PurchaseOrder: React.FC = () => {
         afTaxDiscountAmount: 0,
         pendingTotalPrice: 0,
         taxType: 'cgst_sgst',
+        befTaxDiscountType: discountMode,
+        afTaxDiscountType: discountMode,
         pendingCount: 0,
         pendingQuantity: 0,
         pendingTotalQuantity: 0,
-        befTaxDiscountType: discountMode,
-        afTaxDiscountType: discountMode,
       }));
       setCountInput('');
       setQuantityInput('');
@@ -648,13 +689,13 @@ const PurchaseOrder: React.FC = () => {
         setErrors({ ...errors, [name]: false });
       }
     }
-     if (['befTaxDiscount', 'afTaxDiscount', 'befTaxDiscountAmount', 'afTaxDiscountAmount'].includes(name)) {
-    if (value !== '' && parseFloat(value) > 0 && overallDiscountValue > 0) {
-      setOverallDiscountValue(0);
-      dispatch(setSnackbarMessage('Overall discount reset due to item-wise discount'));
-      dispatch(setSnackbarOpen(true));
+    if (['befTaxDiscount', 'afTaxDiscount', 'befTaxDiscountAmount', 'afTaxDiscountAmount'].includes(name)) {
+      if (value !== '' && parseFloat(value) > 0 && overallDiscountValue > 0) {
+        setOverallDiscountValue(0);
+        dispatch(setSnackbarMessage('Overall discount reset due to item-wise discount'));
+        dispatch(setSnackbarOpen(true));
+      }
     }
-  }
   };
   const handleVendorSelection = (vendor: VendorSummary | null) => {
     setVendorSearch(vendor);
@@ -741,6 +782,7 @@ const PurchaseOrder: React.FC = () => {
     setNewPriceTypeInput(item.newPrice.toString()); // Use raw string, no .toFixed(2)
     setTotals(calculateTotals);
   };
+
   const handleAddItem = useCallback(async () => {
     setErrors({
       itemName: !newItem.itemName,
@@ -830,7 +872,7 @@ const PurchaseOrder: React.FC = () => {
       setNewPriceTypeInput('');
       setTotals(calculateTotals);
       if (itemNameRef.current) itemNameRef.current.focus();
-    } 
+    }
     catch (error) {
       dispatch(setSnackbarMessage('Failed to add item. Please try again.'));
       dispatch(setSnackbarOpen(true));
@@ -838,14 +880,14 @@ const PurchaseOrder: React.FC = () => {
       setLoading(false);
     }
     // If item has discount and overall discount exists, reset overall
-  if ((newItem.befTaxDiscount > 0 || newItem.afTaxDiscount > 0 || 
-       newItem.befTaxDiscountAmount > 0 || newItem.afTaxDiscountAmount > 0) && 
+    if ((newItem.befTaxDiscount > 0 || newItem.afTaxDiscount > 0 ||
+      newItem.befTaxDiscountAmount > 0 || newItem.afTaxDiscountAmount > 0) &&
       overallDiscountValue > 0) {
-    setOverallDiscountValue(0);
-    dispatch(setSnackbarMessage('Overall discount reset - item with discount added'));
-    dispatch(setSnackbarOpen(true));
-  }
-  }, [dispatch, newItem, calculateTotals, discountMode,overallDiscountValue]);
+      setOverallDiscountValue(0);
+      dispatch(setSnackbarMessage('Overall discount reset - item with discount added'));
+      dispatch(setSnackbarOpen(true));
+    }
+  }, [dispatch, newItem, calculateTotals, discountMode, overallDiscountValue]);
   const saveShippingAddress = () => {
     if (updatedShippingRow) {
       dispatch(addShipping({ ...updatedShippingRow, shippingId: '', randomId: '' }))
@@ -1275,31 +1317,20 @@ const PurchaseOrder: React.FC = () => {
               />
             </Grid>
             <Grid item xs={12} sm={3} md={2}>
-              <TextField
-                fullWidth
+              <SmartDatePicker
                 label="Order Date"
-                name="orderDate"
-                type="date"
-                value={purchaseOrderData.orderDate || ''}
-                onChange={handleTextFieldChange}
-                InputLabelProps={{ shrink: true }}
-                inputProps={{ max: formattedDate }}
-                size="small"
-                variant="outlined"
+                value={purchaseOrderData.orderDate ? new Date(purchaseOrderData.orderDate) : null}
+                onChange={handleOrderDateChange}
+                maxDate={new Date()}
               />
             </Grid>
+
             <Grid item xs={12} sm={3} md={2}>
-              <TextField
-                fullWidth
+              <SmartDatePicker
                 label="Expected Delivery Date"
-                name="expectedDeliveryDate"
-                type="date"
-                value={purchaseOrderData.expectedDeliveryDate || ''}
-                onChange={handleTextFieldChange}
-                InputLabelProps={{ shrink: true }}
-                inputProps={{ min: formattedDate }}
-                size="small"
-                variant="outlined"
+                value={purchaseOrderData.expectedDeliveryDate ? new Date(purchaseOrderData.expectedDeliveryDate) : null}
+                onChange={handleExpectedDeliveryDateChange}
+                minDate={new Date()}
               />
             </Grid>
           </Grid>

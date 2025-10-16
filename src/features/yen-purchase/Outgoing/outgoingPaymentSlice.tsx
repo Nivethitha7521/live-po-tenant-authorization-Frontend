@@ -19,6 +19,7 @@ export interface ProcessPaymentRequest {
   upi?: string;
   cashAmount: number;
   bankName?: string;
+  paymentDate:Date;
   selectedDebitNotes?: string[];
   selectedAdvancePayments?: string[]; // Added to support advance payments
 }
@@ -196,7 +197,7 @@ export const processPayment = createAsyncThunk<
         selectedAdvancePayments, // Include in payload
       };
 
-      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`http://192.168.29.116:8000/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.message || 'Payment processing failed');
     }
