@@ -35,7 +35,7 @@ body {
 /* Global Button Styles */
 .MuiButton-root {
   font-family:'Source Sans 3', sans-serif!important; /* Apply Roboto to MuiButton */
-  font-size: 12px !important; /* Set font size globally */
+  font-size: 16x !important; /* Set font size globally */
   padding: 4px 6px !important; /* Adjust button size */
   display: inline-flex;
   justify-content: center;
@@ -43,12 +43,12 @@ body {
   width: auto !important;
 }
 .no-underline .MuiButton-root {
-  font-size: 164x !important; /* Set font size globally */
+  font-size: 15x !important; /* Set font size globally */
   /* width: 110px !important; */
 }
 .no-underline-book .MuiButton-root {
-  font-size: 14px !important; /* Set font size globally */
-  width: 130px !important;
+  font-size: 16px !important; /* Set font size globally */
+  /* width: 130px !important; */
 }
 .some .MuiInputBase-root.MuiOutlinedInput-root {
   font-family:'Source Sans 3', sans-serif !important; /* Apply font */

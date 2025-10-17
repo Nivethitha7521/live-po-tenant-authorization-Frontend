@@ -45,7 +45,7 @@ const YenBookPage = () => {
                 sx={{
                   textTransform: 'none',
                   fontWeight: isActive ? 'bold' : 'normal',
-                  fontSize: isActive ? '26px' : '12px',
+                  fontSize: isActive ? '16px' : '15px',
                   borderRadius: '4px',
                   padding: '10px 20px',
                   width: isActive ? '550px' : '15px',

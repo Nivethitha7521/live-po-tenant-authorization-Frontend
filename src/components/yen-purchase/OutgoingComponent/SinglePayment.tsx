@@ -148,11 +148,13 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     const selectedType = e.target.value as 'full' | 'partial';
     let newAmount;
     if (selectedType === 'full') {
+      // For full payment, calculate the remaining amount after debit and advance
       const cappedDebit = Math.min(uncappedDebitSum, totalPayable);
       const cappedAdvance = Math.min(uncappedAdvanceSum, totalPayable - cappedDebit);
       newAmount = (totalPayable - cappedDebit - cappedAdvance).toFixed(2);
     } else {
-      newAmount = paymentDetails.amount;
+      // For partial payment, start with empty amount so user can type
+      newAmount = '';
     }
     setPaymentDetails((prev) => ({
       ...prev,
@@ -203,7 +205,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
           : {}),
       };
       if (name === 'amount') {
-        setError(validateAmount(value, totalPayable, true));
+        setError(validateAmount(value, totalPayable, isPartial));
       }
       if (name === 'paymentDate') {
         const validation = validateDate(value);
@@ -309,6 +311,12 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     }
 
     const paymentAmount = parseFloat(paymentDetails.amount || '0');
+    
+    // FIXED: Create date in local timezone without UTC conversion
+    const paymentDate = new Date(paymentDetails.paymentDate);
+    // Set to noon to avoid timezone issues
+    paymentDate.setHours(12, 0, 0, 0);
+
     const paymentDetailsToSend: ProcessPaymentRequest = {
       outgoingId: selectedOutgoing.outgoingId,
       paymentType: paymentDetails.paymentType,
@@ -326,7 +334,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       chequeNo: '',
       selectedDebitNotes: paymentDetails.selectedDebitNotes,
       selectedAdvancePayments: paymentDetails.selectedAdvancePayments,
-      paymentDate: new Date(paymentDetails.paymentDate),
+      paymentDate: paymentDate, // This will be sent as local date time
     };
 
     try {
@@ -420,9 +428,15 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
           required
           error={!!error}
           helperText={error}
-          disabled={paymentDetails.paymentType === 'full'}
-          inputProps={{ type: 'number', step: '0.01' }}
+          disabled={paymentDetails.paymentType === 'full'} // Only disable for full payment
+          inputProps={{ 
+            type: 'number', 
+            step: '0.01',
+            min: 0,
+            max: paymentDetails.paymentType === 'partial' ? totalPayable : undefined
+          }}
           size="small"
+          placeholder={paymentDetails.paymentType === 'partial' ? 'Enter partial amount' : ''}
         />
 
         <TextField

@@ -898,23 +898,39 @@ const PaidPaymentComponent = () => {
                     <TableCell>Action</TableCell>
                   </TableRow>
                 </TableHead>
-
-                <TableBody>
-                  {paidOutgoings.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} style={{ textAlign: 'center' }}>
-                        No data available
-                      </TableCell>
+<TableBody>
+  {paidOutgoings.length === 0 ? (
+    <TableRow>
+      <TableCell colSpan={8} style={{ textAlign: 'center' }}>
+        No data available
+      </TableCell>
                     </TableRow>
                   ) : (paidOutgoings.map((payment, index) => {
+                    // Calculate total paid amount including cash payments, advances, and debit notes
+                    const calculateTotalPaid = (payment: any) => {
+                      let totalPaid = 0;
+                      
+                      // Add cash payments from payment history
+                      if (payment.paymentHistory && payment.paymentHistory.length > 0) {
+                        payment.paymentHistory.forEach((history: any) => {
+                          totalPaid += history.amount || 0; // Cash amount
+                        });
+                      }
+                    
+                      
+                      return totalPaid;
+                    };
+
+                    const totalPaidAmount = calculateTotalPaid(payment);
+
                     return (
                       <TableRow key={payment.outgoingId}>
                         <TableCell>{index + 1}</TableCell>
                         <TableCell>{payment.vendorName}</TableCell>
                         <TableCell>{payment.invoiceNo || "N/A"}</TableCell>
                         <TableCell>{payment.invoiceDate ? format(payment.invoiceDate, 'dd-MM-yyyy') : 'N/A'}</TableCell>
-                        <TableCell>{payment.totalPayableAmount?.toFixed(2) || 0.00}</TableCell>
-                        <TableCell>{payment.paidAmount?.toFixed(2)}</TableCell>
+                        <TableCell>{payment.payableAmount?.toFixed(2) || 0.00}</TableCell>
+                        <TableCell>{totalPaidAmount.toFixed(2)}</TableCell>
                         <TableCell>{payment.paymentDate ? format(payment.paymentDate, 'dd-MM-yyyy') : 'N/A'}</TableCell>
                         <TableCell>
                           <Box
@@ -936,7 +952,7 @@ const PaidPaymentComponent = () => {
                           </Tooltip>
                           <IconButton
                             color="primary" sx={{ ml: 0.2 }}
-                            onClick={() => handleDownload(payment.outgoingId ?? '')} // Corrected usage of purchaseOrderId
+                            onClick={() => handleDownload(payment.outgoingId ?? '')}
                           >
                             <PictureAsPdfIcon />
                           </IconButton>

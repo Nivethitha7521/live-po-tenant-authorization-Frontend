@@ -55,7 +55,7 @@ const YenPurchasePage = () => {
                 sx={{
                   textTransform: 'none',
                   fontWeight: isActive ? 'bold' : 'normal',
-                  fontSize: isActive ? '16px' : '14px',
+                  fontSize: isActive ? '16px' : '15px',
                   borderRadius: '4px',
                   padding: '8px 16px',
                   width: isActive ? '200px' : '150px',

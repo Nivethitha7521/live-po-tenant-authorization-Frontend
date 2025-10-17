@@ -6,11 +6,10 @@ import { Bank, BulkPaymentRequest, BulkPaymentResponse, DebitNote, GRN, initialS
 export interface ProcessPaymentRequest {
   outgoingId: string;
   paymentMode: 'Bank' | 'Cash';
-  paymentType: 'full' | 'partial' | 'advance';
+  paymentType: 'full' | 'partial';
   totalPayableAmount: number;
   fullPaymentAmount?: number;
   partialAmount?: number;
-  advanceAmount?: number;
   paymentMethod?: string;
   chequeNo?: string;
   neftNo?: string;
@@ -19,10 +18,11 @@ export interface ProcessPaymentRequest {
   upi?: string;
   cashAmount: number;
   bankName?: string;
-  paymentDate:Date;
+  paymentDate: Date;
   selectedDebitNotes?: string[];
-  selectedAdvancePayments?: string[]; // Added to support advance payments
+  selectedAdvancePayments?: string[];
 }
+
 // Define the argument type for fetchOutgoings
 interface FetchOutgoingsArgs {
   page: number;
@@ -145,7 +145,6 @@ export const fetchBank = createAsyncThunk('bank/fetchBanks', async () => {
   const response = await axios.get(`https://yenerp.com/masterapi/bankmasters/`);
   return response.data;
 });
-
 export const processPayment = createAsyncThunk<
   void,
   ProcessPaymentRequest,
@@ -160,7 +159,6 @@ export const processPayment = createAsyncThunk<
       totalPayableAmount,
       fullPaymentAmount,
       partialAmount,
-      advanceAmount,
       paymentMethod,
       chequeNo,
       neftNo,
@@ -170,7 +168,8 @@ export const processPayment = createAsyncThunk<
       cashAmount,
       bankName,
       selectedDebitNotes = [],
-      selectedAdvancePayments = [], // Added to payload
+      selectedAdvancePayments = [],
+      paymentDate,
     },
     { rejectWithValue }
   ) => {
@@ -194,7 +193,8 @@ export const processPayment = createAsyncThunk<
         cashAmount,
         bankName,
         selectedDebitNotes,
-        selectedAdvancePayments, // Include in payload
+        selectedAdvancePayments,
+        paymentDate: paymentDate.toISOString(),
       };
 
       await axios.patch(`http://192.168.29.116:8000/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
@@ -203,6 +203,7 @@ export const processPayment = createAsyncThunk<
     }
   }
 );
+
 export const fetchActiveDebitsVendor = createAsyncThunk<
   DebitNote[],
   string, // vendorName
