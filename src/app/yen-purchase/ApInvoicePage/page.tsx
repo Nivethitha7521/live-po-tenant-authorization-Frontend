@@ -113,7 +113,7 @@ const VerifiedApInvoicePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVendorName, setSelectedVendorName] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<VendorSearch | null>(null);
-  const [status, setStatus] = useState('Pending'); // Default status filter is "Pending"
+  const [status, setStatus] = useState('Outgoing Posted'); // Default status filter is "Pending"
   const [filteredAp, setFilteredAp] = useState<ApInvoice[]>([]); // Explicit type declaration
   const [dialogDownloadOpen, setDialogDownloadOpen] = useState(false);
   const [dialogSummaryOpen, setDialogSummaryOpen] = useState(false);
@@ -467,7 +467,7 @@ const VerifiedApInvoicePage: React.FC = () => {
     currentYOffset += 15; // Move down after title for space
 
     // Filter out invoices with status 'Pending'
-    const pendingInvoices = (apInvoices || []).filter(invoice => invoice.status === "Pending");
+    const pendingInvoices = (apInvoices || []).filter(invoice => invoice.status === "Outgoing Posted");
 
     // Calculate the total amounts for the pending invoices
     const totalAmount = pendingInvoices.reduce((sum, invoice) => {
@@ -1034,7 +1034,7 @@ const VerifiedApInvoicePage: React.FC = () => {
     ...Object.keys(taxAmounts.igst), // Collect keys from igst as well
   ]);
 
-  const filterAp = apInvoices.filter(ap => ap.status === 'Pending');
+  const filterAp = apInvoices.filter(ap => ap.status === 'Outgoing Posted');
 
   return (
     <Box>

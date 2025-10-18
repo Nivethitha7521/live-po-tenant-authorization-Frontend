@@ -111,6 +111,7 @@ const GrnPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogSaveOpen, setDialogSaveOpen] = useState(false);
   const [apInvoiceDate, setApInvoiceDate] = useState<Date | null>(null);
+  const [outgoingDate, setOutgoingDate] = useState<Date | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [discountPrice, setDiscountPrice] = useState<number>(0);
@@ -285,6 +286,13 @@ const GrnPage = () => {
       setDiscountPrice(selectedGrn.discountPrice || 0);
       setTotalDiscount(selectedGrn.totalDiscount || 0);
       setTotalReceivedAmount(selectedGrn.totalReceivedAmount);
+      // Set default dates to current date if not set
+      if (!apInvoiceDate) {
+        setApInvoiceDate(new Date());
+      }
+      if (!outgoingDate) {
+        setOutgoingDate(new Date());
+      }
     }
   }, [selectedGrn]);
   // Function to handle opening the invoice edit dialog
@@ -678,7 +686,8 @@ const GrnPage = () => {
   const handleDialogClose = () => {
     setDialogueViewOpen(false);
     dispatch(setSelectedGrnId(null));
-    setApInvoiceDate(null);
+    setApInvoiceDate(new Date()); // Reset to current date
+    setOutgoingDate(new Date()); // Reset to current date
   };
 
   const handleSearchChange = (event: React.ChangeEvent<{}>, newValue: string) => {
@@ -718,69 +727,65 @@ const GrnPage = () => {
     });
   };
   const handleSaveAll = async () => {
-    if (!selectedGrnId) {
-      setErrorMessage('No GRN selected to save.');
-      setLoading(false);
-      return;
-    }
+  if (!selectedGrnId) {
+    setErrorMessage('No GRN selected to save.');
+    setLoading(false);
+    return;
+  }
 
-    const finalDiscountPrice = enteredDiscount + (selectedGrn?.discountPrice || 0);
-    const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
-      itemId,
-      befTaxDiscount: itemData.befTaxDiscount,
-      afTaxDiscount: itemData.afTaxDiscount,
-      expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
-    }));
+  const finalDiscountPrice = enteredDiscount;
 
-    // Use apInvoiceDate from state, fallback to current date if null
-    const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
+  const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
+    itemId,
+    befTaxDiscount: itemData.befTaxDiscount,
+    afTaxDiscount: itemData.afTaxDiscount,
+    expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
+  }));
 
-    // Validate that apInvoiceDate is not in the future
-    const currentDate = new Date();
-    // if (apInvoiceDate && apInvoiceDate > currentDate) {
-    //   setErrorMessage('AP Invoice Date cannot be in the future.');
-    //   setSnackbarMessage('AP Invoice Date cannot be in the future.');
-    //   setSnackbarOpen(true);
-    //   setLoading(false);
-    //   return;
-    // }
+  const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
+  const outgoingDateValue = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
 
-    const payload = {
-      grnId: selectedGrnId,
-      discountPrice: finalDiscountPrice,
-      itemUpdates,
-      convertToAp: true,
-      apInvoiceDate: apInvoiceDateValue, // Pass the selected or default date
-    };
-
-    try {
-      setLoading(true);
-      const resultAction = await dispatch(updateItemDetails(payload));
-      if (updateItemDetails.fulfilled.match(resultAction)) {
-        setErrorMessage(null);
-        setDialogueViewOpen(false);
-        setIsConvertedToAP(true);
-        setSnackbarMessage('GRN successfully updated and converted to AP.');
-        setSnackbarOpen(true);
-        dispatch(
-          fetchGrns({
-            page: newPage,
-            size: pageSize,
-            fromDate: memoizedFromDate,
-            toDate: memoizedToDate,
-          })
-        );
-      } else {
-        setErrorMessage('Error saving items: ' + (resultAction.payload || 'Please try again.'));
-      }
-    } catch (error) {
-      setErrorMessage('Error saving items. Please try again.');
-      setSnackbarMessage('Failed to update GRN. Please try again.');
-      setSnackbarOpen(true);
-    } finally {
-      setLoading(false);
-    }
+  const payload = {
+    grnId: selectedGrnId,
+    discountPrice: finalDiscountPrice,
+    itemUpdates,
+    apInvoiceDate: apInvoiceDateValue,
+    outgoingDate: outgoingDateValue,
   };
+
+  try {
+    setLoading(true);
+    const resultAction = await dispatch(updateItemDetails(payload));
+    
+    if (updateItemDetails.fulfilled.match(resultAction)) {
+      setErrorMessage(null);
+      setDialogueViewOpen(false);
+      setIsConvertedToAP(true);
+      setSnackbarMessage('GRN successfully converted to AP and Outgoing.');
+      setSnackbarOpen(true);
+      
+      dispatch(
+        fetchGrns({
+          page: newPage,
+          size: pageSize,
+          fromDate: memoizedFromDate,
+          toDate: memoizedToDate,
+        })
+      );
+    } else {
+      const errorMessage = resultAction.payload || 'Please try again.';
+      setErrorMessage('Error converting GRN: ' + errorMessage);
+      setSnackbarMessage('Failed to convert GRN: ' + errorMessage);
+      setSnackbarOpen(true);
+    }
+  } catch (error) {
+    setErrorMessage('Error converting GRN. Please try again.');
+    setSnackbarMessage('Failed to convert GRN. Please try again.');
+    setSnackbarOpen(true);
+  } finally {
+    setLoading(false);
+  }
+};
   const handleGrnSelect = (grnId: string) => {
     dispatch(setSelectedGrnId(grnId));
     const selectedGrn = grns.find((grn) => grn.grnId === grnId);
@@ -818,17 +823,19 @@ const GrnPage = () => {
         {}
       );
       setEditedItems(initialEditedItems);
-      // Set apInvoiceDate to invoiceDate if available, else current date
+      // Set apInvoiceDate and outgoingDate to current date if not set
       setApInvoiceDate(selectedGrn?.invoiceDate ? new Date(selectedGrn.invoiceDate) : new Date());
+      setOutgoingDate(new Date());
     }
     setDialogueViewOpen(true);
   };
   const handleVerify = () => {
     setLoading(true);
-    if (!apInvoiceDate) {
-    setSnackbarMessage('Please select AP Invoice Date before verifying.');
+    if (!apInvoiceDate || !outgoingDate) {
+    setSnackbarMessage('Please select both AP Invoice Date and Outgoing Date before verifying.');
     setSnackbarOpen(true);
-    return; // Prevent proceeding; user must cancel/close and select a date
+    setLoading(false);
+    return; // Prevent proceeding; user must cancel/close and select dates
   }
     // Check for expiry date in each edited item
     const missingExpiryDates = Object.entries(editedItems).filter(
@@ -952,10 +959,6 @@ const GrnPage = () => {
       headStyles: {
         fillColor: [0, 0, 128], // DodgerBlue background for the header
         textColor: [255, 255, 255] // White text color for header
-      },
-      bodyStyles: {
-        fillColor: [255, 255, 255], // White background for rows
-        textColor: [0, 0, 0] // Black text color for rows
       },
     });
 
@@ -1761,17 +1764,28 @@ const GrnPage = () => {
                     <Typography variant="h6" sx={{ mb: 1 }}>
                       Vendorname: {selectedGrn?.vendorName || 'KK MOTORS'}
                     </Typography>
-                    <Box sx={{ pl: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, mb: 1, flexWrap: 'nowrap' }}>
-                      <Typography variant="h6" sx={{ whiteSpace: 'nowrap', mr: 2 }}>
-                        GRN Date: {selectedGrn?.grnDate ? format(new Date(selectedGrn.grnDate), 'dd-MM-yyyy') : '26-09-2025'}
-                      </Typography>
-                     {/* Replace the original TextField with SmartDatePicker */}
-                      <SmartDatePicker
-                        label="AP Invoice Date"
-                        value={apInvoiceDate}
-                        onChange={setApInvoiceDate}
-                        maxDate={new Date()} // Optional: Restrict to today or future if needed; remove if past dates allowed
-                      />
+                    <Box sx={{ pl: 0, display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Typography variant="h6" sx={{ whiteSpace: 'nowrap' }}>
+                          GRN Date: {selectedGrn?.grnDate ? format(new Date(selectedGrn.grnDate), 'dd-MM-yyyy') : '26-09-2025'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {/* AP Invoice Date Picker */}
+                        <SmartDatePicker
+                          label="AP Invoice Date"
+                          value={apInvoiceDate}
+                          onChange={setApInvoiceDate}
+                          maxDate={new Date()} // Optional: Restrict to today or future if needed; remove if past dates allowed
+                        />
+                        {/* Outgoing Date Picker */}
+                        <SmartDatePicker
+                          label="Outgoing Date"
+                          value={outgoingDate}
+                          onChange={setOutgoingDate}
+                          maxDate={new Date()} // Optional: Restrict to today or future if needed; remove if past dates allowed
+                        />
+                      </Box>
                     </Box>
                   </Box>
                   <Box sx={{ textAlign: 'right' }}>

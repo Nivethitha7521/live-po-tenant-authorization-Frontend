@@ -491,7 +491,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                 onChange={(e) => setInvoiceDate(e.target.value ? new Date(e.target.value) : null)}
                 disabled={!selectedOrder?.orderDate}
                 inputProps={{
-                  min: selectedOrder?.orderDate
+                  max: selectedOrder?.orderDate
                     ? format(startOfDay(new Date(selectedOrder.orderDate)), 'yyyy-MM-dd')
                     : undefined,
                 }}
@@ -504,7 +504,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                 onChange={(e) => setGrnDate(e.target.value ? new Date(e.target.value) : null)}
                 disabled={!selectedOrder?.orderDate || isProcessing}
                 inputProps={{
-                  min: selectedOrder?.orderDate
+                  max: selectedOrder?.orderDate
                     ? format(startOfDay(new Date(selectedOrder.orderDate)), "yyyy-MM-dd")
                     : undefined,
                 }}

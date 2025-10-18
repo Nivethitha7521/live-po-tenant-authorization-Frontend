@@ -41,7 +41,7 @@ const YenPurchasePage = () => {
 
   return (
     <div>
-      <SideMenu onMenuClick={handleMenuClick} activePath={pathname || '/'} />
+      <SideMenu onMenuClick={handleMenuClick} activePath={pathname || '/'} /> 
       <div className="flex flex-wrap gap-2 ml-4 items-center justify-start">
         {subItems.map((item) => {
           const isActive = isActiveRoute(item.path);

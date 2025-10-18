@@ -12,7 +12,7 @@ export interface ItemUpdate {
   afTaxDiscount?: number;
   expiryDate?: Date | null;
 }
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
 const customRoundOf = (value: number) => {
   return Math.round(value * 100) / 100; // Round to two decimal places
 };
@@ -187,45 +187,42 @@ export const updateItemDetails = createAsyncThunk(
       grnId,
       discountPrice,
       itemUpdates,
-      convertToAp = true,
-      apInvoiceDate, // Add optional apInvoiceDate
+      apInvoiceDate,
+      outgoingDate,
     }: {
       grnId: string;
       discountPrice: number;
       itemUpdates: ItemUpdate[];
-      convertToAp?: boolean;
-      apInvoiceDate?: string; // ISO string (e.g., "2025-09-22T00:00:00.000Z")
+      apInvoiceDate?: string;
+      outgoingDate?: string;
     },
     { rejectWithValue }
   ) => {
     try {
-      // Construct the URL with query parameters
-      const url = new URL(`${BASE_URL}/grns/items/totals/${grnId}`);
+      const url = new URL(`${BASE_URL}/grns/convert-to-ap/ap-to-outgoing/${grnId}`);
       url.searchParams.append('discountPrice', discountPrice.toString());
-      url.searchParams.append('convertToAp', convertToAp.toString());
       if (apInvoiceDate) {
-        url.searchParams.append('apInvoiceDate', apInvoiceDate); // Include apInvoiceDate if provided
+        url.searchParams.append('apInvoiceDate', apInvoiceDate);
+      }
+      if (outgoingDate) {
+        url.searchParams.append('outgoingDate', outgoingDate);
       }
 
-      // Send the request
       const response = await axios.patch(url.toString(), itemUpdates);
 
-      // Check if AP conversion was requested but not completed
-      if (convertToAp && !response.data.apInvoiceConverted) {
-        console.warn('AP conversion was requested but not completed by the backend');
-      }
-
-      // Return the response data
       return {
         grnId,
         itemUpdates: response.data.updatedItems,
         discountPrice,
         success: true,
-        apInvoiceConverted: response.data.apInvoiceConverted || false,
-        apInvoiceDetails: response.data.apInvoiceDetails || null,
+        apInvoiceConverted: response.data.apInvoiceConverted,
+        apInvoiceDetails: response.data.apInvoiceDetails,
+        outgoingConverted: response.data.outgoingConverted,
+        outgoingDetails: response.data.outgoingDetails,
         totalReceivedAmount: response.data.totalReceivedAmount,
         totalDiscount: response.data.totalDiscount,
         totalTax: response.data.totalTax,
+        grnStatus: response.data.grnStatus,
       };
     } catch (error: any) {
       console.error('Update item details error:', error);
