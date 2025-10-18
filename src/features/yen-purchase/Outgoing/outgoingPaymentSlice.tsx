@@ -177,7 +177,7 @@ export const processPayment = createAsyncThunk<
       if (!['full', 'partial'].includes(paymentType)) {
         throw new Error('Payment type must be "full" or "partial"');
       }
-      const payload = {
+      const payload = { 
         outgoingId,
         paymentMode,
         paymentType,
