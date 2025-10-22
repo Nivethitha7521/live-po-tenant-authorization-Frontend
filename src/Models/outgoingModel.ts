@@ -127,7 +127,7 @@ export interface PaymentHistory {
   neftNo?: string;
   rtgsNo?: string;
   upi?: string;
-  date?: string; // ISO string to match datetime in Pydantic
+  date?: Date ; // ISO string to match datetime in Pydantic
   debitNotesApplied?: string[];
   debitAmount?: number;
     advanceAmount?: number; // ADDED: For advance payments
@@ -224,57 +224,58 @@ export const initialState: OutgoingState = {
   vendorDebits: {},
   advances: [], // NEW: Initialize advances array
 };
-
-// Add to your existing models
+// outgoingPaymentSlice.ts
 export interface BulkPaymentResponse {
   results: Array<{
     outgoingId: string;
     message: string;
-    pendingAmount: number;
-    totalPayableAmount: number;
-    paymentAmount: number;
-    debitAmountApplied: number;
-    advanceAmountUsed: number; // NEW: Add advance amount used
-    paymentType: string;
+    effectivePaymentAmount: number;
+    debitAmount: number;
+    advanceAmount: number;
+    originalTotalPayableAmount: number;
+    remainingPayableAmount: number;
+    totalPaidAmount: number;
+    totalDebitAmount: number;
     status: string;
+    vendorPayableReduction: number;
     debitNotesApplied: string[];
-    advancePaymentsApplied: string[]; // NEW: Add advance payments applied
+    advancePaymentsApplied: string[];
+    paymentDate: Date;
   }>;
   errors: Array<{
     outgoingId?: string;
     debitNoteId?: string;
-    advanceId?: string; // NEW: Add advance payment errors
+    advanceId?: string;
     error: string;
   }>;
   totalProcessed: number;
   totalFailed: number;
-  totalVendorReduction: number; // NEW: Add total vendor payable reduction
+  totalVendorReduction: number;
 }
 
 export interface PaymentInfo {
-  outgoingId: string; // NEW: Add outgoingId to each payment
+  outgoingId: string;
   paymentMode: 'Bank' | 'Cash';
   paymentType: 'full' | 'partial';
-  totalPayableAmount: number; // NEW: Add total payable amount
+  totalPayableAmount: number;
   fullPaymentAmount: number;
   partialAmount: number;
   paymentMethod: string;
-  chequeNo?: string;
+  cashAmount: number;
+  bankName?: string;
   neftNo?: string;
   rtgsNo?: string;
   impsNo?: string;
   upi?: string;
-  cashAmount: number;
-  bankName?: string;
   selectedDebitNotes: string[];
-  selectedAdvancePayments: string[]; // NEW: Add advance payments selection
+  selectedAdvancePayments: string[];
 }
 
 export interface BulkPaymentRequest {
   payments: PaymentInfo[];
   outgoingIds: string[];
+  paymentDate?: Date;
 }
-
 // NEW: Add Advance Payment interface
 export interface AdvancePayment {
   advanceId:string;

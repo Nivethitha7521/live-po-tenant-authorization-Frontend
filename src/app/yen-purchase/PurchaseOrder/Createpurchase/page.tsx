@@ -103,6 +103,26 @@ const PurchaseOrder: React.FC = () => {
       dispatch(setPurchaseOrderData({ ...purchaseOrderData, billingAddress: defaultBillingAddress }));
     }
   }, [businesses, purchaseOrderData, dispatch]);
+  useEffect(() => {
+  const currentDate = new Date();
+  
+  // Set default dates only if they are null/undefined
+  const updatedData = { ...purchaseOrderData };
+  
+  if (!purchaseOrderData.orderDate) {
+    updatedData.orderDate = currentDate;
+  }
+  
+  if (!purchaseOrderData.expectedDeliveryDate) {
+    updatedData.expectedDeliveryDate = currentDate;
+  }
+  
+  // Only dispatch if we actually set defaults
+  if (!purchaseOrderData.orderDate || !purchaseOrderData.expectedDeliveryDate) {
+    dispatch(setPurchaseOrderData(updatedData));
+  }
+}, [dispatch]);
+
   // Track form dirty state
   useEffect(() => {
     const hasChanges =
@@ -159,19 +179,23 @@ const PurchaseOrder: React.FC = () => {
       setFormErrors((prev) => ({ ...prev, billingAddress: false }));
     }
   }, [purchaseOrderData.billingAddress]);
-  const handleOrderDateChange = (date: Date | null) => {
-    dispatch(setPurchaseOrderData({
-      ...purchaseOrderData,
-      orderDate: date
-    }));
-  };
+const handleOrderDateChange = (date: Date | null) => {
+  // If date is null, use current date as default
+  const finalDate = date || new Date();
+  dispatch(setPurchaseOrderData({
+    ...purchaseOrderData,
+    orderDate: finalDate
+  }));
+};
 
-  const handleExpectedDeliveryDateChange = (date: Date | null) => {
-    dispatch(setPurchaseOrderData({
-      ...purchaseOrderData,
-      expectedDeliveryDate: date
-    }));
-  };
+const handleExpectedDeliveryDateChange = (date: Date | null) => {
+  // If date is null, use current date as default
+  const finalDate = date || new Date();
+  dispatch(setPurchaseOrderData({
+    ...purchaseOrderData,
+    expectedDeliveryDate: finalDate
+  }));
+};
   // Calculate totals with updated logic for discount conversion
   const calculateTotals = useMemo(() => {
     let subTotal = 0;
@@ -518,12 +542,14 @@ const PurchaseOrder: React.FC = () => {
     }
   };
   const handleClear = () => {
+      const currentDate = new Date();
+
     dispatch(setPurchaseOrderData({
       purchaseOrderId: '',
       vendorName: '',
       vendorContact: '',
-      orderDate: null,
-      expectedDeliveryDate: null,
+      orderDate: currentDate, // Reset to current date
+    expectedDeliveryDate: currentDate, // Reset to current date
       poStatus: '',
       items: [],
       pendingOrderAmount: 0,
@@ -1167,32 +1193,37 @@ const PurchaseOrder: React.FC = () => {
     dispatch(setSnackbarMessage('Discount reset'));
     dispatch(setSnackbarOpen(true));
   };
-  const handleSubmit = async () => {
-    setLoading(true);
-    // Recalculate totals to ensure they're up-to-date
-    const { roundedTotalOrderAmount, roundedTotalDiscount, roundedTotalTax } = calculateTotals;
-    if (!purchaseOrderData.items.length) {
-      dispatch(setSnackbarMessage('At least one item is required.'));
-      dispatch(setSnackbarOpen(true));
-      setLoading(false);
-      return;
-    }
-    const dataToSubmit = {
-      ...purchaseOrderData,
-      orderDate: purchaseOrderData.orderDate ? new Date(purchaseOrderData.orderDate) : null,
-      expectedDeliveryDate: purchaseOrderData.expectedDeliveryDate ? new Date(purchaseOrderData.expectedDeliveryDate) : null,
-      pendingOrderAmount: roundedTotalOrderAmount,
-      pendingDiscountAmount: roundedTotalDiscount,
-      pendingTaxAmount: roundedTotalTax,
-      totalTax: roundedTotalTax,
-      isHoldOrder: roundedTotalOrderAmount > purchaseOrderData.creditLimit,
-      overallDiscountType: overallDiscountMode,
-      overallDiscountValue: roundedTotalDiscount,
-      discountPrice: roundedTotalDiscount,
-      totalDiscount: roundedTotalDiscount,
-      roundOffValue: roundOffValue,
-      // Items already have the discount applied from the UI calculation
-    };
+ const handleSubmit = async () => {
+  setLoading(true);
+  // Recalculate totals to ensure they're up-to-date
+  const { roundedTotalOrderAmount, roundedTotalDiscount, roundedTotalTax } = calculateTotals;
+  
+  if (!purchaseOrderData.items.length) {
+    dispatch(setSnackbarMessage('At least one item is required.'));
+    dispatch(setSnackbarOpen(true));
+    setLoading(false);
+    return;
+  }
+
+  // Ensure dates are never null - use current date as fallback
+  const orderDate = purchaseOrderData.orderDate ? new Date(purchaseOrderData.orderDate) : new Date();
+  const expectedDeliveryDate = purchaseOrderData.expectedDeliveryDate ? new Date(purchaseOrderData.expectedDeliveryDate) : new Date();
+
+  const dataToSubmit = {
+    ...purchaseOrderData,
+    orderDate: orderDate,
+    expectedDeliveryDate: expectedDeliveryDate,
+    pendingOrderAmount: roundedTotalOrderAmount,
+    pendingDiscountAmount: roundedTotalDiscount,
+    pendingTaxAmount: roundedTotalTax,
+    totalTax: roundedTotalTax,
+    isHoldOrder: roundedTotalOrderAmount > purchaseOrderData.creditLimit,
+    overallDiscountType: overallDiscountMode,
+    overallDiscountValue: roundedTotalDiscount,
+    discountPrice: roundedTotalDiscount,
+    totalDiscount: roundedTotalDiscount,
+    roundOffValue: roundOffValue,
+  };
     try {
       const result = await dispatch(addPurchaseOrder(dataToSubmit)).unwrap();
       dispatch(setSnackbarMessage(

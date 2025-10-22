@@ -1773,21 +1773,18 @@ const handleViewDetailsClick = (orderId: string) => {
               <strong>Item-wise Discount:</strong>
             </TableCell>
             <TableCell>{(pendingDiscountAmount - overallDiscount || 0).toFixed(2)}</TableCell>
-            <TableCell />
           </TableRow>
           <TableRow>
             <TableCell colSpan={11} align="right">
               <strong>Overall Discount:</strong>
             </TableCell>
             <TableCell>{(overallDiscount || 0).toFixed(2)}</TableCell>
-            <TableCell />
           </TableRow>
           <TableRow>
             <TableCell colSpan={11} align="right">
               <strong>Total Discount:</strong>
             </TableCell>
             <TableCell>{(pendingDiscountAmount || 0).toFixed(2)}</TableCell>
-            <TableCell />
           </TableRow>
           {Object.entries(taxDetails).map(([key, tax]) => (
             <TableRow key={key}>
@@ -1796,14 +1793,12 @@ const handleViewDetailsClick = (orderId: string) => {
                 <strong>{tax.type} ({tax.percentage}%):</strong>
               </TableCell>
               <TableCell>{(tax.amount || 0).toFixed(2)}</TableCell>
-              <TableCell />
             </TableRow>
           ))}
           <TableRow>
             <TableCell colSpan={10}></TableCell>
             <TableCell><strong>Payable Amount:</strong></TableCell>
             <TableCell>{(pendingOrderAmount || 0).toFixed(2)}</TableCell>
-            <TableCell />
           </TableRow>
         </TableBody>
       </Table>
@@ -1813,7 +1808,7 @@ const handleViewDetailsClick = (orderId: string) => {
     <Button onClick={handleDialogClose} color="primary">Close</Button>
     <Button onClick={handleSaveChanges} color="primary">Save Changes</Button>
   </DialogActions>
-</Dialog> {/* Pdf Excel */}
+</Dialog>{/* Pdf Excel */}
         <Dialog open={dialogDownloadOpen} onClose={() => setDialogDownloadOpen(false)}>
           <DialogTitle>Select Export Format</DialogTitle>
           <DialogContent>
@@ -1941,7 +1936,7 @@ const handleViewDetailsClick = (orderId: string) => {
                         ))}
                       </TableCell>
                       <TableCell>{totalQuantity}</TableCell>
-                      <TableCell>{order.pendingOrderAmount}</TableCell>
+                      <TableCell>{order.pendingOrderAmount.toFixed(2)}</TableCell>
                       <TableCell>{order.poStatus}</TableCell>
                       <TableCell>
                         <Box display="flex" alignItems="center">

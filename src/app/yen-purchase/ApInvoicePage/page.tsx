@@ -106,7 +106,7 @@ const VerifiedApInvoicePage: React.FC = () => {
   const { businesses } = useSelector(selectBusinesses);
   const { vendors } = useSelector(selectPurchaseOrderState);
   const [discountPrice, setDiscountPrice] = useState(apInvoice.discountPrice || 0);
-  const [apDiscountPrice, setApDiscountPrice] = useState<number>(apInvoice.apDiscountPrice ?? 0);
+  // const [apDiscountPrice, setApDiscountPrice] = useState<number>(apInvoice.apDiscountPrice ?? 0);
   const [loadingCenter, setLoading] = useState(false); // Loading state
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null); const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
@@ -127,7 +127,7 @@ const VerifiedApInvoicePage: React.FC = () => {
     endDate: new Date(),
     key: 'selection',
   });
-  const [outgoingDate, setOutgoingDate] = useState<Date | null>(null); // New state for outgoingDate
+  // const [outgoingDate, setOutgoingDate] = useState<Date | null>(null); // New state for outgoingDate
   const [anchorElDate, setAnchorElDate] = useState<null | HTMLElement>(null);
   const dateField = 'apinvoiceDate';
   const fromDate = moment().utc().startOf('day').toDate(); // Start of the day (in UTC)
@@ -192,10 +192,10 @@ const VerifiedApInvoicePage: React.FC = () => {
       handlePageChange(currentPage - 1);
     }
   };
-  const handleOutgoingDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const dateValue = event.target.value ? new Date(event.target.value) : null;
-    setOutgoingDate(dateValue);
-  };
+  // const handleOutgoingDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  //   const dateValue = event.target.value ? new Date(event.target.value) : null;
+  //   setOutgoingDate(dateValue);
+  // };
   const handleViewCreditNotes = (invoiceId: string) => {
     console.log('Opening DebitCreditNoteDialog for invoiceId:', invoiceId);
     dispatch(setDebitCreditDocumentId(invoiceId)); // Set documentId
@@ -207,10 +207,10 @@ const VerifiedApInvoicePage: React.FC = () => {
     setDetailsDialogOpen(false);
     setSelectedInvoice(null); // Clear the selected invoice
   };
-  const handleDiscountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setApDiscountPrice(value === '' ? 0 : parseFloat(value) || 0); // Handle empty input and invalid numbers
-  };
+  // const handleDiscountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  //   const value = event.target.value;
+  //   setApDiscountPrice(value === '' ? 0 : parseFloat(value) || 0); // Handle empty input and invalid numbers
+  // };
 
   const handleOpen = () => {
     setDialogSummaryOpen(true);
@@ -711,53 +711,43 @@ const VerifiedApInvoicePage: React.FC = () => {
   };
 
 
-  // Submit handler in your component
-  const handleSubmit = () => {
-    if (selectedInvoice) {
-      dispatch(updateApdiscountInvoice({ invoiceId: selectedInvoice.invoiceId, apDiscountPrice }));
-      dispatch(setSnackbarMessage('Discount price updated successfully'));
-      dispatch(setSnackbarOpen(true));
-    } else {
-      console.error('No invoice selected');
-    }
-  };
-  const handlePostOutgoingPayment = () => {
-    if (!selectedInvoice) return;
-    setLoading(true);
+  // const handlePostOutgoingPayment = () => {
+  //   if (!selectedInvoice) return;
+  //   setLoading(true);
 
-    const discountToApply = isNaN(apDiscountPrice) || apDiscountPrice === null ? 0 : apDiscountPrice;
+  //   const discountToApply = isNaN(apDiscountPrice) || apDiscountPrice === null ? 0 : apDiscountPrice;
 
-    dispatch(postOutgoingAndUpdateDiscount({
-      invoiceId: selectedInvoice.invoiceId,
-      apDiscountPrice: discountToApply,
-      outgoingDate // Pass the selected outgoingDate
-    }))
-      .unwrap()
-      .then(() => {
-        console.log('Outgoing payment posted and discount applied successfully!');
-        dispatch(setSnackbarMessage('Outgoing payment posted and discount applied successfully'));
-        dispatch(setSnackbarOpen(true));
-        setOutgoingDate(null); // Reset date after submission
-      })
-      .catch((err: any) => {
-        console.error('Error posting outgoing payment and applying discount:', err);
-        dispatch(setSnackbarMessage('Error posting outgoing payment and applying discount'));
-        dispatch(setSnackbarOpen(true));
-      })
-      .finally(() => {
-        setOutgoingDialogOpen(false);
-        setDetailsDialogOpen(false);
-        setLoading(false);
-        dispatch(fetchApInvoices({
-          page: newPage,
-          size: pageSize,
-          status,
-          dateFilterField: dateField,
-          fromDate,
-          toDate
-        }));
-      });
-  };
+  //   dispatch(postOutgoingAndUpdateDiscount({
+  //     invoiceId: selectedInvoice.invoiceId,
+  //     apDiscountPrice: discountToApply,
+  //     outgoingDate // Pass the selected outgoingDate
+  //   }))
+  //     .unwrap()
+  //     .then(() => {
+  //       console.log('Outgoing payment posted and discount applied successfully!');
+  //       dispatch(setSnackbarMessage('Outgoing payment posted and discount applied successfully'));
+  //       dispatch(setSnackbarOpen(true));
+  //       setOutgoingDate(null); // Reset date after submission
+  //     })
+  //     .catch((err: any) => {
+  //       console.error('Error posting outgoing payment and applying discount:', err);
+  //       dispatch(setSnackbarMessage('Error posting outgoing payment and applying discount'));
+  //       dispatch(setSnackbarOpen(true));
+  //     })
+  //     .finally(() => {
+  //       setOutgoingDialogOpen(false);
+  //       setDetailsDialogOpen(false);
+  //       setLoading(false);
+  //       dispatch(fetchApInvoices({
+  //         page: newPage,
+  //         size: pageSize,
+  //         status,
+  //         dateFilterField: dateField,
+  //         fromDate,
+  //         toDate
+  //       }));
+  //     });
+  // };
   const handleDownload = async (apinvoiceId: string) => {
     const apinvoice = apInvoices.find((invoice: ApInvoice) => invoice.invoiceId === apinvoiceId);
 
@@ -1369,14 +1359,14 @@ const VerifiedApInvoicePage: React.FC = () => {
                   <Typography variant="h6">
                     <strong>Total Amount:</strong> {selectedInvoice.invoiceAmount}
                   </Typography>
-                  <TextField
+                  {/* <TextField
                     label="Outgoing Date"
                     type="date"
                     value={outgoingDate ? format(outgoingDate, 'yyyy-MM-dd') : ''}
                     onChange={handleOutgoingDateChange}
                     InputLabelProps={{ shrink: true }}
                     sx={{ maxWidth: 200 }}
-                  />
+                  /> */}
                 </Box>
 
                 <TableContainer component={Paper} sx={{ mt: 2 }}>
@@ -1417,7 +1407,7 @@ const VerifiedApInvoicePage: React.FC = () => {
                         </TableRow>
                       ))}
                       {/* Discount Input Row */}
-                      <TableRow>
+                      {/* <TableRow>
                         <TableCell colSpan={12} align="right">
                           <strong>New Discount Price:</strong>
                         </TableCell>
@@ -1430,14 +1420,14 @@ const VerifiedApInvoicePage: React.FC = () => {
                             className="custom-textfield"
                           />
                         </TableCell>
-                      </TableRow>
+                      </TableRow> */}
                       {/* Total Discounted Amount */}
                       <TableRow>
                         <TableCell colSpan={12} align="right">
                           <strong>Total Discounted Amount:</strong>
                         </TableCell>
                         <TableCell>
-                          {(selectedInvoice.discountPrice + (isNaN(apDiscountPrice) ? 0 : apDiscountPrice)).toFixed(2)}
+                          {selectedInvoice.discountPrice.toFixed(2)}
                         </TableCell>
                       </TableRow>
                       {/* Tax Breakdown */}
@@ -1485,7 +1475,7 @@ const VerifiedApInvoicePage: React.FC = () => {
                           <strong>Total Invoice Amount:</strong>
                         </TableCell>
                         <TableCell>
-                          {(selectedInvoice.invoiceAmount - (selectedInvoice.discountPrice + (isNaN(apDiscountPrice) ? 0 : apDiscountPrice))).toFixed(2)}
+                          {(selectedInvoice.invoiceAmount - (selectedInvoice.discountPrice)).toFixed(2)}
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -1498,14 +1488,15 @@ const VerifiedApInvoicePage: React.FC = () => {
             <Button variant="contained" sx={{ mr: '5px' }} color="primary" onClick={() => setReturnDialogOpen(true)}>
               Return AP Invoice
             </Button>
-            <Button
+            {/* <Button
               variant="contained"
               color="primary"
               onClick={() => setOutgoingDialogOpen(true)}
               disabled={selectedInvoice?.status === 'Outgoing Posted'} // Disable if already posted
             >
               Post Outgoing Payment
-            </Button>    <Button variant="contained" onClick={handleCloseDetailsDialog}>Close</Button>
+            </Button>   */}
+             <Button variant="contained" onClick={handleCloseDetailsDialog}>Close</Button> 
           </DialogActions>
         </Dialog>
         {/* Snackbar for notifications */}
@@ -1532,7 +1523,7 @@ const VerifiedApInvoicePage: React.FC = () => {
           </DialogActions>
         </Dialog>
 
-        {/* Post Outgoing Payment Confirmation Dialog */}
+        {/* Post Outgoing Payment Confirmation Dialog
         <Dialog open={outgoingDialogOpen} onClose={() => setOutgoingDialogOpen(false)}>
           <DialogTitle>Post Outgoing Payment</DialogTitle>
           <DialogContent>
@@ -1546,7 +1537,7 @@ const VerifiedApInvoicePage: React.FC = () => {
               Confirm
             </Button>
           </DialogActions>
-        </Dialog>
+        </Dialog> */}
         <Backdrop
           sx={{
             color: '#fff',

@@ -110,8 +110,8 @@ const GrnPage = () => {
   const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogSaveOpen, setDialogSaveOpen] = useState(false);
-  const [apInvoiceDate, setApInvoiceDate] = useState<Date | null>(null);
-  const [outgoingDate, setOutgoingDate] = useState<Date | null>(null);
+  const [apInvoiceDate, setApInvoiceDate] = useState<Date | null>(new Date());
+  const [outgoingDate, setOutgoingDate] = useState<Date | null>(new Date());
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [discountPrice, setDiscountPrice] = useState<number>(0);
@@ -727,65 +727,65 @@ const GrnPage = () => {
     });
   };
   const handleSaveAll = async () => {
-  if (!selectedGrnId) {
-    setErrorMessage('No GRN selected to save.');
-    setLoading(false);
-    return;
-  }
-
-  const finalDiscountPrice = enteredDiscount;
-
-  const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
-    itemId,
-    befTaxDiscount: itemData.befTaxDiscount,
-    afTaxDiscount: itemData.afTaxDiscount,
-    expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
-  }));
-
-  const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
-  const outgoingDateValue = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
-
-  const payload = {
-    grnId: selectedGrnId,
-    discountPrice: finalDiscountPrice,
-    itemUpdates,
-    apInvoiceDate: apInvoiceDateValue,
-    outgoingDate: outgoingDateValue,
-  };
-
-  try {
-    setLoading(true);
-    const resultAction = await dispatch(updateItemDetails(payload));
-    
-    if (updateItemDetails.fulfilled.match(resultAction)) {
-      setErrorMessage(null);
-      setDialogueViewOpen(false);
-      setIsConvertedToAP(true);
-      setSnackbarMessage('GRN successfully converted to AP and Outgoing.');
-      setSnackbarOpen(true);
-      
-      dispatch(
-        fetchGrns({
-          page: newPage,
-          size: pageSize,
-          fromDate: memoizedFromDate,
-          toDate: memoizedToDate,
-        })
-      );
-    } else {
-      const errorMessage = resultAction.payload || 'Please try again.';
-      setErrorMessage('Error converting GRN: ' + errorMessage);
-      setSnackbarMessage('Failed to convert GRN: ' + errorMessage);
-      setSnackbarOpen(true);
+    if (!selectedGrnId) {
+      setErrorMessage('No GRN selected to save.');
+      setLoading(false);
+      return;
     }
-  } catch (error) {
-    setErrorMessage('Error converting GRN. Please try again.');
-    setSnackbarMessage('Failed to convert GRN. Please try again.');
-    setSnackbarOpen(true);
-  } finally {
-    setLoading(false);
-  }
-};
+
+    const finalDiscountPrice = enteredDiscount;
+
+    const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
+      itemId,
+      befTaxDiscount: itemData.befTaxDiscount,
+      afTaxDiscount: itemData.afTaxDiscount,
+      expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
+    }));
+
+    const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
+    const outgoingDateValue = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
+
+    const payload = {
+      grnId: selectedGrnId,
+      discountPrice: finalDiscountPrice,
+      itemUpdates,
+      apInvoiceDate: apInvoiceDateValue,
+      outgoingDate: outgoingDateValue,
+    };
+
+    try {
+      setLoading(true);
+      const resultAction = await dispatch(updateItemDetails(payload));
+
+      if (updateItemDetails.fulfilled.match(resultAction)) {
+        setErrorMessage(null);
+        setDialogueViewOpen(false);
+        setIsConvertedToAP(true);
+        setSnackbarMessage('GRN successfully converted to AP and Outgoing.');
+        setSnackbarOpen(true);
+
+        dispatch(
+          fetchGrns({
+            page: newPage,
+            size: pageSize,
+            fromDate: memoizedFromDate,
+            toDate: memoizedToDate,
+          })
+        );
+      } else {
+        const errorMessage = resultAction.payload || 'Please try again.';
+        setErrorMessage('Error converting GRN: ' + errorMessage);
+        setSnackbarMessage('Failed to convert GRN: ' + errorMessage);
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      setErrorMessage('Error converting GRN. Please try again.');
+      setSnackbarMessage('Failed to convert GRN. Please try again.');
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleGrnSelect = (grnId: string) => {
     dispatch(setSelectedGrnId(grnId));
     const selectedGrn = grns.find((grn) => grn.grnId === grnId);
@@ -824,7 +824,7 @@ const GrnPage = () => {
       );
       setEditedItems(initialEditedItems);
       // Set apInvoiceDate and outgoingDate to current date if not set
-      setApInvoiceDate(selectedGrn?.invoiceDate ? new Date(selectedGrn.invoiceDate) : new Date());
+      setApInvoiceDate(new Date()); // Current date for AP Invoice
       setOutgoingDate(new Date());
     }
     setDialogueViewOpen(true);
@@ -832,11 +832,11 @@ const GrnPage = () => {
   const handleVerify = () => {
     setLoading(true);
     if (!apInvoiceDate || !outgoingDate) {
-    setSnackbarMessage('Please select both AP Invoice Date and Outgoing Date before verifying.');
-    setSnackbarOpen(true);
-    setLoading(false);
-    return; // Prevent proceeding; user must cancel/close and select dates
-  }
+      setSnackbarMessage('Please select both AP Invoice Date and Outgoing Date before verifying.');
+      setSnackbarOpen(true);
+      setLoading(false);
+      return; // Prevent proceeding; user must cancel/close and select dates
+    }
     // Check for expiry date in each edited item
     const missingExpiryDates = Object.entries(editedItems).filter(
       ([itemId, item]) => !item.expiryDate
@@ -1740,12 +1740,13 @@ const GrnPage = () => {
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: isFullScreen ? '16px 24px' : '16px' // Adjust padding for fullscreen
-          }}>View Item Details   <IconButton onClick={toggleFullScreen} color="primary" edge="end">
+          }}>View Item Details
+            <IconButton onClick={toggleFullScreen} color="primary" edge="end">
               {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
             </IconButton></DialogTitle>
           <DialogContent sx={{
-            padding: isFullScreen ? '0 24px' : '20px', // Adjust content padding
-            height: isFullScreen ? 'calc(100vh - 120px)' : 'auto', // Account for header/footer height
+            padding: isFullScreen ? '0 24px' : '20px',
+            height: isFullScreen ? 'calc(100vh - 120px)' : 'auto',
             overflow: 'auto'
           }}>
             <Typography variant="h5" sx={{ mb: 2 }}>
@@ -1754,44 +1755,61 @@ const GrnPage = () => {
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box sx={{ pl: 0 }}>
+                  <Box sx={{ pl: 0, width: '100%' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, fontWeight: 'bold' }}>
                       <Typography variant="h6">PO NO: {selectedGrn?.poRandomID || 'PO0001'}</Typography>
                       <Typography variant="h6">{'-->'}</Typography>
                       <Typography variant="h6">GRN NO: {selectedGrn?.randomId || 'GN0001'}</Typography>
-
                     </Box>
-                    <Typography variant="h6" sx={{ mb: 1 }}>
+                    <Typography variant="h6" sx={{ mb: 2 }}>
                       Vendorname: {selectedGrn?.vendorName || 'KK MOTORS'}
                     </Typography>
-                    <Box sx={{ pl: 0, display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Typography variant="h6" sx={{ whiteSpace: 'nowrap' }}>
-                          GRN Date: {selectedGrn?.grnDate ? format(new Date(selectedGrn.grnDate), 'dd-MM-yyyy') : '26-09-2025'}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+
+                    {/* GRN Date, AP Invoice Date and Outgoing Date in the same row */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', mb: 1 }}>
+                      <Grid container spacing={2} alignItems="center" justifyContent="flex-start">
+                        {/* GRN Date Display */}
+                        <Grid item xs={12} md={2}>
+                          <Box sx={{
+                            display: 'flex',
+                            justifyContent: 'start',
+                            alignItems: 'center',
+                            height: '14px', // Match the height of date pickers
+                            padding: '16px 14px', // Match date picker padding
+                          }}>
+                            <Typography variant="body1" sx={{ whiteSpace: 'nowrap', fontSize: '0.875rem' }}>
+                              GRN Date: {selectedGrn?.grnDate ? format(new Date(selectedGrn.grnDate), 'dd-MM-yyyy') : 'N/A'}
+                            </Typography>
+                          </Box>
+                        </Grid>
+
                         {/* AP Invoice Date Picker */}
-                        <SmartDatePicker
-                          label="AP Invoice Date"
-                          value={apInvoiceDate}
-                          onChange={setApInvoiceDate}
-                          maxDate={new Date()} // Optional: Restrict to today or future if needed; remove if past dates allowed
-                        />
+                        <Grid item xs={12} md={2}>
+                          <SmartDatePicker
+                            label="AP Invoice Date"
+                            value={apInvoiceDate}
+                            onChange={setApInvoiceDate}
+                            maxDate={new Date()}
+                          />
+                        </Grid>
+
                         {/* Outgoing Date Picker */}
-                        <SmartDatePicker
-                          label="Outgoing Date"
-                          value={outgoingDate}
-                          onChange={setOutgoingDate}
-                          maxDate={new Date()} // Optional: Restrict to today or future if needed; remove if past dates allowed
-                        />
-                      </Box>
+                        <Grid item xs={12} md={2}>
+                          <SmartDatePicker
+                            label="Outgoing Date"
+                            value={outgoingDate}
+                            onChange={setOutgoingDate}
+                            maxDate={new Date()}
+                          />
+                        </Grid>
+                      </Grid>
                     </Box>
-                  </Box>
-                  <Box sx={{ textAlign: 'right' }}>
-                    <IconButton onClick={handlePopoverOpen} sx={{ p: 0.5 }}>
-                      <FilterListIcon />
-                    </IconButton>
+
+                    <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                      <IconButton onClick={handlePopoverOpen} sx={{ p: 0.5 }}>
+                        <FilterListIcon />
+                      </IconButton>
+                    </Box>
                   </Box>
                 </Box>
                 <Popover
@@ -1808,7 +1826,7 @@ const GrnPage = () => {
                   }}
                   slotProps={{
                     paper: {
-                      sx: { minWidth: 200, m: 0, p: 0.5, boxShadow: 3 } // Tight spacing, subtle shadow
+                      sx: { minWidth: 200, m: 0, p: 0.5, boxShadow: 3 }
                     }
                   }}
                 >
@@ -1830,6 +1848,8 @@ const GrnPage = () => {
                   </Box>
                 </Popover>
               </Grid>
+
+              {/* Rest of your table code remains the same */}
               <Grid item xs={12}>
                 <TableContainer component={Paper}>
                   <Table stickyHeader>
@@ -1901,7 +1921,7 @@ const GrnPage = () => {
                                     }
                                     onChange={(e) => handleEditChange(item.itemId, 'expiryDate', e.target.value)}
                                     inputProps={{
-                                      min: new Date().toISOString().split('T')[0], // Restrict to current date or earlier
+                                      min: new Date().toISOString().split('T')[0],
                                     }}
                                   />
                                 )}
@@ -1915,6 +1935,8 @@ const GrnPage = () => {
                           )}
                         </TableRow>
                       ))}
+
+                      {/* Discount row */}
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length} align="right">
                           <strong>Discount:</strong>
@@ -1930,6 +1952,8 @@ const GrnPage = () => {
                           />
                         </TableCell>
                       </TableRow>
+
+                      {/* Tax details rows */}
                       {Object.entries(taxDetails).map(([rate, { sgstAmount, cgstAmount, igstAmount }]) => (
                         <React.Fragment key={rate}>
                           {(sgstAmount > 0 || cgstAmount > 0) && (
@@ -1961,6 +1985,8 @@ const GrnPage = () => {
                           )}
                         </React.Fragment>
                       ))}
+
+                      {/* Summary rows */}
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>

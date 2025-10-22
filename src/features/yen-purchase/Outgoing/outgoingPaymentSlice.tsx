@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
-import { Bank, BulkPaymentRequest, BulkPaymentResponse, DebitNote, GRN, initialState, Outgoing,  PaymentDetails, PaymentDone, PaymentHistory, TaxDetail, VendorDetail, VendorPayment } from '@/Models/outgoingModel';
+import { Bank, BulkPaymentRequest, BulkPaymentResponse, DebitNote, GRN, initialState, Outgoing, PaymentDetails, PaymentDone, PaymentHistory, TaxDetail, VendorDetail, VendorPayment } from '@/Models/outgoingModel';
 
 export interface ProcessPaymentRequest {
   outgoingId: string;
@@ -177,7 +177,7 @@ export const processPayment = createAsyncThunk<
       if (!['full', 'partial'].includes(paymentType)) {
         throw new Error('Payment type must be "full" or "partial"');
       }
-      const payload = { 
+      const payload = {
         outgoingId,
         paymentMode,
         paymentType,
@@ -197,7 +197,7 @@ export const processPayment = createAsyncThunk<
         paymentDate: paymentDate.toISOString(),
       };
 
-      await axios.patch(`http://192.168.29.116:8000/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.message || 'Payment processing failed');
     }
@@ -259,6 +259,7 @@ export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
     }
   }
 );
+// outgoingPaymentSlice.ts
 export const processBulkPayment = createAsyncThunk<
   BulkPaymentResponse,
   BulkPaymentRequest,
@@ -271,15 +272,23 @@ export const processBulkPayment = createAsyncThunk<
         'https://yenerp.com/purchaseapi/outgoingpayments/bulk/bulk-payment',
         bulkPaymentRequest
       );
+      
+      if (response.status === 207) {
+        return response.data;
+      }
+      
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 207 && error.response?.data) {
+        return error.response.data;
+      }
+      
       return rejectWithValue(
         error.response?.data?.detail || 'Bulk payment processing failed'
       );
     }
   }
 );
-
 export const addNewPayment = createAsyncThunk<Outgoing, PaymentDetails>(
   'outgoings/addNewPayment',
   async (paymentData, { rejectWithValue }) => {
@@ -473,7 +482,7 @@ const outgoingSlice = createSlice({
     clearVendorDebits(state) {
       state.vendorDebits = {};
     },
-        // ... your existing reducers
+    // ... your existing reducers
     clearAdvances: (state) => {
       state.advances = [];
     },
@@ -615,6 +624,7 @@ const outgoingSlice = createSlice({
       .addCase(selectOutgoingPayment.rejected, (state, action) => {
         state.loading = false;
       })
+      // outgoingPaymentSlice.ts
       .addCase(processBulkPayment.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -623,31 +633,31 @@ const outgoingSlice = createSlice({
         state.loading = false;
         const { results, errors } = action.payload;
 
-        // Update each outgoing with the results
         results.forEach((result) => {
           const index = state.outgoings.findIndex(
             (outgoing) => outgoing.outgoingId === result.outgoingId
           );
 
           if (index !== -1) {
-            // Create updated outgoing with all fields
+            const paymentDate = result.paymentDate || new Date();
+
             const updatedOutgoing: Outgoing = {
               ...state.outgoings[index],
-              totalPayableAmount: result.pendingAmount,
-              paidAmount: (state.outgoings[index].paidAmount || 0) + result.paymentAmount,
-              debitAmount: (state.outgoings[index].debitAmount || 0) + result.debitAmountApplied,
-              advanceAmount: (state.outgoings[index].advanceAmount || 0) + (result.advanceAmountUsed || 0),
+              totalPayableAmount: result.remainingPayableAmount,
+              paidAmount: result.totalPaidAmount,
+              debitAmount: result.totalDebitAmount,
+              advanceAmount: (state.outgoings[index].advanceAmount || 0) + result.advanceAmount,
               status: result.status,
-              paymentType: result.paymentType,
+              paymentType: state.outgoings[index].paymentType || 'full',
               lastUpdatedDate: new Date().toISOString(),
-              paymentDate: new Date(), // FIXED: Convert to string
+              paymentDate: paymentDate,
               selectedDebitNotes: [
                 ...new Set([
                   ...(state.outgoings[index].selectedDebitNotes || []),
                   ...(result.debitNotesApplied || [])
                 ])
               ],
-              selectedAdvancePayments: [ // ADDED: This property now exists
+              selectedAdvancePayments: [
                 ...new Set([
                   ...(state.outgoings[index].selectedAdvancePayments || []),
                   ...(result.advancePaymentsApplied || [])
@@ -656,18 +666,17 @@ const outgoingSlice = createSlice({
               hasDebitCreditNotes: (result.debitNotesApplied?.length > 0) || (result.advancePaymentsApplied?.length > 0)
             };
 
-            // Update payment history
             const newPaymentHistory: PaymentHistory = {
-              amount: result.paymentAmount,
-              advanceAmount: result.advanceAmountUsed || 0,
-              paymentType: result.paymentType,
+              amount: result.effectivePaymentAmount,
+              advanceAmount: result.advanceAmount || 0,
+              paymentType: state.outgoings[index].paymentType || 'full',
               paymentMethod: state.outgoings[index].paymentMethod || '',
               paymentMode: state.outgoings[index].paymentMode || '',
               cashAmount: state.outgoings[index].cashAmount || 0,
               bankName: state.outgoings[index].bankName || '',
-              date: new Date().toISOString(),
+              date: paymentDate,
               debitNotesApplied: result.debitNotesApplied || [],
-              debitAmount: result.debitAmountApplied || 0,
+              debitAmount: result.debitAmount || 0,
               advancePaymentsApplied: result.advancePaymentsApplied || []
             };
 
@@ -680,7 +689,6 @@ const outgoingSlice = createSlice({
           }
         });
 
-        // Update advance payments status in local state
         results.forEach((result) => {
           if (result.advancePaymentsApplied && result.advancePaymentsApplied.length > 0) {
             result.advancePaymentsApplied.forEach((advanceId) => {
@@ -688,8 +696,7 @@ const outgoingSlice = createSlice({
                 (advance) => advance.randomId === advanceId
               );
               if (advanceIndex !== -1) {
-                // Update advance payment status based on usage
-                const usedAmount = result.advanceAmountUsed || 0;
+                const usedAmount = result.advanceAmount || 0;
                 const currentPending = state.advances[advanceIndex].pendingAmount || 0;
                 const newPending = Math.max(0, currentPending - usedAmount);
 
@@ -703,7 +710,6 @@ const outgoingSlice = createSlice({
           }
         });
 
-        // Update debit notes status in local state
         results.forEach((result) => {
           if (result.debitNotesApplied && result.debitNotesApplied.length > 0) {
             result.debitNotesApplied.forEach((debitId) => {
@@ -711,7 +717,7 @@ const outgoingSlice = createSlice({
                 (debit) => debit.randomId === debitId
               );
               if (debitIndex !== -1) {
-                const usedAmount = result.debitAmountApplied || 0;
+                const usedAmount = result.debitAmount || 0;
                 const currentPending = state.debits[debitIndex].pendingAmount || 0;
                 const newPending = Math.max(0, currentPending - usedAmount);
 
@@ -725,12 +731,16 @@ const outgoingSlice = createSlice({
           }
         });
 
-        // Show success message with error details if any
-        const successMessage = `Processed ${results.length} payments successfully.`;
-        const errorMessage = errors.length > 0 ? ` ${errors.length} failed.` : '';
+        const successCount = results.length;
+        const errorCount = errors.length;
+
+        let message = `Processed ${successCount} payments successfully.`;
+        if (errorCount > 0) {
+          message += ` ${errorCount} payments failed.`;
+        }
 
         state.snackbarOpen = true;
-        state.snackbarMessage = successMessage + errorMessage;
+        state.snackbarMessage = message;
         state.vendorPayments = {};
         state.vendorDebits = {};
       })
@@ -775,7 +785,7 @@ export const {
   setSnackbarOpen,
   setSnackbarMessage,
   clearSnackbarMessage,
-  setEditIndex, setPagination, setVendorDebits, setVendorPayment, clearVendorDebits,  clearAdvances, 
+  setEditIndex, setPagination, setVendorDebits, setVendorPayment, clearVendorDebits, clearAdvances,
   clearBulkPaymentState // ADDED: Export new actions
 } = outgoingSlice.actions;
 

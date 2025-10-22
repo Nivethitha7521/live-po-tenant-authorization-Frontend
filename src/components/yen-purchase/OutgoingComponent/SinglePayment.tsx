@@ -396,7 +396,6 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
           margin="normal"
           required
           error={!!dateError}
-          helperText={dateError || dateWarning || 'Select a date up to today'}
           size="small"
           inputProps={{
             max: currentDate,
