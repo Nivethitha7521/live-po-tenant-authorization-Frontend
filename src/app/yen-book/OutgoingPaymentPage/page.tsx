@@ -1155,7 +1155,7 @@ Description:<br />
                 fullWidth
                 value="All Data"
                 variant="outlined"
-                size="small"
+                size="small" 
                 InputProps={{
                   readOnly: true, // Makes the text field non-editable
                 }}
