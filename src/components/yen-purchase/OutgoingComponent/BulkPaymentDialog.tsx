@@ -77,6 +77,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
   const [selectedAdvancePayments, setSelectedAdvancePayments] = useState<Record<string, string[]>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showPaymentModeDialog, setShowPaymentModeDialog] = useState(false);
+  const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -135,6 +136,22 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       0
     );
   }, [selectedOutgoings]);
+
+  // Calculate total payment amount after adjustments
+  const totalPaymentAmount = useMemo(() => {
+    return selectedOutgoings.reduce((total, outgoing) => {
+      const outgoingId = outgoing.outgoingId as string;
+      const paymentType = paymentTypeMultiple[outgoingId] || 'full';
+      
+      if (paymentType === 'full') {
+        const maxAllowed = calculateMaxAllowedPayment(outgoing);
+        return total + maxAllowed;
+      } else {
+        const amount = parseFloat(partialAmount[outgoingId] || '0');
+        return total + (isNaN(amount) ? 0 : amount);
+      }
+    }, 0);
+  }, [selectedOutgoings, paymentTypeMultiple, partialAmount]);
 
   const getVendorDebitNotes = (vendorName: string) => {
     return debits.filter(
@@ -420,9 +437,13 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     setShowPaymentModeDialog(true);
   };
 
-  const handleConfirmPayment = async () => {
+  const handlePaymentModeConfirm = () => {
     if (!validatePaymentMode()) return;
+    setShowPaymentModeDialog(false);
+    setShowConfirmationDialog(true);
+  };
 
+  const handleConfirmPayment = async () => {
     try {
       const payments: PaymentInfo[] = selectedOutgoings.map((outgoing) => {
         const outgoingId = outgoing.outgoingId as string;
@@ -506,7 +527,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       setSelectedDebitNotes({});
       setSelectedAdvancePayments({});
       setErrors({});
-      setShowPaymentModeDialog(false);
+      setShowConfirmationDialog(false);
       
       if (result.totalFailed === 0) {
         onClose();
@@ -517,7 +538,13 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         ...prev,
         _general: 'Failed to process payment. Please try again.'
       }));
+      setShowConfirmationDialog(false);
     }
+  };
+
+  const handleCancelConfirmation = () => {
+    setShowConfirmationDialog(false);
+    setShowPaymentModeDialog(true);
   };
 
   const handleClose = () => {
@@ -535,6 +562,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     setSelectedAdvancePayments({});
     setErrors({});
     setShowPaymentModeDialog(false);
+    setShowConfirmationDialog(false);
     setSuccessMessage(null);
     onClose();
   };
@@ -571,7 +599,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                 minimumFractionDigits: 2
               })}
             </Typography>
-            <Typography variant="body2">
+            <Typography >
               Processing {selectedOutgoings.length} invoices across {Object.keys(groupedOutgoings).length} vendors
             </Typography>
           </Box>
@@ -737,7 +765,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                         return (
                           <TableRow key={outgoingId} hover>
                             <TableCell>
-                              <Typography variant="body2" fontWeight="medium">
+                              <Typography  fontWeight="medium">
                                 {outgoing.invoiceNo || 'N/A'}
                               </Typography>
                             </TableCell>
@@ -750,7 +778,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
                             </TableCell>
                             <TableCell>
                               <Typography
-                                variant="body2"
+                                
                                 color={maxAllowed < payableAmount ? "warning.main" : "text.primary"}
                                 fontWeight="medium"
                               >
@@ -859,6 +887,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         </DialogActions>
       </Dialog>
 
+      {/* Payment Mode Dialog */}
       <Dialog
         open={showPaymentModeDialog}
         onClose={() => setShowPaymentModeDialog(false)}
@@ -871,7 +900,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         }}
       >
         <DialogTitle>
-          <Typography variant="h6">Confirm Payment Details</Typography>
+          <Typography variant="h6">Payment Details</Typography>
         </DialogTitle>
         <DialogContent>
           {errors._paymentMode && (
@@ -885,14 +914,14 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
             </Alert>
           )}
 
-          <Box sx={{ mb: 3, p: 2, backgroundColor: 'success.light', borderRadius: 1 }}>
+          <Box sx={{ mb: 3, p: 2, backgroundColor: 'info.light', borderRadius: 1 }}>
             <Typography variant="h6" gutterBottom>
-              Total Payment: ₹{totalOverallAmount.toLocaleString('en-IN', {
+              Total Payment: ₹{totalPaymentAmount.toLocaleString('en-IN', {
                 minimumFractionDigits: 2
               })}
             </Typography>
-            <Typography variant="body2">
-              Confirm payment details before proceeding
+            <Typography >
+              Configure payment details
             </Typography>
           </Box>
 
@@ -986,8 +1015,103 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
             Back
           </Button>
           <Button
+            onClick={handlePaymentModeConfirm}
+            variant="contained"
+            size="large"
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : null}
+          >
+            {loading ? 'Processing...' : 'Continue'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Final Confirmation Dialog */}
+      <Dialog
+        open={showConfirmationDialog}
+        onClose={handleCancelConfirmation}
+        sx={{
+          '& .MuiDialog-container': {
+            '& .MuiPaper-root': {
+              maxWidth: '400px',
+            },
+          },
+        }}
+      >
+        <DialogTitle>
+          <Typography variant="h6">Confirm Bulk Payment</Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 3, p: 2, backgroundColor: 'success.light', borderRadius: 1 }}>
+            <Typography variant="h6" gutterBottom>
+              Final Payment Summary
+            </Typography>
+            <Typography  color="success.dark">
+              Please review all details before confirming
+            </Typography>
+          </Box>
+
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+              Payment Details:
+            </Typography>
+            <Typography  gutterBottom>
+              <strong>Total Amount:</strong> ₹{totalOverallAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </Typography>
+            <Typography  gutterBottom>
+              <strong>Final Payment:</strong> ₹{totalPaymentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </Typography>
+            <Typography  gutterBottom>
+              <strong>Payment Mode:</strong> {paymentDetails.paymentMode}
+            </Typography>
+            {paymentDetails.paymentMode === 'Bank' && (
+              <>
+                <Typography  gutterBottom>
+                  <strong>Bank:</strong> {paymentDetails.bankName}
+                </Typography>
+                <Typography  gutterBottom>
+                  <strong>Method:</strong> {paymentDetails.paymentMethod.toUpperCase()}
+                </Typography>
+                <Typography  gutterBottom>
+                  <strong>Reference:</strong> {paymentDetails.referenceNumber}
+                </Typography>
+              </>
+            )}
+            <Typography  gutterBottom>
+              <strong>Payment Date:</strong> {paymentDetails.paymentDate?.toLocaleDateString()}
+            </Typography>
+          </Box>
+
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+              Transaction Summary:
+            </Typography>
+            <Typography  gutterBottom>
+              <strong>Invoices:</strong> {selectedOutgoings.length}
+            </Typography>
+            <Typography  gutterBottom>
+              <strong>Vendors:</strong> {Object.keys(groupedOutgoings).length}
+            </Typography>
+          </Box>
+
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            <Typography >
+              Are you sure you want to process this bulk payment? This action cannot be undone.
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            onClick={handleCancelConfirmation}
+            color="inherit"
+            size="large"
+          >
+            Cancel
+          </Button>
+          <Button
             onClick={handleConfirmPayment}
             variant="contained"
+            color="success"
             size="large"
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : null}

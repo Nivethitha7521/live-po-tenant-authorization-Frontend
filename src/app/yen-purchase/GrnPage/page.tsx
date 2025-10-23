@@ -554,12 +554,6 @@ const GrnPage = () => {
       ];
     });
 
-    // Add blank rows if fewer than 10 items
-    const numberOfBlankRows = Math.max(0, 10 - tableRows.length);
-    for (let i = 0; i < numberOfBlankRows; i++) {
-      tableRows.push(['', '', '', '', '', '', '', '', '', '']);
-    }
-
     // Items Table
     doc.autoTable({
       head: [itemHeader],
@@ -672,12 +666,21 @@ const GrnPage = () => {
     const imageUrl = '/images/pending.jpeg';
     doc.addImage(imageUrl, 'JPEG', 150, yOffset + 5, 30, 25);
 
-    // Add page numbers to all pages
+    // Add page numbers and computer generated note to all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageCenterX = pageWidth / 2;
+      const bottomY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = bottomY - 5;
+
+      // Add "This is computer generated" centered above page number
+      doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+
+      // Add page number centered below
+      doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
     }
 
     // Save the PDF
@@ -962,12 +965,21 @@ const GrnPage = () => {
       },
     });
 
-    // Add page numbers to all pages
+    // Add page numbers and computer generated note to all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageCenterX = pageWidth / 2;
+      const bottomY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = bottomY - 5;
+
+      // Add "This is computer generated" centered above page number
+      doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+
+      // Add page number centered below
+      doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
     }
 
     // Save the PDF with a dynamic name based on purchase order ID
@@ -1075,12 +1087,21 @@ const GrnPage = () => {
       },
     });
 
-    // Add page numbers to all pages
+    // Add page numbers and computer generated note to all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageCenterX = pageWidth / 2;
+      const bottomY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = bottomY - 5;
+
+      // Add "This is computer generated" centered above page number
+      doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+
+      // Add page number centered below
+      doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
     }
 
     // Save the PDF with a dynamic name

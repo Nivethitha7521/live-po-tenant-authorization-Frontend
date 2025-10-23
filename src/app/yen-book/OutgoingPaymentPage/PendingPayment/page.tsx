@@ -343,7 +343,10 @@ const PendingPaymentComponent = React.memo(() => {
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      const pageY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = pageY - 10;
+      doc.text("This is computer generated", doc.internal.pageSize.width / 2, computerGeneratedY, { align: 'center' });
+      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, pageY, { align: 'center' });
     }
     doc.save("Pendingpayment.pdf");
     handleCloseDownloadDialog();
@@ -387,105 +390,124 @@ const PendingPaymentComponent = React.memo(() => {
     document.body.removeChild(link);
     handleCloseDownloadDialog();
   };
+const handleDownload = async (outgoingId: string) => {
+  const outgoingdetail = outgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
+  if (!outgoingdetail) {
+    console.error('Outgoing not found!');
+    return;
+  }
 
-  const handleDownload = async (outgoingId: string) => {
-    const outgoingdetail = outgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
-    if (!outgoingdetail) {
-      console.error('Outgoing not found!');
-      return;
+  const business = businesses.length > 0 ? businesses[0] : null;
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+  let yOffset = 20; // Start with more space for header
+
+  // Add logo centered at the top
+  if (business && business.imageUrl) {
+    try {
+      const logoWidth = 25;
+      const logoX = (pageWidth - logoWidth) / 2; // Center the logo
+      doc.addImage(business.imageUrl, 'JPEG', logoX, 10, logoWidth, 25); // Centered logo
+    } catch (e) {
+      console.error("Image failed to load:", e);
+    }
+  }
+
+  // Title "Partial Payment" centered below the logo
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 128);
+  const titleX = pageWidth / 2; // Center the title
+  doc.text('Partial Payment', titleX, 45, { align: 'center' });
+
+  // Underline below the title, centered
+  const titleWidth = doc.getTextWidth('Partial Payment');
+  const underlineX = titleX - (titleWidth / 2);
+  doc.setDrawColor(0, 0, 128);
+  doc.setLineWidth(0.5);
+  doc.line(underlineX, 47, underlineX + titleWidth, 47);
+
+  // Adjust yOffset for next content
+  yOffset = 55; // Space after header
+
+  const relatedOutgoings = outgoings.filter(outgoing => outgoing.grnId === outgoingdetail.grnId);
+  if (relatedOutgoings.length === 0) {
+    console.error('No related outgoing items found!');
+    return;
+  }
+
+  for (const outgoing of relatedOutgoings) {
+    const paymentMethod = outgoing.paymentMethod;
+    let paymentDetails = '';
+    if (paymentMethod === 'neft') {
+      paymentDetails = `NEFT No: ${outgoing.neftNo}`;
+    } else if (paymentMethod === 'rtgs') {
+      paymentDetails = `RTGS No: ${outgoing.rtgsNo}`;
     }
 
-    const business = businesses.length > 0 ? businesses[0] : null;
-    const doc = new jsPDF();
-    let yOffset = 10;
+    // Add Payment details to the PDF
+    doc.setFontSize(10);
+    doc.text(`Payment Method: ${paymentMethod}`, 14, yOffset);
+    doc.text(paymentDetails, 14, yOffset + 10);
 
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 128);
-    doc.text('Pending Payment', 90, yOffset + 5);
-    const textWidth = doc.getTextWidth('Pending Payment');
-    doc.setDrawColor(0, 0, 128);
-    doc.line(90, yOffset + 7, 90 + textWidth, yOffset + 7);
+    yOffset += 20;
 
-    yOffset += 10;
-    if (business && business.imageUrl) {
-      try {
-        doc.addImage(business.imageUrl, 'JPEG', 20, yOffset, 20, 20);
-      } catch (e) {
-        console.error("Image failed to load:", e);
-      }
-    }
+    // Vendor and Business Details
+    const vendorDetailsRows = [
+      [
+        `Vendor Name: ${outgoing.vendorName}\n` +
+        `GSTIN: ${outgoing.gstNumber}\n` +
+        `Address: ${outgoing.address}\n` +
+        `City: ${outgoing.city}\n` +
+        `State: ${outgoing.state}\n` +
+        `Country: ${outgoing.country}\n` +
+        `Email: ${outgoing.contactpersonEmail}`,
+        `Business Name: ${business?.companyName || ''}\n` +
+        `GSTIN: ${business?.gstIn || ''}\n` +
+        `Address: ${business?.address1 || ''}\n` +
+        `Phone: ${business?.phoneNo || ''}\n` +
+        `Email: ${business?.emailId || ''}`,
+        `Outgoing No: ${outgoing.randomId}\n` +
+        `PO No: ${outgoing.poRandomId}\n` +
+        `GRN No: ${outgoing.grnRandomId}\n` +
+        `AP No: ${outgoing.apRandomId}\n` +
+        `Date: ${outgoing.createdDate ? format(new Date(outgoing.createdDate), 'dd-MM-yyyy') : ''}`
+      ]
+    ];
 
-    const relatedOutgoings = outgoings.filter(outgoing => outgoing.grnId === outgoingdetail.grnId);
-    if (relatedOutgoings.length === 0) {
-      console.error('No related outgoing items found!');
-      return;
-    }
+    doc.autoTable({
+      head: [['Vendor Details', 'Business Details', 'Outgoing Payment Details']],
+      body: vendorDetailsRows,
+      startY: yOffset,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 4, halign: 'left', valign: 'top', overflow: 'linebreak' },
+      columnStyles: { 0: { cellWidth: 60.6 }, 1: { cellWidth: 60.6 }, 2: { cellWidth: 60.6 } },
+      headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], fontStyle: 'bold' },
+      bodyStyles: { lineWidth: 0.1, lineColor: [0, 0, 0], textColor: [0, 0, 0], minCellHeight: 15 },
+      tableLineColor: [0, 0, 0],
+      tableLineWidth: 0.1,
+    });
 
-    for (const outgoing of relatedOutgoings) {
-      yOffset = 15;
-      const paymentMethod = outgoingdetail.paymentMethod;
-      let paymentDetails = '';
-      if (paymentMethod === 'neft') {
-        paymentDetails = `NEFT No: ${outgoingdetail.neftNo}`;
-      } else if (paymentMethod === 'rtgs') {
-        paymentDetails = `RTGS No: ${outgoingdetail.rtgsNo}`;
-      }
+    yOffset = doc.autoTable.previous.finalY; // Set to finalY directly to avoid extra space
 
-      doc.setFontSize(10);
-      doc.text(`Payment Method: ${paymentMethod}`, 14, yOffset + 10);
-      doc.text(paymentDetails, 14, yOffset + 20);
+    // Items Table Header
+    const itemHeader = [
+      'Invoice No',
+      'Invoice Date',
+      'Vendor Name',
+      'Item Name',
+      'Tax Details',
+      'Tax Amount',
+      'Without Tax Value',
+      'With Tax Value'
+    ];
 
-      yOffset += 20;
-      const vendorDetailsRows = [
-        [
-          `Vendor Name: ${outgoingdetail.vendorName}\n` +
-          `GSTIN: ${outgoingdetail.gstNumber}\n` +
-          `Address: ${outgoingdetail.address}\n` +
-          `City: ${outgoingdetail.city}\n` +
-          `State: ${outgoingdetail.state}\n` +
-          `Country: ${outgoingdetail.country}\n` +
-          `Email: ${outgoingdetail.contactpersonEmail}`,
-          `Business Name: ${business?.companyName || ''}\n` +
-          `GSTIN: ${business?.gstIn || ''}\n` +
-          `Address: ${business?.address1 || ''}\n` +
-          `Phone: ${business?.phoneNo || ''}\n` +
-          `Email: ${business?.emailId || ''}`,
-          `Outgoing No: ${outgoingdetail.randomId}\n` +
-          `Date: ${outgoingdetail.createdDate ? format(new Date(outgoingdetail.createdDate), 'dd-MM-yyyy') : ''}`
-        ]
-      ];
+    const filteredItems = outgoing.grnId
+      ? itemwise.filter(grn => grn.grnId === outgoing.grnId).flatMap(grn => grn.itemDetails)
+      : []; // Default empty array if no matching grnId
 
-      doc.autoTable({
-        head: [['Vendor Details', 'Business Details', 'Outgoing Payment Details']],
-        body: vendorDetailsRows,
-        startY: yOffset,
-        theme: 'grid',
-        styles: { fontSize: 9, cellPadding: 4, halign: 'left', valign: 'top', overflow: 'linebreak' },
-        columnStyles: { 0: { cellWidth: 60.6 }, 1: { cellWidth: 60.6 }, 2: { cellWidth: 60.6 } },
-        headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], fontStyle: 'bold' },
-        bodyStyles: { lineWidth: 0.1, lineColor: [0, 0, 0], textColor: [0, 0, 0], minCellHeight: 15 },
-        tableLineColor: [0, 0, 0],
-        tableLineWidth: 0.1,
-      });
-
-      yOffset = doc.autoTable.previous.finalY;
-      const itemHeader = [
-        'Invoice No',
-        'Invoice Date',
-        'Vendor Name',
-        'Item Name',
-        'Tax Details',
-        'Tax Amount',
-        'Without Tax Value',
-        'With Tax Value'
-      ];
-
-      const filteredItems = outgoing.grnId
-        ? itemwise.filter(grn => grn.grnId === outgoing.grnId).flatMap(grn => grn.itemDetails)
-        : [];
-
-      const tableRows = filteredItems.map((item, index) => {
+    const tableRows = filteredItems.length > 0
+      ? filteredItems.map((item) => {
         const unitPrice = item.unitPrice || 0;
         const quantity = item.quantity || 0;
         const withoutTaxValue = unitPrice * quantity;
@@ -493,72 +515,124 @@ const PendingPaymentComponent = React.memo(() => {
         const withTaxValue = withoutTaxValue + taxAmount;
 
         return [
-          outgoingdetail.invoiceNo || '',
-          outgoingdetail.invoiceDate ? format(new Date(outgoingdetail.invoiceDate), 'dd-MM-yyyy') : 'Not Provided',
-          outgoingdetail.vendorName || 'N/A',
-          item.itemName || 'N/A',
-          `${item.purchasetaxName}%`,
-          taxAmount.toFixed(2),
-          withoutTaxValue.toFixed(2),
-          withTaxValue.toFixed(2),
+          outgoing.invoiceNo || 'N/A',  // Invoice No
+          outgoing.invoiceDate ? format(new Date(outgoing.invoiceDate), 'dd-MM-yyyy') : 'Not Provided',  // Invoice Date
+          outgoing.vendorName || 'N/A',  // Vendor Name
+          item.itemName,
+          `${item.purchasetaxName}%`,  // Tax Details
+          taxAmount.toFixed(2),  // Tax Amount
+          withoutTaxValue.toFixed(2),  // Without Tax Value (corrected)
+          withTaxValue.toFixed(2),  // With Tax Value (corrected)
         ];
-      });
+      })
+      : [
+        [
+          outgoing.invoiceNo || '',  // Invoice No
+          outgoing.invoiceDate ? format(new Date(outgoing.invoiceDate), 'dd-MM-yyyy') : 'Not Provided',  // Invoice Date
+          outgoing.vendorName || 'N/A',  // Vendor Name
+          'N/A',
+          'N/A',  // Tax Details (No items, no tax)
+          '0.00',  // Tax Amount
+          '0.00',  // Without Tax Value
+          '0.00',  // With Tax Value
+        ]
+      ];  // Fallback row for when there are no items
 
-      doc.autoTable({
-        head: [itemHeader],
-        body: tableRows,
-        startY: yOffset,
-        theme: 'grid',
-        styles: { fontSize: 8, halign: 'center', cellPadding: 2 },
-        headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], lineWidth: 0.1, lineColor: [0, 0, 0] },
-        bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0] },
-        columnStyles: {
-          0: { halign: 'center' },
-          1: { halign: 'left' },
-          2: { halign: 'left' },
-          3: { halign: 'left' },
-          4: { halign: 'right' },
-          5: { halign: 'right' },
-          6: { halign: 'right' },
-          7: { halign: 'right' },
-        },
-      });
+    doc.autoTable({
+      head: [itemHeader],
+      body: tableRows,
+      startY: yOffset,
+      theme: 'grid',
+      styles: { fontSize: 8, halign: 'center', cellPadding: 2 },
+      headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], lineWidth: 0.1, lineColor: [0, 0, 0] },
+      bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0], },
+      columnStyles: {
+        0: { halign: 'center' },
+        1: { halign: 'left' },
+        2: { halign: 'left' },
+        3: { halign: 'left' },
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+      },
+    });
 
-      yOffset = doc.autoTable.previous.finalY;
-      const discount = outgoing.discountDetails || 0;
-      const totalPayableAmount = outgoing.totalPayableAmount || 0;
-      const partialAmount = outgoing.partialAmount || 0;
-      const summaryTable = [
-        ['Discount', discount.toFixed(2)],
-        ['Paid Amount', partialAmount.toFixed(2)],
-        ['Total Payable Amount', totalPayableAmount.toFixed(2)]
-      ];
+    yOffset = doc.autoTable.previous.finalY; // Directly use finalY to avoid any spacing
 
-      doc.autoTable({
-        head: [['Description', 'Amount']],
-        body: summaryTable,
-        startY: yOffset,
-        theme: 'grid',
-        styles: { fontSize: 8, halign: 'right', cellPadding: 2 },
-        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [0, 0, 0], lineWidth: 0.1 },
-        bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1 },
-      });
+    // Overall Total Payable Amount
+    const discount = outgoing.discountDetails || 0;
+    const totalPayableAmount = outgoing.totalPayableAmount || 0;
+    const partialAmount = outgoing.partialAmount || 0;
 
-      const imageUrl = '/images/pending.jpeg';
-      yOffset = doc.autoTable.previous.finalY + 5;
-      doc.addImage(imageUrl, 'JPEG', 150, yOffset, 30, 30);
-      const totalPages = doc.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-      }
+    let paidAmount = partialAmount; // For partially paid
 
-      doc.save(`${outgoingdetail.randomId}.pdf`);
+    // Now you can update the summaryTable with payment status, paid amount, and pending amount.
+    const summaryTable = [
+      ['Discount', discount.toFixed(2)],
+      ['Paid Amount', paidAmount.toFixed(2)],
+      ['Total Payable Amount', totalPayableAmount.toFixed(2)],
+
+    ];
+
+    doc.autoTable({
+      head: [['Description', 'Amount']],
+      body: summaryTable,
+      startY: yOffset,
+      theme: 'grid',
+      styles: { fontSize: 8, halign: 'right', cellPadding: 2 },
+      headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [0, 0, 0], lineWidth: 0.1 },
+      bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1 },
+    });
+
+    yOffset = doc.autoTable.previous.finalY + 10; // Space below summary table
+
+    // Determine status image based on status
+    let statusImage = '';
+    if (outgoing.status === 'active') {
+      statusImage = '/images/pending.jpeg'; // Path to the pending image
+    } else if (outgoing.status === 'Partially Paid') {
+      statusImage = '/images/partial.jpg'; // Path to the partially paid image
+    } else if (outgoing.status === 'Advance Paid') {
+      statusImage = '/images/advancecash.jpg'; // Path to the advance paid image
     }
-  };
 
-  const filteredPayments = outgoings.filter(outgoing => outgoing.status === 'Partially Paid');
+    // If a status image exists, add it to the PDF below the table, centered
+    if (statusImage) {
+      const img = new Image();
+      img.src = statusImage;
+
+      // Wait for image to load before adding to the document
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          const imgWidth = 30;
+          const imgX = (pageWidth - imgWidth) / 2; // Center the image
+          doc.addImage(img, 'jpg', imgX, yOffset, imgWidth, 25);
+          resolve();
+        };
+        img.onerror = reject;
+      });
+    }
+
+    yOffset += 40; // Additional space after image for next section if any
+  }
+
+  // Add footer with "This is computer generated" and page number to all pages
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    const pageY = doc.internal.pageSize.height - 10;
+    const computerGeneratedY = pageY - 10;
+    doc.text("This is computer generated", pageWidth / 2, computerGeneratedY, { align: 'center' });
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageY, { align: 'center' });
+  }
+
+  // Save the PDF with a dynamic name based on outgoing order ID
+  doc.save(`${outgoingdetail.randomId}_PartialPayment.pdf`);
+};  
+const filteredPayments = outgoings.filter(outgoing => outgoing.status === 'Partially Paid');
 
   return (
     <Box>

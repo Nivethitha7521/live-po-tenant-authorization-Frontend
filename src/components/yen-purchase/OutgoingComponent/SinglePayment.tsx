@@ -71,6 +71,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
   const [dateError, setDateError] = useState('');
   const [dateWarning, setDateWarning] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
 
@@ -98,6 +99,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       setError('');
       setDateError('');
       setDateWarning('');
+      setShowConfirmation(false);
     }
   }, [selectedOutgoing, open, dispatch, totalPayable]);
 
@@ -140,7 +142,6 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     today.setHours(0, 0, 0, 0);
     selectedDate.setHours(0, 0, 0, 0);
     if (selectedDate > today) return { error: 'Future date not allowed', warning: null };
-    if (selectedDate < today) return { error: null, warning: 'Backdated payment selected' };
     return { error: null, warning: null };
   };
 
@@ -275,6 +276,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     setError('');
     setDateError('');
     setDateWarning('');
+    setShowConfirmation(false);
   };
 
   const handleClose = () => {
@@ -282,7 +284,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     onClose();
   };
 
-  const handleConfirmPayment = async () => {
+  const handlePaymentClick = () => {
     if (!selectedOutgoing) {
       dispatch(setSnackbarMessage('No outgoing payment selected'));
       dispatch(setSnackbarOpen(true));
@@ -310,6 +312,11 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
       dispatch(setSnackbarOpen(true));
     }
 
+    // Show confirmation dialog instead of processing immediately
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmPayment = async () => {
     const paymentAmount = parseFloat(paymentDetails.amount || '0');
     
     // FIXED: Create date in local timezone without UTC conversion
@@ -354,299 +361,369 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     }
   };
 
+  const handleCancelConfirmation = () => {
+    setShowConfirmation(false);
+  };
+
   if (!selectedOutgoing) return null;
 
   const currentDate = new Date().toISOString().split('T')[0];
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="xs"
-      sx={{
-        '& .MuiDialog-paper': {
-          width: '400px',
-          maxWidth: '400px',
-          minWidth: '400px',
-        },
-      }}
-    >
-      <DialogTitle>Payment Details</DialogTitle>
-      <DialogContent>
-        <Typography variant="body1" gutterBottom>
-          Total Amount: ₹{totalPayable.toFixed(2)}
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Total Debit Amount: ₹{totalDebitAmount.toFixed(2)}
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Total Advance Amount: ₹{totalAdvanceAmount.toFixed(2)}
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Remaining Payable: ₹{(totalPayable - totalDebitAmount - totalAdvanceAmount).toFixed(2)}
-        </Typography>
+    <>
+      {/* Main Payment Dialog */}
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="xs"
+        sx={{
+          '& .MuiDialog-paper': {
+            width: '400px',
+            maxWidth: '400px',
+            minWidth: '400px',
+          },
+        }}
+      >
+        <DialogTitle>Payment Details</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            Total Amount: ₹{totalPayable.toFixed(2)}
+          </Typography>
+          <Typography  >
+            Total Debit Amount: ₹{totalDebitAmount.toFixed(2)}
+          </Typography>
+          <Typography  >
+            Total Advance Amount: ₹{totalAdvanceAmount.toFixed(2)}
+          </Typography>
+          <Typography  >
+            Remaining Payable: ₹{(totalPayable - totalDebitAmount - totalAdvanceAmount).toFixed(2)}
+          </Typography>
 
-        <TextField
-          type="date"
-          name="paymentDate"
-          label="Payment Date"
-          value={paymentDetails.paymentDate}
-          onChange={handleInputChange}
-          fullWidth
-          margin="normal"
-          required
-          error={!!dateError}
-          size="small"
-          inputProps={{
-            max: currentDate,
-          }}
-        />
+          <TextField
+            type="date"
+            name="paymentDate"
+            label="Payment Date"
+            value={paymentDetails.paymentDate}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+            required
+            error={!!dateError}
+            size="small"
+            inputProps={{
+              max: currentDate,
+            }}
+          />
 
-        <TextField
-          select
-          name="paymentType"
-          label="Payment Type"
-          value={paymentDetails.paymentType}
-          onChange={handlePaymentTypeChange}
-          fullWidth
-          margin="normal"
-          size="small"
-        >
-          <MenuItem value="full">Full Payment</MenuItem>
-          <MenuItem value="partial">Partial Payment</MenuItem>
-        </TextField>
+          <TextField
+            select
+            name="paymentType"
+            label="Payment Type"
+            value={paymentDetails.paymentType}
+            onChange={handlePaymentTypeChange}
+            fullWidth
+            margin="normal"
+            size="small"
+          >
+            <MenuItem value="full">Full Payment</MenuItem>
+            <MenuItem value="partial">Partial Payment</MenuItem>
+          </TextField>
 
-        <TextField
-          autoComplete="off"
-          name="amount"
-          label="Amount"
-          value={paymentDetails.amount}
-          onChange={handleInputChange}
-          fullWidth
-          margin="normal"
-          required
-          error={!!error}
-          helperText={error}
-          disabled={paymentDetails.paymentType === 'full'} // Only disable for full payment
-          inputProps={{ 
-            type: 'number', 
-            step: '0.01',
-            min: 0,
-            max: paymentDetails.paymentType === 'partial' ? totalPayable : undefined
-          }}
-          size="small"
-          placeholder={paymentDetails.paymentType === 'partial' ? 'Enter partial amount' : ''}
-        />
+          <TextField
+            autoComplete="off"
+            name="amount"
+            label="Amount"
+            value={paymentDetails.amount}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+            required
+            error={!!error}
+            helperText={error}
+            disabled={paymentDetails.paymentType === 'full'} // Only disable for full payment
+            inputProps={{ 
+              type: 'number', 
+              step: '0.01',
+              min: 0,
+              max: paymentDetails.paymentType === 'partial' ? totalPayable : undefined
+            }}
+            size="small"
+            placeholder={paymentDetails.paymentType === 'partial' ? 'Enter partial amount' : ''}
+          />
 
-        <TextField
-          select
-          name="paymentMode"
-          label="Payment Mode"
-          value={paymentDetails.paymentMode}
-          onChange={handlePaymentModeChange}
-          fullWidth
-          margin="normal"
-          size="small"
-        >
-          <MenuItem value="Cash">Cash</MenuItem>
-          <MenuItem value="Bank">Bank</MenuItem>
-        </TextField>
+          <TextField
+            select
+            name="paymentMode"
+            label="Payment Mode"
+            value={paymentDetails.paymentMode}
+            onChange={handlePaymentModeChange}
+            fullWidth
+            margin="normal"
+            size="small"
+          >
+            <MenuItem value="Cash">Cash</MenuItem>
+            <MenuItem value="Bank">Bank</MenuItem>
+          </TextField>
 
-        {paymentDetails.paymentMode === 'Bank' && (
-          <>
-            <TextField
-              select
-              name="bankName"
-              label="Bank Name"
-              value={paymentDetails.bankName}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-              size="small"
-            >
-              {banks.map((bank: any) => (
-                <MenuItem key={bank.bankMasterId} value={bank.bankName}>
-                  {bank.bankName}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              name="paymentMethod"
-              label="Payment Method"
-              value={paymentDetails.paymentMethod}
-              onChange={handlePaymentMethodChange}
-              fullWidth
-              margin="normal"
-              size="small"
-            >
-              <MenuItem value="neft">NEFT</MenuItem>
-              <MenuItem value="rtgs">RTGS</MenuItem>
-              <MenuItem value="imps">IMPS</MenuItem>
-              <MenuItem value="upi">UPI</MenuItem>
-            </TextField>
-
-            {paymentDetails.paymentMethod === 'neft' && (
+          {paymentDetails.paymentMode === 'Bank' && (
+            <>
               <TextField
-                autoComplete="off"
-                name="neftNo"
-                label="NEFT Number"
-                value={paymentDetails.neftNo}
+                select
+                name="bankName"
+                label="Bank Name"
+                value={paymentDetails.bankName}
                 onChange={handleInputChange}
                 fullWidth
                 margin="normal"
-                required
                 size="small"
-              />
-            )}
-
-            {paymentDetails.paymentMethod === 'rtgs' && (
-              <TextField
-                autoComplete="off"
-                name="rtgsNo"
-                label="RTGS Number"
-                value={paymentDetails.rtgsNo}
-                onChange={handleInputChange}
-                fullWidth
-                margin="normal"
-                required
-                size="small"
-              />
-            )}
-
-            {paymentDetails.paymentMethod === 'imps' && (
-              <TextField
-                autoComplete="off"
-                name="impsNo"
-                label="IMPS Number"
-                value={paymentDetails.impsNo}
-                onChange={handleInputChange}
-                fullWidth
-                margin="normal"
-                required
-                size="small"
-              />
-            )}
-
-            {paymentDetails.paymentMethod === 'upi' && (
-              <TextField
-                autoComplete="off"
-                name="upi"
-                label="UPI ID"
-                value={paymentDetails.upi}
-                onChange={handleInputChange}
-                fullWidth
-                margin="normal"
-                required
-                size="small"
-              />
-            )}
-          </>
-        )}
-
-        {debits.length > 0 && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle2">Apply Debit Notes</Typography>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Apply Debit Notes</InputLabel>
-              <Select
-                multiple
-                value={paymentDetails.selectedDebitNotes}
-                onChange={(e: SelectChangeEvent<string[]>) => handleDebitNoteChange(e.target.value as string[])}
-                label="Apply Debit Notes"
-                size="small"
-                renderValue={(selected) =>
-                  selected.length === 0
-                    ? 'No debit notes selected'
-                    : selected
-                        .map((id) => {
-                          const debit = debits.find((d: any) => d.randomId === id);
-                          return debit ? `${debit.randomId} (₹${(debit.finalAmount || 0).toFixed(2)})` : '';
-                        })
-                        .join(', ')
-                }
               >
-                {debits.map((debit: any) => (
-                  <MenuItem key={debit.randomId} value={debit.randomId}>
-                    <Checkbox checked={paymentDetails.selectedDebitNotes.includes(debit.randomId)} />
-                    <ListItemText
-                      primary={`${debit.randomId} - ₹${parseFloat(debit.finalAmount || '0').toFixed(2)}`}
-                    />
+                {banks.map((bank: any) => (
+                  <MenuItem key={bank.bankMasterId} value={bank.bankName}>
+                    {bank.bankName}
                   </MenuItem>
                 ))}
-              </Select>
-            </FormControl>
-          </Box>
-        )}
+              </TextField>
 
-        {singleadvance.length > 0 && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle2">Apply Advance Payments</Typography>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Apply Advance Payments</InputLabel>
-              <Select
-                multiple
-                value={paymentDetails.selectedAdvancePayments}
-                onChange={(e: SelectChangeEvent<string[]>) => handleAdvancePaymentChange(e.target.value as string[])}
-                label="Apply Advance Payments"
+              <TextField
+                select
+                name="paymentMethod"
+                label="Payment Method"
+                value={paymentDetails.paymentMethod}
+                onChange={handlePaymentMethodChange}
+                fullWidth
+                margin="normal"
                 size="small"
-                renderValue={(selected) =>
-                  selected.length === 0
-                    ? 'No advance payments selected'
-                    : selected
-                        .map((id, index, array) => {
-                          const advance = singleadvance.find((a: any) => a.randomId === id);
-                          const prevAdvanceSum = array.slice(0, index).reduce((sum, prevId) => {
-                            const prevAdvance = singleadvance.find((a: any) => a.randomId === prevId);
-                            return sum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
-                          }, 0);
-                          const remaining = getBaseRemainingForAdjustments() - prevAdvanceSum;
-                          const cappedAmount = advance ? Math.min(advance.pendingAmount || 0, Math.max(0, remaining)) : 0;
-                          return advance ? `${advance.randomId} (₹${cappedAmount.toFixed(2)})` : '';
-                        })
-                        .join(', ')
-                }
               >
-                {singleadvance.map((advance: any) => {
-                  const index = paymentDetails.selectedAdvancePayments.indexOf(advance.randomId);
-                  const prevSelectedSum = index >= 0 ? paymentDetails.selectedAdvancePayments
-                    .slice(0, index)
-                    .reduce((sum, prevId) => {
-                      const prevAdvance = singleadvance.find((a: any) => a.randomId === prevId);
-                      return sum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
-                    }, 0) : 0;
-                  const remaining = getBaseRemainingForAdjustments() - prevSelectedSum;
-                  const cappedAmount = Math.min(advance.pendingAmount || 0, Math.max(0, remaining));
-                  return (
-                    <MenuItem key={advance.randomId} value={advance.randomId} disabled={cappedAmount <= 0}>
-                      <Checkbox checked={paymentDetails.selectedAdvancePayments.includes(advance.randomId)} />
+                <MenuItem value="neft">NEFT</MenuItem>
+                <MenuItem value="rtgs">RTGS</MenuItem>
+                <MenuItem value="imps">IMPS</MenuItem>
+                <MenuItem value="upi">UPI</MenuItem>
+              </TextField>
+
+              {paymentDetails.paymentMethod === 'neft' && (
+                <TextField
+                  autoComplete="off"
+                  name="neftNo"
+                  label="NEFT Number"
+                  value={paymentDetails.neftNo}
+                  onChange={handleInputChange}
+                  fullWidth
+                  margin="normal"
+                  required
+                  size="small"
+                />
+              )}
+
+              {paymentDetails.paymentMethod === 'rtgs' && (
+                <TextField
+                  autoComplete="off"
+                  name="rtgsNo"
+                  label="RTGS Number"
+                  value={paymentDetails.rtgsNo}
+                  onChange={handleInputChange}
+                  fullWidth
+                  margin="normal"
+                  required
+                  size="small"
+                />
+              )}
+
+              {paymentDetails.paymentMethod === 'imps' && (
+                <TextField
+                  autoComplete="off"
+                  name="impsNo"
+                  label="IMPS Number"
+                  value={paymentDetails.impsNo}
+                  onChange={handleInputChange}
+                  fullWidth
+                  margin="normal"
+                  required
+                  size="small"
+                />
+              )}
+
+              {paymentDetails.paymentMethod === 'upi' && (
+                <TextField
+                  autoComplete="off"
+                  name="upi"
+                  label="UPI ID"
+                  value={paymentDetails.upi}
+                  onChange={handleInputChange}
+                  fullWidth
+                  margin="normal"
+                  required
+                  size="small"
+                />
+              )}
+            </>
+          )}
+
+          {debits.length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2">Apply Debit Notes</Typography>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Apply Debit Notes</InputLabel>
+                <Select
+                  multiple
+                  value={paymentDetails.selectedDebitNotes}
+                  onChange={(e: SelectChangeEvent<string[]>) => handleDebitNoteChange(e.target.value as string[])}
+                  label="Apply Debit Notes"
+                  size="small"
+                  renderValue={(selected) =>
+                    selected.length === 0
+                      ? 'No debit notes selected'
+                      : selected
+                          .map((id) => {
+                            const debit = debits.find((d: any) => d.randomId === id);
+                            return debit ? `${debit.randomId} (₹${(debit.finalAmount || 0).toFixed(2)})` : '';
+                          })
+                          .join(', ')
+                  }
+                >
+                  {debits.map((debit: any) => (
+                    <MenuItem key={debit.randomId} value={debit.randomId}>
+                      <Checkbox checked={paymentDetails.selectedDebitNotes.includes(debit.randomId)} />
                       <ListItemText
-                        primary={`${advance.randomId} - ₹${parseFloat(advance.pendingAmount || '0').toFixed(2)} (Available: ₹${cappedAmount.toFixed(2)})`}
+                        primary={`${debit.randomId} - ₹${parseFloat(debit.finalAmount || '0').toFixed(2)}`}
                       />
                     </MenuItem>
-                  );
-                })}
-              </Select>
-            </FormControl>
-          </Box>
-        )}
-      </DialogContent>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          )}
 
-      <DialogActions>
-        <Button onClick={handleClose} color="primary" size="small">
-          Cancel
-        </Button>
-        <Button
-          onClick={handleConfirmPayment}
-          color="primary"
-          disabled={isLoading || !!error || !!dateError || (paymentDetails.paymentType === 'partial' && !parseFloat(paymentDetails.amount))}
-          size="small"
-        >
-          {isLoading ? <CircularProgress size={24} /> : 'Confirm Payment'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+          {singleadvance.length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2">Apply Advance Payments</Typography>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Apply Advance Payments</InputLabel>
+                <Select
+                  multiple
+                  value={paymentDetails.selectedAdvancePayments}
+                  onChange={(e: SelectChangeEvent<string[]>) => handleAdvancePaymentChange(e.target.value as string[])}
+                  label="Apply Advance Payments"
+                  size="small"
+                  renderValue={(selected) =>
+                    selected.length === 0
+                      ? 'No advance payments selected'
+                      : selected
+                          .map((id, index, array) => {
+                            const advance = singleadvance.find((a: any) => a.randomId === id);
+                            const prevAdvanceSum = array.slice(0, index).reduce((sum, prevId) => {
+                              const prevAdvance = singleadvance.find((a: any) => a.randomId === prevId);
+                              return sum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
+                            }, 0);
+                            const remaining = getBaseRemainingForAdjustments() - prevAdvanceSum;
+                            const cappedAmount = advance ? Math.min(advance.pendingAmount || 0, Math.max(0, remaining)) : 0;
+                            return advance ? `${advance.randomId} (₹${cappedAmount.toFixed(2)})` : '';
+                          })
+                          .join(', ')
+                  }
+                >
+                  {singleadvance.map((advance: any) => {
+                    const index = paymentDetails.selectedAdvancePayments.indexOf(advance.randomId);
+                    const prevSelectedSum = index >= 0 ? paymentDetails.selectedAdvancePayments
+                      .slice(0, index)
+                      .reduce((sum, prevId) => {
+                        const prevAdvance = singleadvance.find((a: any) => a.randomId === prevId);
+                        return sum + (prevAdvance ? (prevAdvance.pendingAmount || 0) : 0);
+                      }, 0) : 0;
+                    const remaining = getBaseRemainingForAdjustments() - prevSelectedSum;
+                    const cappedAmount = Math.min(advance.pendingAmount || 0, Math.max(0, remaining));
+                    return (
+                      <MenuItem key={advance.randomId} value={advance.randomId} disabled={cappedAmount <= 0}>
+                        <Checkbox checked={paymentDetails.selectedAdvancePayments.includes(advance.randomId)} />
+                        <ListItemText
+                          primary={`${advance.randomId} - ₹${parseFloat(advance.pendingAmount || '0').toFixed(2)} (Available: ₹${cappedAmount.toFixed(2)})`}
+                        />
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              </FormControl>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={handleClose} color="primary" size="small">
+            Cancel
+          </Button>
+          <Button
+            onClick={handlePaymentClick}
+            color="primary"
+            disabled={isLoading || !!error || !!dateError || (paymentDetails.paymentType === 'partial' && !parseFloat(paymentDetails.amount))}
+            size="small"
+          >
+            {isLoading ? <CircularProgress size={24} /> : 'Process Payment'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={showConfirmation}
+        onClose={handleCancelConfirmation}
+        maxWidth="xs"
+        sx={{
+          '& .MuiDialog-paper': {
+            width: '350px',
+            maxWidth: '350px',
+            minWidth: '350px',
+            fontSize:'16px',
+          },
+        }}
+      >
+        <DialogTitle>Confirm Payment</DialogTitle>
+        <DialogContent>
+          <Typography  gutterBottom>
+            Are you sure you want to process this payment?
+          </Typography>
+          <Typography  gutterBottom>
+            Total Amount: ₹{totalPayable.toFixed(2)}
+          </Typography>
+          <Typography   gutterBottom>
+            Payment Amount: ₹{parseFloat(paymentDetails.amount || '0').toFixed(2)}
+          </Typography>
+          {totalDebitAmount > 0 && (
+            <Typography  gutterBottom>
+              Debit Adjustment: ₹{totalDebitAmount.toFixed(2)}
+            </Typography>
+          )}
+          {totalAdvanceAmount > 0 && (
+            <Typography   gutterBottom>
+              Advance Adjustment: ₹{totalAdvanceAmount.toFixed(2)}
+            </Typography>
+          )}
+          <Typography  >
+            Payment Date: {paymentDetails.paymentDate}
+          </Typography>
+          <Typography  >
+            Payment Mode: {paymentDetails.paymentMode}
+          </Typography>
+          {paymentDetails.paymentMode === 'Bank' && paymentDetails.bankName && (
+            <Typography  >
+              Bank: {paymentDetails.bankName}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelConfirmation} color="primary" size="small">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmPayment}
+            color="primary"
+            disabled={isLoading}
+            size="small"
+            variant="contained"
+          >
+            {isLoading ? <CircularProgress size={24} /> : 'Confirm Payment'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };
 

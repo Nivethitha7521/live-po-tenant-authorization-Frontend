@@ -59,14 +59,25 @@ import PurchaseOrderRandomIdSearch from '../../../../components/yen-purchase/pen
 import { VendorSearch } from '@/Models/vendor';
 
 
-// Helper function to add footer with "Page X of Y"
+// Helper function to add footer with "Page X of Y" and "This is computer generated" centered at the bottom
 const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
   const pageHeight = doc.internal.pageSize.height;
-  const footerY = pageHeight - 10; // Position footer 10 units from the bottom
   const pageWidth = doc.internal.pageSize.width;
-  const footerText = `Page ${pageNumber} of ${totalPages}`;
   const fontSize = 8;
   doc.setFontSize(fontSize);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0); // Black color for the text
+
+  // Computer generated text
+  const computerGeneratedText = "This is computer generated";
+  const computerGeneratedY = pageHeight - 20;
+  const computerGeneratedWidth = doc.getStringUnitWidth(computerGeneratedText) * fontSize / doc.internal.scaleFactor;
+  const computerGeneratedX = (pageWidth - computerGeneratedWidth) / 2;
+  doc.text(computerGeneratedText, computerGeneratedX, computerGeneratedY);
+
+  // Page number text
+  const footerText = `Page ${pageNumber} of ${totalPages}`;
+  const footerY = pageHeight - 10; // Position page number 10 units from the bottom
   const textWidth = doc.getStringUnitWidth(footerText) * fontSize / doc.internal.scaleFactor;
   const textX = (pageWidth - textWidth) / 2; // Center the footer text
   doc.text(footerText, textX, footerY);
@@ -383,9 +394,10 @@ const RejectedPo: React.FC = () => {
       margin: { bottom: 15 },
     });
 
-    for (let i = 1; i <= totalPages; i++) {
+    const finalTotalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= finalTotalPages; i++) {
       doc.setPage(i);
-      addFooter(doc, i, totalPages);
+      addFooter(doc, i, finalTotalPages);
     }
 
     const pdfFilename = `RejectedPOVendorwise.pdf`;
@@ -452,6 +464,11 @@ const RejectedPo: React.FC = () => {
       console.error('Business info not found!');
       doc.setFontSize(12);
       doc.text('Error: Business info not found', 14, yOffset + 10);
+      const finalTotalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= finalTotalPages; i++) {
+        doc.setPage(i);
+        addFooter(doc, i, finalTotalPages);
+      }
       doc.save('RejectedPOItemwise.pdf');
       return;
     }
@@ -510,6 +527,11 @@ const RejectedPo: React.FC = () => {
     if (rows.length === 0) {
       doc.setFontSize(10);
       doc.text('No rejected purchase orders found.', 14, yOffset);
+      const finalTotalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= finalTotalPages; i++) {
+        doc.setPage(i);
+        addFooter(doc, i, finalTotalPages);
+      }
       doc.save('RejectedPOItemwise.pdf');
       handleClose();
       return;
@@ -545,9 +567,10 @@ const RejectedPo: React.FC = () => {
       margin: { bottom: 15 },
     });
 
-    for (let i = 1; i <= totalPages; i++) {
+    const finalTotalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= finalTotalPages; i++) {
       doc.setPage(i);
-      addFooter(doc, i, totalPages);
+      addFooter(doc, i, finalTotalPages);
     }
 
     const pdfFilename = `RejectedPOItemwise.pdf`;
@@ -555,7 +578,7 @@ const RejectedPo: React.FC = () => {
     handleClose();
   };
 
-  const handleDownload = async (poid: string) => {
+ const handleDownload = async (poid: string) => {
     const purchaseOrder = purchaseList.find((order) => order.purchaseOrderId === poid);
 
     if (!purchaseOrder) {
@@ -675,11 +698,7 @@ const RejectedPo: React.FC = () => {
       ];
     });
 
-    const numberOfBlankRows = Math.max(0, 10 - tableRows.length);
-    for (let i = 0; i < numberOfBlankRows; i++) {
-      tableRows.push(['', '', '', '', '', '', '', '', '']);
-    }
-
+  
     doc.autoTable({
       head: [itemHeader],
       body: tableRows,
@@ -720,13 +739,14 @@ const RejectedPo: React.FC = () => {
 
     yOffset = doc.autoTable.previous.finalY;
 
-    // Tax Summary
+    // Tax Summary - Modified with multi-column layout
     const taxRates = {
       CGST: new Map<number, number>(),
       SGST: new Map<number, number>(),
       IGST: new Map<number, number>(),
     };
 
+    // Calculate individual tax amounts
     purchaseOrder.items.forEach(item => {
       if (item.taxType === 'cgst_sgst') {
         const cgstAmount = (item.taxPercentage / 2) * item.newPrice * item.pendingTotalQuantity / 100;
@@ -740,32 +760,103 @@ const RejectedPo: React.FC = () => {
     });
 
     const totalWithoutTax = purchaseOrder.items.reduce((sum, item) => sum + (item.pendingTotalPrice ?? 0), 0);
-    const taxSummary: [string, string][] = [
-      [`Total Amount`, totalWithoutTax.toFixed(2) || '0'],
-      [`Total Discount`, purchaseOrder.pendingDiscountAmount?.toFixed(2) || '0'],
-    ];
+    
+    // Create tax summary with multi-column approach
+    const taxSummary: any[] = [];
+    
+    // First row: Total Amount and Total Discount (right aligned)
+    taxSummary.push([
+      { content: '', styles: { halign: 'left' } },
+      { content: `Total Amount: ${totalWithoutTax.toFixed(2)}`, styles: { halign: 'right', fontStyle: 'bold' } }
+    ]);
+    
+    taxSummary.push([
+      { content: '', styles: { halign: 'left' } },
+      { content: `Total Discount: ${purchaseOrder.pendingDiscountAmount?.toFixed(2) || '0.00'}`, styles: { halign: 'right', fontStyle: 'bold' } }
+    ]);
 
-    taxRates.CGST.forEach((amount, rate) => {
-      taxSummary.push([`CGST @${rate}%`, amount.toFixed(2)]);
-    });
-    taxRates.SGST.forEach((amount, rate) => {
-      taxSummary.push([`SGST @${rate}%`, amount.toFixed(2)]);
-    });
-    taxRates.IGST.forEach((amount, rate) => {
-      taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]);
-    });
+    // Calculate overall tax totals
+    const totalCGST = Array.from(taxRates.CGST.values()).reduce((sum, amount) => sum + amount, 0);
+    const totalSGST = Array.from(taxRates.SGST.values()).reduce((sum, amount) => sum + amount, 0);
+    const totalIGST = Array.from(taxRates.IGST.values()).reduce((sum, amount) => sum + amount, 0);
 
-    const totalWithTax = purchaseOrder.pendingOrderAmount || 0;
+    // CGST Row - Individual breakdowns and total in one row
+    const cgstBreakdown = Array.from(taxRates.CGST.entries())
+      .map(([rate, amount]) => `CGST @${rate}%: ${amount.toFixed(2)}`)
+      .join('   ');
+    
+    taxSummary.push([
+      { content: cgstBreakdown, styles: { halign: 'left', fontStyle: 'bold' } },
+      { content: `Total CGST: ${totalCGST.toFixed(2)}`, styles: { halign: 'right', fontStyle: 'bold' } }
+    ]);
+
+    // SGST Row - Individual breakdowns and total in one row
+    const sgstBreakdown = Array.from(taxRates.SGST.entries())
+      .map(([rate, amount]) => `SGST @${rate}%: ${amount.toFixed(2)}`)
+      .join('   ');
+    
+    taxSummary.push([
+      { content: sgstBreakdown, styles: { halign: 'left', fontStyle: 'bold' } },
+      { content: `Total SGST: ${totalSGST.toFixed(2)}`, styles: { halign: 'right', fontStyle: 'bold' } }
+    ]);
+
+    // IGST Row - Individual breakdowns and total in one row
+    const igstBreakdown = Array.from(taxRates.IGST.entries())
+      .map(([rate, amount]) => `IGST @${rate}%: ${amount.toFixed(2)}`)
+      .join('   ');
+    
+    taxSummary.push([
+      { content: igstBreakdown, styles: { halign: 'left', fontStyle: 'bold' } },
+      { content: `Total IGST: ${totalIGST.toFixed(2)}`, styles: { halign: 'right', fontStyle: 'bold' } }
+    ]);
+
+    // Final calculations
+    const totalTaxAmount = totalCGST + totalSGST + totalIGST;
+    const subtotalAfterDiscount = totalWithoutTax - (purchaseOrder.pendingDiscountAmount || 0);
+    const totalWithTax = subtotalAfterDiscount + totalTaxAmount;
+
     const roundedTotalWithTax = totalWithTax.toFixed(2);
     const roundedTotalWithTaxInt = Math.round(totalWithTax);
-    const roundOffAmount = roundedTotalWithTaxInt - totalWithTax;
+    const roundOffAmount = (roundedTotalWithTaxInt - totalWithTax).toFixed(2);
 
-    taxSummary.push([`Round Off Amount`, roundOffAmount.toFixed(2)]);
+    // Round Off Amount (right aligned)
+    taxSummary.push([
+      { content: '', styles: { halign: 'left' } },
+      { content: `Round Off Amount: ${roundOffAmount}`, styles: { halign: 'right', fontStyle: 'bold' } }
+    ]);
+
     function capitalizeFirstLetter(str: string) {
       return str.replace(/\b\w/g, char => char.toUpperCase());
     }
     const amountInWords = capitalizeFirstLetter(toWords(roundedTotalWithTaxInt)) + ' only';
-    taxSummary.push([`Amount In Words: ${amountInWords}`, `Total [Including Tax]: ${roundedTotalWithTaxInt.toFixed(2)}`]);
+    
+    // Amount in Words and Final Total (spanning multiple rows if needed)
+    const wordsLines = doc.splitTextToSize(`Amount In Words: ${amountInWords}`, 120);
+    const totalLine = `Total [Including Tax]: ${roundedTotalWithTaxInt.toFixed(2)}`;
+    
+    if (wordsLines.length === 1) {
+      // Single line for amount in words
+      taxSummary.push([
+        { content: wordsLines[0], styles: { halign: 'left', fontStyle: 'bold' } },
+        { content: '', styles: { halign: 'left' } },
+        { content: totalLine, styles: { halign: 'right', fontStyle: 'bold' } }
+      ]);
+    } else {
+      // Multiple lines for amount in words
+      taxSummary.push([
+        { content: wordsLines[0], styles: { halign: 'left', fontStyle: 'bold' } },
+        { content: '', styles: { halign: 'left' } },
+        { content: '', styles: { halign: 'right', fontStyle: 'bold' } }
+      ]);
+      
+      for (let i = 1; i < wordsLines.length; i++) {
+        taxSummary.push([
+          { content: wordsLines[i], styles: { halign: 'left', fontStyle: 'bold' } },
+          { content: '', styles: { halign: 'left' } },
+          { content: i === wordsLines.length - 1 ? totalLine : '', styles: { halign: 'right', fontStyle: 'bold' } }
+        ]);
+      }
+    }
 
     doc.autoTable({
       body: taxSummary,
@@ -773,10 +864,16 @@ const RejectedPo: React.FC = () => {
       theme: 'grid',
       styles: {
         fontSize: 8,
-        halign: 'right',
         cellPadding: 2,
         lineColor: [0, 0, 0],
         lineWidth: 0.1,
+      },
+      columnStyles: {
+        0: { cellWidth: 80, halign: 'left' },
+        1: { cellWidth: 40, halign: 'left' },
+        2: { cellWidth: 60, halign: 'right' },
+      },
+      bodyStyles: {
         fontStyle: 'bold',
       },
       margin: { bottom: 15 },
@@ -860,9 +957,10 @@ const RejectedPo: React.FC = () => {
     doc.text('Authorized Signatory', 130, yOffset);
 
     // Update total pages and re-render footers
-    for (let i = 1; i <= totalPages; i++) {
+    const finalTotalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= finalTotalPages; i++) {
       doc.setPage(i);
-      addFooter(doc, i, totalPages);
+      addFooter(doc, i, finalTotalPages);
     }
 
     doc.save(`${purchaseOrder.randomId}.pdf`);
@@ -1581,20 +1679,20 @@ const RejectedPo: React.FC = () => {
                 )}
                 {/* Summary Rows */}
                 <TableRow>
-                  <TableCell colSpan={9} align="right"><strong>Total Discount:</strong></TableCell>
-                  <TableCell>{totalDiscountPrice.toFixed(2)}</TableCell>
+                  <TableCell colSpan={7} align="right"><strong>Total Discount:</strong></TableCell>
+                  <TableCell colSpan={3}>{totalDiscountPrice.toFixed(2)}</TableCell>
                 </TableRow>
                 {Object.entries(taxDetails).map(([key, tax]) => (
                   <TableRow key={key}>
-                    <TableCell colSpan={9} align="right">
+                    <TableCell colSpan={7} align="right">
                       <strong>{tax.type} ({tax.percentage.toFixed(2)}%):</strong>
                     </TableCell>
-                    <TableCell>{tax.amount.toFixed(2)}</TableCell>
+                    <TableCell colSpan={3}>{tax.amount.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow>
-                  <TableCell colSpan={9} align="right"><strong>Total Order Amount:</strong></TableCell>
-                  <TableCell>{totalOrderAmount.toFixed(2)}</TableCell>
+                  <TableCell colSpan={7} align="right"><strong>Total Order Amount:</strong></TableCell>
+                  <TableCell colSpan={3}>{totalOrderAmount.toFixed(2)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -1726,4 +1824,3 @@ const RejectedPo: React.FC = () => {
 };
 
 export default React.memo(RejectedPo);
-

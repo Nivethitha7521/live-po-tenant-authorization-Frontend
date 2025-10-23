@@ -447,13 +447,21 @@ const ReturnnedApInvoicePage: React.FC = () => {
         }
       }
     });
-    // Add page numbers to all pages
+    // Add page numbers to all pages (centered)
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
     }
+
+    // Add "This is computer generated" centered at the bottom, above page number
+    doc.setPage(totalPages);
+    doc.setFontSize(8);
+    const computerGeneratedText = "This is computer generated";
+    const textWidth = doc.getStringUnitWidth(computerGeneratedText) * doc.getFontSize() / doc.internal.scaleFactor;
+    const textX = (doc.internal.pageSize.width - textWidth) / 2;
+    doc.text(computerGeneratedText, textX, doc.internal.pageSize.height - 20, { align: 'center' });
 
     // Save the PDF with a dynamic name based on purchase order ID
     const pdfFilename = `Ap.pdf`;
@@ -566,13 +574,21 @@ const ReturnnedApInvoicePage: React.FC = () => {
         7: { halign: 'right' },  // Right-align "Total"
       },
     });
-    // Add page numbers to all pages
+    // Add page numbers to all pages (centered)
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
     }
+
+    // Add "This is computer generated" centered at the bottom, above page number
+    doc.setPage(totalPages);
+    doc.setFontSize(8);
+    const computerGeneratedText = "This is computer generated";
+    const textWidth = doc.getStringUnitWidth(computerGeneratedText) * doc.getFontSize() / doc.internal.scaleFactor;
+    const textX = (doc.internal.pageSize.width - textWidth) / 2;
+    doc.text(computerGeneratedText, textX, doc.internal.pageSize.height - 20, { align: 'center' });
 
     // Save the PDF with a dynamic name based on the first Returned Invoice Number
     const pdfFilename = `ReturnedInvoiceItemwise.pdf`;
@@ -704,12 +720,6 @@ const ReturnnedApInvoicePage: React.FC = () => {
       ];
     });
 
-    // Add blank rows if fewer than 10 items
-    const numberOfBlankRows = Math.max(0, 10 - tableRows.length);
-    for (let i = 0; i < numberOfBlankRows; i++) {
-      tableRows.push(['', '', '', '', '']);
-    }
-
     doc.autoTable({
       head: [itemHeader],
       body: tableRows,
@@ -816,7 +826,7 @@ const ReturnnedApInvoicePage: React.FC = () => {
     // Adjust yOffset further if you need to add space below the signature
     yOffset = doc.autoTable.previous.finalY + 5; // Move down after the signature
     // doc.addImage(imageUrl, 'JPEG', 150, yOffset, 30, 25); // Add image with desired width and height
-    // Add page numbers to all pages
+    // Add page numbers to all pages (centered)
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
@@ -824,8 +834,16 @@ const ReturnnedApInvoicePage: React.FC = () => {
       doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
     }
 
+    // Add "This is computer generated" centered at the bottom, above page number
+    doc.setPage(totalPages);
+    doc.setFontSize(8);
+    const computerGeneratedText = "This is computer generated";
+    const textWidth = doc.getStringUnitWidth(computerGeneratedText) * doc.getFontSize() / doc.internal.scaleFactor;
+    const textX = (doc.internal.pageSize.width - textWidth) / 2;
+    doc.text(computerGeneratedText, textX, doc.internal.pageSize.height - 20, { align: 'center' });
+
     // Save the PDF
-    doc.save(`ap_invoice${apinvoice.invoiceNo}.pdf`);
+    doc.save(`ReturnedAPinvoice${apinvoice.invoiceNo}.pdf`);
   };
   const handleExportCSV = () => {
     // Define the headers for the CSV

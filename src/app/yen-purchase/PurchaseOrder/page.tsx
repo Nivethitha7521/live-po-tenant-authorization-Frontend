@@ -720,12 +720,24 @@ const handleViewDetailsClick = (orderId: string) => {
       return;
     }
 
-    // Function to add page number footer
+    // Function to add page number footer and computer generated text
     const addPageFooter = (currentPage: number, totalPages: number) => {
       const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
       doc.setFontSize(8);
       doc.setTextColor(0, 0, 0);
-      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - 30, doc.internal.pageSize.height - 10, { align: 'right' });
+
+      // Center the page number
+      const pageText = `Page ${currentPage} of ${totalPages}`;
+      const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const pageX = (pageWidth - pageTextWidth) / 2;
+      doc.text(pageText, pageX, pageHeight - 10);
+
+      // Add "This is computer generated" centered below the page number
+      const generatedText = 'This is computer generated';
+      const generatedTextWidth = doc.getStringUnitWidth(generatedText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const generatedX = (pageWidth - generatedTextWidth) / 2;
+      doc.text(generatedText, generatedX, pageHeight - 5);
     };
 
     // Add business image on the left side
@@ -922,12 +934,24 @@ const handleViewDetailsClick = (orderId: string) => {
       return;
     }
 
-    // Function to add page number footer
+    // Function to add page number footer and computer generated text
     const addPageFooter = (currentPage: number, totalPages: number) => {
       const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
       doc.setFontSize(8);
       doc.setTextColor(0, 0, 0);
-      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - 30, doc.internal.pageSize.height - 10, { align: 'right' });
+
+      // Center the page number
+      const pageText = `Page ${currentPage} of ${totalPages}`;
+      const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const pageX = (pageWidth - pageTextWidth) / 2;
+      doc.text(pageText, pageX, pageHeight - 10);
+
+      // Add "This is computer generated" centered below the page number
+      const generatedText = 'This is computer generated';
+      const generatedTextWidth = doc.getStringUnitWidth(generatedText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const generatedX = (pageWidth - generatedTextWidth) / 2;
+      doc.text(generatedText, generatedX, pageHeight - 5);
     };
 
     // Add business image on the left side

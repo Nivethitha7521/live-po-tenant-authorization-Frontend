@@ -433,12 +433,21 @@ const generatePDF = () => {
     }
   });
 
-  // Add page numbers to all pages
+  // Add page numbers and computer generated note to all pages
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
-    doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageCenterX = pageWidth / 2;
+    const bottomY = doc.internal.pageSize.height - 10;
+    const computerGeneratedY = bottomY - 5;
+
+    // Add "This is computer generated" centered above page number
+    doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+
+    // Add page number centered below
+    doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
   }
 
   const pdfFilename = `GrnReturn.pdf`;
@@ -553,12 +562,21 @@ const generateSummaryPDF = () => {
     columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 10: { cellWidth: 60 } },
   });
 
-  // Add page numbers to all pages
+  // Add page numbers and computer generated note to all pages
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
-    doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageCenterX = pageWidth / 2;
+    const bottomY = doc.internal.pageSize.height - 10;
+    const computerGeneratedY = bottomY - 5;
+
+    // Add "This is computer generated" centered above page number
+    doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+
+    // Add page number centered below
+    doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
   }
 
   doc.save('ReturnedGRNItemwise.pdf');
@@ -708,12 +726,21 @@ const generateSummaryPDF = () => {
   doc.text("Authorized Signatory:", 120, doc.autoTable.previous.finalY + 18);
   doc.text("_____________________", 120, doc.autoTable.previous.finalY + 25);
 
-  // Add page numbers to all pages
+  // Add page numbers and computer generated note to all pages
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
-    doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageCenterX = pageWidth / 2;
+    const bottomY = doc.internal.pageSize.height - 10;
+    const computerGeneratedY = bottomY - 5;
+
+    // Add "This is computer generated" centered above page number
+    doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+
+    // Add page number centered below
+    doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
   }
 
   doc.save(`GRN${grn.randomId}_ReturnHistory.pdf`);

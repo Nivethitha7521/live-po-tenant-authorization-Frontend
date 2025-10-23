@@ -658,7 +658,10 @@ const OutgoingPaymentComponent = React.memo(() => {
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      const pageY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = pageY - 10;
+      doc.text("This is computer generated", doc.internal.pageSize.width / 2, computerGeneratedY, { align: 'center' });
+      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, pageY, { align: 'center' });
     }
     // Save the PDF with a dynamic name based on outgoing order ID
     const pdfFilename = `PendingOutgoing.pdf`;
@@ -982,7 +985,11 @@ const OutgoingPaymentComponent = React.memo(() => {
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      const pageY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = pageY - 10;
+      doc.setTextColor(0);
+      doc.text("This is computer generated", doc.internal.pageSize.width / 2, computerGeneratedY, { align: 'center' });
+      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, pageY, { align: 'center' });
     }
     doc.save(`${outgoingdetail.randomId}.pdf`);
   };
@@ -1643,4 +1650,4 @@ Description:<br />
 
 OutgoingPaymentComponent.displayName = 'OutgoingPaymentComponent';
 
-export default OutgoingPaymentComponent; 
+export default OutgoingPaymentComponent;

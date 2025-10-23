@@ -1,7 +1,7 @@
 .drawer-paper {
   width: 60px;
   box-sizing: border-box;
-  background-color: #4281c1 !important; /* Blue background */
+  background-color: #1976d2 !important; /* Blue background */
   color: white;
   /* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); Subtle shadow */
   font-family: 'Source Sans 3', sans-serif !important; /* Apply Roboto to input fields */

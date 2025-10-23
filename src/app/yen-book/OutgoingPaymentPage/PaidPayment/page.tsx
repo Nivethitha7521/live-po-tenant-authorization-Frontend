@@ -358,7 +358,10 @@ const PaidPaymentComponent = () => {
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      const pageY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = pageY - 10;
+      doc.text("This is computer generated", doc.internal.pageSize.width / 2, computerGeneratedY, { align: 'center' });
+      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, pageY, { align: 'center' });
     }
     // Save the generated PDF with a dynamic filename
     const pdfFilename = `Paidpayment.pdf`;
@@ -632,7 +635,11 @@ const PaidPaymentComponent = () => {
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      doc.setTextColor(0);
+      const pageY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = pageY - 10;
+      doc.text("This is computer generated", doc.internal.pageSize.width / 2, computerGeneratedY, { align: 'center' });
+      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, pageY, { align: 'center' });
     }
     doc.save(`${outgoingdetail.vendorName}_PaymentDetails.pdf`);
   };

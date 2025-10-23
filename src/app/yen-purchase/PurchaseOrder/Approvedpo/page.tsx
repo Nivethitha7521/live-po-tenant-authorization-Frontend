@@ -1801,6 +1801,16 @@ const CreatePurchase: React.FC = () => {
         console.error('Failed to load approved image:', e);
       }
 
+      // Add "This is computer generated" note at the bottom of every page, centered
+      const computerGeneratedText = "This is computer generated";
+      for (let i = 1; i <= doc.getNumberOfPages(); i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0,0,0); // Black color for the note
+        doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 20, { align: 'center' });
+      }
+
       // Add page numbers
       addPageNumbers();
 
@@ -1834,9 +1844,7 @@ const CreatePurchase: React.FC = () => {
         const pageWidth = doc.internal.pageSize.width;
         doc.setFontSize(8);
         doc.setTextColor(0, 0, 0);
-        doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - 30, doc.internal.pageSize.height - 10, {
-          align: "right",
-        });
+        doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
       };
 
       if (business.imageUrl) {
@@ -1947,6 +1955,13 @@ const CreatePurchase: React.FC = () => {
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         addPageFooter(i, totalPages);
+
+        // Add "This is computer generated" note at the bottom of every page, centered
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0); // Black color for the note
+        const computerGeneratedText = "This is computer generated";
+        doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 25, { align: 'center' });
       }
 
       const pdfFilename = `ApprovedPOVendors.pdf`;
@@ -2107,6 +2122,13 @@ const CreatePurchase: React.FC = () => {
           doc.internal.pageSize.height - 10,
           { align: "center" }
         );
+
+        // Add "This is computer generated" note at the bottom of every page, centered
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0); // Black color for the note
+        const computerGeneratedText = "This is computer generated";
+        doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 25, { align: 'center' });
       },
     });
 

@@ -272,17 +272,17 @@ export const processBulkPayment = createAsyncThunk<
         'https://yenerp.com/purchaseapi/outgoingpayments/bulk/bulk-payment',
         bulkPaymentRequest
       );
-      
+
       if (response.status === 207) {
         return response.data;
       }
-      
+
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 207 && error.response?.data) {
         return error.response.data;
       }
-      
+
       return rejectWithValue(
         error.response?.data?.detail || 'Bulk payment processing failed'
       );

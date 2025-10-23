@@ -348,12 +348,24 @@ const VerifiedApInvoicePage: React.FC = () => {
       }
     });
 
-    // Add page numbers to all pages
+    // Add page numbers to all pages and "This is computer generated" footer
     const totalPages = doc.getNumberOfPages();
+    const pageHeight = doc.internal.pageSize.height;
+    const footerY = pageHeight - 20;
+    const computerGeneratedY = pageHeight - 10;
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      // Center page number
+      const pageText = `Page ${i} of ${totalPages}`;
+      const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const pageX = (pageWidth - pageTextWidth) / 2;
+      doc.text(pageText, pageX, footerY, { align: 'center' });
+      // Center "This is computer generated"
+      const compText = "This is computer generated";
+      const compTextWidth = doc.getStringUnitWidth(compText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const compX = (pageWidth - compTextWidth) / 2;
+      doc.text(compText, compX, computerGeneratedY);
     }
 
     // Save the PDF with a dynamic name based on purchase order ID
@@ -544,12 +556,24 @@ const VerifiedApInvoicePage: React.FC = () => {
       },
     });
 
-    // Add page numbers to all pages
+    // Add page numbers to all pages and "This is computer generated" footer
     const totalPages = doc.getNumberOfPages();
+    const pageHeight = doc.internal.pageSize.height;
+    const footerY = pageHeight - 20;
+    const computerGeneratedY = pageHeight - 10;
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      // Center page number
+      const pageText = `Page ${i} of ${totalPages}`;
+      const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const pageX = (pageWidth - pageTextWidth) / 2;
+      doc.text(pageText, pageX, footerY, { align: 'center' });
+      // Center "This is computer generated"
+      const compText = "This is computer generated";
+      const compTextWidth = doc.getStringUnitWidth(compText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const compX = (pageWidth - compTextWidth) / 2;
+      doc.text(compText, compX, computerGeneratedY);
     }
 
     // Save the PDF with a dynamic name based on the first Pending Invoice Number
@@ -845,7 +869,7 @@ const VerifiedApInvoicePage: React.FC = () => {
         minCellHeight: 15,
       },
       tableLineColor: [0, 0, 0],
-      tableLineWidth: 0.1,
+      lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
     });
 
     yOffset += 45;
@@ -869,29 +893,40 @@ const VerifiedApInvoicePage: React.FC = () => {
       ];
     });
 
-    const numberOfBlankRows = Math.max(0, 10 - tableRows.length);
-    for (let i = 0; i < numberOfBlankRows; i++) {
-      tableRows.push(['', '', '', '', '', '', '']);
+   doc.autoTable({
+  head: [itemHeader],
+  body: tableRows,
+  startY: yOffset,
+  theme: 'grid',
+  styles: {
+    fontSize: 8,
+    halign: 'center',
+    cellPadding: 2,
+  },
+  headStyles: {
+    fillColor: [0, 0, 128],
+    textColor: [255, 255, 255],
+  },
+  bodyStyles: {
+    lineColor: [0, 0, 0],
+    lineWidth: 0.1,
+  },
+  didDrawCell: (data: any) => {
+    // Remove bottom border for the last row
+    if (data.row.index === tableRows.length - 1 && data.section === 'body') {
+      doc.setDrawColor(255, 255, 255); // Set to white (background color)
+      doc.setLineWidth(0.2);
+      // Draw over the bottom border with white line
+      doc.line(
+        data.cell.x,
+        data.cell.y + data.cell.height,
+        data.cell.x + data.cell.width,
+        data.cell.y + data.cell.height
+      );
     }
+  },
+});
 
-    doc.autoTable({
-      head: [itemHeader],
-      body: tableRows,
-      startY: yOffset,
-      theme: 'grid',
-      styles: {
-        fontSize: 8,
-        halign: 'center',
-        cellPadding: 2,
-      },
-      headStyles: {
-        fillColor: [0, 0, 128],
-        textColor: [255, 255, 255],
-      },
-      bodyStyles: {
-        lineColor: [0, 0, 0],
-      },
-    });
     yOffset = doc.autoTable.previous.finalY;
 
     const taxRates = {
@@ -971,15 +1006,28 @@ const VerifiedApInvoicePage: React.FC = () => {
     yOffset = doc.autoTable.previous.finalY + 5;
     doc.addImage(imageUrl, 'JPEG', 150, yOffset, 30, 25);
 
-    // Add page numbers to all pages
+    // Add page numbers to all pages and "This is computer generated" footer
     const totalPages = doc.getNumberOfPages();
+    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    const footerY = pageHeight - 20;
+    const computerGeneratedY = pageHeight - 10;
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      // Center page number
+      const pageText = `Page ${i} of ${totalPages}`;
+      const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const pageX = (pageWidth - pageTextWidth) / 2;
+      doc.text(pageText, pageX, footerY, { align: 'center' });
+      // Center "This is computer generated"
+      const compText = "This is computer generated";
+      const compTextWidth = doc.getStringUnitWidth(compText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const compX = (pageWidth - compTextWidth) / 2;
+      doc.text(compText, compX, computerGeneratedY);
     }
 
-    doc.save(`ReturnedApInvoice${apinvoice.randomId}.pdf`);
+    doc.save(`ApInvoice${apinvoice.randomId}.pdf`);
   };
   const handleStartDateChange = (value: Date | null) => {
     setStartDate(value); // Update the startDate state with Date or null
@@ -1370,7 +1418,7 @@ const VerifiedApInvoicePage: React.FC = () => {
                 </Box>
 
                 <TableContainer component={Paper} sx={{ mt: 2 }}>
-                  <Table>
+                  <Table sx={{ '& .MuiTableCell-root': { borderBottom: 'none' } }}>
                     <TableHead>
                       <TableRow>
                         <TableCell>Item Name</TableCell>
@@ -1389,8 +1437,8 @@ const VerifiedApInvoicePage: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {selectedInvoice.itemDetails.map((item) => (
-                        <TableRow key={item.itemId}>
+                      {selectedInvoice.itemDetails.map((item, index) => (
+                        <TableRow key={item.itemId} sx={{ '&:not(:last-child)': { borderBottom: 'none' } }}>
                           <TableCell>{item.itemName}</TableCell>
                           <TableCell>{item.quantity}</TableCell>
                           <TableCell>{item.uom}</TableCell>
