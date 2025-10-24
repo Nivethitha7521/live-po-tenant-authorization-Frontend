@@ -103,8 +103,9 @@ const PurchaseOrder: React.FC = () => {
       dispatch(setPurchaseOrderData({ ...purchaseOrderData, billingAddress: defaultBillingAddress }));
     }
   }, [businesses, purchaseOrderData, dispatch]);
+  // FIXED: Set default dates as ISO strings only if null
   useEffect(() => {
-  const currentDate = new Date();
+  const currentDate = new Date().toISOString();  // FIXED: Use .toISOString()
   
   // Set default dates only if they are null/undefined
   const updatedData = { ...purchaseOrderData };
@@ -121,7 +122,7 @@ const PurchaseOrder: React.FC = () => {
   if (!purchaseOrderData.orderDate || !purchaseOrderData.expectedDeliveryDate) {
     dispatch(setPurchaseOrderData(updatedData));
   }
-}, [dispatch]);
+}, [dispatch, purchaseOrderData.orderDate, purchaseOrderData.expectedDeliveryDate]);  // FIXED: Added deps
 
   // Track form dirty state
   useEffect(() => {
@@ -184,7 +185,7 @@ const handleOrderDateChange = (date: Date | null) => {
   const finalDate = date || new Date();
   dispatch(setPurchaseOrderData({
     ...purchaseOrderData,
-    orderDate: finalDate
+    orderDate: finalDate.toISOString()  // FIXED: Store as ISO string
   }));
 };
 
@@ -193,7 +194,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
   const finalDate = date || new Date();
   dispatch(setPurchaseOrderData({
     ...purchaseOrderData,
-    expectedDeliveryDate: finalDate
+    expectedDeliveryDate: finalDate.toISOString()  // FIXED: Store as ISO string
   }));
 };
   // Calculate totals with updated logic for discount conversion
@@ -541,15 +542,16 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
       setNewPriceTypeInput(''); // Reset to empty string
     }
   };
+  // FIXED: handleClear - reset to ISO strings
   const handleClear = () => {
-      const currentDate = new Date();
+      const currentDate = new Date().toISOString();  // FIXED: ISO string
 
     dispatch(setPurchaseOrderData({
       purchaseOrderId: '',
       vendorName: '',
       vendorContact: '',
-      orderDate: currentDate, // Reset to current date
-    expectedDeliveryDate: currentDate, // Reset to current date
+      orderDate: currentDate, // FIXED: ISO string
+    expectedDeliveryDate: currentDate, // FIXED: ISO string
       poStatus: '',
       items: [],
       pendingOrderAmount: 0,
@@ -1193,6 +1195,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
     dispatch(setSnackbarMessage('Discount reset'));
     dispatch(setSnackbarOpen(true));
   };
+ // FIXED: handleSubmit - use ISO strings
  const handleSubmit = async () => {
   setLoading(true);
   // Recalculate totals to ensure they're up-to-date
@@ -1206,8 +1209,8 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
   }
 
   // Ensure dates are never null - use current date as fallback
-  const orderDate = purchaseOrderData.orderDate ? new Date(purchaseOrderData.orderDate) : new Date();
-  const expectedDeliveryDate = purchaseOrderData.expectedDeliveryDate ? new Date(purchaseOrderData.expectedDeliveryDate) : new Date();
+  const orderDate = purchaseOrderData.orderDate || new Date().toISOString();  // FIXED: ISO string
+  const expectedDeliveryDate = purchaseOrderData.expectedDeliveryDate || new Date().toISOString();  // FIXED: ISO string
 
   const dataToSubmit = {
     ...purchaseOrderData,
@@ -1347,6 +1350,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                 helperText={formErrors.creditLimit ? 'Credit limit is required' : ''}
               />
             </Grid>
+            {/* FIXED: SmartDatePicker - value uses new Date(iso) */}
             <Grid item xs={12} sm={3} md={2}>
               <SmartDatePicker
                 label="Order Date"

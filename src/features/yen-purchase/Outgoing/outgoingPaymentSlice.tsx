@@ -62,7 +62,7 @@ export const fetchOutgoings = createAsyncThunk<
     { rejectWithValue }
   ) => {
     try {
-      const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
+      const url = 'http://192.168.29.116:8000/purchaseapi/outgoingpayments/';
       const params: any = {
         skip: (page - 1) * size,
         limit: size,
@@ -197,7 +197,7 @@ export const processPayment = createAsyncThunk<
         paymentDate: paymentDate.toISOString(),
       };
 
-      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`http://192.168.29.116:8000/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.message || 'Payment processing failed');
     }
@@ -259,7 +259,7 @@ export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
     }
   }
 );
-// outgoingPaymentSlice.ts
+// Updated outgoingPaymentSlice.ts (handle Date parsing/serialization)
 export const processBulkPayment = createAsyncThunk<
   BulkPaymentResponse,
   BulkPaymentRequest,
@@ -268,19 +268,44 @@ export const processBulkPayment = createAsyncThunk<
   'outgoings/processBulkPayment',
   async (bulkPaymentRequest, { rejectWithValue }) => {
     try {
+      // Serialize Date to string (YYYY-MM-DD) for API request
+      const requestPayload = {
+        ...bulkPaymentRequest,
+        paymentDate: bulkPaymentRequest.paymentDate
+          ? bulkPaymentRequest.paymentDate.toISOString().split('T')[0]
+          : undefined,
+      };
+
       const response = await axios.patch(
-        'https://yenerp.com/purchaseapi/outgoingpayments/bulk/bulk-payment',
-        bulkPaymentRequest
+        'http://192.168.29.116:8000/purchaseapi/outgoingpayments/bulk/bulk-payment',
+        requestPayload
       );
 
       if (response.status === 207) {
-        return response.data;
+        // Parse string back to Date in response
+        const parsedData = {
+          ...response.data,
+          results: response.data.results.map((result: any) => ({
+            ...result,
+            paymentDate: result.paymentDate ? new Date(result.paymentDate) : undefined,
+          })),
+        };
+        return parsedData as BulkPaymentResponse;
       }
 
-      return response.data;
+      // If no parsing needed (no paymentDate), return as-is
+      return response.data as BulkPaymentResponse;
     } catch (error: any) {
       if (error.response?.status === 207 && error.response?.data) {
-        return error.response.data;
+        // Parse error response similarly if it contains paymentDate
+        const parsedErrorData = {
+          ...error.response.data,
+          results: error.response.data.results?.map((result: any) => ({
+            ...result,
+            paymentDate: result.paymentDate ? new Date(result.paymentDate) : undefined,
+          })) || [],
+        };
+        return parsedErrorData as BulkPaymentResponse;
       }
 
       return rejectWithValue(
@@ -629,107 +654,10 @@ const outgoingSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
+      // Updated fulfilled case (no change needed, as parsing is done in thunk)
       .addCase(processBulkPayment.fulfilled, (state, action) => {
         state.loading = false;
         const { results, errors } = action.payload;
-
-        results.forEach((result) => {
-          const index = state.outgoings.findIndex(
-            (outgoing) => outgoing.outgoingId === result.outgoingId
-          );
-
-          if (index !== -1) {
-            const paymentDate = result.paymentDate || new Date();
-
-            const updatedOutgoing: Outgoing = {
-              ...state.outgoings[index],
-              totalPayableAmount: result.remainingPayableAmount,
-              paidAmount: result.totalPaidAmount,
-              debitAmount: result.totalDebitAmount,
-              advanceAmount: (state.outgoings[index].advanceAmount || 0) + result.advanceAmount,
-              status: result.status,
-              paymentType: state.outgoings[index].paymentType || 'full',
-              lastUpdatedDate: new Date().toISOString(),
-              paymentDate: paymentDate,
-              selectedDebitNotes: [
-                ...new Set([
-                  ...(state.outgoings[index].selectedDebitNotes || []),
-                  ...(result.debitNotesApplied || [])
-                ])
-              ],
-              selectedAdvancePayments: [
-                ...new Set([
-                  ...(state.outgoings[index].selectedAdvancePayments || []),
-                  ...(result.advancePaymentsApplied || [])
-                ])
-              ],
-              hasDebitCreditNotes: (result.debitNotesApplied?.length > 0) || (result.advancePaymentsApplied?.length > 0)
-            };
-
-            const newPaymentHistory: PaymentHistory = {
-              amount: result.effectivePaymentAmount,
-              advanceAmount: result.advanceAmount || 0,
-              paymentType: state.outgoings[index].paymentType || 'full',
-              paymentMethod: state.outgoings[index].paymentMethod || '',
-              paymentMode: state.outgoings[index].paymentMode || '',
-              cashAmount: state.outgoings[index].cashAmount || 0,
-              bankName: state.outgoings[index].bankName || '',
-              date: paymentDate,
-              debitNotesApplied: result.debitNotesApplied || [],
-              debitAmount: result.debitAmount || 0,
-              advancePaymentsApplied: result.advancePaymentsApplied || []
-            };
-
-            updatedOutgoing.paymentHistory = [
-              ...(state.outgoings[index].paymentHistory || []),
-              newPaymentHistory
-            ];
-
-            state.outgoings[index] = updatedOutgoing;
-          }
-        });
-
-        results.forEach((result) => {
-          if (result.advancePaymentsApplied && result.advancePaymentsApplied.length > 0) {
-            result.advancePaymentsApplied.forEach((advanceId) => {
-              const advanceIndex = state.advances.findIndex(
-                (advance) => advance.randomId === advanceId
-              );
-              if (advanceIndex !== -1) {
-                const usedAmount = result.advanceAmount || 0;
-                const currentPending = state.advances[advanceIndex].pendingAmount || 0;
-                const newPending = Math.max(0, currentPending - usedAmount);
-
-                state.advances[advanceIndex] = {
-                  ...state.advances[advanceIndex],
-                  pendingAmount: newPending,
-                  status: newPending <= 0 ? 'Completed' : 'Partially Cleared'
-                };
-              }
-            });
-          }
-        });
-
-        results.forEach((result) => {
-          if (result.debitNotesApplied && result.debitNotesApplied.length > 0) {
-            result.debitNotesApplied.forEach((debitId) => {
-              const debitIndex = state.debits.findIndex(
-                (debit) => debit.randomId === debitId
-              );
-              if (debitIndex !== -1) {
-                const usedAmount = result.debitAmount || 0;
-                const currentPending = state.debits[debitIndex].pendingAmount || 0;
-                const newPending = Math.max(0, currentPending - usedAmount);
-
-                state.debits[debitIndex] = {
-                  ...state.debits[debitIndex],
-                  pendingAmount: newPending,
-                  status: newPending <= 0 ? 'Cleared' : 'Partially Cleared'
-                };
-              }
-            });
-          }
-        });
 
         const successCount = results.length;
         const errorCount = errors.length;
@@ -741,8 +669,10 @@ const outgoingSlice = createSlice({
 
         state.snackbarOpen = true;
         state.snackbarMessage = message;
+        // Clear temp states if needed
         state.vendorPayments = {};
         state.vendorDebits = {};
+        // No local updates here - rely on fetchOutgoings for refresh
       })
       .addCase(processBulkPayment.rejected, (state, action) => {
         state.loading = false;

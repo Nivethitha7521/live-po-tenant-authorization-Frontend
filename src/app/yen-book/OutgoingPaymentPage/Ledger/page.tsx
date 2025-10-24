@@ -61,7 +61,7 @@ const LedgerPage = () => {
   const today = new Date();
   const [selectionRange, setSelectionRange] = useState({
     startDate: startOfMonth(today),
-    endDate: endOfDay(today),
+    endDate: endOfDay(today), 
     key: 'selection',
   });
 
@@ -427,7 +427,7 @@ const generateLedgerPDF = async () => {
       
       {/* Navigation Buttons */}
       <Box>
-        <Paper sx={{ pl: 2, mb: 2, mt: 1 }}>
+        <Box sx={{ pl: 2, mb: 2, mt: 1 }}>
           <Grid container spacing={1} alignItems="center">
             <Grid item>
               <Link href="/yen-book/OutgoingPaymentPage" passHref>
@@ -474,10 +474,10 @@ const generateLedgerPDF = async () => {
               </Link>
             </Grid>
           </Grid>
-        </Paper>
+        </Box>
 
         {/* Filters */}
-        <Paper sx={{ p: 2, mb: 2 }}>
+        <Box sx={{ p: 2, mb: 2 }}>
           <Grid container spacing={2} alignItems="center">
             {/* Vendor Selection */}
             <Grid item xs={12} md={4}>
@@ -546,11 +546,11 @@ const generateLedgerPDF = async () => {
               </Button>
             </Grid>
           </Grid>
-        </Paper>
+        </Box>
 
         {/* Summary Cards - All-time */}
         {selectedVendorName && (
-          <Grid container spacing={2} mb={2}>
+          <Grid container spacing={2} mb={2} mx={0.5}>
             <Grid item xs={6} md={3}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
@@ -603,7 +603,7 @@ const generateLedgerPDF = async () => {
         )}
 
         {/* Ledger Table - Filtered */}
-        <Paper sx={{ mb: 2 }}>
+        <Paper sx={{ mb: 2,mx:1}}>
           <TableContainer sx={{
             maxHeight: 'calc(100vh - 400px)',
             overflowY: 'auto',

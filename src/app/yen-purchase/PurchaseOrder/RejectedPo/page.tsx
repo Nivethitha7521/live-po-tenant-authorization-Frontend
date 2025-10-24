@@ -579,392 +579,400 @@ const RejectedPo: React.FC = () => {
   };
 
  const handleDownload = async (poid: string) => {
-    const purchaseOrder = purchaseList.find((order) => order.purchaseOrderId === poid);
+  const purchaseOrder = purchaseList.find((order) => order.purchaseOrderId === poid);
 
-    if (!purchaseOrder) {
-      console.error('Purchase Order not found!');
-      return;
-    }
+  if (!purchaseOrder) {
+    console.error('Purchase Order not found!');
+    return;
+  }
 
-    const business = businesses.length > 0 ? businesses[0] : null;
+  const business = businesses.length > 0 ? businesses[0] : null;
 
-    if (!business) {
-      console.error('Business info not found!');
-      return;
-    }
+  if (!business) {
+    console.error('Business info not found!');
+    return;
+  }
 
-    const doc = new jsPDF();
-    let yOffset = 10;
-    let totalPages = 1;
+  const doc = new jsPDF();
+  let yOffset = 10;
+  let totalPages = 1;
 
-    // Header Section
-    if (business.imageUrl) {
-      doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
-    }
+  // Header Section
+  if (business.imageUrl) {
+    doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
+  }
 
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 128);
-    doc.text('Rejected Order', 90, yOffset + 5);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 128);
+  doc.text('Rejected Order', 90, yOffset + 5);
 
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text(business.companyName || '', 90, yOffset + 10);
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.text(business.companyName || '', 90, yOffset + 10);
 
-    doc.setFontSize(8);
-    doc.text(business.address1 || '', 90, yOffset + 15);
-    doc.text(`Tel.No: ${business.phoneNo || ''}`, 90, yOffset + 20);
-    doc.text(`E-Mail: ${business.emailId || ''}`, 90, yOffset + 25);
-    doc.text(`GSTIN: ${business.gstIn || ''}`, 90, yOffset + 30);
+  doc.setFontSize(8);
+  doc.text(business.address1 || '', 90, yOffset + 15);
+  doc.text(`Tel.No: ${business.phoneNo || ''}`, 90, yOffset + 20);
+  doc.text(`E-Mail: ${business.emailId || ''}`, 90, yOffset + 25);
+  doc.text(`GSTIN: ${business.gstIn || ''}`, 90, yOffset + 30);
 
-    yOffset += 35;
+  yOffset += 35;
 
-    // Vendor and PO Details Table
-    const columnWidth = 60.6;
-    const tableHeader = [['Vendor Details', 'Billing Address', 'PO Details']];
-    const vendorDetailsRows = [
-      [
-        `${purchaseOrder.vendorName}\n` +
-        `GSTIN: ${purchaseOrder.gstNumber}\n` +
-        `Address: ${purchaseOrder.address}\n` +
-        `City: ${purchaseOrder.city}\n` +
-        `State: ${purchaseOrder.state}\n` +
-        `Country: ${purchaseOrder.country}\n` +
-        `Email: ${purchaseOrder.contactpersonEmail}\n` +
-        `Phone: ${purchaseOrder.vendorContact}`,
-        `Billing Address: ${purchaseOrder.billingAddress}`,
-        `PO No: ${purchaseOrder.randomId}\n` +
-        `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-        `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-        `Payment Terms: ${purchaseOrder.paymentTerms}\n` +
-        `Currency: ${'INR'}`,
-      ],
+  // Vendor and PO Details Table
+  const columnWidth = 60.6;
+  const tableHeader = [['Vendor Details', 'Billing Address', 'PO Details']];
+  const vendorDetailsRows = [
+    [
+      `${purchaseOrder.vendorName}\n` +
+      `GSTIN: ${purchaseOrder.gstNumber}\n` +
+      `Address: ${purchaseOrder.address}\n` +
+      `City: ${purchaseOrder.city}\n` +
+      `State: ${purchaseOrder.state}\n` +
+      `Country: ${purchaseOrder.country}\n` +
+      `Email: ${purchaseOrder.contactpersonEmail}\n` +
+      `Phone: ${purchaseOrder.vendorContact}`,
+      `Billing Address: ${purchaseOrder.billingAddress}`,
+      `PO No: ${purchaseOrder.randomId}\n` +
+      `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+      `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+      `Payment Terms: ${purchaseOrder.paymentTerms}\n` +
+      `Currency: ${'INR'}`,
+    ],
+  ];
+
+  doc.autoTable({
+    head: tableHeader,
+    body: vendorDetailsRows,
+    startY: yOffset,
+    theme: 'grid',
+    styles: {
+      fontSize: 9,
+      cellPadding: 4,
+      halign: 'left',
+      valign: 'top',
+      overflow: 'linebreak',
+    },
+    columnStyles: {
+      0: { cellWidth: columnWidth, valign: 'top' },
+      1: { cellWidth: columnWidth, valign: 'top' },
+      2: { cellWidth: columnWidth, valign: 'top' },
+    },
+    headStyles: {
+      fillColor: [0, 0, 128],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      lineWidth: 0,
+    },
+    bodyStyles: {
+      lineWidth: 0.1,
+      lineColor: [0, 0, 0],
+      minCellHeight: 15,
+    },
+    margin: { bottom: 15 },
+    didDrawPage: (data: { pageCount: number }) => {
+      totalPages = data.pageCount;
+      addFooter(doc, data.pageCount, totalPages);
+    },
+  });
+
+  yOffset = doc.autoTable.previous.finalY;
+
+  // Items Table Section
+  const itemHeader = ['SI No', 'Description', 'HsnCode', 'Count', 'Qty', 'Rejected Qty', 'Unit Price', 'Tax', 'Amount'];
+  const tableRows = purchaseOrder.items.map((item, index) => {
+    const unitPrice = item.newPrice || 0;
+    const quantity = item.pendingTotalQuantity || 0;
+    const totalAmount = unitPrice * quantity;
+
+    return [
+      `${index + 1}`,
+      item.itemName || 'Item Description',
+      item.hsnCode,
+      item.pendingCount || 'N/A',
+      item.pendingQuantity || 'N/A',
+      `${quantity} ${item.uom || 'Kgs'}`,
+      `${unitPrice.toFixed(2)}`,
+      `${item.taxPercentage || 0}%`,
+      `${totalAmount.toFixed(2)}`,
     ];
+  });
 
-    doc.autoTable({
-      head: tableHeader,
-      body: vendorDetailsRows,
-      startY: yOffset,
-      theme: 'grid',
-      styles: {
-        fontSize: 9,
-        cellPadding: 4,
-        halign: 'left',
-        valign: 'top',
-        overflow: 'linebreak',
-      },
-      columnStyles: {
-        0: { cellWidth: columnWidth, valign: 'top' },
-        1: { cellWidth: columnWidth, valign: 'top' },
-        2: { cellWidth: columnWidth, valign: 'top' },
-      },
-      headStyles: {
-        fillColor: [0, 0, 128],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        lineWidth: 0,
-      },
-      bodyStyles: {
-        lineWidth: 0.1,
-        lineColor: [0, 0, 0],
-        minCellHeight: 15,
-      },
-      margin: { bottom: 15 },
-      didDrawPage: (data: { pageCount: number }) => {
-        totalPages = data.pageCount;
-        addFooter(doc, data.pageCount, totalPages);
-      },
-    });
+  doc.autoTable({
+    head: [itemHeader],
+    body: tableRows,
+    startY: yOffset,
+    theme: 'grid',
+    styles: {
+      fontSize: 8,
+      halign: 'center',
+      cellPadding: 2,
+    },
+    headStyles: {
+      fillColor: [0, 0, 128],
+      textColor: [255, 255, 255],
+      lineWidth: { top: 0, right: 0.1, bottom: 0.1, left: 0.1 },
+      lineColor: [0, 0, 0],
+    },
+    bodyStyles: {
+      lineColor: [0, 0, 0],
+      lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
+    },
+    columnStyles: {
+      0: { halign: 'center' },
+      1: { halign: 'left' },
+      2: { halign: 'left' },
+      3: { halign: 'right' },
+      4: { halign: 'right' },
+      5: { halign: 'right' },
+      6: { halign: 'right' },
+      7: { halign: 'right' },
+      8: { halign: 'right' },
+    },
+    margin: { bottom: 15 },
+    didDrawPage: (data: { pageCount: number }) => {
+      totalPages = data.pageCount;
+      addFooter(doc, data.pageCount, totalPages);
+    },
+  });
 
-    yOffset = doc.autoTable.previous.finalY;
+  yOffset = doc.autoTable.previous.finalY;
 
-    // Items Table Section
-    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Count', 'Qty', 'Rejected Qty', 'Unit Price', 'Tax', 'Amount'];
-    const tableRows = purchaseOrder.items.map((item, index) => {
-      const unitPrice = item.newPrice || 0;
-      const quantity = item.pendingTotalQuantity || 0;
-      const totalAmount = unitPrice * quantity;
+  // Tax Summary - Modified with multi-column layout
+  const taxRates = {
+    CGST: new Map<number, number>(),
+    SGST: new Map<number, number>(),
+    IGST: new Map<number, number>(),
+  };
 
-      return [
-        `${index + 1}`,
-        item.itemName || 'Item Description',
-        item.hsnCode,
-        item.pendingCount || 'N/A',
-        item.pendingQuantity || 'N/A',
-        `${quantity} ${item.uom || 'Kgs'}`,
-        `${unitPrice.toFixed(2)}`,
-        `${item.taxPercentage || 0}%`,
-        `${totalAmount.toFixed(2)}`,
-      ];
-    });
-
-  
-    doc.autoTable({
-      head: [itemHeader],
-      body: tableRows,
-      startY: yOffset,
-      theme: 'grid',
-      styles: {
-        fontSize: 8,
-        halign: 'center',
-        cellPadding: 2,
-      },
-      headStyles: {
-        fillColor: [0, 0, 128],
-        textColor: [255, 255, 255],
-        lineWidth: { top: 0, right: 0.1, bottom: 0.1, left: 0.1 },
-        lineColor: [0, 0, 0],
-      },
-      bodyStyles: {
-        lineColor: [0, 0, 0],
-        lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
-      },
-      columnStyles: {
-        0: { halign: 'center' },
-        1: { halign: 'left' },
-        2: { halign: 'left' },
-        3: { halign: 'right' },
-        4: { halign: 'right' },
-        5: { halign: 'right' },
-        6: { halign: 'right' },
-        7: { halign: 'right' },
-        8: { halign: 'right' },
-      },
-      margin: { bottom: 15 },
-      didDrawPage: (data: { pageCount: number }) => {
-        totalPages = data.pageCount;
-        addFooter(doc, data.pageCount, totalPages);
-      },
-    });
-
-    yOffset = doc.autoTable.previous.finalY;
-
-    // Tax Summary - Modified with multi-column layout
-    const taxRates = {
-      CGST: new Map<number, number>(),
-      SGST: new Map<number, number>(),
-      IGST: new Map<number, number>(),
-    };
-
-    // Calculate individual tax amounts
-    purchaseOrder.items.forEach(item => {
-      if (item.taxType === 'cgst_sgst') {
-        const cgstAmount = (item.taxPercentage / 2) * item.newPrice * item.pendingTotalQuantity / 100;
-        const sgstAmount = (item.taxPercentage / 2) * item.newPrice * item.pendingTotalQuantity / 100;
-        taxRates.CGST.set(item.taxPercentage / 2, (taxRates.CGST.get(item.taxPercentage / 2) || 0) + cgstAmount);
-        taxRates.SGST.set(item.taxPercentage / 2, (taxRates.SGST.get(item.taxPercentage / 2) || 0) + sgstAmount);
-      } else if (item.taxType === 'igst') {
-        const igstAmount = item.taxPercentage * item.newPrice * item.pendingTotalQuantity / 100;
-        taxRates.IGST.set(item.taxPercentage, (taxRates.IGST.get(item.taxPercentage) || 0) + igstAmount);
-      }
-    });
-
-    const totalWithoutTax = purchaseOrder.items.reduce((sum, item) => sum + (item.pendingTotalPrice ?? 0), 0);
-    
-    // Create tax summary with multi-column approach
-    const taxSummary: any[] = [];
-    
-    // First row: Total Amount and Total Discount (right aligned)
-    taxSummary.push([
-      { content: '', styles: { halign: 'left' } },
-      { content: `Total Amount: ${totalWithoutTax.toFixed(2)}`, styles: { halign: 'right', fontStyle: 'bold' } }
-    ]);
-    
-    taxSummary.push([
-      { content: '', styles: { halign: 'left' } },
-      { content: `Total Discount: ${purchaseOrder.pendingDiscountAmount?.toFixed(2) || '0.00'}`, styles: { halign: 'right', fontStyle: 'bold' } }
-    ]);
-
-    // Calculate overall tax totals
-    const totalCGST = Array.from(taxRates.CGST.values()).reduce((sum, amount) => sum + amount, 0);
-    const totalSGST = Array.from(taxRates.SGST.values()).reduce((sum, amount) => sum + amount, 0);
-    const totalIGST = Array.from(taxRates.IGST.values()).reduce((sum, amount) => sum + amount, 0);
-
-    // CGST Row - Individual breakdowns and total in one row
-    const cgstBreakdown = Array.from(taxRates.CGST.entries())
-      .map(([rate, amount]) => `CGST @${rate}%: ${amount.toFixed(2)}`)
-      .join('   ');
-    
-    taxSummary.push([
-      { content: cgstBreakdown, styles: { halign: 'left', fontStyle: 'bold' } },
-      { content: `Total CGST: ${totalCGST.toFixed(2)}`, styles: { halign: 'right', fontStyle: 'bold' } }
-    ]);
-
-    // SGST Row - Individual breakdowns and total in one row
-    const sgstBreakdown = Array.from(taxRates.SGST.entries())
-      .map(([rate, amount]) => `SGST @${rate}%: ${amount.toFixed(2)}`)
-      .join('   ');
-    
-    taxSummary.push([
-      { content: sgstBreakdown, styles: { halign: 'left', fontStyle: 'bold' } },
-      { content: `Total SGST: ${totalSGST.toFixed(2)}`, styles: { halign: 'right', fontStyle: 'bold' } }
-    ]);
-
-    // IGST Row - Individual breakdowns and total in one row
-    const igstBreakdown = Array.from(taxRates.IGST.entries())
-      .map(([rate, amount]) => `IGST @${rate}%: ${amount.toFixed(2)}`)
-      .join('   ');
-    
-    taxSummary.push([
-      { content: igstBreakdown, styles: { halign: 'left', fontStyle: 'bold' } },
-      { content: `Total IGST: ${totalIGST.toFixed(2)}`, styles: { halign: 'right', fontStyle: 'bold' } }
-    ]);
-
-    // Final calculations
-    const totalTaxAmount = totalCGST + totalSGST + totalIGST;
-    const subtotalAfterDiscount = totalWithoutTax - (purchaseOrder.pendingDiscountAmount || 0);
-    const totalWithTax = subtotalAfterDiscount + totalTaxAmount;
-
-    const roundedTotalWithTax = totalWithTax.toFixed(2);
-    const roundedTotalWithTaxInt = Math.round(totalWithTax);
-    const roundOffAmount = (roundedTotalWithTaxInt - totalWithTax).toFixed(2);
-
-    // Round Off Amount (right aligned)
-    taxSummary.push([
-      { content: '', styles: { halign: 'left' } },
-      { content: `Round Off Amount: ${roundOffAmount}`, styles: { halign: 'right', fontStyle: 'bold' } }
-    ]);
-
-    function capitalizeFirstLetter(str: string) {
-      return str.replace(/\b\w/g, char => char.toUpperCase());
+  // Calculate individual tax amounts
+  purchaseOrder.items.forEach(item => {
+    if (item.taxType === 'cgst_sgst') {
+      const cgstAmount = (item.taxPercentage / 2) * item.newPrice * item.pendingTotalQuantity / 100;
+      const sgstAmount = (item.taxPercentage / 2) * item.newPrice * item.pendingTotalQuantity / 100;
+      taxRates.CGST.set(item.taxPercentage / 2, (taxRates.CGST.get(item.taxPercentage / 2) || 0) + cgstAmount);
+      taxRates.SGST.set(item.taxPercentage / 2, (taxRates.SGST.get(item.taxPercentage / 2) || 0) + sgstAmount);
+    } else if (item.taxType === 'igst') {
+      const igstAmount = item.taxPercentage * item.newPrice * item.pendingTotalQuantity / 100;
+      taxRates.IGST.set(item.taxPercentage, (taxRates.IGST.get(item.taxPercentage) || 0) + igstAmount);
     }
-    const amountInWords = capitalizeFirstLetter(toWords(roundedTotalWithTaxInt)) + ' only';
-    
-    // Amount in Words and Final Total (spanning multiple rows if needed)
-    const wordsLines = doc.splitTextToSize(`Amount In Words: ${amountInWords}`, 120);
-    const totalLine = `Total [Including Tax]: ${roundedTotalWithTaxInt.toFixed(2)}`;
-    
-    if (wordsLines.length === 1) {
-      // Single line for amount in words
-      taxSummary.push([
-        { content: wordsLines[0], styles: { halign: 'left', fontStyle: 'bold' } },
-        { content: '', styles: { halign: 'left' } },
-        { content: totalLine, styles: { halign: 'right', fontStyle: 'bold' } }
-      ]);
-    } else {
-      // Multiple lines for amount in words
-      taxSummary.push([
-        { content: wordsLines[0], styles: { halign: 'left', fontStyle: 'bold' } },
-        { content: '', styles: { halign: 'left' } },
-        { content: '', styles: { halign: 'right', fontStyle: 'bold' } }
-      ]);
-      
-      for (let i = 1; i < wordsLines.length; i++) {
+  });
+
+  const totalWithoutTax = purchaseOrder.items.reduce((sum, item) => sum + (item.pendingTotalPrice ?? 0), 0);
+  
+  // Create tax summary with multi-column approach
+  const taxSummary: any[] = [];
+  
+  // First row: Total Amount and Total Discount (right aligned)
+  taxSummary.push([
+    { content: '', styles: { halign: 'left' } },
+    { content: 'Total Amount:', styles: { halign: 'left' } },
+    { content: totalWithoutTax.toFixed(2), styles: { fontStyle: 'bold' } }
+  ]);
+  
+  taxSummary.push([
+    { content: '', styles: { halign: 'left' } },
+     { content: 'Total Discount:', styles: { halign: 'left' } },
+    { content: `${purchaseOrder.pendingDiscountAmount?.toFixed(2) || '0.00'}`, styles: { fontStyle: 'bold' } }
+  ]);
+
+  // Calculate overall tax totals
+  const totalCGST = Array.from(taxRates.CGST.values()).reduce((sum, amount) => sum + amount, 0);
+  const totalSGST = Array.from(taxRates.SGST.values()).reduce((sum, amount) => sum + amount, 0);
+  const totalIGST = Array.from(taxRates.IGST.values()).reduce((sum, amount) => sum + amount, 0);
+
+  // CGST Row - Individual breakdowns and total in one row
+  const cgstBreakdown = Array.from(taxRates.CGST.entries())
+    .map(([rate, amount]) => `CGST @${rate}%: ${amount.toFixed(2)}`)
+    .join('   ');
+  
+  taxSummary.push([
+    { content: cgstBreakdown, styles: { halign: 'left', fontStyle: 'bold' } },
+    { content: 'Total CGST:', styles: { halign: 'left' } },
+    { content: totalCGST.toFixed(2), styles: { fontStyle: 'bold' } }
+  ]);
+
+  // SGST Row - Individual breakdowns and total in one row
+  const sgstBreakdown = Array.from(taxRates.SGST.entries())
+    .map(([rate, amount]) => `SGST @${rate}%: ${amount.toFixed(2)}`)
+    .join('   ');
+  
+  taxSummary.push([
+    { content: sgstBreakdown, styles: { halign: 'left', fontStyle: 'bold' } },
+     { content: 'Total SGST:', styles: { halign: 'left' } },
+    { content: totalSGST.toFixed(2), styles: { fontStyle: 'bold' } }
+  ]);
+
+  // IGST Row - Individual breakdowns and total in one row
+  const igstBreakdown = Array.from(taxRates.IGST.entries())
+    .map(([rate, amount]) => `IGST @${rate}%: ${amount.toFixed(2)}`)
+    .join('   ');
+  
+  taxSummary.push([
+    { content: igstBreakdown, styles: { halign: 'left', fontStyle: 'bold' } },
+     { content: 'Total IGST:', styles: { halign: 'left' } },
+    { content: totalIGST.toFixed(2), styles: { fontStyle: 'bold' } }
+  ]);
+
+  // Final calculations
+  const totalTaxAmount = totalCGST + totalSGST + totalIGST;
+  const subtotalAfterDiscount = totalWithoutTax - (purchaseOrder.pendingDiscountAmount || 0);
+  const totalWithTax = subtotalAfterDiscount + totalTaxAmount;
+
+  const roundedTotalWithTax = totalWithTax.toFixed(2);
+  const roundedTotalWithTaxInt = Math.round(totalWithTax);
+  const roundOffAmount = (roundedTotalWithTaxInt - totalWithTax).toFixed(2);
+
+  // Round Off Amount (right aligned)
+  taxSummary.push([
+    { content: '', styles: { halign: 'left' } },
+          { content: 'Round Off Amount:', styles: { halign: 'left' } },
+    { content: roundOffAmount, styles: { fontStyle: 'bold' } }
+  ]);
+
+  function capitalizeFirstLetter(str: string) {
+    return str.replace(/\b\w/g, char => char.toUpperCase());
+  }
+  const amountInWords = capitalizeFirstLetter(toWords(roundedTotalWithTaxInt)) + ' only';
+  
+  // Amount in Words and Final Total (spanning multiple rows if needed)
+  const wordsLines = doc.splitTextToSize(`Amount In Words: ${amountInWords}`, 120);
+  const finalTotalLabel = 'Total [Including Tax]:';
+  const finalTotalValue = roundedTotalWithTaxInt.toFixed(2);
+  
+  if (wordsLines.length === 1) {
+    // Single line for amount in words
+    taxSummary.push([
+      { content: wordsLines[0], styles: { halign: 'left', fontStyle: 'bold' } },
+      { content: finalTotalLabel, styles: { halign: 'left', fontStyle: 'bold' } },
+      { content: finalTotalValue, styles: { fontStyle: 'bold' } }
+    ]);
+  } else {
+    // Multiple lines for amount in words
+    for (let i = 0; i < wordsLines.length; i++) {
+      if (i === wordsLines.length - 1) {
+        // Last line: include final total label and value
+        taxSummary.push([
+          { content: wordsLines[i], styles: { halign: 'left', fontStyle: 'bold' } },
+          { content: finalTotalLabel, styles: { halign: 'left', fontStyle: 'bold' } },
+          { content: finalTotalValue, styles: { fontStyle: 'bold' } }
+        ]);
+      } else {
+        // Other lines: empty for columns 1 and 2
         taxSummary.push([
           { content: wordsLines[i], styles: { halign: 'left', fontStyle: 'bold' } },
           { content: '', styles: { halign: 'left' } },
-          { content: i === wordsLines.length - 1 ? totalLine : '', styles: { halign: 'right', fontStyle: 'bold' } }
+          { content: '', styles: { halign: 'center' } }
         ]);
       }
     }
+  }
 
-    doc.autoTable({
-      body: taxSummary,
-      startY: yOffset,
-      theme: 'grid',
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        lineColor: [0, 0, 0],
-        lineWidth: 0.1,
-      },
-      columnStyles: {
-        0: { cellWidth: 80, halign: 'left' },
-        1: { cellWidth: 40, halign: 'left' },
-        2: { cellWidth: 60, halign: 'right' },
-      },
-      bodyStyles: {
-        fontStyle: 'bold',
-      },
-      margin: { bottom: 15 },
-      didDrawPage: (data: { pageCount: number }) => {
-        totalPages = data.pageCount;
-        addFooter(doc, data.pageCount, totalPages);
-      },
-    });
+  doc.autoTable({
+    body: taxSummary,
+    startY: yOffset,
+    theme: 'grid',
+    styles: {
+      fontSize: 8,
+      cellPadding: 2,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.1,
+    },
+    columnStyles: {
+      0: { cellWidth: 115.5, halign: 'left' },
+      1:{cellWidth :36,halign:'left'},
+      2: { cellWidth: 30.2, halign: 'center' },
+    },
+    bodyStyles: {
+      fontStyle: 'bold',
+    },
+    margin: { bottom: 15 },
+    didDrawPage: (data: { pageCount: number }) => {
+      totalPages = data.pageCount;
+      addFooter(doc, data.pageCount, totalPages);
+    },
+  });
 
-    yOffset = doc.autoTable.previous.finalY + 10;
+  yOffset = doc.autoTable.previous.finalY + 10;
 
-    // Terms & Conditions (Left Side)
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Terms & Conditions', 10, yOffset);
-    yOffset += 5;
+  // Terms & Conditions (Left Side)
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Terms & Conditions', 10, yOffset);
+  yOffset += 5;
 
-    const staticTerms = [
-      '1. Please quote our Purchase Order No. in your Delivery Note.',
-      '2. Defective and excess quantity will not be accepted.',
-      '3. Subject to Ramanathapuram Jurisdiction Only',
-    ];
+  const staticTerms = [
+    '1. Please quote our Purchase Order No. in your Delivery Note.',
+    '2. Defective and excess quantity will not be accepted.',
+    '3. Subject to Ramanathapuram Jurisdiction Only',
+  ];
 
-    const maxWidth = 90; // Width for text wrapping
-    const lineHeight = 5; // Line height for consistent spacing
+  const maxWidth = 90; // Width for text wrapping
+  const lineHeight = 5; // Line height for consistent spacing
 
-    // Static Terms
-    staticTerms.forEach((term) => {
-      const lines = doc.splitTextToSize(term, maxWidth);
-      lines.forEach((line: string) => {
-        doc.setFont('helvetica', 'normal');
-        doc.text(line, 10, yOffset);
-        yOffset += lineHeight;
-      });
-    });
-
-    // Dynamic Terms
-    let customTerms = purchaseOrder.termsandConditions;
-    if (Array.isArray(customTerms)) {
-      const validCustomTerms = customTerms.filter(term => typeof term === 'string' && term.trim().length > 0);
-      if (validCustomTerms.length > 0) {
-        yOffset += 2; // Small gap between static and dynamic terms
-        validCustomTerms.forEach((term, index) => {
-          const termNumber = staticTerms.length + index + 1;
-          const customTermWithNumber = `${termNumber}. ${term.trim()}`;
-          const termsLines = doc.splitTextToSize(customTermWithNumber, maxWidth);
-          termsLines.forEach((line: string) => {
-            doc.setFont('helvetica', 'normal');
-            doc.text(line, 10, yOffset);
-            yOffset += lineHeight;
-          });
-        });
-      }
-    } else {
-      console.warn('termsandConditions is not an array or is invalid:', customTerms);
-    }
-
-    // Reset yOffset for Authorized Signatory Image
-    yOffset = doc.autoTable.previous.finalY + 10;
-
-    // Authorized Signatory Image (Right Side Below Tax Summary)
-    const imageUrl = '/images/rejected.jpg';
-    doc.addImage(imageUrl, 'JPEG', 150, yOffset, 30, 25); // Image aligned to the right
-    yOffset += 35; // Space for image height (25) + additional gap
-
-    // Declaration
-    doc.setFont('helvetica', 'bold');
-    doc.text('Declaration:', 10, yOffset);
-    yOffset += 5;
-    const declarationText = 'We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.';
-    const declarationLines = doc.splitTextToSize(declarationText, 180);
-    doc.setFont('helvetica', 'normal');
-    declarationLines.forEach((line: string) => {
+  // Static Terms
+  staticTerms.forEach((term) => {
+    const lines = doc.splitTextToSize(term, maxWidth);
+    lines.forEach((line: string) => {
+      doc.setFont('helvetica', 'normal');
       doc.text(line, 10, yOffset);
       yOffset += lineHeight;
     });
+  });
 
-    // Authorized Signatory Text (Below Declaration)
-    yOffset += 10; // Gap before Authorized Signatory text
-    doc.setFont('helvetica', 'bold');
-    doc.text('Authorized Signatory', 130, yOffset);
-
-    // Update total pages and re-render footers
-    const finalTotalPages = doc.getNumberOfPages();
-    for (let i = 1; i <= finalTotalPages; i++) {
-      doc.setPage(i);
-      addFooter(doc, i, finalTotalPages);
+  // Dynamic Terms
+  let customTerms = purchaseOrder.termsandConditions;
+  if (Array.isArray(customTerms)) {
+    const validCustomTerms = customTerms.filter(term => typeof term === 'string' && term.trim().length > 0);
+    if (validCustomTerms.length > 0) {
+      yOffset += 2; // Small gap between static and dynamic terms
+      validCustomTerms.forEach((term, index) => {
+        const termNumber = staticTerms.length + index + 1;
+        const customTermWithNumber = `${termNumber}. ${term.trim()}`;
+        const termsLines = doc.splitTextToSize(customTermWithNumber, maxWidth);
+        termsLines.forEach((line: string) => {
+          doc.setFont('helvetica', 'normal');
+          doc.text(line, 10, yOffset);
+          yOffset += lineHeight;
+        });
+      });
     }
+  } else {
+    console.warn('termsandConditions is not an array or is invalid:', customTerms);
+  }
 
-    doc.save(`${purchaseOrder.randomId}.pdf`);
-  };
+  // Position for Authorized Signatory Image (right side below tax summary)
+  const taxSummaryEndY = doc.autoTable.previous.finalY;
+  const imageY = taxSummaryEndY + 10;
+  const imageUrl = '/images/rejected.jpg';
+  doc.addImage(imageUrl, 'JPEG', 150, imageY, 30, 25);
+
+  // Declaration below terms
+  doc.setFont('helvetica', 'bold');
+  doc.text('Declaration:', 10, yOffset);
+  yOffset += 5;
+  const declarationText = 'We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.';
+  const declarationLines = doc.splitTextToSize(declarationText, 180);
+  doc.setFont('helvetica', 'normal');
+  declarationLines.forEach((line: string) => {
+    doc.text(line, 10, yOffset);
+    yOffset += lineHeight;
+  });
+
+  // Authorized Signatory Text (Below Declaration, right aligned below image)
+  const signatoryY = imageY + 35 + 10;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Authorized Signatory', 130, signatoryY);
+
+  // Update total pages and re-render footers
+  const finalTotalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= finalTotalPages; i++) {
+    doc.setPage(i);
+    addFooter(doc, i, finalTotalPages);
+  }
+
+  doc.save(`${purchaseOrder.randomId}.pdf`);
+};
   const confirmMovePending = () => {
     // Logic to MovePending changes goes here
     handleUpdateStatus(selectedOrder.purchaseOrderId);
@@ -1501,7 +1509,7 @@ const RejectedPo: React.FC = () => {
                       <TableCell>{order.vendorName}</TableCell>
                       <TableCell>{order.orderDate ? format(new Date(order.orderDate), 'dd-MM-yyyy') : ''}</TableCell> {/* Custom format */}
                       <TableCell>{totalQuantity}</TableCell>
-                      <TableCell>{(order.totalOrderAmount ?? 0).toFixed(2)}</TableCell>
+                      <TableCell>{(order.pendingOrderAmount ?? 0).toFixed(2)}</TableCell>
                       <TableCell>{order.poStatus}</TableCell>
                       <TableCell>
                         <Box display="flex" alignItems="center">
@@ -1679,19 +1687,19 @@ const RejectedPo: React.FC = () => {
                 )}
                 {/* Summary Rows */}
                 <TableRow>
-                  <TableCell colSpan={7} align="right"><strong>Total Discount:</strong></TableCell>
+                  <TableCell colSpan={9} align="right"><strong>Total Discount:</strong></TableCell>
                   <TableCell colSpan={3}>{totalDiscountPrice.toFixed(2)}</TableCell>
                 </TableRow>
                 {Object.entries(taxDetails).map(([key, tax]) => (
                   <TableRow key={key}>
-                    <TableCell colSpan={7} align="right">
+                    <TableCell colSpan={9} align="right">
                       <strong>{tax.type} ({tax.percentage.toFixed(2)}%):</strong>
                     </TableCell>
                     <TableCell colSpan={3}>{tax.amount.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow>
-                  <TableCell colSpan={7} align="right"><strong>Total Order Amount:</strong></TableCell>
+                  <TableCell colSpan={9} align="right"><strong>Total Order Amount:</strong></TableCell>
                   <TableCell colSpan={3}>{totalOrderAmount.toFixed(2)}</TableCell>
                 </TableRow>
               </TableBody>

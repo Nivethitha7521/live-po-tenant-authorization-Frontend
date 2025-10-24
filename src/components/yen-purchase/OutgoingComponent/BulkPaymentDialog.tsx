@@ -1,3 +1,4 @@
+// Full updated BulkPaymentDialog.tsx (handle Date type consistently)
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -52,7 +53,7 @@ interface PaymentDetailsState {
   bankName: string;
   cashAmount: number;
   referenceNumber: string;
-  paymentDate?: Date;
+  paymentDate: Date;  // Ensure it's always a Date object
 }
 
 const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
@@ -68,7 +69,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     bankName: '',
     cashAmount: 0,
     referenceNumber: '',
-    paymentDate: new Date(),
+    paymentDate: new Date(),  // Initialize as current Date
   });
   const [paymentTypeMultiple, setPaymentTypeMultiple] = useState<Record<string, 'full' | 'partial'>>({});
   const [partialAmount, setPartialAmount] = useState<Record<string, string>>({});
@@ -137,22 +138,6 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     );
   }, [selectedOutgoings]);
 
-  // Calculate total payment amount after adjustments
-  const totalPaymentAmount = useMemo(() => {
-    return selectedOutgoings.reduce((total, outgoing) => {
-      const outgoingId = outgoing.outgoingId as string;
-      const paymentType = paymentTypeMultiple[outgoingId] || 'full';
-      
-      if (paymentType === 'full') {
-        const maxAllowed = calculateMaxAllowedPayment(outgoing);
-        return total + maxAllowed;
-      } else {
-        const amount = parseFloat(partialAmount[outgoingId] || '0');
-        return total + (isNaN(amount) ? 0 : amount);
-      }
-    }, 0);
-  }, [selectedOutgoings, paymentTypeMultiple, partialAmount]);
-
   const getVendorDebitNotes = (vendorName: string) => {
     return debits.filter(
       (debit) => debit.vendorName === vendorName &&
@@ -212,6 +197,22 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
 
     return Math.max(0, (outgoing.totalPayableAmount || 0) - allocatedDebits - allocatedAdvances);
   };
+
+  // Calculate total payment amount after adjustments
+  const totalPaymentAmount = useMemo(() => {
+    return selectedOutgoings.reduce((total, outgoing) => {
+      const outgoingId = outgoing.outgoingId as string;
+      const paymentType = paymentTypeMultiple[outgoingId] || 'full';
+      
+      if (paymentType === 'full') {
+        const maxAllowed = calculateMaxAllowedPayment(outgoing);
+        return total + maxAllowed;
+      } else {
+        const amount = parseFloat(partialAmount[outgoingId] || '0');
+        return total + (isNaN(amount) ? 0 : amount);
+      }
+    }, 0);
+  }, [selectedOutgoings, paymentTypeMultiple, partialAmount]);
 
   const validateAmount = (
     outgoingId: string,
@@ -284,7 +285,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
 
   const handlePaymentDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
-    const newDate = dateValue ? new Date(dateValue) : new Date();
+    const newDate = dateValue ? new Date(dateValue) : new Date();  // Ensure Date object
     setPaymentDetails((prev) => ({ ...prev, paymentDate: newDate }));
     setErrors((prev) => ({ ...prev, _paymentDate: '' }));
   };
@@ -412,7 +413,8 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       return false;
     }
 
-    if (paymentDetails.paymentDate && isNaN(paymentDetails.paymentDate.getTime())) {
+    // Validate Date object
+    if (isNaN(paymentDetails.paymentDate.getTime())) {
       newErrors._paymentDate = 'Invalid payment date';
       setErrors((prev) => ({ ...prev, ...newErrors }));
       return false;
@@ -492,11 +494,11 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         (outgoing) => outgoing.outgoingId as string
       );
 
-      // Send Date object directly to backend
+      // Use Date object directly (thunk will serialize to string)
       const bulkPaymentRequest: BulkPaymentRequest = {
         payments,
         outgoingIds,
-        paymentDate: paymentDetails.paymentDate,
+        paymentDate: paymentDetails.paymentDate,  // Pass Date object
       };
 
       const result = await dispatch(processBulkPayment(bulkPaymentRequest)).unwrap();
@@ -520,7 +522,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         bankName: '',
         cashAmount: 0,
         referenceNumber: '',
-        paymentDate: new Date(),
+        paymentDate: new Date(),  // Reset to current Date
       });
       setPaymentTypeMultiple({});
       setPartialAmount({});
@@ -554,7 +556,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       bankName: '',
       cashAmount: 0,
       referenceNumber: '',
-      paymentDate: new Date(),
+      paymentDate: new Date(),  // Reset to Date
     });
     setPaymentTypeMultiple({});
     setPartialAmount({});
@@ -995,7 +997,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
             fullWidth
             label="Payment Date"
             type="date"
-            value={paymentDetails.paymentDate ? paymentDetails.paymentDate.toISOString().split('T')[0] : ''}
+            value={paymentDetails.paymentDate.toISOString().split('T')[0]}  // Serialize Date to string for input
             onChange={handlePaymentDateChange}
             error={!!errors._paymentDate}
             helperText={errors._paymentDate}
@@ -1078,7 +1080,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
               </>
             )}
             <Typography  gutterBottom>
-              <strong>Payment Date:</strong> {paymentDetails.paymentDate?.toLocaleDateString()}
+              <strong>Payment Date:</strong> {paymentDetails.paymentDate.toLocaleDateString()}  
             </Typography>
           </Box>
 
@@ -1094,11 +1096,11 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
             </Typography>
           </Box>
 
-          <Alert severity="warning" sx={{ mt: 2 }}>
+          
             <Typography >
-              Are you sure you want to process this bulk payment? This action cannot be undone.
+              Are you sure you want to process this bulk payment.
             </Typography>
-          </Alert>
+       
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button

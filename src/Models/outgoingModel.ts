@@ -224,7 +224,7 @@ export const initialState: OutgoingState = {
   vendorDebits: {},
   advances: [], // NEW: Initialize advances array
 };
-// outgoingPaymentSlice.ts
+// Updated outgoingModel.ts (interfaces with Date for paymentDate)
 export interface BulkPaymentResponse {
   results: Array<{
     outgoingId: string;
@@ -240,7 +240,7 @@ export interface BulkPaymentResponse {
     vendorPayableReduction: number;
     debitNotesApplied: string[];
     advancePaymentsApplied: string[];
-    paymentDate: Date;
+    paymentDate: Date;  // Changed to Date; parse from ISO string in API response
   }>;
   errors: Array<{
     outgoingId?: string;
@@ -274,7 +274,7 @@ export interface PaymentInfo {
 export interface BulkPaymentRequest {
   payments: PaymentInfo[];
   outgoingIds: string[];
-  paymentDate?: Date;
+  paymentDate?: Date;  // Changed to Date; will serialize to YYYY-MM-DD string when sending
 }
 // NEW: Add Advance Payment interface
 export interface AdvancePayment {

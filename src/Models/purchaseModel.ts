@@ -1,3 +1,4 @@
+// Models/purchaseModel.ts (Updated with string | null for dates)
 import { List } from "postcss/lib/list";
 import { GrnData } from "./grnModel";
 
@@ -8,7 +9,7 @@ export interface Item {
   quantity: number;
   poQuantity: number;
   count: number;
-  expiryDate: Date | null;
+  expiryDate: string | null;  // FIXED: Changed from Date | null to string | null (ISO format)
   eachQuantity: number;
   receivedQuantity?: string | number;
   damagedQuantity: number;
@@ -56,13 +57,13 @@ export interface PurchaseOrderData {
   purchaseOrderId: string;
   vendorName: string;
   vendorContact: string;
-  orderDate: Date | null;
-  approvedDate: Date | null;
-  rejectedDate: Date | null;
-  expectedDeliveryDate: Date | null;
+  orderDate: string | null;  // FIXED: Changed from Date | null to string | null (ISO format)
+  approvedDate: string | null;  // FIXED: Changed from Date | null
+  rejectedDate: string | null;  // FIXED: Changed from Date | null
+  expectedDeliveryDate: string | null;  // FIXED: Changed from Date | null to string | null (ISO format)
   poStatus: string;
   items: Item[];
-  invoiceDate: Date | null;
+  invoiceDate: string | null;  // FIXED: Changed from Date | null
   invoiceNo: string;
   creditLimit: number;
   totalOrderAmount: number;
@@ -204,7 +205,7 @@ export interface PoResponse {
   purchaseOrderId: string;
   randomId: string;
   vendorName?: string;
-  orderDate?: string | null;
+  orderDate?: string | null;  // FIXED: Ensure string | null
   itemDetails: ItemDetailResponsePO[];
 }
 // Define the structure of the state for purchaseList
@@ -247,6 +248,8 @@ export const initialState: PurchaseListState = {
   purchaseList: [],
   purchaseOrders: [],
   purchaseinvoice: [],
+  selectedPo: null,
+  poDialogOpen: false,
   randomIds: [],
   grnList: [],
   loading: false,
@@ -276,8 +279,6 @@ export const initialState: PurchaseListState = {
   importWarnings:[],
   importSuccessMessages: [], // Initialize success messages
   importUpdatedItems: [], // Initialize updated items
-  selectedPo: null,
-  poDialogOpen: false,
 };
 // Define the Item type for the payload
 export interface PurchaseOrderItem {

@@ -6,7 +6,7 @@ import { GrnData } from '../../../Models/grnModel';
 import { ApInvoice, ApInvoiceRandomId, ApInvoiceState, initialState } from '@/Models/apModel';
 
 
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
 
 
 // Fetch AP Invoices with pagination and advanced filtering
@@ -137,36 +137,26 @@ export const cancelApInvoice = createAsyncThunk(
 );
 export const convertToGrnFromApReturned = createAsyncThunk(
   'apinvoice/convertToGrnFromApReturned',
-  async (invoiceId: string, { rejectWithValue, dispatch }) => {
+  async (invoiceId: string, { rejectWithValue }) => {
     try {
-      console.log('Received invoiceId:', invoiceId); // Debugging line
+      console.log('Received invoiceId:', invoiceId);
 
-      // Fetch AP Invoice data
-      const apResponse = await axios.get(`${BASE_URL}/apinvoices/${invoiceId}`);
-      const apData = apResponse.data;
+      // Single API call to handle all updates
+      const response = await axios.patch(
+        `${BASE_URL}/apinvoices/convert-to-grn-from-returned/${invoiceId}`
+      );
 
-      if (!apData.grnId) {
-        throw new Error('GRN ID is missing in AP invoice data');
-      }
+      console.log('Conversion successful:', response.data);
+      return response.data;
 
-      // Get the current date and format it
-      const currentDate = new Date();
-
-      // Prepare the data for updating the GRN
-      const grnUpdateData = {
-        grnId: apData.grnId, // Pass the GRN ID from AP data
-        status: 'active',     // Update status to 'active'
-      };
-
-      // Update the GRN status and lastUpdatedDate
-      const grnUpdateResponse = await axios.patch(`${BASE_URL}/grns/${apData.grnId}`, grnUpdateData);
-
-      // After updating GRN, change the AP invoice status to 'Returned'
-      await axios.patch(`${BASE_URL}/apinvoices/${invoiceId}`, { status: 'Returned' });
-
-      return grnUpdateResponse.data;
     } catch (error: any) {
-      return rejectWithValue(`Failed to update GRN from AP Returned: ${error.response?.data?.message || error.message}`);
+      console.error('Error in convertToGrnFromApReturned:', error);
+      return rejectWithValue(
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to convert AP Returned to GRN'
+      );
     }
   }
 );
@@ -323,13 +313,11 @@ const apInvoiceSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(convertToGrnFromApReturned.fulfilled, (state, action) => {
-        // Update the invoice in the state
-        state.apInvoices = state.apInvoices.map(invoice =>
-          invoice.invoiceId === action.meta.arg
-            ? { ...invoice, status: 'Returned' }
-            : invoice
-        );
+      .addCase(convertToGrnFromApReturned.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+        // No state update needed - backend handled everything
+        // You can refetch data if needed, or rely on background updates
       })
       .addCase(convertToGrnFromApReturned.rejected, (state, action) => {
         state.loading = false;

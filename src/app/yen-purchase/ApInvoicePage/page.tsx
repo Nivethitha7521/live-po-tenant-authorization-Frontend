@@ -104,7 +104,6 @@ const VerifiedApInvoicePage: React.FC = () => {
   const [outgoingDialogOpen, setOutgoingDialogOpen] = useState(false); // For confirming outgoing payment
   const { apInvoices, loading, error, snackbarOpen, snackbarMessage } = useSelector(selectApinvoice);
   const { businesses } = useSelector(selectBusinesses);
-  const { vendors } = useSelector(selectPurchaseOrderState);
   const [discountPrice, setDiscountPrice] = useState(apInvoice.discountPrice || 0);
   // const [apDiscountPrice, setApDiscountPrice] = useState<number>(apInvoice.apDiscountPrice ?? 0);
   const [loadingCenter, setLoading] = useState(false); // Loading state
