@@ -496,7 +496,7 @@ const PaidPaymentComponent = () => {
         headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], lineWidth: 0.1, lineColor: [0, 0, 0] },
         bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0] },
         columnStyles: {
-          3: { halign: 'right' },
+          3: { halign: 'right' }, 
           4: { halign: 'center' }
         },
       });
