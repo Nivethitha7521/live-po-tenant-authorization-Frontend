@@ -515,7 +515,7 @@ const PaidPaymentComponent = () => {
     ];
 
     doc.autoTable({
-      head: [['Description', 'Amount']],
+      head: [['Description', 'Amount']], 
       body: summaryTable,
       startY: yOffset,
       theme: 'grid',
