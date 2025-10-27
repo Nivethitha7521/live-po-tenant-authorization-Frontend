@@ -328,7 +328,7 @@ const generateLedgerPDF = async () => {
       // Draw border around the entire table section
       const tableHeight = data.cursor?.y ? data.cursor.y - tableSectionY : 100;
       
-      doc.setDrawColor(0, 0, 0);
+      doc.setDrawColor(0, 0, 0); 
       doc.setLineWidth(0.2);
       doc.rect(15, tableSectionY, tableSectionWidth, tableHeight);
       
