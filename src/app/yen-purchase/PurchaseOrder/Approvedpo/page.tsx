@@ -1285,61 +1285,73 @@ const CreatePurchase: React.FC = () => {
     setIsTouched,
   ]);
   const filteredOrders = useMemo(() => purchaseList.filter((order) => order.poStatus === "Approved"), [purchaseList]);
-  const handleViewDetailsClick = (orderId: string) => {
-    const selectedOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
-    if (selectedOrder) {
-      setSelectedOrder(selectedOrder);
-      const initializedItems = selectedOrder.items.map((item: Item) => {
-        const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
-        const pendingCount = item.pendingCount || 1;
-        const pendingQuantity = item.pendingQuantity || pendingTotalQuantity;
-        const calculatedPendingCount = pendingTotalQuantity > 0 ? pendingCount : 0;
-        const calculatedPendingQuantity = pendingQuantity;
-        const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
+const handleViewDetailsClick = (orderId: string) => {
+  const rawOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
+  if (rawOrder) {
+    const transformedItems = rawOrder.items.map((item: Item) => ({
+      ...item,
+      expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
+    })) as ItemWithCalculations[];
+    const transformedOrder: PurchaseOrderWithItems = {
+      ...rawOrder,
+      orderDate: rawOrder.orderDate ? new Date(rawOrder.orderDate) : null,
+      expectedDeliveryDate: rawOrder.expectedDeliveryDate ? new Date(rawOrder.expectedDeliveryDate) : null,
+      invoiceDate: rawOrder.invoiceDate ? new Date(rawOrder.invoiceDate) : null,
+      grnDate: null,
+      items: transformedItems,
+    };
+    setSelectedOrder(transformedOrder);
+    const initializedItems = transformedItems.map((item: ItemWithCalculations) => {
+      const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
+      const pendingCount = item.pendingCount || 1;
+      const pendingQuantity = item.pendingQuantity || pendingTotalQuantity;
+      const calculatedPendingCount = pendingTotalQuantity > 0 ? pendingCount : 0;
+      const calculatedPendingQuantity = pendingQuantity;
+      const expiryDate = item.expiryDate instanceof Date ? item.expiryDate : null;
 
-        return {
-          ...item,
-          receivedQuantity: 0, // Initialize to 0 for new session
-          befTaxDiscount: item.befTaxDiscount || 0,
-          afTaxDiscount: item.afTaxDiscount || 0,
-          expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
-          calculatedPendingCount,
-          calculatedPendingQuantity,
-          calculatedTotalPrice: 0,
-          calculatedTaxAmount: 0,
-          calculatedFinalPrice: 0,
-          status: pendingTotalQuantity === 0 ? "Received" : item.status || "Pending",
-        };
-      });
-      setUpdatedItems(initializedItems);
+      return {
+        ...item,
+        receivedQuantity: 0, // Initialize to 0 for new session
+        befTaxDiscount: item.befTaxDiscount || 0,
+        afTaxDiscount: item.afTaxDiscount || 0,
+        expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
+        calculatedPendingCount,
+        calculatedPendingQuantity,
+        calculatedTotalPrice: 0,
+        calculatedTaxAmount: 0,
+        calculatedFinalPrice: 0,
+        status: pendingTotalQuantity === 0 ? "Received" : item.status || "Pending",
+      };
+    });
+    setUpdatedItems(initializedItems);
 
-      const initialTouched = initializedItems.reduce(
-        (acc, _, index) => ({
-          ...acc,
-          [index]: {
-            receivedQuantity: false,
-            befTaxDiscount: false,
-            afTaxDiscount: false,
-          },
-        }),
-        {}
-      );
-      const initialErrors = initializedItems.reduce(
-        (acc, _, index) => ({
-          ...acc,
-          [index]: {
-            receivedQuantity: "",
-            befTaxDiscount: "",
-            afTaxDiscount: "",
-          },
-        }),
-        {}
-      );
-      setTouched(initialTouched);
-      setErrors(initialErrors);
-      setOpenDialog(true);
-    }
-  };
+    const initialTouched = initializedItems.reduce(
+      (acc, _, index) => ({
+        ...acc,
+        [index]: {
+          receivedQuantity: false,
+          befTaxDiscount: false,
+          afTaxDiscount: false,
+        },
+      }),
+      {}
+    );
+    const initialErrors = initializedItems.reduce(
+      (acc, _, index) => ({
+        ...acc,
+        [index]: {
+          receivedQuantity: "",
+          befTaxDiscount: "",
+          afTaxDiscount: "",
+        },
+      }),
+      {}
+    );
+    setTouched(initialTouched);
+    setErrors(initialErrors);
+    setOpenDialog(true);
+  }
+};
   const handleDownload = useCallback(
     async (poid: string) => {
       const purchaseOrder = purchaseList.find((order) => order.purchaseOrderId === poid);

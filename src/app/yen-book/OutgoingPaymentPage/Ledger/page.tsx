@@ -65,11 +65,11 @@ const LedgerPage = () => {
     key: 'selection',
   });
 
-  // Get business address dynamically
+  // Get business address dynamically - fixed duplication
   const getBusinessAddress = () => {
     if (businesses && businesses.length > 0) {
       const business = businesses[0];
-      return `${business.companyName || ''}\n${business.address1 || ''}${business.address2 ? `, ${business.address2}` : ''}\n${business.address1 || ''}, ${business.address2 || ''}\nGSTIN: ${business.gstIn || ''}\nPhone: ${business.phoneNo || ''}`;
+      return `${business.companyName || ''}\n${business.address1 || ''}${business.address2 ? `, ${business.address2}` : ''}\nGSTIN: ${business.gstIn || ''}\nPhone: ${business.phoneNo || ''}`;
     }
     return "Your Company Address & Contact Details";
   };
@@ -124,9 +124,6 @@ const LedgerPage = () => {
   const handleFilterClose = () => {
     dispatch(resetLedgerData());
   };
-
-  // Main PDF generation function with violet theme
-  // Main PDF generation function with violet theme
 const generateLedgerPDF = async () => {
   const doc = new jsPDF();
   
@@ -149,12 +146,12 @@ const generateLedgerPDF = async () => {
     console.log('Logo not available, proceeding without logo');
   }
   
-  // Violet header background
-  doc.setFillColor(138, 43, 226); // Violet color
+  // Header - white background
+  doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, 210, 50, 'F');
   
   // Header text
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(0, 0, 0);
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.text("LEDGER STATEMENT", 105, 35, { align: 'center' });
@@ -170,30 +167,45 @@ const generateLedgerPDF = async () => {
   // Reset text color
   doc.setTextColor(0, 0, 0);
   
-  // Vendor and period info section with light violet background
-  doc.setFillColor(240, 235, 255);
-  doc.rect(15, 55, 180, 40, 'F');
+  // Calculate vendor section height dynamically based on content
+  let vendorSectionHeight = 25; // Minimum height
   
-  doc.setDrawColor(138, 43, 226);
-  doc.setLineWidth(0.5);
-  doc.rect(15, 55, 180, 40);
+  // Calculate additional height needed for vendor details
+  if (selectedVendorName) {
+    const vendor = outgoingVendor.find(v => v.vendorName === selectedVendorName);
+    if (vendor) {
+      const vendorAddress = (vendor as any).address || (vendor as any).vendorAddress;
+      if (vendorAddress) {
+        const addressLines = vendorAddress.split('\n');
+        vendorSectionHeight += addressLines.length * 4;
+      }
+    }
+  }
+  
+  // Vendor and period info section with consistent border
+  const vendorSectionY = 55;
+  const vendorSectionWidth = 180;
+  
+  doc.setFillColor(255, 255, 255);
+  doc.rect(15, vendorSectionY, vendorSectionWidth, vendorSectionHeight, 'F');
+  
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.2);
+  doc.rect(15, vendorSectionY, vendorSectionWidth, vendorSectionHeight);
   
   // Vendor details
   doc.setFontSize(11);
-  doc.setTextColor(75, 0, 130);
   doc.setFont("helvetica", "bold");
   
-  let currentY = 65;
+  let currentY = vendorSectionY + 10;
   
   // Vendor information
   if (selectedVendorName) {
     doc.text(`Vendor: ${selectedVendorName}`, 20, currentY);
     currentY += 6;
     
-    // Get vendor details from outgoingVendor array - using safe property access
     const vendor = outgoingVendor.find(v => v.vendorName === selectedVendorName);
     if (vendor) {
-      // Use optional chaining and type-safe property access
       const vendorGst = (vendor as any).gstNumber || (vendor as any).gstin;
       if (vendorGst) {
         doc.text(`GSTIN: ${vendorGst}`, 20, currentY);
@@ -221,38 +233,42 @@ const generateLedgerPDF = async () => {
   doc.text(`Period: ${startDate} to ${endDate}`, 20, currentY);
   currentY += 6;
 
-  // Opening balance
-  const periodOpeningTransaction = transactions?.find(t => t.type === 'opening_balance');
-  const periodOpeningBalance = periodOpeningTransaction?.balance || ledgerData?.openingBalance || 0;
-  doc.text(
-    `Opening Balance: ${formatCurrency(Math.abs(periodOpeningBalance))} ${periodOpeningBalance >= 0 ? 'Cr' : 'Dr'}`,
-    20,
-    currentY
-  );
 
+  // Table section with same border width as vendor section
+  const tableSectionY = vendorSectionY + vendorSectionHeight + 10;
+  const tableSectionWidth = vendorSectionWidth; // Same width as vendor section
+  
   // Prepare table data
   const columns = [
     { header: 'Date', dataKey: 'date' },
     { header: 'Particulars', dataKey: 'particulars' },
-    { header: 'Debit (₹)', dataKey: 'debit' },
-    { header: 'Credit (₹)', dataKey: 'credit' },
-    { header: 'Balance (₹)', dataKey: 'balance' }
+    { header: 'Debit (Rs.)', dataKey: 'debit' },
+    { header: 'Credit (Rs.)', dataKey: 'credit' },
+    { header: 'Balance (Rs.)', dataKey: 'balance' }
   ];
 
-  const rows = transactions?.map((transaction) => ({
-    date: formatDate(transaction.date),
-    particulars: `${transaction.description}${transaction.notes ? `\n${transaction.notes}` : ''}`,
-    debit: transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00',
-    credit: transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00',
-    balance: transaction.balance === 0 
-      ? '0.00' 
-      : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Cr' : 'Dr'}`
-  })) || [];
+  // Calculate running balance correctly
+  let runningBalance = periodOpeningBalance;
+  
+  const rows = transactions?.map((transaction) => {
+    // Update running balance based on debit/credit
+    runningBalance = runningBalance + transaction.debit_amount - transaction.credit_amount;
+    
+    return {
+      date: formatDate(transaction.date),
+      particulars: `${transaction.description}${transaction.notes ? `\n${transaction.notes}` : ''}`,
+      debit: transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00',
+      credit: transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00',
+      balance: runningBalance === 0 
+        ? '0.00' 
+        : `${formatAmount(Math.abs(runningBalance))} ${runningBalance >= 0 ? 'Cr' : 'Dr'}`
+    };
+  }) || [];
 
   // Calculate totals
   const totalDebit = transactions?.reduce((sum, t) => sum + t.debit_amount, 0) || 0;
   const totalCredit = transactions?.reduce((sum, t) => sum + t.credit_amount, 0) || 0;
-  const periodFinalBalance = transactions?.[transactions.length - 1]?.balance || periodOpeningBalance;
+  const periodFinalBalance = runningBalance;
 
   // Add totals row
   rows.push({
@@ -265,61 +281,66 @@ const generateLedgerPDF = async () => {
       : `${formatAmount(Math.abs(periodFinalBalance))} ${periodFinalBalance >= 0 ? 'Cr' : 'Dr'}`
   });
 
-  // Store the final Y position before table
-  const startY = 100;
-
   // Generate table and get the final Y position
   const tableResult = doc.autoTable({
     columns: columns,
     body: rows,
-    startY: startY,
+    startY: tableSectionY,
+    margin: { left: 15, right: 15 },
+    tableWidth: tableSectionWidth,
     styles: { 
       fontSize: 9, 
-      cellPadding: 4, 
+      cellPadding: 3, // Reduced padding to fit better
       overflow: 'linebreak', 
-      lineWidth: 0.3, 
-      lineColor: [75, 0, 130],
+      lineWidth: 0.2,
+      lineColor: [0, 0, 0],
       textColor: [0, 0, 0],
       font: 'helvetica'
     },
     headStyles: { 
-      fillColor: [138, 43, 226],
-      textColor: [255, 255, 255],
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
-      lineWidth: 0.3,
-      lineColor: [75, 0, 130],
-      fontSize: 10
+      lineWidth: 0.2,
+      lineColor: [0, 0, 0],
+      fontSize: 9 // Slightly smaller header font
     },
     bodyStyles: {
-      lineWidth: 0.3,
-      lineColor: [200, 200, 200]
+      lineWidth: 0.2,
+      lineColor: [0, 0, 0]
     },
     alternateRowStyles: {
-      fillColor: [248, 246, 255]
+      fillColor: [248, 248, 248]
     },
+    // Adjusted column widths to fill entire table width (180mm)
     columnStyles: {
-      date: { cellWidth: 22, halign: 'center' },
-      particulars: { cellWidth: 75 },
+      date: { cellWidth: 20, halign: 'center' },
+      particulars: { cellWidth: 80, halign: 'left' }, // Increased for long text
       debit: { cellWidth: 25, halign: 'right' },
       credit: { cellWidth: 25, halign: 'right' },
-      balance: { cellWidth: 28, halign: 'right', fontStyle: 'bold' }
+      balance: { cellWidth: 30, halign: 'right', fontStyle: 'bold' }
     },
-    margin: { top: startY },
-    // Add page break handling
-    didDrawPage: (data:any) => {
-      // Add footer to each page
-      const pageHeight = doc.internal.pageSize.height;
+    // Remove horizontal scaling to use exact widths
+    horizontalPageBreak: false,
+    tableLineWidth: 0.2,
+    // Add borders around the entire table
+    didDrawPage: (data: any) => {
+      // Draw border around the entire table section
+      const tableHeight = data.cursor?.y ? data.cursor.y - tableSectionY : 100;
       
-      // Violet footer background
-      doc.setFillColor(138, 43, 226);
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.2);
+      doc.rect(15, tableSectionY, tableSectionWidth, tableHeight);
+      
+      // Footer
+      const pageHeight = doc.internal.pageSize.height;
+      doc.setFillColor(255, 255, 255);
       doc.rect(0, pageHeight - 20, 210, 20, 'F');
       
-      // Footer text
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
       
-      // Get current page number - use the pageNumber from autoTable data
       const currentPage = data.pageNumber;
       const totalPages = (doc as any).internal.getNumberOfPages();
       
@@ -328,21 +349,19 @@ const generateLedgerPDF = async () => {
     }
   });
 
-  // Alternative method to add footer if autoTable doesn't provide page numbers correctly
-  // Get total pages using the internal method
+  // Alternative method to add footer and table borders to all pages
   const totalPages = (doc as any).internal.getNumberOfPages();
   
-  // Add footer to all pages
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     const pageHeight = doc.internal.pageSize.height;
     
-    // Violet footer background
-    doc.setFillColor(138, 43, 226);
+    // White footer background
+    doc.setFillColor(255, 255, 255);
     doc.rect(0, pageHeight - 20, 210, 20, 'F');
     
     // Footer text
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(0, 0, 0);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.text(`Page ${i} of ${totalPages}`, 105, pageHeight - 12, { align: 'center' });
@@ -354,7 +373,7 @@ const generateLedgerPDF = async () => {
   doc.save(fileName);
   setOpenDialog(false);
 };
-  const generateLedgerCSV = () => {
+const generateLedgerCSV = () => {
     const columns = ['Date', 'Particulars', 'Debit', 'Credit', 'Balance'];
     const rows = transactions?.map((transaction: Transaction) => [
       formatDate(transaction.date),
@@ -683,8 +702,8 @@ const generateLedgerPDF = async () => {
         </Paper>
 
         {/* Download Dialog */}
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{ backgroundColor: '#8a2be2', color: 'white' }}>
+        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm">
+          <DialogTitle>
             Download Ledger Statement
           </DialogTitle>
           <DialogContent sx={{ p: 3 }}>
@@ -702,7 +721,7 @@ const generateLedgerPDF = async () => {
               startIcon={<PictureAsPdfIcon />}
               color="primary"
               size="large"
-              sx={{ flex: 1, backgroundColor: '#8a2be2' }}
+              sx={{ flex: 1, backgroundColor: '1976d2' }}
             >
               Download PDF
             </Button>

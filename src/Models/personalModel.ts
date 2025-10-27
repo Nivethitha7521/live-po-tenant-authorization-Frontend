@@ -6,7 +6,6 @@ export interface Personal {
     email: string;
     createdDate: Date | null;
     lastupdatedDate: Date | null;
-    status: string;
     randomId: string;
   }
   
@@ -38,7 +37,6 @@ export interface Personal {
       email: '',
       createdDate: null,
       lastupdatedDate: null,
-      status: 'active',
       randomId: '',
     },
   };

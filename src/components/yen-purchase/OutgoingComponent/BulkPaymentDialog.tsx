@@ -1,4 +1,3 @@
-// Full updated BulkPaymentDialog.tsx (handle Date type consistently)
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -81,10 +80,37 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Compute max invoice date for payment date constraints
+  const maxInvoiceDate = useMemo(() => {
+    if (selectedOutgoings.length === 0) return new Date(0);
+    const dates = selectedOutgoings
+      .map(outgoing => new Date(outgoing.invoiceDate || ''))
+      .filter(date => !isNaN(date.getTime()));
+    if (dates.length === 0) return new Date(0);
+    const maxTime = Math.max(...dates.map(d => d.getTime()));
+    return new Date(maxTime);
+  }, [selectedOutgoings]);
+
+  const maxInvoiceDateStr = useMemo(() => 
+    maxInvoiceDate.toISOString().split('T')[0], [maxInvoiceDate]
+  );
+
+  const currentDateStr = useMemo(() => 
+    new Date().toISOString().split('T')[0], []
+  );
+
   useEffect(() => {
     if (open && selectedOutgoings.length > 0) {
       setIsLoading(true);
       setErrors((prev) => ({ ...prev, _general: '' }));
+
+      // Set payment date to current date, but ensure it's after max invoice date
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const maxInv = new Date(maxInvoiceDate);
+      maxInv.setHours(0, 0, 0, 0);
+      const paymentDateToSet = new Date(Math.max(today.getTime(), maxInv.getTime()));
+      setPaymentDetails(prev => ({ ...prev, paymentDate: paymentDateToSet }));
 
       const vendorNames = [
         ...new Set(
@@ -118,7 +144,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         dispatch(clearAdvances());
       }
     };
-  }, [open, selectedOutgoings, dispatch]);
+  }, [open, selectedOutgoings, dispatch, maxInvoiceDate]);
 
   const groupedOutgoings = useMemo(() => {
     return selectedOutgoings.reduce((acc, outgoing) => {
@@ -286,8 +312,23 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
   const handlePaymentDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
     const newDate = dateValue ? new Date(dateValue) : new Date();  // Ensure Date object
+    
+    // Validate against max invoice date
+    const maxInv = new Date(maxInvoiceDate);
+    maxInv.setHours(0, 0, 0, 0);
+    newDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let dateError = '';
+    if (newDate < maxInv) {
+      dateError = 'Payment date cannot be before the latest invoice date';
+    } else if (newDate > today) {
+      dateError = 'Future date not allowed';
+    }
+
+    setErrors(prev => ({ ...prev, _paymentDate: dateError }));
     setPaymentDetails((prev) => ({ ...prev, paymentDate: newDate }));
-    setErrors((prev) => ({ ...prev, _paymentDate: '' }));
   };
 
   const handlePartialAmountChange = (
@@ -416,6 +457,26 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     // Validate Date object
     if (isNaN(paymentDetails.paymentDate.getTime())) {
       newErrors._paymentDate = 'Invalid payment date';
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return false;
+    }
+
+    // Validate against max invoice date and future
+    const selectedDate = new Date(paymentDetails.paymentDate);
+    selectedDate.setHours(0, 0, 0, 0);
+    const maxInv = new Date(maxInvoiceDate);
+    maxInv.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < maxInv) {
+      newErrors._paymentDate = 'Payment date cannot be before the latest invoice date';
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return false;
+    }
+
+    if (selectedDate > today) {
+      newErrors._paymentDate = 'Future date not allowed';
       setErrors((prev) => ({ ...prev, ...newErrors }));
       return false;
     }
@@ -1003,6 +1064,10 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
             helperText={errors._paymentDate}
             InputLabelProps={{
               shrink: true,
+            }}
+            inputProps={{
+              min: maxInvoiceDateStr,
+              max: currentDateStr,
             }}
             autoFocus={false}
             sx={{ mb: 2 }}

@@ -62,7 +62,7 @@ export const fetchOutgoings = createAsyncThunk<
     { rejectWithValue }
   ) => {
     try {
-      const url = 'http://192.168.29.116:8000/purchaseapi/outgoingpayments/';
+      const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
       const params: any = {
         skip: (page - 1) * size,
         limit: size,
@@ -197,7 +197,7 @@ export const processPayment = createAsyncThunk<
         paymentDate: paymentDate.toISOString(),
       };
 
-      await axios.patch(`http://192.168.29.116:8000/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.message || 'Payment processing failed');
     }
@@ -277,7 +277,7 @@ export const processBulkPayment = createAsyncThunk<
       };
 
       const response = await axios.patch(
-        'http://192.168.29.116:8000/purchaseapi/outgoingpayments/bulk/bulk-payment',
+        'https://yenerp.com/purchaseapi/outgoingpayments/bulk/bulk-payment',
         requestPayload
       );
 

@@ -42,7 +42,7 @@ const AccountSettingsPage = () => {
                 sx={{
                   textTransform: 'none', // Prevent uppercase transformation
                   fontWeight: isActive ? 'bold' : 'normal', // Bold text when active
-                  fontSize: isActive ? '26px' : '12px',
+                  fontSize: isActive ? '16px' : '15px',
                   borderRadius: '4px', // Rounded corners
                   padding: '10px 20px', // Same padding for both states
                   width: isActive ? '550px' : '150px', // Adjust width for active state

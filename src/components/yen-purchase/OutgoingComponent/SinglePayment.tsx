@@ -75,6 +75,11 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
 
   const totalPayable = selectedOutgoing?.totalPayableAmount || 0;
 
+  // Compute invoice date string for min date
+  const invoiceDate = selectedOutgoing ? new Date(selectedOutgoing[dateField]) : new Date(0);
+  const invoiceDateStr = invoiceDate.toISOString().split('T')[0];
+  const currentDate = new Date().toISOString().split('T')[0];
+
   useEffect(() => {
     if (selectedOutgoing && open) {
       dispatch(fetchActiveDebitsVendor(selectedOutgoing.vendorName));
@@ -142,6 +147,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     today.setHours(0, 0, 0, 0);
     selectedDate.setHours(0, 0, 0, 0);
     if (selectedDate > today) return { error: 'Future date not allowed', warning: null };
+    if (selectedDate < invoiceDate) return { error: 'Payment date cannot be before invoice date', warning: null };
     return { error: null, warning: null };
   };
 
@@ -367,8 +373,6 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
 
   if (!selectedOutgoing) return null;
 
-  const currentDate = new Date().toISOString().split('T')[0];
-
   return (
     <>
       {/* Main Payment Dialog */}
@@ -411,6 +415,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
             error={!!dateError}
             size="small"
             inputProps={{
+              min: invoiceDateStr,
               max: currentDate,
             }}
           />
