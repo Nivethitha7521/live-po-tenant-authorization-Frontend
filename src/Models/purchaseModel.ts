@@ -55,6 +55,7 @@ export interface Item {
 
 export interface PurchaseOrderData {
   purchaseOrderId: string;
+  type: 'service' | 'vendor';
   vendorName: string;
   vendorContact: string;
   orderDate: string | null;  // FIXED: Changed from Date | null to string | null (ISO format)
