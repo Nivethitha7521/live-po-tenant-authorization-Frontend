@@ -57,7 +57,7 @@ const ItemGroupTable: React.FC<ItemGroupTableProps> = ({
        <Table stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell>S.No</TableCell>
+              <TableCell className='table-number-right'>S.No</TableCell>
               <TableCell>Item Group ID</TableCell>
               <TableCell>Item Group</TableCell>
               <TableCell>Status</TableCell>
@@ -77,7 +77,7 @@ const ItemGroupTable: React.FC<ItemGroupTableProps> = ({
               // Reverse the items to make it Last-In-First-Out
               items.slice().reverse().map((item, index) => (
                 <TableRow key={item.randomId}>
-                  <TableCell>{index + 1}</TableCell>
+                  <TableCell className='table-number-right'>{index + 1}</TableCell>
                   <TableCell>{item.randomId}</TableCell>
                   <TableCell>{item.itemgroupName}</TableCell>
                   <TableCell>{item.status}</TableCell>

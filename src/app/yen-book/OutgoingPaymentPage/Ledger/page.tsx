@@ -37,35 +37,40 @@ import {
   Transaction,
 } from '../../../../features/yen-purchase/Outgoing/ledgerData';
 import { AppDispatch } from '@/redux/store';
-import { VendorDetail } from '@/Models/outgoingModel';
 import { format, parseISO, startOfMonth, endOfDay } from 'date-fns';
 import Papa from 'papaparse';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import { fetchVendorDetails } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import { fetchBusinesses, selectBusinesses } from '@/features/account-setting/businessSlice';
 import moment from 'moment';
 import Link from 'next/link';
 import DateRangeDialog from '@/components/dateRange';
 import YenBookPage from '../../page';
 import 'react-date-range/dist/styles.css';
+import { fetchVendorNames } from '@/features/yen-purchase/PurchaseMaster/vendorSlice';
+
+// Define the interface (assuming it's not imported; add it here or import from appropriate file)
+export interface VendorNameGet {
+  vendorId: string;
+  vendorName: string;
+}
 
 const LedgerPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { ledgerData, loading, error, selectedVendorName, transactions } = useSelector(selectLedger);
   const { businesses } = useSelector(selectBusinesses);
   const [openDialog, setOpenDialog] = useState(false);
-  const [outgoingVendor, setOutgoingVendor] = useState<VendorDetail[]>([]);
+  const [outgoingVendor, setOutgoingVendor] = useState<VendorNameGet[]>([]); // Changed type to VendorNameGet[]
   const isFetchingRef = useRef(false);
   const isInitialLoad = useRef(true);
   const today = new Date();
   const [selectionRange, setSelectionRange] = useState({
     startDate: startOfMonth(today),
-    endDate: endOfDay(today), 
+    endDate: endOfDay(today),
     key: 'selection',
   });
 
-  // Get business address dynamically - fixed duplication
+  // Get business address dynamically
   const getBusinessAddress = () => {
     if (businesses && businesses.length > 0) {
       const business = businesses[0];
@@ -97,12 +102,12 @@ const LedgerPage = () => {
     }).format(amount);
   };
 
-  // Initial data fetching
+  // Initial data fetching - Changed to use fetchVendorNames
   useEffect(() => {
     if (isInitialLoad.current) {
       dispatch(fetchBusinesses());
-      dispatch(fetchVendorDetails({ fetchAll: true })).then((action) => {
-        if (fetchVendorDetails.fulfilled.match(action)) {
+      dispatch(fetchVendorNames()).then((action) => {
+        if (fetchVendorNames.fulfilled.match(action)) {
           setOutgoingVendor(action.payload || []);
         }
       });
@@ -110,7 +115,7 @@ const LedgerPage = () => {
     }
   }, [dispatch]);
 
-  const handleVendorChange = (event: React.SyntheticEvent, newValue: VendorDetail | null) => {
+  const handleVendorChange = (event: React.SyntheticEvent, newValue: VendorNameGet | null) => { // Changed type to VendorNameGet
     dispatch(setSelectedVendorName(newValue?.vendorName || null));
   };
 
@@ -124,266 +129,258 @@ const LedgerPage = () => {
   const handleFilterClose = () => {
     dispatch(resetLedgerData());
   };
-const generateLedgerPDF = async () => {
-  const doc = new jsPDF();
-  
-  // Load and add business logo
-  try {
-    const business = businesses.length > 0 ? businesses[0] : null;
-    if (business && business.imageUrl) {
-      const logoImg = new Image();
-      logoImg.src = business.imageUrl;
-      
-      await new Promise((resolve, reject) => {
-        logoImg.onload = () => {
-          doc.addImage(logoImg, 'JPEG', 20, 15, 25, 25);
-          resolve(true);
-        };
-        logoImg.onerror = reject;
-      });
-    }
-  } catch (error) {
-    console.log('Logo not available, proceeding without logo');
-  }
-  
-  // Header - white background
-  doc.setFillColor(255, 255, 255);
-  doc.rect(0, 0, 210, 50, 'F');
-  
-  // Header text
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text("LEDGER STATEMENT", 105, 35, { align: 'center' });
-  
-  // Business info
-  doc.setFontSize(9);
-  const businessAddress = getBusinessAddress();
-  const addressLines = businessAddress.split('\n');
-  addressLines.forEach((line: string, index: number) => {
-    doc.text(line, 105, 42 + (index * 4), { align: 'center' });
-  });
 
-  // Reset text color
-  doc.setTextColor(0, 0, 0);
-  
-  // Calculate vendor section height dynamically based on content
-  let vendorSectionHeight = 25; // Minimum height
-  
-  // Calculate additional height needed for vendor details
-  if (selectedVendorName) {
-    const vendor = outgoingVendor.find(v => v.vendorName === selectedVendorName);
-    if (vendor) {
-      const vendorAddress = (vendor as any).address || (vendor as any).vendorAddress;
-      if (vendorAddress) {
-        const addressLines = vendorAddress.split('\n');
-        vendorSectionHeight += addressLines.length * 4;
+  const generateLedgerPDF = async () => {
+    const doc = new jsPDF();
+ 
+    // Header - white background (drawn first to avoid overwriting the logo)
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 50, 'F');
+ 
+    // Load and add business logo - Added AFTER white background to ensure it's visible on top
+    try {
+      const business = businesses.length > 0 ? businesses[0] : null;
+      if (business && business.imageUrl) {
+        doc.addImage(business.imageUrl, 'JPEG', 20, 15, 25, 25); // Direct addImage with URL
+      }
+    } catch (error) {
+      console.log('Logo not available, proceeding without logo');
+    }
+ 
+    // Header text
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("LEDGER STATEMENT", 105, 35, { align: 'center' });
+ 
+    // Business info
+    doc.setFontSize(9);
+    const businessAddress = getBusinessAddress();
+    const addressLines = businessAddress.split('\n');
+    addressLines.forEach((line: string, index: number) => {
+      doc.text(line, 105, 42 + (index * 4), { align: 'center' });
+    });
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+ 
+    // Calculate vendor section height dynamically based on content
+    let vendorSectionHeight = 25; // Minimum height
+ 
+    // Calculate additional height needed for vendor details
+    if (selectedVendorName) {
+      const vendor = outgoingVendor.find(v => v.vendorName === selectedVendorName);
+      if (vendor) {
+        // Note: VendorNameGet only has vendorId and vendorName, so no address/GST
+        // vendorSectionHeight remains minimal; address/GST sections skipped below
       }
     }
-  }
-  
-  // Vendor and period info section with consistent border
-  const vendorSectionY = 55;
-  const vendorSectionWidth = 180;
-  
-  doc.setFillColor(255, 255, 255);
-  doc.rect(15, vendorSectionY, vendorSectionWidth, vendorSectionHeight, 'F');
-  
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.2);
-  doc.rect(15, vendorSectionY, vendorSectionWidth, vendorSectionHeight);
-  
-  // Vendor details
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  
-  let currentY = vendorSectionY + 10;
-  
-  // Vendor information
-  if (selectedVendorName) {
-    doc.text(`Vendor: ${selectedVendorName}`, 20, currentY);
+ 
+    // Vendor and period info section with consistent border
+    const vendorSectionY = 55;
+    const vendorSectionWidth = 180;
+ 
+    doc.setFillColor(255, 255, 255);
+    doc.rect(15, vendorSectionY, vendorSectionWidth, vendorSectionHeight, 'F');
+ 
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
+    doc.rect(15, vendorSectionY, vendorSectionWidth, vendorSectionHeight);
+ 
+    // Vendor details
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+ 
+    let currentY = vendorSectionY + 10;
+ 
+    // Vendor information
+    if (selectedVendorName) {
+      doc.text(`Vendor: ${selectedVendorName}`, 20, currentY);
+      currentY += 6;
+     
+      const vendor = outgoingVendor.find(v => v.vendorName === selectedVendorName);
+      if (vendor) {
+        // GSTIN: Skipped as not available in VendorNameGet
+        // Address: Skipped as not available in VendorNameGet
+      }
+    }
+ 
+    // Period information
+    const startDate = moment(selectionRange.startDate).format('DD-MM-YYYY');
+    const endDate = moment(selectionRange.endDate).format('DD-MM-YYYY');
+    doc.text(`Period: ${startDate} to ${endDate}`, 20, currentY);
     currentY += 6;
-    
-    const vendor = outgoingVendor.find(v => v.vendorName === selectedVendorName);
-    if (vendor) {
-      const vendorGst = (vendor as any).gstNumber || (vendor as any).gstin;
-      if (vendorGst) {
-        doc.text(`GSTIN: ${vendorGst}`, 20, currentY);
-        currentY += 6;
+ 
+    // Table section with same border width as vendor section
+    const tableSectionY = vendorSectionY + vendorSectionHeight + 10;
+    const tableSectionWidth = vendorSectionWidth; // Same width as vendor section
+ 
+    // Prepare table data - SHOW NEGATIVE VALUES PROPERLY
+    const columns = [
+      { header: 'Date', dataKey: 'date' },
+      { header: 'Particulars', dataKey: 'particulars' },
+      { header: 'Status', dataKey: 'status' },
+      { header: 'Debit (Rs.)', dataKey: 'debit' },
+      { header: 'Credit (Rs.)', dataKey: 'credit' },
+      { header: 'Balance (Rs.)', dataKey: 'balance' }
+    ];
+    // Use balance directly from API response - SHOW NEGATIVE VALUES
+    const rows = transactions?.map((transaction) => {
+      let balanceDisplay = '0.00';
+      if (transaction.balance !== 0) {
+        if (transaction.balance < 0) {
+          balanceDisplay = `-${formatAmount(Math.abs(transaction.balance))} Dr`;
+        } else {
+          balanceDisplay = `${formatAmount(transaction.balance)} Cr`;
+        }
       }
-      
-      const vendorAddress = (vendor as any).address || (vendor as any).vendorAddress;
-      if (vendorAddress) {
-        const addressLines = vendorAddress.split('\n');
-        addressLines.forEach((line: string, index: number) => {
-          if (index === 0) {
-            doc.text(`Address: ${line}`, 20, currentY);
-          } else {
-            doc.text(line, 27, currentY);
-          }
-          currentY += 4;
-        });
+      return {
+        date: formatDate(transaction.date),
+        particulars: `${transaction.description}${transaction.notes ? `\n${transaction.notes}` : ''}`,
+        status: transaction.status || 'N/A',
+        debit: transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00',
+        credit: transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00',
+        balance: balanceDisplay
+      };
+    }) || [];
+    // Calculate totals from actual transactions
+    const totalDebit = transactions?.reduce((sum, t) => sum + t.debit_amount, 0) || 0;
+    const totalCredit = transactions?.reduce((sum, t) => sum + t.credit_amount, 0) || 0;
+ 
+    // Use the final balance from the last transaction
+    const periodFinalBalance = transactions?.[transactions.length - 1]?.balance || 0;
+    // Format final balance with negative sign
+    let finalBalanceDisplay = '0.00';
+    if (periodFinalBalance !== 0) {
+      if (periodFinalBalance < 0) {
+        finalBalanceDisplay = `-${formatAmount(Math.abs(periodFinalBalance))} Dr`;
+      } else {
+        finalBalanceDisplay = `${formatAmount(periodFinalBalance)} Cr`;
       }
     }
-  }
-  
-  // Period information
-  const startDate = moment(selectionRange.startDate).format('DD-MM-YYYY');
-  const endDate = moment(selectionRange.endDate).format('DD-MM-YYYY');
-  doc.text(`Period: ${startDate} to ${endDate}`, 20, currentY);
-  currentY += 6;
-
-
-  // Table section with same border width as vendor section
-  const tableSectionY = vendorSectionY + vendorSectionHeight + 10;
-  const tableSectionWidth = vendorSectionWidth; // Same width as vendor section
-  
-  // Prepare table data
-  const columns = [
-    { header: 'Date', dataKey: 'date' },
-    { header: 'Particulars', dataKey: 'particulars' },
-    { header: 'Debit (Rs.)', dataKey: 'debit' },
-    { header: 'Credit (Rs.)', dataKey: 'credit' },
-    { header: 'Balance (Rs.)', dataKey: 'balance' }
-  ];
-
-  // Calculate running balance correctly
-  let runningBalance = periodOpeningBalance;
-  
-  const rows = transactions?.map((transaction) => {
-    // Update running balance based on debit/credit
-    runningBalance = runningBalance + transaction.debit_amount - transaction.credit_amount;
-    
-    return {
-      date: formatDate(transaction.date),
-      particulars: `${transaction.description}${transaction.notes ? `\n${transaction.notes}` : ''}`,
-      debit: transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00',
-      credit: transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00',
-      balance: runningBalance === 0 
-        ? '0.00' 
-        : `${formatAmount(Math.abs(runningBalance))} ${runningBalance >= 0 ? 'Cr' : 'Dr'}`
-    };
-  }) || [];
-
-  // Calculate totals
-  const totalDebit = transactions?.reduce((sum, t) => sum + t.debit_amount, 0) || 0;
-  const totalCredit = transactions?.reduce((sum, t) => sum + t.credit_amount, 0) || 0;
-  const periodFinalBalance = runningBalance;
-
-  // Add totals row
-  rows.push({
-    date: '',
-    particulars: 'TOTAL',
-    debit: formatAmount(totalDebit),
-    credit: formatAmount(totalCredit),
-    balance: periodFinalBalance === 0 
-      ? '0.00' 
-      : `${formatAmount(Math.abs(periodFinalBalance))} ${periodFinalBalance >= 0 ? 'Cr' : 'Dr'}`
-  });
-
-  // Generate table and get the final Y position
-  const tableResult = doc.autoTable({
-    columns: columns,
-    body: rows,
-    startY: tableSectionY,
-    margin: { left: 15, right: 15 },
-    tableWidth: tableSectionWidth,
-    styles: { 
-      fontSize: 9, 
-      cellPadding: 3, // Reduced padding to fit better
-      overflow: 'linebreak', 
-      lineWidth: 0.2,
-      lineColor: [0, 0, 0],
-      textColor: [0, 0, 0],
-      font: 'helvetica'
-    },
-    headStyles: { 
-      fillColor: [255, 255, 255],
-      textColor: [0, 0, 0],
-      fontStyle: 'bold',
-      lineWidth: 0.2,
-      lineColor: [0, 0, 0],
-      fontSize: 9 // Slightly smaller header font
-    },
-    bodyStyles: {
-      lineWidth: 0.2,
-      lineColor: [0, 0, 0]
-    },
-    alternateRowStyles: {
-      fillColor: [248, 248, 248]
-    },
-    // Adjusted column widths to fill entire table width (180mm)
-    columnStyles: {
-      date: { cellWidth: 20, halign: 'center' },
-      particulars: { cellWidth: 80, halign: 'left' }, // Increased for long text
-      debit: { cellWidth: 25, halign: 'right' },
-      credit: { cellWidth: 25, halign: 'right' },
-      balance: { cellWidth: 30, halign: 'right', fontStyle: 'bold' }
-    },
-    // Remove horizontal scaling to use exact widths
-    horizontalPageBreak: false,
-    tableLineWidth: 0.2,
-    // Add borders around the entire table
-    didDrawPage: (data: any) => {
-      // Draw border around the entire table section
-      const tableHeight = data.cursor?.y ? data.cursor.y - tableSectionY : 100;
-      
-      doc.setDrawColor(0, 0, 0); 
-      doc.setLineWidth(0.2);
-      doc.rect(15, tableSectionY, tableSectionWidth, tableHeight);
-      
-      // Footer
+    // Add totals row
+    rows.push({
+      date: '',
+      particulars: 'TOTAL',
+      status: '',
+      debit: formatAmount(totalDebit),
+      credit: formatAmount(totalCredit),
+      balance: finalBalanceDisplay
+    });
+    // Generate table and get the final Y position
+    const tableResult = doc.autoTable({
+      columns: columns,
+      body: rows,
+      startY: tableSectionY,
+      margin: { left: 15, right: 15 },
+      tableWidth: tableSectionWidth,
+      styles: {
+        fontSize: 9,
+        cellPadding: 3, // Reduced padding to fit better
+        overflow: 'linebreak',
+        lineWidth: 0.2,
+        lineColor: [0, 0, 0],
+        textColor: [0, 0, 0],
+        font: 'helvetica'
+      },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        lineWidth: 0.2,
+        lineColor: [0, 0, 0],
+        fontSize: 9 // Slightly smaller header font
+      },
+      bodyStyles: {
+        lineWidth: 0.2,
+        lineColor: [0, 0, 0]
+      },
+      alternateRowStyles: {
+        fillColor: [248, 248, 248]
+      },
+      // Adjusted column widths to fill entire table width (180mm)
+      columnStyles: {
+        date: { cellWidth: 25, halign: 'center' },
+        particulars: { cellWidth: 67, halign: 'left' }, // Adjusted for new status column
+        status: { cellWidth: 16, halign: 'center' },
+        debit: { cellWidth: 22, halign: 'right' },
+        credit: { cellWidth: 22, halign: 'right' },
+        balance: { cellWidth: 28, halign: 'right', fontStyle: 'bold' }
+      },
+      // Remove horizontal scaling to use exact widths
+      horizontalPageBreak: false,
+      tableLineWidth: 0.2,
+      // Add borders around the entire table
+      didDrawPage: (data: any) => {
+        // Draw border around the entire table section
+        const tableHeight = data.cursor?.y ? data.cursor.y - tableSectionY : 100;
+       
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.2);
+        doc.rect(15, tableSectionY, tableSectionWidth, tableHeight);
+       
+        // Footer
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, pageHeight - 20, 210, 20, 'F');
+       
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+       
+        const currentPage = data.pageNumber;
+        const totalPages = (doc as any).internal.getNumberOfPages();
+       
+        doc.text(`Page ${currentPage}`, 105, pageHeight - 12, { align: 'center' });
+        doc.text(`Generated on ${moment().format('DD-MM-YYYY HH:mm')}`, 105, pageHeight - 6, { align: 'center' });
+      }
+    });
+    // Alternative method to add footer and table borders to all pages
+    const totalPages = (doc as any).internal.getNumberOfPages();
+ 
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
       const pageHeight = doc.internal.pageSize.height;
+     
+      // White footer background
       doc.setFillColor(255, 255, 255);
       doc.rect(0, pageHeight - 20, 210, 20, 'F');
-      
+     
+      // Footer text
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      
-      const currentPage = data.pageNumber;
-      const totalPages = (doc as any).internal.getNumberOfPages();
-      
-      doc.text(`Page ${currentPage}`, 105, pageHeight - 12, { align: 'center' });
+      doc.text(`Page ${i} of ${totalPages}`, 105, pageHeight - 12, { align: 'center' });
       doc.text(`Generated on ${moment().format('DD-MM-YYYY HH:mm')}`, 105, pageHeight - 6, { align: 'center' });
     }
-  });
+    // Save PDF
+    const fileName = `${selectedVendorName || 'Ledger'}_Statement_${moment().format('DDMMYYYY_HHmm')}.pdf`;
+    doc.save(fileName);
+    setOpenDialog(false);
+  };
 
-  // Alternative method to add footer and table borders to all pages
-  const totalPages = (doc as any).internal.getNumberOfPages();
-  
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    const pageHeight = doc.internal.pageSize.height;
-    
-    // White footer background
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, pageHeight - 20, 210, 20, 'F');
-    
-    // Footer text
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Page ${i} of ${totalPages}`, 105, pageHeight - 12, { align: 'center' });
-    doc.text(`Generated on ${moment().format('DD-MM-YYYY HH:mm')}`, 105, pageHeight - 6, { align: 'center' });
-  }
+  const generateLedgerCSV = () => {
+    const columns = ['Date', 'Particulars', 'Status', 'Debit', 'Credit', 'Balance'];
+   
+    // Use balance directly from API - SHOW NEGATIVE VALUES
+    const rows = transactions?.map((transaction: Transaction) => {
+      let balanceDisplay = '0.00';
+      if (transaction.balance !== 0) {
+        if (transaction.balance < 0) {
+          balanceDisplay = `-${formatAmount(Math.abs(transaction.balance))} Dr`;
+        } else {
+          balanceDisplay = `${formatAmount(transaction.balance)} Cr`;
+        }
+      }
 
-  // Save PDF
-  const fileName = `${selectedVendorName || 'Ledger'}_Statement_${moment().format('DDMMYYYY_HHmm')}.pdf`;
-  doc.save(fileName);
-  setOpenDialog(false);
-};
-const generateLedgerCSV = () => {
-    const columns = ['Date', 'Particulars', 'Debit', 'Credit', 'Balance'];
-    const rows = transactions?.map((transaction: Transaction) => [
-      formatDate(transaction.date),
-      `${transaction.description}${transaction.notes ? ` - ${transaction.notes}` : ''}`,
-      transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00',
-      transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00',
-      transaction.balance === 0
-        ? '0.00'
-        : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Cr' : 'Dr'}`,
-    ]) || [];
+      return [
+        formatDate(transaction.date),
+        `${transaction.description}${transaction.notes ? ` - ${transaction.notes}` : ''}`,
+        transaction.status || 'N/A',
+        transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00',
+        transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00',
+        balanceDisplay,
+      ];
+    }) || [];
 
     const csvData = [columns, ...rows];
     const csv = Papa.unparse(csvData);
@@ -498,13 +495,13 @@ const generateLedgerCSV = () => {
         {/* Filters */}
         <Box sx={{ p: 2, mb: 2 }}>
           <Grid container spacing={2} alignItems="center">
-            {/* Vendor Selection */}
+            {/* Vendor Selection - Updated for VendorNameGet */}
             <Grid item xs={12} md={4}>
               <Autocomplete
                 value={outgoingVendor.find((v) => v.vendorName === selectedVendorName) || null}
                 onChange={handleVendorChange}
                 options={outgoingVendor}
-                getOptionLabel={(option: VendorDetail) => option.vendorName || ''}
+                getOptionLabel={(option: VendorNameGet) => option.vendorName || ''} // Updated type
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -573,7 +570,7 @@ const generateLedgerCSV = () => {
             <Grid item xs={6} md={3}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h6" color="primary.main">
+                  <Typography variant="h6" color={allTimeOpeningBalance >= 0 ? 'primary.main' : 'error.main'}>
                     {formatCurrency(Math.abs(allTimeOpeningBalance))}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
@@ -609,12 +606,15 @@ const generateLedgerCSV = () => {
             <Grid item xs={6} md={3}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h6" color="warning.main">
-                    {formatCurrency(Math.max(0, outstandingAll))}
+                  <Typography variant="h6" color={finalBalance > 0 ? 'warning.main' : 'info.main'}>
+                    {formatCurrency(Math.abs(finalBalance))}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
-                    Outstanding Amount
+                    {finalBalance >= 0 ? 'We Owe Vendor' : 'Vendor Owes Us'}
                   </Typography>
+                  {/* <Typography variant="caption" color="textSecondary">
+                    {finalBalance >= 0 ? '(Need to Pay)' : '(Vendor to Adjust)'}
+                  </Typography> */}
                 </CardContent>
               </Card>
             </Grid>
@@ -624,14 +624,16 @@ const generateLedgerCSV = () => {
         {/* Ledger Table - Filtered */}
         <Paper sx={{ mb: 2,mx:1}}>
           <TableContainer sx={{
-            maxHeight: 'calc(100vh - 400px)',
+            maxHeight: 'calc(100vh - 350px)',
             overflowY: 'auto',
           }}>
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
+                  <TableCell>S.No</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Date</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Particulars</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Status</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Debit (₹)</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Credit (₹)</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Balance (₹)</TableCell>
@@ -648,6 +650,7 @@ const generateLedgerCSV = () => {
                           backgroundColor: transaction.type === 'opening_balance' ? '#e3f2fd' : 'inherit',
                         }}
                       >
+                      <TableCell>{index +1}</TableCell>
                         <TableCell>{formatDate(transaction.date)}</TableCell>
                         <TableCell>
                           {transaction.description}
@@ -657,37 +660,56 @@ const generateLedgerCSV = () => {
                             </Typography>
                           )}
                         </TableCell>
+                        <TableCell sx={{ fontWeight: 'medium' }}>{transaction.status || 'N/A'}</TableCell>
                         <TableCell align="right">
                           {transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00'}
                         </TableCell>
                         <TableCell align="right">
                           {transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00'}
                         </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'medium' }}>
+                        <TableCell 
+                          align="right" 
+                          sx={{ 
+                            fontWeight: 'medium',
+                            color: transaction.balance < 0 ? '#d32f2f' : transaction.balance > 0 ? '#2e7d32' : 'inherit'
+                          }}
+                        >
+                          {/* Show negative values properly */}
                           {transaction.balance === 0
                             ? '0.00'
-                            : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Cr' : 'Dr'}`}
+                            : transaction.balance < 0
+                              ? `-${formatAmount(Math.abs(transaction.balance))} Dr`
+                              : `${formatAmount(transaction.balance)} Cr`}
                         </TableCell>
                       </TableRow>
                     ))}
                     <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                      <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>TOTAL</TableCell>
+                      <TableCell colSpan={4} sx={{ fontWeight: 'bold' }}>TOTAL</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                         {formatAmount(totalDebit)}
                       </TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                         {formatAmount(totalCredit)}
                       </TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                      <TableCell 
+                        align="right" 
+                        sx={{ 
+                          fontWeight: 'bold',
+                          color: finalBalance < 0 ? '#d32f2f' : finalBalance > 0 ? '#2e7d32' : 'inherit'
+                        }}
+                      >
+                        {/* Show final balance with proper negative sign */}
                         {finalBalance === 0
                           ? '0.00'
-                          : `${formatAmount(Math.abs(finalBalance))} ${finalBalance >= 0 ? 'Cr' : 'Dr'}`}
+                          : finalBalance < 0
+                            ? `-${formatAmount(Math.abs(finalBalance))} Dr`
+                            : `${formatAmount(finalBalance)} Cr`}
                       </TableCell>
                     </TableRow>
                   </>
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                       <Typography variant="h6" color="textSecondary">
                         {selectedVendorName
                           ? 'No transactions found for this vendor in the selected date range'

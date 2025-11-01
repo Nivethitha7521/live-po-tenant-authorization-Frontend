@@ -55,19 +55,13 @@ const UOMTable: React.FC<UOMTableProps> = ({
                  width: '100%',
                }}
              >
-        <Table
-          stickyHeader
-          sx={{
-            tableLayout: 'fixed', // Fixes column widths to prevent overflow
-            width: '100%',
-          }}
-        >
+        <Table stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell>S.No</TableCell>
+              <TableCell className='table-number-right'>S.No</TableCell>
               <TableCell>UOM ID</TableCell>
               <TableCell>UOM</TableCell>
-              <TableCell>Precision Value</TableCell>
+              <TableCell className='table-number-right'>Precision Value</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -84,10 +78,10 @@ const UOMTable: React.FC<UOMTableProps> = ({
                 const isFirstFive = items.length >= 5 && index >= items.length - 5;
                 return (
                   <TableRow key={uom.randomId}>
-                    <TableCell>{index + 1}</TableCell>
+                    <TableCell className='table-number-right'>{index + 1}</TableCell>
                     <TableCell>{uom.randomId}</TableCell>
                     <TableCell>{uom.uom}</TableCell>
-                    <TableCell>{uom.precisionValue}</TableCell>
+                    <TableCell className='table-number-right'>{uom.precisionValue}</TableCell>
                     <TableCell>{uom.status}</TableCell>
                     <TableCell>
                       {uom.status === 'active' ? (

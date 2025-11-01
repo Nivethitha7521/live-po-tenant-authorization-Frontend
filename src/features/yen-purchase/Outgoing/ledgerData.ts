@@ -39,10 +39,13 @@ export interface VendorLedgerResponse {
   totalDebitAmount: number;
   totalCreditAmount: number;
   outstandingAmount: number;
-  openingBalance:number;
+  openingBalance: number;
   invoices: InvoiceDetail[];
   transactions: Transaction[];
   lastTransactionDate: string | null;
+  totalActiveAdvances: number;
+  totalActiveDebitNotes: number;
+  totalAvailableCredits: number;
 }
 
 interface LedgerState {
@@ -124,22 +127,15 @@ const ledgerSlice = createSlice({
         state.loading = false;
         state.ledgerData = action.payload;
         
-        // Use transactions directly from API response
+        // Use transactions directly from API response with correct balances
         if (action.payload.transactions && action.payload.transactions.length > 0) {
-          state.transactions = action.payload.transactions;
+          state.transactions = action.payload.transactions.map(transaction => ({
+            ...transaction,
+            // Ensure balance is properly set from API
+            balance: transaction.balance || 0
+          }));
         } else {
-          // Fallback: create transactions from invoices if API doesn't return transactions
-          state.transactions = action.payload.invoices?.map((invoice, index) => ({
-            date: invoice.invoiceDate,
-            type: 'invoice',
-            reference_id: invoice.invoiceNo,
-            description: `Invoice ${invoice.invoiceNo} - PO ${invoice.poId}`,
-            debit_amount: 0,
-            credit_amount: invoice.totalPayableAmount,
-            balance: 0,
-            status: invoice.status,
-            notes: `GRN: ${invoice.grnId}`,
-          })) || [];
+          state.transactions = [];
         }
       })
       .addCase(fetchLedgerData.rejected, (state, action: PayloadAction<any>) => {

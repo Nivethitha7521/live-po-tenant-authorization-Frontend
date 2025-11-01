@@ -48,8 +48,7 @@ export const initialState: PurchaseOrderState = {
     poRejectedPerson: '',
     discountMode: 'percentage',
     roundOffValue: 0,
-    overallDiscountValue: 0,
-    type: 'service'
+    overallDiscountValue: 0
   },
   newItem: {
     itemId: '',
@@ -126,7 +125,7 @@ export const initialState: PurchaseOrderState = {
 let purchaseItemsCache: Map<string, { data: PurchaseItemSearchAdd[], timestamp: number }> = new Map();
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
-const BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
+const BASE_URL = 'https://yenerp.com/purchaseapi';
 
 export const fetchPurchaseOrders = createAsyncThunk(
   'purchaseOrder/fetchPurchaseOrders',
@@ -139,7 +138,7 @@ export const fetchVendorByName = createAsyncThunk<Vendor | undefined, string>(
   'vendors/fetchByName',
   async (vendorName: string) => {
     try {
-      const response = await axios.get<Vendor[]>('http://192.168.29.116:8000/purchaseapi/purchaseorders/vendors/');
+      const response = await axios.get<Vendor[]>('https://yenerp.com/purchaseapi/purchaseorders/vendors/');
       const vendor = response.data.find(v => v.vendorName === vendorName);
       return vendor; // Return the vendor if found, otherwise undefined
     } catch (error) {
@@ -160,7 +159,7 @@ export const fetchAllVendors = createAsyncThunk(
     }
 
     // If not, make the API request to fetch vendors
-    const response = await axios.get<Vendor[]>(`http://192.168.29.116:8000/purchaseapi/vendors/`);
+    const response = await axios.get<Vendor[]>(`https://yenerp.com/purchaseapi/vendors/`);
 
     // Store the fetched vendors in localStorage for future use
     localStorage.setItem('vendors', JSON.stringify(response.data));
@@ -178,7 +177,7 @@ export const invalidatePurchaseItemsCache = () => {
 export const updatePurchaseItem = createAsyncThunk<PurchaseItemSearchAdd, { id: string; data: Partial<PurchaseItemSearch> }>(
   'purchaseOrder/updatePurchaseItem',
   async ({ id, data }) => {
-    const response = await axios.patch<PurchaseItemSearchAdd>(`${BASE_URL}/purchaseitems/${id}`, data);
+    const response = await axios.patch<PurchaseItemSearchAdd>(`${BASE_URL}/rawMaterials/${id}`, data);
     return response.data;
   }
 );
@@ -342,7 +341,7 @@ export const importCsvItems = createAsyncThunk(
 
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post(`http://192.168.29.116:8000/purchaseapi/poimport/import-items-csv`, formData, {
+      const response = await axios.post(`https://yenerp.com/purchaseapi/poimport/import-items-csv`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const { success, message, imported_items, duplicates_merged, errors, updated_items, warnings, success_messages } = response.data;
@@ -423,16 +422,9 @@ export const addPurchaseOrder = createAsyncThunk(
   ) => {
     const purchaseOrderToAdd = {
       ...purchaseOrder,
-      // Ensure type is included if not already present
-      type: purchaseOrder.type || 'vendor',
     };
 
-    // Dynamically determine the endpoint based on type
-    const baseUrl = 'http://192.168.29.116:8000/purchaseapi/purchaseorders';
-    const endpoint = purchaseOrderToAdd.type === 'service' ? '/servicepo' : '/';
-    const fullUrl = `${baseUrl}${endpoint}`;
-
-    const response = await axios.post<PurchaseOrderData>(fullUrl, purchaseOrderToAdd);
+    const response = await axios.post<PurchaseOrderData>(`${BASE_URL}/purchaseorders/`, purchaseOrderToAdd);
     dispatch(setSnackbarMessage('Purchase order processed'));
     return response.data;
   }

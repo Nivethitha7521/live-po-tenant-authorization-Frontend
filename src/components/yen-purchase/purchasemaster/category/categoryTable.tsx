@@ -139,14 +139,10 @@ const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
       >
         <Table
           stickyHeader
-          sx={{
-            tableLayout: 'fixed', // Fixes column widths to prevent overflow
-            width: '100%',
-          }}
         >
           <TableHead>
             <TableRow>
-              <TableCell>S.No</TableCell>
+              <TableCell className='table-number-right'>S.No</TableCell>
               <TableCell>Category ID</TableCell>
               <TableCell>Category Name</TableCell>
               <TableCell>Subcategories</TableCell>
@@ -164,7 +160,7 @@ const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
             ) : (
               displayedCategories.map((category, index) => (
                 <TableRow key={category.purchasecategoryId}>
-                  <TableCell>{index + 1}</TableCell>
+                  <TableCell className='table-number-right'>{index + 1}</TableCell>
                   <TableCell>{category.randomId}</TableCell>
                   <TableCell>{category.purchasecategoryName}</TableCell>
                   <TableCell>

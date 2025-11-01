@@ -56,16 +56,10 @@ const ItemTypeTable: React.FC<ItemTypeTableProps> = ({
           width: '100%',
         }}
       >
-        <Table
-          stickyHeader
-          sx={{
-            tableLayout: 'fixed', // Fixes column widths to prevent overflow
-            width: '100%',
-          }}
-        >
+        <Table stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell>S.No</TableCell>
+              <TableCell className='table-number-right'>S.No</TableCell>
               <TableCell>Item Type ID</TableCell>
               <TableCell>Item Type Name</TableCell>
               <TableCell>Status</TableCell>
@@ -82,7 +76,7 @@ const ItemTypeTable: React.FC<ItemTypeTableProps> = ({
             ) : (
               reversedItems.map((item, index) => (
                 <TableRow key={item.itemtypeId || index}>
-                  <TableCell>{index + 1}</TableCell>
+                  <TableCell className='table-number-right'>{index + 1}</TableCell>
                   <TableCell>{item.randomId}</TableCell>
                   <TableCell>{item.itemtypeName}</TableCell>
                   <TableCell>{item.status}</TableCell>

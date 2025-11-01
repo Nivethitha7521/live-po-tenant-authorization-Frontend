@@ -1343,7 +1343,7 @@ Description:<br />
                     <TableCell>Vendor Name</TableCell>
                     <TableCell>Invoice No</TableCell>
                     <TableCell>Invoice Date</TableCell>
-                    <TableCell>Total Amount</TableCell>
+                    <TableCell>Invoice Amount</TableCell>
                     <TableCell>Tax Details</TableCell>
                     <TableCell>Discount Amount</TableCell>
                     <TableCell>Total</TableCell>

@@ -58,19 +58,13 @@ const VendorTable: React.FC<VendorTableProps> = ({
         sx={{
           maxHeight: 'calc(100vh - 200px)', // Dynamic height based on viewport
           overflowY: 'auto',
-          width: '100%',
         }}
       >
         <Table
-          stickyHeader
-          sx={{
-            tableLayout: 'fixed', // Fixes column widths to prevent overflow
-            width: '100%',
-          }}
-        >
+          stickyHeader >
           <TableHead>
             <TableRow>
-              <TableCell>S.No</TableCell>
+              <TableCell className='table-number-right'>S.No</TableCell>
               <TableCell>Vendor Type ID</TableCell>
               <TableCell>Vendor Type</TableCell>
               <TableCell>Status</TableCell>
@@ -85,7 +79,7 @@ const VendorTable: React.FC<VendorTableProps> = ({
             ) : (
               vendorTypes.map((vendorType, index) => (
                 <TableRow key={vendorType.randomId}>
-                  <TableCell>{index + 1}</TableCell>
+                  <TableCell className='table-number-right'>{index + 1}</TableCell>
                   <TableCell>{vendorType.randomId}</TableCell>
                   <TableCell>{vendorType.vendorType}</TableCell>
                   <TableCell>{vendorType.status}</TableCell>

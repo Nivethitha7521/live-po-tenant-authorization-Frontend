@@ -32,6 +32,7 @@ import { useBeforeUnload } from 'react-use';
 import { VendorSummary } from '@/Models/vendor';
 import ClearIcon from '@mui/icons-material/Clear'; // Add this import at the top with other MUI icon imports
 import SmartDatePicker from '@/components/SmartDatePicker';
+
 // Validation schema
 const validationSchema = Yup.object({
   vendorName: Yup.string().required('Vendor name is required'),
@@ -78,7 +79,6 @@ const PurchaseOrder: React.FC = () => {
   const [overallDiscountValue, setOverallDiscountValue] = useState<number>(0);
   const [overallDiscountMode, setOverallDiscountMode] = useState<'percentage' | 'amount'>('percentage'); // Added state
   const [roundOffValue, setRoundOffValue] = useState<number>(0);
-  const [poType, setPoType] = useState<'service' | 'vendor'>('vendor'); // Added state for PO type
   const itemNameRef = useRef<HTMLInputElement | null>(null);
   const today = new Date();
   const formattedDate = today.toISOString().split('T')[0];
@@ -105,24 +105,25 @@ const PurchaseOrder: React.FC = () => {
   }, [businesses, purchaseOrderData, dispatch]);
   // FIXED: Set default dates as ISO strings only if null
   useEffect(() => {
-  const currentDate = new Date().toISOString(); // FIXED: Use .toISOString()
- 
-  // Set default dates only if they are null/undefined
-  const updatedData = { ...purchaseOrderData };
- 
-  if (!purchaseOrderData.orderDate) {
-    updatedData.orderDate = currentDate;
-  }
- 
-  if (!purchaseOrderData.expectedDeliveryDate) {
-    updatedData.expectedDeliveryDate = currentDate;
-  }
- 
-  // Only dispatch if we actually set defaults
-  if (!purchaseOrderData.orderDate || !purchaseOrderData.expectedDeliveryDate) {
-    dispatch(setPurchaseOrderData(updatedData));
-  }
-}, [dispatch, purchaseOrderData.orderDate, purchaseOrderData.expectedDeliveryDate]); // FIXED: Added deps
+    const currentDate = new Date().toISOString();  // FIXED: Use .toISOString()
+
+    // Set default dates only if they are null/undefined
+    const updatedData = { ...purchaseOrderData };
+
+    if (!purchaseOrderData.orderDate) {
+      updatedData.orderDate = currentDate;
+    }
+
+    if (!purchaseOrderData.expectedDeliveryDate) {
+      updatedData.expectedDeliveryDate = currentDate;
+    }
+
+    // Only dispatch if we actually set defaults
+    if (!purchaseOrderData.orderDate || !purchaseOrderData.expectedDeliveryDate) {
+      dispatch(setPurchaseOrderData(updatedData));
+    }
+  }, [dispatch, purchaseOrderData.orderDate, purchaseOrderData.expectedDeliveryDate]);  // FIXED: Added deps
+
   // Track form dirty state
   useEffect(() => {
     const hasChanges =
@@ -165,6 +166,7 @@ const PurchaseOrder: React.FC = () => {
       item.afTaxDiscountAmount > 0
     );
     setHasItemWiseDiscount(hasDiscount);
+
     // If item-wise discounts exist, reset overall discount
     if (hasDiscount && overallDiscountValue > 0) {
       setOverallDiscountValue(0);
@@ -178,22 +180,23 @@ const PurchaseOrder: React.FC = () => {
       setFormErrors((prev) => ({ ...prev, billingAddress: false }));
     }
   }, [purchaseOrderData.billingAddress]);
-const handleOrderDateChange = (date: Date | null) => {
-  // If date is null, use current date as default
-  const finalDate = date || new Date();
-  dispatch(setPurchaseOrderData({
-    ...purchaseOrderData,
-    orderDate: finalDate.toISOString() // FIXED: Store as ISO string
-  }));
-};
-const handleExpectedDeliveryDateChange = (date: Date | null) => {
-  // If date is null, use current date as default
-  const finalDate = date || new Date();
-  dispatch(setPurchaseOrderData({
-    ...purchaseOrderData,
-    expectedDeliveryDate: finalDate.toISOString() // FIXED: Store as ISO string
-  }));
-};
+  const handleOrderDateChange = (date: Date | null) => {
+    // If date is null, use current date as default
+    const finalDate = date || new Date();
+    dispatch(setPurchaseOrderData({
+      ...purchaseOrderData,
+      orderDate: finalDate.toISOString()  // FIXED: Store as ISO string
+    }));
+  };
+
+  const handleExpectedDeliveryDateChange = (date: Date | null) => {
+    // If date is null, use current date as default
+    const finalDate = date || new Date();
+    dispatch(setPurchaseOrderData({
+      ...purchaseOrderData,
+      expectedDeliveryDate: finalDate.toISOString()  // FIXED: Store as ISO string
+    }));
+  };
   // Calculate totals with updated logic for discount conversion
   const calculateTotals = useMemo(() => {
     let subTotal = 0;
@@ -277,6 +280,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
       setOverallDiscountValue(parsedValue);
     }
   };
+
   const setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amount') => {
     if (hasItemWiseDiscount) {
       dispatch(setSnackbarMessage('Cannot change discount mode when item-wise discounts exist'));
@@ -293,6 +297,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
     }
     setOverallDiscountMode(newMode);
     setOverallDiscountValue(newValue);
+
     if (newValue > 0 && purchaseOrderData.items.length > 0) {
       setLoading(true);
       try {
@@ -346,8 +351,9 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
               befTaxDiscount: calculatedItem.befTaxDiscount,
               befTaxDiscountAmount: calculatedItem.befTaxDiscountAmount,
               afTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,
-              befTaxDiscountType: newMode,
-              afTaxDiscountType: newMode,
+              // FIXED: Preserve original item-level discount types; do not overwrite with overall mode
+              befTaxDiscountType: item.befTaxDiscountType || 'percentage',
+              afTaxDiscountType: item.afTaxDiscountType || 'percentage',
             };
           }
           return item;
@@ -424,15 +430,18 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
   const handleShippingAddressChange = (newValue: string | null) => {
     const selectedShipping = shippingaddress.find((address) => address.address === newValue);
     const addressToSet = selectedShipping ? selectedShipping.address : newValue ?? '';
+
     // Direct update
     dispatch(setPurchaseOrderData({
       ...purchaseOrderData,
       shippingAddress: addressToSet
     }));
+
     if (addressToSet.trim() !== '') {
       setFormErrors(prev => ({ ...prev, shippingAddress: false }));
     }
   };
+
   const handleTextFieldChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index?: number) => {
     const { name, value } = e.target;
     if (index !== undefined) {
@@ -536,13 +545,14 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
   };
   // FIXED: handleClear - reset to ISO strings
   const handleClear = () => {
-      const currentDate = new Date().toISOString(); // FIXED: ISO string
+    const currentDate = new Date().toISOString();  // FIXED: ISO string
+
     dispatch(setPurchaseOrderData({
       purchaseOrderId: '',
       vendorName: '',
       vendorContact: '',
       orderDate: currentDate, // FIXED: ISO string
-    expectedDeliveryDate: currentDate, // FIXED: ISO string
+      expectedDeliveryDate: currentDate, // FIXED: ISO string
       poStatus: '',
       items: [],
       pendingOrderAmount: 0,
@@ -594,7 +604,6 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
     setOverallDiscountValue(0);
     setOverallDiscountMode('percentage'); // Reset to default
     setRoundOffValue(0);
-    setPoType('vendor'); // Reset to default
     setIsFormDirty(false);
     setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, paymentTerms: false, creditLimit: false });
   };
@@ -626,6 +635,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
           }));
           setErrors({ ...errors, pendingCount: false });
         } else if (name === 'pendingQuantity') {
+
           setQuantityInput(value);
           const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
           dispatch(setNewItemData({
@@ -757,10 +767,6 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
   const handleDiscountModeChange = (event: ChangeEvent<HTMLInputElement>) => {
     setItemDiscountModeWithConversion(event.target.value as 'percentage' | 'amount');
   };
-  // Added handler for PO type change
-  const handlePoTypeChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setPoType(event.target.value as 'service' | 'vendor');
-  };
   const handleDelete = (itemId: string) => {
     dispatch(deleteItemFromPurchaseOrder(itemId));
     dispatch(clearItemForEditing());
@@ -805,6 +811,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
     setNewPriceTypeInput(item.newPrice.toString()); // Use raw string, no .toFixed(2)
     setTotals(calculateTotals);
   };
+
   const handleAddItem = useCallback(async () => {
     setErrors({
       itemName: !newItem.itemName,
@@ -1018,6 +1025,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
       dispatch(setSnackbarOpen(true));
       return;
     }
+
     if (overallDiscountValue <= 0) {
       dispatch(setSnackbarMessage('Please enter a valid discount amount'));
       dispatch(setSnackbarOpen(true));
@@ -1047,6 +1055,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
           taxType: item.taxType || 'cgst_sgst',
         };
       });
+
       const payload = {
         items: allItems,
         overallDiscount: overallDiscountMode === 'percentage' ? overallDiscountValue : 0,
@@ -1054,10 +1063,12 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
         overallDiscountType: overallDiscountMode,
         applyOverallDiscount: true,
       };
+
       const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
       if (!result.success) {
         throw new Error(result.error || 'Failed to apply discount');
       }
+
       const updatedItems = purchaseOrderData.items.map(item => {
         const calculatedItem = result.items.find(calc => calc.id === item.itemId);
         if (calculatedItem) {
@@ -1086,6 +1097,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
         }
         return item;
       });
+
       dispatch(setPurchaseOrderData({
         ...purchaseOrderData,
         items: updatedItems,
@@ -1093,6 +1105,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
         pendingDiscountAmount: result.summary.totalDiscountAmount,
         pendingTaxAmount: result.summary.totalTaxAmount,
       }));
+
       dispatch(setSnackbarMessage(
         `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} discount across all items`
       ));
@@ -1176,43 +1189,45 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
       setLoading(false);
     }
   };
+
   const resetDiscount = () => {
     setOverallDiscountValue(0);
     // You might want to also reset individual item discounts here
     dispatch(setSnackbarMessage('Discount reset'));
     dispatch(setSnackbarOpen(true));
   };
- // FIXED: handleSubmit - use ISO strings
- const handleSubmit = async () => {
-  setLoading(true);
-  // Recalculate totals to ensure they're up-to-date
-  const { roundedTotalOrderAmount, roundedTotalDiscount, roundedTotalTax } = calculateTotals;
- 
-  if (!purchaseOrderData.items.length) {
-    dispatch(setSnackbarMessage('At least one item is required.'));
-    dispatch(setSnackbarOpen(true));
-    setLoading(false);
-    return;
-  }
-  // Ensure dates are never null - use current date as fallback
-  const orderDate = purchaseOrderData.orderDate || new Date().toISOString(); // FIXED: ISO string
-  const expectedDeliveryDate = purchaseOrderData.expectedDeliveryDate || new Date().toISOString(); // FIXED: ISO string
-  const dataToSubmit = {
-    ...purchaseOrderData,
-    orderDate: orderDate,
-    expectedDeliveryDate: expectedDeliveryDate,
-    pendingOrderAmount: roundedTotalOrderAmount,
-    pendingDiscountAmount: roundedTotalDiscount,
-    pendingTaxAmount: roundedTotalTax,
-    totalTax: roundedTotalTax,
-    type: poType, // Added type to dataToSubmit
-    isHoldOrder: roundedTotalOrderAmount > purchaseOrderData.creditLimit,
-    overallDiscountType: overallDiscountMode,
-    overallDiscountValue: roundedTotalDiscount,
-    discountPrice: roundedTotalDiscount,
-    totalDiscount: roundedTotalDiscount,
-    roundOffValue: roundOffValue,
-  };
+  // FIXED: handleSubmit - use ISO strings
+  const handleSubmit = async () => {
+    setLoading(true);
+    // Recalculate totals to ensure they're up-to-date
+    const { roundedTotalOrderAmount, roundedTotalDiscount, roundedTotalTax } = calculateTotals;
+
+    if (!purchaseOrderData.items.length) {
+      dispatch(setSnackbarMessage('At least one item is required.'));
+      dispatch(setSnackbarOpen(true));
+      setLoading(false);
+      return;
+    }
+
+    // Ensure dates are never null - use current date as fallback
+    const orderDate = purchaseOrderData.orderDate || new Date().toISOString();  // FIXED: ISO string
+    const expectedDeliveryDate = purchaseOrderData.expectedDeliveryDate || new Date().toISOString();  // FIXED: ISO string
+
+    const dataToSubmit = {
+      ...purchaseOrderData,
+      orderDate: orderDate,
+      expectedDeliveryDate: expectedDeliveryDate,
+      pendingOrderAmount: roundedTotalOrderAmount,
+      pendingDiscountAmount: roundedTotalDiscount,
+      pendingTaxAmount: roundedTotalTax,
+      totalTax: roundedTotalTax,
+      isHoldOrder: roundedTotalOrderAmount > purchaseOrderData.creditLimit,
+      overallDiscountType: overallDiscountMode,
+      overallDiscountValue: roundedTotalDiscount,
+      discountPrice: roundedTotalDiscount,
+      totalDiscount: roundedTotalDiscount,
+      roundOffValue: roundOffValue,
+    };
     try {
       const result = await dispatch(addPurchaseOrder(dataToSubmit)).unwrap();
       dispatch(setSnackbarMessage(
@@ -1278,20 +1293,6 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                 size="small"
                 variant="outlined"
               />
-            </Grid>
-            {/* Added Radio Group for PO Type */}
-            <Grid item xs={12} sm={3} md={2}>
-              <FormControl component="fieldset" fullWidth>
-                <RadioGroup
-                  row
-                  value={poType}
-                  onChange={handlePoTypeChange}
-                  sx={{ display: 'flex', justifyContent: 'space-around' }}
-                >
-                  <FormControlLabel value="vendor" control={<Radio size="small" />} label="Raw" />
-                  <FormControlLabel value="service" control={<Radio size="small" />} label="Service" />
-                </RadioGroup>
-              </FormControl>
             </Grid>
             <Grid item xs={12} sm={3} md={2}>
               <VendorAutocomplete
@@ -1359,6 +1360,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                 maxDate={new Date()}
               />
             </Grid>
+
             <Grid item xs={12} sm={3} md={2}>
               <SmartDatePicker
                 label="Expected Delivery Date"
@@ -1676,7 +1678,6 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                 </Grid>
               </Grid>
             </Box>
-            {/* Table with items */}
             <TableContainer sx={{ maxHeight: '500px', overflowY: 'auto', marginBottom: '10px' }}>
               <Table stickyHeader>
                 <TableHead
@@ -1693,14 +1694,14 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                 >
                   <TableRow>
                     <TableCell sx={{ fontWeight: 'bold' }}>Item Name</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Quantity</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>UOM</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Existing Price</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>New Price</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Discount</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Tax (%)</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Total Price</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                    <TableCell className='table-number-right' sx={{ fontWeight: 'bold' }}>Quantity</TableCell>
+                    <TableCell className='table-text-left' sx={{ fontWeight: 'bold' }}>UOM</TableCell>
+                    <TableCell className='table-number-right' sx={{ fontWeight: 'bold' }}>Existing Price</TableCell>
+                    <TableCell className='table-number-right' sx={{ fontWeight: 'bold' }}>New Price</TableCell>
+                    <TableCell className='table-number-right' sx={{ fontWeight: 'bold' }}>Discount</TableCell>
+                    <TableCell className='table-number-right' sx={{ fontWeight: 'bold' }}>Tax (%)</TableCell>
+                    <TableCell className='table-number-right' sx={{ fontWeight: 'bold' }}>Total Price</TableCell>
+                    <TableCell className='table-number-right' sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1711,18 +1712,17 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                   ) : (
                     purchaseOrderData.items.map((item, index) => (
                       <TableRow key={index}>
-                        <TableCell sx={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.itemName || 'N/A'}</TableCell>
-                        <TableCell align="right">{item.pendingTotalQuantity || 0}</TableCell>
-                        <TableCell align="right">{item.uom}</TableCell>
-                        <TableCell align="right">{(item.existingPrice || 0).toFixed(2)}</TableCell>
-                        <TableCell align="right">{(item.newPrice || 0).toFixed(2)}</TableCell>
-                        <TableCell align="right">
-                          {(item.befTaxDiscount > 0 ? item.befTaxDiscount : item.afTaxDiscount) || (item.befTaxDiscountAmount > 0 ? item.befTaxDiscountAmount : item.afTaxDiscountAmount) || 0}
-                          {(item.befTaxDiscount > 0 || item.afTaxDiscount > 0) ? (item.befTaxDiscountType === 'percentage' ? '%' : '') : (item.befTaxDiscountAmount > 0 || item.afTaxDiscountAmount > 0) ? '' : ''}
+                        <TableCell sx={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }} className="table-text-left">{item.itemName || 'N/A'}</TableCell>
+                        <TableCell className='table-number-right'>{item.pendingTotalQuantity || 0}</TableCell>
+                        <TableCell className='table-text-left'>{item.uom}</TableCell>
+                        <TableCell className='table-number-right'>{(item.existingPrice || 0).toFixed(2)}</TableCell>
+                        <TableCell className='table-number-right'>{(item.newPrice || 0).toFixed(2)}</TableCell>
+                        <TableCell className='table-number-right'>
+                          {`${(item.befTaxDiscount || item.afTaxDiscount || item.befTaxDiscountAmount || item.afTaxDiscountAmount || 0).toFixed(2)}%`}
                         </TableCell>
-                        <TableCell align="right">{item.taxPercentage}%</TableCell>
-                        <TableCell align="right">{(item.pendingTotalPrice || 0).toFixed(2)}</TableCell>
-                        <TableCell align="right">
+                        <TableCell className='table-number-right'>{item.taxPercentage}%</TableCell>
+                        <TableCell className='table-number-right'>{(item.pendingTotalPrice || 0).toFixed(2)}</TableCell>
+                        <TableCell className='table-number-right'>
                           <IconButton onClick={() => handleEdit(item)} size="small"><EditIcon /></IconButton>
                           <IconButton onClick={() => handleDelete(item.itemId)} size="small"><DeleteIcon /></IconButton>
                         </TableCell>
@@ -1730,10 +1730,10 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                     ))
                   )}
                   <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
-                    <TableCell colSpan={7} align="right">
+                    <TableCell className='table-number-right' colSpan={7} align="right">
                       <strong>Sub Total:</strong>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell className='table-number-right' align="right">
                       <strong>{totals.subTotal.toFixed(2)}</strong>
                     </TableCell>
                     <TableCell />
@@ -1746,10 +1746,10 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                       <React.Fragment key={taxPercentage}>
                         {pendingIgst > 0 && (
                           <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
-                            <TableCell colSpan={7} align="right">
+                            <TableCell colSpan={7} className='table-number-right'>
                               <strong>IGST ({percentage}%)</strong>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell className='table-number-right'>
                               {pendingIgst.toFixed(2)}
                             </TableCell>
                             <TableCell />
@@ -1757,10 +1757,10 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                         )}
                         {pendingSgst > 0 && (
                           <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
-                            <TableCell colSpan={7} align="right">
+                            <TableCell colSpan={7} className='table-number-right'>
                               <strong>SGST ({halfPercentage}%)</strong>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell className='table-number-right'>
                               {pendingSgst.toFixed(2)}
                             </TableCell>
                             <TableCell />
@@ -1768,10 +1768,10 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                         )}
                         {pendingCgst > 0 && (
                           <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
-                            <TableCell colSpan={7} align="right">
+                            <TableCell colSpan={7} className='table-number-right'>
                               <strong>CGST ({halfPercentage}%)</strong>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell className='table-number-right'>
                               {pendingCgst.toFixed(2)}
                             </TableCell>
                             <TableCell />
@@ -1781,10 +1781,10 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                     );
                   })}
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={7} align="right">
+                    <TableCell colSpan={7} >
                       <strong>Total Tax:</strong>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell className='table-number-right'>
                       <strong>{totals.roundedTotalTax.toFixed(2)}</strong>
                     </TableCell>
                     <TableCell />
@@ -1793,7 +1793,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                     <TableCell colSpan={7} align="right">
                       <strong>Item-wise Discount:</strong>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell className='table-number-right'>
                       <strong>{totals.itemDiscountAmount.toFixed(2)}</strong>
                     </TableCell>
                     <TableCell />
@@ -1802,7 +1802,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                     <TableCell colSpan={7} align="right">
                       <strong>Overall Discount:</strong>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell className='table-number-right'>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <TextField
                           value={overallDiscountValue === 0 ? '' : overallDiscountValue.toString()}
@@ -1856,7 +1856,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                     <TableCell colSpan={7} align="right">
                       <strong>Total Discount:</strong>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell className='table-number-right'>
                       <strong>{totals.roundedTotalDiscount.toFixed(2)}</strong>
                     </TableCell>
                     <TableCell />
@@ -1865,7 +1865,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                     <TableCell colSpan={7} align="right">
                       <strong>Round Off/Adjustment:</strong>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell className='table-number-right'>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <TextField
                           value={roundOffValue === 0 ? '' : roundOffValue.toString()}
@@ -1887,7 +1887,7 @@ const handleExpectedDeliveryDateChange = (date: Date | null) => {
                     <TableCell colSpan={7} align="right">
                       <strong style={{ fontSize: '1.2em' }}>FINAL AMOUNT:</strong>
                     </TableCell>
-                    <TableCell align="right" sx={{ fontSize: '1.2em', fontWeight: 'bold' }}>
+                    <TableCell className='table-number-right' sx={{ fontSize: '1.2em', fontWeight: 'bold' }}>
                       <strong>{totals.roundedTotalOrderAmount.toFixed(2)}</strong>
                     </TableCell>
                     <TableCell />

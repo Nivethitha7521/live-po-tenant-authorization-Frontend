@@ -36,14 +36,14 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
       <Table stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell>S.No</TableCell>
-            <TableCell>Item Code</TableCell>
+            <TableCell className='table-number-right'>S.No</TableCell>
+            <TableCell className='table-number-right'>Item Code</TableCell>
             <TableCell>Item ID</TableCell>
             <TableCell>Item Name</TableCell>
             <TableCell>Category</TableCell>
             <TableCell>SubCategory</TableCell>
             <TableCell>Item Group</TableCell>
-            <TableCell>Purchase Price</TableCell>
+            <TableCell className='table-number-right'>Purchase Price</TableCell>
             <TableCell>Created Date</TableCell>
             <TableCell>Last Updated Date</TableCell>
             <TableCell>Actions</TableCell>
@@ -65,14 +65,14 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
           ) : (
             items.map((item, index) => (
               <TableRow key={item.purchaseitemId || index}>
-                <TableCell>{index + 1}</TableCell>
-                <TableCell>{item.itemCode}</TableCell>
+                <TableCell className='table-number-right'>{index + 1}</TableCell>
+                <TableCell className='table-number-right'>{item.itemCode}</TableCell>
                 <TableCell>{item.randomId}</TableCell>
                 <TableCell>{item.itemName || 'N/A'}</TableCell>
                 <TableCell>{item.purchasecategoryName || 'N/A'}</TableCell>
                 <TableCell>{item.purchasesubcategoryName || 'N/A'}</TableCell>
                 <TableCell>{item.itemgroupName || 'N/A'}</TableCell>
-                <TableCell>{item.purchasePrice !== null ? item.purchasePrice : 'N/A'}</TableCell>
+                <TableCell className='table-number-right'>{item.purchasePrice !== null ? item.purchasePrice : 'N/A'}</TableCell>
                 <TableCell>{item.createdDate ? format(item.createdDate, 'dd-MM-yyyy') : ''}</TableCell>
                 <TableCell>{item.lastUpdatedDate ? format(item.lastUpdatedDate, 'dd-MM-yyyy') : ''}</TableCell>
                 <TableCell>

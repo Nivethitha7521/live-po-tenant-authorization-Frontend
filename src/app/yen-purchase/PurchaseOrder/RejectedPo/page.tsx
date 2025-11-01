@@ -1484,12 +1484,12 @@ const RejectedPo: React.FC = () => {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>S.No</TableCell>
+                <TableCell className='table-number-right'>S.No</TableCell>
                 <TableCell>Order ID</TableCell>
                 <TableCell>Vendor Name</TableCell>
                 <TableCell>Order Date</TableCell>
-                <TableCell>Total PO Items</TableCell>
-                <TableCell>Total Price</TableCell>
+                <TableCell className='table-number-right'>Total PO Items</TableCell>
+                <TableCell className='table-number-right'>Total Price</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>View Details</TableCell>
               </TableRow>
@@ -1504,12 +1504,12 @@ const RejectedPo: React.FC = () => {
                   const totalQuantity = Array.isArray(order.items) ? order.items.reduce((acc, item) => acc + item.pendingTotalQuantity, 0) : 0;
                   return (
                     <TableRow key={order.purchaseOrderId}>
-                      <TableCell>{index + 1}</TableCell>
+                      <TableCell className='table-number-right'>{index + 1}</TableCell>
                       <TableCell>{order.randomId}</TableCell>
                       <TableCell>{order.vendorName}</TableCell>
                       <TableCell>{order.orderDate ? format(new Date(order.orderDate), 'dd-MM-yyyy') : ''}</TableCell> {/* Custom format */}
-                      <TableCell>{totalQuantity}</TableCell>
-                      <TableCell>{(order.pendingOrderAmount ?? 0).toFixed(2)}</TableCell>
+                      <TableCell className='table-number-right'>{totalQuantity}</TableCell>
+                      <TableCell className='table-number-right'>{(order.pendingOrderAmount ?? 0).toFixed(2)}</TableCell>
                       <TableCell>{order.poStatus}</TableCell>
                       <TableCell>
                         <Box display="flex" alignItems="center">
@@ -1637,16 +1637,16 @@ const RejectedPo: React.FC = () => {
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell>Item Id</TableCell>
+                  <TableCell className='table-number-right'>Item Id</TableCell>
                   <TableCell>Item Name</TableCell>
                   <TableCell>Uom</TableCell>
-                  <TableCell>Pkt Count</TableCell>
-                  <TableCell>Quantity</TableCell>
-                  <TableCell>PO Quantity</TableCell>
-                  <TableCell>Price</TableCell>
-                  <TableCell>Discount</TableCell> {/* New column for total discount (befTax + afTax) */}
-                  <TableCell>Tax Amount</TableCell> {/* New column for tax amount */}
-                  <TableCell>Total Price</TableCell>
+                  <TableCell className='table-number-right'>Pkt Count</TableCell>
+                  <TableCell className='table-number-right'>Quantity</TableCell>
+                  <TableCell className='table-number-right'>PO Quantity</TableCell>
+                  <TableCell className='table-number-right'>Price</TableCell>
+                  <TableCell className='table-number-right'>Discount</TableCell> {/* New column for total discount (befTax + afTax) */}
+                  <TableCell className='table-number-right'>Tax Amount</TableCell> {/* New column for tax amount */}
+                  <TableCell className='table-number-right'>Total Price</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -1671,16 +1671,16 @@ const RejectedPo: React.FC = () => {
 
                     return (
                       <TableRow key={item.itemId}>
-                        <TableCell>{index + 1}</TableCell>
+                        <TableCell className='table-number-right'>{index + 1}</TableCell>
                         <TableCell>{item.itemName || 'N/A'}</TableCell>
                         <TableCell>{item.uom || 'N/A'}</TableCell>
-                        <TableCell>{item.pendingCount || 0}</TableCell>
-                        <TableCell>{item.pendingQuantity || 0}</TableCell>
-                        <TableCell>{item.poQuantity || 0}</TableCell>
-                        <TableCell>{(item.newPrice || 0).toFixed(2)}</TableCell>
-                        <TableCell>{itemDiscount.toFixed(2)}</TableCell>
-                        <TableCell>{taxAmount.toFixed(2)}</TableCell>
-                        <TableCell>{(item.pendingTotalPrice || 0).toFixed(2)}</TableCell>
+                        <TableCell className='table-number-right'>{item.pendingCount || 0}</TableCell>
+                        <TableCell className='table-number-right'>{item.pendingQuantity || 0}</TableCell>
+                        <TableCell className='table-number-right'>{item.poQuantity || 0}</TableCell>
+                        <TableCell className='table-number-right'>{(item.newPrice || 0).toFixed(2)}</TableCell>
+                        <TableCell className='table-number-right'>{itemDiscount.toFixed(2)}</TableCell>
+                        <TableCell className='table-number-right'>{taxAmount.toFixed(2)}</TableCell>
+                        <TableCell className='table-number-right'>{(item.pendingTotalPrice || 0).toFixed(2)}</TableCell>
                       </TableRow>
                     );
                   })

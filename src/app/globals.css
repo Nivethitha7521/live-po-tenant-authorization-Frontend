@@ -553,3 +553,19 @@ label[data-shrink=false]+.MuiInputBase-formControl .css-1n4twyu-MuiInputBase-inp
   max-height: 90vh !important;
   overflow-y: auto !important;
 }
+/* Ensure number columns are properly right-aligned */
+.table-number-right {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important; /* Monospace numbers */
+}
+
+.table-text-left {
+  text-align: left !important;
+}
+
+/* Specific column widths for your purchase order table */
+table.MuiTable-root th:nth-child(1), /* S.No */
+table.MuiTable-root td:nth-child(1) {
+  width: 30px !important;
+  min-width: 30px !important;
+}

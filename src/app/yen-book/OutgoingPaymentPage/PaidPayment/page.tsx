@@ -808,7 +808,7 @@ const PaidPaymentComponent = () => {
         </Grid>
 
         {/* FIXED: View Details Dialog */}
-        <Dialog open={openDetailsDialog} onClose={handleCloseDetailsDialog} maxWidth="md" fullWidth>
+        <Dialog open={openDetailsDialog} onClose={handleCloseDetailsDialog} maxWidth="lg" fullWidth>
           <DialogTitle>Payment Details</DialogTitle>
           <DialogContent>
             {selectedOutgoing && (

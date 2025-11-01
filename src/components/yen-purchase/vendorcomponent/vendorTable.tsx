@@ -90,23 +90,17 @@ const VendorTable: React.FC<VendorTableProps> = ({
           width: '100%',
         }}
       >
-        <Table
-          stickyHeader
-          sx={{
-            tableLayout: 'fixed',
-            width: '100%',
-          }}
-        >
+        <Table stickyHeader>
           <TableHead>
             <TableRow>
-              {selectedHeaders.includes('vendorId') && <TableCell sx={{ width: '60px' }}>{headerNameMap['vendorId']}</TableCell>}
+              {selectedHeaders.includes('vendorId') && <TableCell className='table-number-right' sx={{ width: '60px' }}>{headerNameMap['vendorId']}</TableCell>}
               {selectedHeaders.includes('randomId') && <TableCell sx={{ width: '120px' }}>{headerNameMap['randomId']}</TableCell>}
               {selectedHeaders.includes('vendorName') && <TableCell sx={{ width: '200px' }}>{headerNameMap['vendorName']}</TableCell>}
               {selectedHeaders.includes('contactpersonName') && (
                 <TableCell sx={{ width: '150px' }}>{headerNameMap['contactpersonName']}</TableCell>
               )}
               {selectedHeaders.includes('contactpersonPhone') && (
-                <TableCell sx={{ width: '150px' }}>{headerNameMap['contactpersonPhone']}</TableCell>
+                <TableCell  sx={{ width: '100px' }}>{headerNameMap['contactpersonPhone']}</TableCell>
               )}
               {selectedHeaders.includes('contactpersonEmail') && (
                 <TableCell sx={{ width: '200px' }}>{headerNameMap['contactpersonEmail']}</TableCell>
@@ -141,7 +135,7 @@ const VendorTable: React.FC<VendorTableProps> = ({
                 const rowKey = vendor.vendorId ?? `vendor-${index}-${vendor.randomId ?? globalIndex}`;
                 return (
                   <TableRow key={rowKey}>
-                    {selectedHeaders.includes('vendorId') && <TableCell sx={{ width: '60px' }}>{globalIndex}</TableCell>}
+                    {selectedHeaders.includes('vendorId') && <TableCell className='table-number-right' sx={{ width: '60px' }}>{globalIndex}</TableCell>}
                     {selectedHeaders.includes('randomId') && (
                       <TableCell sx={{ width: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {vendor.randomId}
@@ -158,7 +152,7 @@ const VendorTable: React.FC<VendorTableProps> = ({
                       </TableCell>
                     )}
                     {selectedHeaders.includes('contactpersonPhone') && (
-                      <TableCell sx={{ width: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <TableCell sx={{ width: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {vendor.contactpersonPhone}
                       </TableCell>
                     )}

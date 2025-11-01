@@ -73,19 +73,13 @@ const PurchaseTaxTable: React.FC<PurchaseTaxTableProps> = ({
           width: '100%',
         }}
       >
-        <Table
-          stickyHeader
-          sx={{
-            tableLayout: 'fixed', // Fixes column widths to prevent overflow
-            width: '100%',
-          }}
-        >
+        <Table stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell>S.No</TableCell>
+              <TableCell className='table-number-right'>S.No</TableCell>
               <TableCell>Tax ID</TableCell>
               <TableCell>Tax Name</TableCell>
-              <TableCell>Tax Percentage</TableCell>
+              <TableCell className='table-number-right'>Tax Percentage</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -100,10 +94,10 @@ const PurchaseTaxTable: React.FC<PurchaseTaxTableProps> = ({
             ) : (
               filteredPurchaseTaxes.map((tax, index) => (
                 <TableRow key={tax.purchasetaxId}>
-                  <TableCell>{index + 1}</TableCell>
+                  <TableCell className='table-number-right'>{index + 1}</TableCell>
                   <TableCell>{tax.randomId}</TableCell>
                   <TableCell>{tax.purchasetaxName}</TableCell>
-                  <TableCell>{`${tax.purchasetaxPercentage}%`}</TableCell>
+                  <TableCell className='table-number-right'>{`${tax.purchasetaxPercentage}%`}</TableCell>
                   <TableCell>{tax.status}</TableCell>
                   <TableCell>
                     {tax.status === 'active' ? (

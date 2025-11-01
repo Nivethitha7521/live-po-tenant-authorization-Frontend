@@ -51,7 +51,7 @@ const PurchaseSubcategoryTable: React.FC<PurchaseSubcategoryTableProps> = ({
 
   return (
     <>
-  <TableContainer
+      <TableContainer
         component={Paper}
         sx={{
           maxHeight: 'calc(100vh - 200px)', // Dynamic height based on viewport
@@ -59,16 +59,10 @@ const PurchaseSubcategoryTable: React.FC<PurchaseSubcategoryTableProps> = ({
           width: '100%',
         }}
       >
-        <Table
-          stickyHeader
-          sx={{
-            tableLayout: 'fixed', // Fixes column widths to prevent overflow
-            width: '100%',
-          }}
-        >
-                    <TableHead>
+        <Table stickyHeader>
+          <TableHead>
             <TableRow>
-              <TableCell>S.No</TableCell>
+              <TableCell className='table-number-right'>S.No</TableCell>
               <TableCell>Subcategory ID</TableCell>
               <TableCell>Subcategory Name</TableCell>
               <TableCell>Status</TableCell>
@@ -85,7 +79,7 @@ const PurchaseSubcategoryTable: React.FC<PurchaseSubcategoryTableProps> = ({
             ) : (
               reversedSubcategories.map((subcategory, index) => (
                 <TableRow key={subcategory.randomId}>
-                  <TableCell>{reversedSubcategories.length - index}</TableCell>
+                  <TableCell className='table-number-right'>{index+1}</TableCell>
                   <TableCell>{subcategory.randomId}</TableCell>
                   <TableCell>{subcategory.purchasesubcategoryName}</TableCell>
                   <TableCell>{subcategory.status}</TableCell>
@@ -119,18 +113,18 @@ const PurchaseSubcategoryTable: React.FC<PurchaseSubcategoryTableProps> = ({
       </TableContainer>
 
       <ConfirmationDialog
-  open={openDialog}
-  onClose={handleCloseDialog}
-  onConfirm={handleConfirmAction}
-  title={dialogAction === 'deactivate' ? 'Confirm Deactivation' : 'Confirm Activation'}
-  description={
-    dialogAction === 'deactivate'
-      ? 'Are you sure you want to deactivate this purchase tax?'
-      : 'Are you sure you want to activate this purchase tax?'
-  }
-  confirmText={dialogAction === 'deactivate' ? 'Deactivate' : 'Activate'}
-  cancelText="Cancel"
-/>
+        open={openDialog}
+        onClose={handleCloseDialog}
+        onConfirm={handleConfirmAction}
+        title={dialogAction === 'deactivate' ? 'Confirm Deactivation' : 'Confirm Activation'}
+        description={
+          dialogAction === 'deactivate'
+            ? 'Are you sure you want to deactivate this purchase tax?'
+            : 'Are you sure you want to activate this purchase tax?'
+        }
+        confirmText={dialogAction === 'deactivate' ? 'Deactivate' : 'Activate'}
+        cancelText="Cancel"
+      />
     </>
   );
 };

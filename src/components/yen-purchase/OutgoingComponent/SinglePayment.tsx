@@ -80,33 +80,38 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
   const invoiceDateStr = invoiceDate.toISOString().split('T')[0];
   const currentDate = new Date().toISOString().split('T')[0];
 
-  useEffect(() => {
-    if (selectedOutgoing && open) {
-      dispatch(fetchActiveDebitsVendor(selectedOutgoing.vendorName));
-      dispatch(fetchActiveAdvancesVendorByName(selectedOutgoing.vendorName));
-      const initialAmount = totalPayable.toFixed(2);
-      const currentDateStr = new Date().toISOString().split('T')[0];
-      setPaymentDetails({
-        paymentMethod: '',
-        neftNo: '',
-        amount: initialAmount,
-        bankName: '',
-        paymentType: 'full',
-        rtgsNo: '',
-        paymentMode: 'Bank',
-        cashAmount: 0,
-        upi: '',
-        impsNo: '',
-        selectedDebitNotes: [],
-        selectedAdvancePayments: [],
-        paymentDate: currentDateStr,
-      });
-      setError('');
-      setDateError('');
-      setDateWarning('');
-      setShowConfirmation(false);
-    }
-  }, [selectedOutgoing, open, dispatch, totalPayable]);
+useEffect(() => {
+  if (selectedOutgoing && open) {
+    dispatch(fetchActiveDebitsVendor(selectedOutgoing.vendorName));
+    dispatch(fetchActiveAdvancesVendorByName(selectedOutgoing.vendorName));
+    const initialAmount = totalPayable.toFixed(2);
+    const currentDateStr = new Date().toISOString().split('T')[0];
+    
+    // Debug: Check what date field contains
+    console.log('Invoice date field:', selectedOutgoing[dateField]);
+    console.log('Parsed invoice date:', new Date(selectedOutgoing[dateField]));
+    
+    setPaymentDetails({
+      paymentMethod: '',
+      neftNo: '',
+      amount: initialAmount,
+      bankName: '',
+      paymentType: 'full',
+      rtgsNo: '',
+      paymentMode: 'Bank',
+      cashAmount: 0,
+      upi: '',
+      impsNo: '',
+      selectedDebitNotes: [],
+      selectedAdvancePayments: [],
+      paymentDate: currentDateStr,
+    });
+    setError('');
+    setDateError('');
+    setDateWarning('');
+    setShowConfirmation(false);
+  }
+}, [selectedOutgoing, open, dispatch, totalPayable]);
 
   const uncappedDebitSum = paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
     const debit = debits.find((d: any) => d.randomId === debitId);
@@ -139,18 +144,25 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     return '';
   };
 
-  const validateDate = (value: string): { error: string | null; warning: string | null } => {
-    if (!value) return { error: 'Payment date is required', warning: null };
-    const selectedDate = new Date(value);
-    if (isNaN(selectedDate.getTime())) return { error: 'Invalid date format', warning: null };
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    selectedDate.setHours(0, 0, 0, 0);
-    if (selectedDate > today) return { error: 'Future date not allowed', warning: null };
-    if (selectedDate < invoiceDate) return { error: 'Payment date cannot be before invoice date', warning: null };
-    return { error: null, warning: null };
-  };
-
+const validateDate = (value: string): { error: string | null; warning: string | null } => {
+  if (!value) return { error: 'Payment date is required', warning: null };
+  
+  const selectedDate = new Date(value);
+  if (isNaN(selectedDate.getTime())) return { error: 'Invalid date format', warning: null };
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  selectedDate.setHours(0, 0, 0, 0);
+  
+  // Fix: Ensure invoice date is also normalized for comparison
+  const normalizedInvoiceDate = new Date(invoiceDate);
+  normalizedInvoiceDate.setHours(0, 0, 0, 0);
+  
+  if (selectedDate > today) return { error: 'Future date not allowed', warning: null };
+  if (selectedDate < normalizedInvoiceDate) return { error: 'Payment date cannot be before invoice date', warning: null };
+  
+  return { error: null, warning: null };
+};
   const handlePaymentTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedType = e.target.value as 'full' | 'partial';
     let newAmount;
@@ -415,7 +427,7 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
             error={!!dateError}
             size="small"
             inputProps={{
-              min: invoiceDateStr,
+              min:invoiceDateStr,
               max: currentDate,
             }}
           />

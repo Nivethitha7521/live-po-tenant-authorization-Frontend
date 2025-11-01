@@ -128,7 +128,15 @@ interface PurchaseOrderWithItems {
   termsandConditions?: string[];
   items: ItemWithCalculations[];
 }
-
+// Helper to parse backend date as local (ignores time/UTC shift)
+// Add this helper function before the component (outside CreatePurchase)
+const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
+  if (!dateStr) return null;
+  // Extract YYYY-MM-DD from ISO/UTC string (e.g., '2025-10-29T00:00:00.000Z' -> '2025-10-29')
+  const localStr = dateStr.split('T')[0]; // Strips time
+  const date = new Date(localStr + 'T00:00:00'); // Create local Date
+  return isNaN(date.getTime()) ? null : date;
+};
 // Utility function for rounding
 const customRound = (value: number): number => Math.round(value);
 const customRoundDigit = (value: number): number => Math.round(value * 2) / 2;
@@ -165,14 +173,15 @@ const TableRowMemo = React.memo(
     ) => void;
   }) => (
     <TableRow>
-      <TableCell>{index + 1}</TableCell>
+      <TableCell className='table-number-right'>{index + 1}</TableCell>
       <TableCell>{item.itemName}</TableCell>
       <TableCell>{item.uom}</TableCell>
-      <TableCell>{item.pendingTotalQuantity}</TableCell>
-      <TableCell>{item.poQuantity}</TableCell>
-      <TableCell>
+      <TableCell className='table-number-right'>{item.pendingTotalQuantity}</TableCell>
+      <TableCell className='table-number-right'>{item.poQuantity}</TableCell>
+      <TableCell className='table-number-right'>
         <TextField
           type="number"
+          autoComplete="off"
           value={item.receivedQuantity === undefined || item.receivedQuantity === null ? "" : item.receivedQuantity}
           onChange={(e) => handleQuantityChange(item.itemId, "receivedQuantity", e.target.value)}
           onBlur={(e) => handleQuantityBlur(item.itemId, "receivedQuantity", e.target.value)}
@@ -183,7 +192,7 @@ const TableRowMemo = React.memo(
           helperText={touched[index]?.receivedQuantity && errors[index]?.receivedQuantity}
         />
       </TableCell>
-      <TableCell>{item.newPrice.toFixed(2)}</TableCell>
+      <TableCell className='table-number-right'>{item.newPrice.toFixed(2)}</TableCell>
       <TableCell>
         <TextField
           autoComplete="off"
@@ -196,7 +205,7 @@ const TableRowMemo = React.memo(
           sx={{ width: "80px" }}
         />
       </TableCell>
-      <TableCell>
+      <TableCell className='table-number-right'>
         <TextField
           autoComplete="off"
           type="number"
@@ -208,7 +217,7 @@ const TableRowMemo = React.memo(
           sx={{ width: "80px" }}
         />
       </TableCell>
-      <TableCell>{item.taxPercentage}%</TableCell>
+      <TableCell className='table-number-right'>{item.taxPercentage}%</TableCell>
       <TableCell>
         <TextField
           label="Expiry Date"
@@ -227,7 +236,7 @@ const TableRowMemo = React.memo(
           }}
         />
       </TableCell>
-      <TableCell>{(item.calculatedTotalPrice || 0).toFixed(2)}</TableCell>
+      <TableCell className='table-number-right'>{(item.calculatedTotalPrice || 0).toFixed(2)}</TableCell>
     </TableRow>
   )
 );
@@ -469,20 +478,21 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                 label="Invoice Date"
                 type="date"
                 value={invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : getCurrentDate()}
-                onChange={(e) => setInvoiceDate(e.target.value ? new Date(e.target.value) : new Date())} // Default to current if cleared
+                onChange={(e) => setInvoiceDate(e.target.value ? new Date(e.target.value) : new Date())}
                 disabled={!selectedOrder?.orderDate}
                 inputProps={{
-                  min: getOrderDateMin(), // Min: Order date
-                  max: getCurrentDate(), // Max: Current date
+                  min: getOrderDateMin(),
+                  max: getCurrentDate(),
                 }}
                 InputLabelProps={{ shrink: true }}
               />
+
               <TextField
                 label="GRN Date"
                 type="date"
                 value={grnDate ? format(grnDate, 'yyyy-MM-dd') : getCurrentDate()}
                 onChange={(e) => setGrnDate(e.target.value ? new Date(e.target.value) : new Date())} // Default to current if cleared
-                disabled={!selectedOrder?.orderDate || isProcessing}
+                disabled={true}
                 inputProps={{
                   min: getOrderDateMin(), // Min: Order date
                   max: getCurrentDate(), // Max: Current date
@@ -495,18 +505,18 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell>Item Id</TableCell>
+                  <TableCell className='table-number-right'>Item Id</TableCell>
                   <TableCell>Item Name</TableCell>
                   <TableCell>Uom</TableCell>
-                  <TableCell>Pending Qty</TableCell>
-                  <TableCell>Total Qty</TableCell>
-                  <TableCell>Received Qty</TableCell>
-                  <TableCell>Price</TableCell>
-                  <TableCell>BefTax Discount</TableCell>
-                  <TableCell>AfTax Discount</TableCell>
-                  <TableCell>Tax</TableCell>
+                  <TableCell className='table-number-right'>Pending Qty</TableCell>
+                  <TableCell className='table-number-right'>Total Qty</TableCell>
+                  <TableCell className='table-number-right'>Received Qty</TableCell>
+                  <TableCell className='table-number-right'>Price</TableCell>
+                  <TableCell className='table-number-right'>BefTax Discount</TableCell>
+                  <TableCell className='table-number-right'>AfTax Discount</TableCell>
+                  <TableCell className='table-number-right'>Tax</TableCell>
                   <TableCell>Expiry Date</TableCell>
-                  <TableCell>Total Price</TableCell>
+                  <TableCell className='table-number-right'>Total Price</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -539,7 +549,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                     <TableCell>
                       <strong>{tax.type} ({tax.percentage.toFixed(2)}%):</strong>
                     </TableCell>
-                    <TableCell>{tax.amount.toFixed(2)}</TableCell>
+                    <TableCell className='table-number-right'>{tax.amount.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow>
@@ -547,7 +557,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                   <TableCell>
                     <strong>Total Order Amount:</strong>
                   </TableCell>
-                  <TableCell>{totalOrderAmount.toFixed(2)}</TableCell>
+                  <TableCell className='table-number-right'>{totalOrderAmount.toFixed(2)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -754,10 +764,12 @@ const CreatePurchase: React.FC = () => {
   useEffect(() => {
     if (selectedOrder) {
       setInvoiceNumber(selectedOrder.invoiceNo || "");
-      // Initialize invoiceDate to existing or current date
-      setInvoiceDate(selectedOrder.invoiceDate ? new Date(selectedOrder.invoiceDate) : new Date());
-      // Initialize grnDate to existing or current date
-      setGrnDate(selectedOrder.grnDate ? new Date(selectedOrder.grnDate) : new Date());
+
+      // Set both invoiceDate and grnDate to current date for new GRN conversion
+      const currentDate = new Date();
+      setInvoiceDate(currentDate);
+      setGrnDate(currentDate);
+
       const initializedItems = selectedOrder.items.map((item) => {
         const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
         const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
@@ -789,6 +801,7 @@ const CreatePurchase: React.FC = () => {
       setErrors(initialErrors);
     }
   }, [selectedOrder]);
+
   useEffect(() => {
     dispatch(fetchBusinesses());
     dispatch(fetchInvoiceNumbers());
@@ -1285,73 +1298,79 @@ const CreatePurchase: React.FC = () => {
     setIsTouched,
   ]);
   const filteredOrders = useMemo(() => purchaseList.filter((order) => order.poStatus === "Approved"), [purchaseList]);
-const handleViewDetailsClick = (orderId: string) => {
-  const rawOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
-  if (rawOrder) {
-    const transformedItems = rawOrder.items.map((item: Item) => ({
-      ...item,
-      expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
-    })) as ItemWithCalculations[];
-    const transformedOrder: PurchaseOrderWithItems = {
-      ...rawOrder,
-      orderDate: rawOrder.orderDate ? new Date(rawOrder.orderDate) : null,
-      expectedDeliveryDate: rawOrder.expectedDeliveryDate ? new Date(rawOrder.expectedDeliveryDate) : null,
-      invoiceDate: rawOrder.invoiceDate ? new Date(rawOrder.invoiceDate) : null,
-      grnDate: null,
-      items: transformedItems,
-    };
-    setSelectedOrder(transformedOrder);
-    const initializedItems = transformedItems.map((item: ItemWithCalculations) => {
-      const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
-      const pendingCount = item.pendingCount || 1;
-      const pendingQuantity = item.pendingQuantity || pendingTotalQuantity;
-      const calculatedPendingCount = pendingTotalQuantity > 0 ? pendingCount : 0;
-      const calculatedPendingQuantity = pendingQuantity;
-      const expiryDate = item.expiryDate instanceof Date ? item.expiryDate : null;
-
-      return {
+  const handleViewDetailsClick = (orderId: string) => {
+    const rawOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
+    if (rawOrder) {
+      const transformedItems = rawOrder.items.map((item: Item) => ({
         ...item,
-        receivedQuantity: 0, // Initialize to 0 for new session
-        befTaxDiscount: item.befTaxDiscount || 0,
-        afTaxDiscount: item.afTaxDiscount || 0,
-        expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
-        calculatedPendingCount,
-        calculatedPendingQuantity,
-        calculatedTotalPrice: 0,
-        calculatedTaxAmount: 0,
-        calculatedFinalPrice: 0,
-        status: pendingTotalQuantity === 0 ? "Received" : item.status || "Pending",
+        expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
+      })) as ItemWithCalculations[];
+      const transformedOrder: PurchaseOrderWithItems = {
+        ...rawOrder,
+        orderDate: rawOrder.orderDate ? new Date(rawOrder.orderDate) : null,
+        expectedDeliveryDate: rawOrder.expectedDeliveryDate ? new Date(rawOrder.expectedDeliveryDate) : null,
+        invoiceDate: rawOrder.invoiceDate ? parseLocalDate(rawOrder.invoiceDate) : null,
+        grnDate: null,
+        items: transformedItems,
       };
-    });
-    setUpdatedItems(initializedItems);
+      setSelectedOrder(transformedOrder);
 
-    const initialTouched = initializedItems.reduce(
-      (acc, _, index) => ({
-        ...acc,
-        [index]: {
-          receivedQuantity: false,
-          befTaxDiscount: false,
-          afTaxDiscount: false,
-        },
-      }),
-      {}
-    );
-    const initialErrors = initializedItems.reduce(
-      (acc, _, index) => ({
-        ...acc,
-        [index]: {
-          receivedQuantity: "",
-          befTaxDiscount: "",
-          afTaxDiscount: "",
-        },
-      }),
-      {}
-    );
-    setTouched(initialTouched);
-    setErrors(initialErrors);
-    setOpenDialog(true);
-  }
-};
+      // Set both dates to current date when opening the dialog
+      const currentDate = new Date();
+      setInvoiceDate(currentDate);
+      setGrnDate(currentDate);
+
+      const initializedItems = transformedItems.map((item: ItemWithCalculations) => {
+        const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
+        const pendingCount = item.pendingCount || 1;
+        const pendingQuantity = item.pendingQuantity || pendingTotalQuantity;
+        const calculatedPendingCount = pendingTotalQuantity > 0 ? pendingCount : 0;
+        const calculatedPendingQuantity = pendingQuantity;
+        const expiryDate = item.expiryDate instanceof Date ? item.expiryDate : null;
+
+        return {
+          ...item,
+          receivedQuantity: 0, // Initialize to 0 for new session
+          befTaxDiscount: item.befTaxDiscount || 0,
+          afTaxDiscount: item.afTaxDiscount || 0,
+          expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
+          calculatedPendingCount,
+          calculatedPendingQuantity,
+          calculatedTotalPrice: 0,
+          calculatedTaxAmount: 0,
+          calculatedFinalPrice: 0,
+          status: pendingTotalQuantity === 0 ? "Received" : item.status || "Pending",
+        };
+      });
+      setUpdatedItems(initializedItems);
+
+      const initialTouched = initializedItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: {
+            receivedQuantity: false,
+            befTaxDiscount: false,
+            afTaxDiscount: false,
+          },
+        }),
+        {}
+      );
+      const initialErrors = initializedItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: {
+            receivedQuantity: "",
+            befTaxDiscount: "",
+            afTaxDiscount: "",
+          },
+        }),
+        {}
+      );
+      setTouched(initialTouched);
+      setErrors(initialErrors);
+      setOpenDialog(true);
+    }
+  };
   const handleDownload = useCallback(
     async (poid: string) => {
       const purchaseOrder = purchaseList.find((order) => order.purchaseOrderId === poid);
@@ -1819,7 +1838,7 @@ const handleViewDetailsClick = (orderId: string) => {
         doc.setPage(i);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0,0,0); // Black color for the note
+        doc.setTextColor(0, 0, 0); // Black color for the note
         doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 20, { align: 'center' });
       }
 
@@ -2465,12 +2484,12 @@ const handleViewDetailsClick = (orderId: string) => {
         <Table stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell>S.No</TableCell>
+              <TableCell className='table-number-right'>S.No</TableCell>
               <TableCell>Order ID</TableCell>
               <TableCell>Vendor Name</TableCell>
               <TableCell>Order Date</TableCell>
-              <TableCell>Total PO Items</TableCell>
-              <TableCell>Total Price</TableCell>
+              <TableCell className='table-number-right'>Total PO Items</TableCell>
+              <TableCell className='table-number-right'>Total Price</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>View</TableCell>
             </TableRow>
@@ -2483,12 +2502,12 @@ const handleViewDetailsClick = (orderId: string) => {
             ) : (
               filteredOrders.map((order, index) => (
                 <TableRow key={order.purchaseOrderId}>
-                  <TableCell>{index + 1}</TableCell>
+                  <TableCell className='table-number-right'>{index + 1}</TableCell>
                   <TableCell>{order.randomId}</TableCell>
                   <TableCell>{order.vendorName}</TableCell>
                   <TableCell>{order.orderDate ? format(new Date(order.orderDate), "dd-MM-yyyy") : ""}</TableCell>
-                  <TableCell>{order.items.reduce((acc, item) => acc + (item.pendingTotalQuantity || 0), 0)}</TableCell>
-                  <TableCell>{(order.pendingOrderAmount || 0).toFixed(2)}</TableCell>
+                  <TableCell className='table-number-right'>{order.items.reduce((acc, item) => acc + (item.pendingTotalQuantity || 0), 0)}</TableCell>
+                  <TableCell className='table-number-right'>{(order.pendingOrderAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>{order.poStatus}</TableCell>
                   <TableCell>
                     <Tooltip title="View Details">
