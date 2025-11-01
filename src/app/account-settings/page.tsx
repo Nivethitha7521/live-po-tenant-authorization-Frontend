@@ -12,8 +12,8 @@ const AccountSettingsPage = () => {
 
   // Submenu items for the Account Settings Page
   const subItems = useMemo(() => [
-    { label: 'User Accounts', path: '/account-settings/UserAccount' },
-    { label: 'Role Management', path: '/account-settings/RoleManagementPage' },
+    // { label: 'User Accounts', path: '/account-settings/UserAccount' },
+    // { label: 'Role Management', path: '/account-settings/RoleManagementPage' },
     { label: 'Business Details', path: '/account-settings/BusinessPage' },
     { label: 'Personal Details', path: '/account-settings/PersonalPage' },
   ], []);

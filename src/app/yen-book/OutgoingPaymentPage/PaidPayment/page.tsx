@@ -436,13 +436,13 @@ const PaidPaymentComponent = () => {
 
     const vendorDetailsRows = [
       [
-        `Vendor Name: ${outgoingdetail.vendorName}\n` +
-        `GSTIN: ${outgoingdetail.gstNumber}\n` +
-        `Address: ${outgoingdetail.address}\n` +
-        `City: ${outgoingdetail.city}\n` +
-        `State: ${outgoingdetail.state}\n` +
-        `Country: ${outgoingdetail.country}\n` +
-        `Email: ${outgoingdetail.contactpersonEmail}`,
+        `Vendor Name: ${outgoingdetail.vendorName || ''}\n` +
+        `GSTIN: ${outgoingdetail.gstNumber || ''}\n` +
+        `Address: ${outgoingdetail.address || ''}\n` +
+        `City: ${outgoingdetail.city || ''}\n` +
+        `State: ${outgoingdetail.state || ''}\n` +
+        `Country: ${outgoingdetail.country || ''}\n` +
+        `Email: ${outgoingdetail.contactpersonEmail || ''}`,
         `Business Name: ${business?.companyName}\n` +
         `GSTIN: ${business?.gstIn}\n` +
         `Address: ${business?.address1}\n` +
@@ -556,7 +556,7 @@ const PaidPaymentComponent = () => {
       doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, pageY, { align: 'center' });
     }
 
-    doc.save(`${outgoingdetail.vendorName}_PaymentDetails.pdf`);
+    doc.save(`${outgoingdetail.vendorName} ${outgoingdetail.randomId}_PaymentDetails.pdf`);
   };
 
   const handleViewDetails = (index: number) => {

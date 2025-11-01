@@ -474,30 +474,24 @@ const GrnPage = () => {
     const tableHeader = [['Vendor Details', 'Billing Address', 'GRN Details']];
 
     // Vendor Details rows with correct line breaks
-    const vendorDetailsRows = [
-      [
-        // Vendor Details
-        `Name: ${grncheck.vendorName}\n` +
-        `GSTIN: ${grncheck.gstNumber}\n` +
-        `Address: ${grncheck.address}\n` +
-        `City: ${grncheck.city}\n` +
-        `State: ${grncheck.state}\n` +
-        `Country: ${grncheck.country}\n` +
-        `Email: ${grncheck.contactpersonEmail}`,
-
-        // Billing Address
-        `Billing Address: ${grncheck.billingAddress}`,
-
-        // GRN Details
-        `PO No: ${grncheck.poRandomID}\n` +
-        `GRN No: ${grncheck.randomId}\n` +
-        `GRN Date: ${grncheck.createdDate ? format(new Date(grncheck.createdDate), 'dd-MM-yyyy') : ''}\n` +
-        `Payment Terms: ${grncheck.paymentTerms} days\n` +
-        `Due Date: ${format(dueDate, 'dd-MM-yyyy')}\n` +
-        `Currency: ${'INR'}`, // Currency moved to a separate line
-      ],
-    ];
-
+const vendorDetailsRows = [
+  [
+    `${grncheck.vendorName || ' '}\n` +
+    `GSTIN: ${grncheck.gstNumber || ''}\n` +
+    `Address: ${grncheck.address || ''}\n` +
+    `City: ${grncheck.city || ''}\n` +
+    `State: ${grncheck.state || ''}\n` +
+    `Country: ${grncheck.country || ''}\n` +
+    `Email: ${grncheck.contactpersonEmail || ''}`,
+    `Billing Address: ${grncheck.billingAddress || ''}`,
+    `PO No: ${grncheck.poRandomID || ''}\n` +
+    `GRN No: ${grncheck.randomId || ''}\n` +
+    `GRN Date: ${grncheck.createdDate ? format(new Date(grncheck.createdDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+    `Payment Terms: ${grncheck.paymentTerms || ''}\n` +
+    `Due Date: ${dueDate ? format(new Date(dueDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+    `Currency: INR`,
+  ],
+];
     // Vendor Details Table
     doc.autoTable({
       head: tableHeader,
@@ -684,7 +678,7 @@ const GrnPage = () => {
     }
 
     // Save the PDF
-    doc.save(`GRN${grncheck.randomId}.pdf`);
+    doc.save(`${grncheck.vendorName} ${grncheck.randomId}.pdf`);
   };
   const handleDialogClose = () => {
     setDialogueViewOpen(false);
@@ -1601,20 +1595,20 @@ const GrnPage = () => {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>S.No</TableCell>
+                <TableCell className='table-number-right'>S.No</TableCell>
                 <TableCell>GRN Id</TableCell>
                 <TableCell>Po Id</TableCell>
                 <TableCell>Vendor Name</TableCell>
                 <TableCell>Invoice No</TableCell>
                 <TableCell>Invoice Date</TableCell>
                 <TableCell>GRN Date</TableCell>
-                <TableCell>
+                <TableCell className='table-number-right'>
                   Aging Days
                   <IconButton onClick={toggleSortOrder}>
                     {sortOrder === 'asc' ? <ArrowUpward /> : <ArrowDownward />}
                   </IconButton>
                 </TableCell>
-                <TableCell>Total Received Amount</TableCell>
+                <TableCell className='table-number-right'>Total Received Amount</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -1633,15 +1627,15 @@ const GrnPage = () => {
                   };
                   return (
                     <TableRow key={grn.grnId}>
-                      <TableCell>{index + 1}</TableCell>
+                      <TableCell className='table-number-right'>{index + 1}</TableCell>
                       <TableCell>{grn.randomId}</TableCell>
                       <TableCell>{getRandomId(grn.purchaseOrderId) ?? 'N/A'}</TableCell>
                       <TableCell>{grn.vendorName}</TableCell>
                       <TableCell>{grn.invoiceNo}</TableCell>
                       <TableCell>{grn.invoiceDate ? format(grn.invoiceDate, 'dd-MM-yyyy') : ''}</TableCell>
                       <TableCell>{grn.grnDate ? format(grn.grnDate, 'dd-MM-yyyy') : ''}</TableCell>
-                      <TableCell>{grn.agingDay}</TableCell>
-                      <TableCell>{customRound(grn.totalReceivedAmount)}</TableCell>
+                      <TableCell className='table-number-right'>{grn.agingDay}</TableCell>
+                      <TableCell className='table-number-right'>{customRound(grn.totalReceivedAmount)}</TableCell>
                       <TableCell>
                         <Box display="flex" alignItems="center">
                           {/* View Button with Eye Icon */}
@@ -1876,7 +1870,7 @@ const GrnPage = () => {
                   <Table stickyHeader>
                     <TableHead>
                       <TableRow>
-                        <TableCell>S.No</TableCell>
+                        <TableCell className='table-number-right'>S.No</TableCell>
                         {sortedSelectedHeaders
                           .filter((header) => header !== 'totalPrice' && header !== 'finalPrice')
                           .map((header) => (
@@ -1884,8 +1878,8 @@ const GrnPage = () => {
                               {headerDisplayNames[header] || header}
                             </TableCell>
                           ))}
-                        {sortedSelectedHeaders.includes('totalPrice') && <TableCell>Total Price</TableCell>}
-                        {sortedSelectedHeaders.includes('finalPrice') && <TableCell>Final Price</TableCell>}
+                        {sortedSelectedHeaders.includes('totalPrice') && <TableCell className='table-number-right'>Total Price</TableCell>}
+                        {sortedSelectedHeaders.includes('finalPrice') && <TableCell className='table-number-right'>Final Price</TableCell>}
                       </TableRow>
                     </TableHead>
                     <TableBody>

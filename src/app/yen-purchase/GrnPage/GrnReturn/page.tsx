@@ -52,7 +52,7 @@ const GrnReturn: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { purchaseorders, loading, error, snackbarOpenGRN, snackbarMessageGRN, itemwise } = useSelector(selectGrn);
   const { businesses } = useSelector(selectBusinesses);
-  const { vendors } = useSelector(selectPurchaseOrderState);
+  // const { vendors } = useSelector(selectPurchaseOrderState);
   const selectedGrnId = useSelector((state: RootState) => state.grn.selectedGrnId);
   const [viewItemsDialogOpen, setViewItemsDialogOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -639,8 +639,8 @@ const generateSummaryPDF = () => {
   const columnWidth = 60.6;
   const tableHeader = [['Vendor Details', 'Billing Address', 'GRN Details']];
   const vendorDetailsRows = [[
-    `Name: ${grn.vendorName }\nGSTIN: ${grn.gstNumber }\nAddress: ${grn.address }\nCity: ${grn.city }\nState: ${grn.state }\nCountry: ${grn.country }\nEmail: ${grn.contactpersonEmail }`,
-    `Billing Address: ${grn.billingAddress }`,
+    `Name: ${grn.vendorName  || ''}\nGSTIN: ${grn.gstNumber || '' }\nAddress: ${grn.address || ''}\nCity: ${grn.city || ''}\nState: ${grn.state || ''}\nCountry: ${grn.country || ''}\nEmail: ${grn.contactpersonEmail || ''}`,
+    `Billing Address: ${grn.billingAddress || ''}`,
     `Po No: ${grn.poRandomID }\nGRN No: ${grn.randomId }\nGRN Date: ${grn.createdDate ? format(new Date(grn.createdDate), 'dd-MM-yyyy') : 'N/A'}\nPayment Terms: ${grn.paymentTerms || '15'} \nDue Date: ${format(dueDate, 'dd-MM-yyyy')}\nCurrency: INR`,
   ]];
 
@@ -743,7 +743,7 @@ const generateSummaryPDF = () => {
     doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
   }
 
-  doc.save(`GRN${grn.randomId}_ReturnHistory.pdf`);
+  doc.save(`${grn.vendorName} ${grn.randomId}_ReturnHistory.pdf`);
 };
 
     const calculateItemTotal = (receivedQuantity: number, damagedQuantity: number, unitPrice: number): number => {

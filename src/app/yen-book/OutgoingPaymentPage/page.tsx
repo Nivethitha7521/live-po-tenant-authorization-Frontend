@@ -817,13 +817,13 @@ const OutgoingPaymentComponent = React.memo(() => {
     // Vendor and Business Details
     const vendorDetailsRows = [
       [
-        `Vendor Name: ${outgoingdetail.vendorName}\n` +
-        `GSTIN: ${outgoingdetail.gstNumber}\n` +
-        `Address: ${outgoingdetail.address}\n` +
-        `City: ${outgoingdetail.city}\n` +
-        `State: ${outgoingdetail.state}\n` +
-        `Country: ${outgoingdetail.country}\n` +
-        `Email: ${outgoingdetail.contactpersonEmail}`,
+        `Vendor Name: ${outgoingdetail.vendorName || ''}\n` +
+        `GSTIN: ${outgoingdetail.gstNumber || ''}\n` +
+        `Address: ${outgoingdetail.address || ''}\n` +
+        `City: ${outgoingdetail.city || ''}\n` +
+        `State: ${outgoingdetail.state || ''}\n` +
+        `Country: ${outgoingdetail.country || ''}\n` +
+        `Email: ${outgoingdetail.contactpersonEmail || ''}`,
         `Business Name: ${business?.companyName || ''}\n` +
         `GSTIN: ${business?.gstIn || ''}\n` +
         `Address: ${business?.address1 || ''}\n` +

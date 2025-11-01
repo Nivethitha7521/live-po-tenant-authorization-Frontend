@@ -822,13 +822,13 @@ const VerifiedApInvoicePage: React.FC = () => {
 
     const vendorDetailsRows = [
       [
-        `${apinvoice.vendorName }\n` +
-        `GSTIN: ${apinvoice.gstNumber }\n` +
-        `Address: ${apinvoice.address }\n` +
-        `City: ${apinvoice.city }\n` +
-        `State: ${apinvoice.state }\n` +
-        `Country: ${apinvoice.country }\n` +
-        `Email: ${apinvoice.contactpersonEmail }`,
+        `${apinvoice.vendorName  || ''}\n` +
+        `GSTIN: ${apinvoice.gstNumber || ''}\n` +
+        `Address: ${apinvoice.address || ''}\n` +
+        `City: ${apinvoice.city || ''}\n` +
+        `State: ${apinvoice.state || ''}\n` +
+        `Country: ${apinvoice.country || ''}\n` +
+        `Email: ${apinvoice.contactpersonEmail || ''}`,
         `Billing Address: ${apinvoice.billingAddress }`,
         `PO No: ${apinvoice.poRandomId }\n` +
         `GRN No: ${apinvoice.grnRandomId }\n` +
@@ -1026,7 +1026,7 @@ const VerifiedApInvoicePage: React.FC = () => {
       doc.text(compText, compX, computerGeneratedY);
     }
 
-    doc.save(`ApInvoice${apinvoice.randomId}.pdf`);
+    doc.save(`${apinvoice.vendorName} ${apinvoice.randomId}.pdf`);
   };
   const handleStartDateChange = (value: Date | null) => {
     setStartDate(value); // Update the startDate state with Date or null

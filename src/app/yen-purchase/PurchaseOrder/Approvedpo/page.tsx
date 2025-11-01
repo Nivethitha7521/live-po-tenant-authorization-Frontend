@@ -1533,24 +1533,24 @@ const CreatePurchase: React.FC = () => {
       const columnWidth = 60.6;
       const tableHeader = [['Vendor Details', 'Billing Address', 'PO Details']];
       const vendorDetailsRows = [
-        [
-          `${purchaseOrder.vendorName}\n` +
-          `GSTIN: ${purchaseOrder.gstNumber}\n` +
-          `Address: ${purchaseOrder.address}\n` +
-          `City: ${purchaseOrder.city}\n` +
-          `State: ${purchaseOrder.state}\n` +
-          `Country: ${purchaseOrder.country}\n` +
-          `Email: ${purchaseOrder.contactpersonEmail}\n` +
-          `Phone: ${purchaseOrder.vendorContact}`,
-          `Billing Address: ${purchaseOrder.billingAddress}`,
-          `PO No: ${purchaseOrder.randomId}\n` +
-          `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-          `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-          `Payment Terms: ${purchaseOrder.paymentTerms}\n` +
-          `Status: ${purchaseOrder.poStatus}\n` +
-          `Currency: INR`,
-        ],
-      ];
+  [
+    `${purchaseOrder.vendorName || ' '}\n` +
+    `GSTIN: ${purchaseOrder.gstNumber || ''}\n` +
+    `Address: ${purchaseOrder.address || ''}\n` +
+    `City: ${purchaseOrder.city || ''}\n` +
+    `State: ${purchaseOrder.state || ''}\n` +
+    `Country: ${purchaseOrder.country || ''}\n` +
+    `Email: ${purchaseOrder.contactpersonEmail || ''}\n` +
+    `Phone: ${purchaseOrder.vendorContact || ''}`,
+    `Billing Address: ${purchaseOrder.billingAddress || ''}`,
+    `PO No: ${purchaseOrder.randomId || ''}\n` +
+    `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+    `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+    `Payment Terms: ${purchaseOrder.paymentTerms || ''}\n` +
+    `Status: ${purchaseOrder.poStatus || ''}\n` +
+    `Currency: INR`,
+  ],
+];
 
       doc.autoTable({
         head: tableHeader,
@@ -1600,9 +1600,9 @@ const CreatePurchase: React.FC = () => {
           return [
             `${index + 1}`,
             item.itemName || 'Item Description',
-            item.hsnCode || 'N/A',
-            item.pendingCount || 'N/A',
-            item.pendingQuantity || 'N/A',
+            item.hsnCode || '',
+            item.pendingCount || '',
+            item.pendingQuantity || '',
             `${quantity} ${item.uom || 'Kgs'}`,
             unitPrice.toFixed(2),
             `${item.taxPercentage || 0}%`,
@@ -1836,8 +1836,8 @@ const CreatePurchase: React.FC = () => {
       const computerGeneratedText = "This is computer generated";
       for (let i = 1; i <= doc.getNumberOfPages(); i++) {
         doc.setPage(i);
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setFont('helvetica');
         doc.setTextColor(0, 0, 0); // Black color for the note
         doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 20, { align: 'center' });
       }
@@ -1845,7 +1845,7 @@ const CreatePurchase: React.FC = () => {
       // Add page numbers
       addPageNumbers();
 
-      doc.save(`purchase_order_${purchaseOrder.randomId}.pdf`);
+      doc.save(`${purchaseOrder.vendorName} ${purchaseOrder.randomId}.pdf`);
     },
     [purchaseList, businesses, imageUrls]
   );

@@ -455,13 +455,13 @@ const handleDownload = async (outgoingId: string) => {
     // Vendor and Business Details
     const vendorDetailsRows = [
       [
-        `Vendor Name: ${outgoing.vendorName}\n` +
-        `GSTIN: ${outgoing.gstNumber}\n` +
-        `Address: ${outgoing.address}\n` +
-        `City: ${outgoing.city}\n` +
-        `State: ${outgoing.state}\n` +
-        `Country: ${outgoing.country}\n` +
-        `Email: ${outgoing.contactpersonEmail}`,
+        `Vendor Name: ${outgoing.vendorName || ''}\n` +
+        `GSTIN: ${outgoing.gstNumber || ''}\n` +
+        `Address: ${outgoing.address || ''}\n` +
+        `City: ${outgoing.city || ''}\n` +
+        `State: ${outgoing.state || ''}\n` +
+        `Country: ${outgoing.country || ''}\n` +
+        `Email: ${outgoing.contactpersonEmail || ''}`,
         `Business Name: ${business?.companyName || ''}\n` +
         `GSTIN: ${business?.gstIn || ''}\n` +
         `Address: ${business?.address1 || ''}\n` +
@@ -630,7 +630,7 @@ const handleDownload = async (outgoingId: string) => {
   }
 
   // Save the PDF with a dynamic name based on outgoing order ID
-  doc.save(`${outgoingdetail.randomId}_PartialPayment.pdf`);
+  doc.save(`${outgoingdetail.vendorName} ${outgoingdetail.randomId}_PartialPayment.pdf`);
 };  
 const filteredPayments = outgoings.filter(outgoing => outgoing.status === 'Partially Paid');
 

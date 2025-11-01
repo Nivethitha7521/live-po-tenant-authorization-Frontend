@@ -26,48 +26,49 @@ export interface MenuItem {
 }
 
 export const menuItems: MenuItem[] = [
-  {
-    text: 'MASTER ADMIN',
-    icon: <AdminPanelSettingsIcon />,
-    subItems: [
-      'Wharehouse', 'Locations', 'Items', 'Category', 'Subcategory',
-      'Item Groups', 'Uom', 'Tax', 'Vehicle', 'Discount', 'Online Partners'
-    ],
-    path: '/master-admin',
-  },
-  {
-    text: 'YEN POS',
-    icon: <ReceiptLongIcon />,
-    subItems: [
-      'Cash Management', 'Table Master', 'Bill Receipts', 'EB Reading',
-      'POS Devices', 'Print Barcodes', 'Print Unique Barcodes'
-    ],
-    path: '/yen-pos',
-  },
-  {
-    text: 'YEN HRM',
-    icon: <GroupIcon />,
-    subItems: [
-      'HRM Master', 'Employee Master', 'Attendance Management', 'Leave Management',
-      'Payroll Management', 'Performance Management', 'Training and Development',
-      'Recruitment Management', 'Employee Benefits'
-    ],
-    path: '/yen-hrm',
-  },
-  {
-    text: 'YEN CRM',
-    icon: <PeopleAltIcon />,
-    subItems: [
-      'Customer Details', 'Customer Feedback', 'Service Integration', 'Promotional Offers'
-    ],
-    path: '/yen-crm',
-  },
+  // {
+  //   text: 'MASTER ADMIN',
+  //   icon: <AdminPanelSettingsIcon />,
+  //   subItems: [
+  //     'Wharehouse', 'Locations', 'Items', 'Category', 'Subcategory',
+  //     'Item Groups', 'Uom', 'Tax', 'Vehicle', 'Discount', 'Online Partners'
+  //   ],
+  //   path: '/master-admin',
+  // },
+  // {
+  //   text: 'YEN POS',
+  //   icon: <ReceiptLongIcon />,
+  //   subItems: [
+  //     'Cash Management', 'Table Master', 'Bill Receipts', 'EB Reading',
+  //     'POS Devices', 'Print Barcodes', 'Print Unique Barcodes'
+  //   ],
+  //   path: '/yen-pos',
+  // },
+  // {
+  //   text: 'YEN HRM',
+  //   icon: <GroupIcon />,
+  //   subItems: [
+  //     'HRM Master', 'Employee Master', 'Attendance Management', 'Leave Management',
+  //     'Payroll Management', 'Performance Management', 'Training and Development',
+  //     'Recruitment Management', 'Employee Benefits'
+  //   ],
+  //   path: '/yen-hrm',
+  // },
+  // {
+  //   text: 'YEN CRM',
+  //   icon: <PeopleAltIcon />,
+  //   subItems: [
+  //     'Customer Details', 'Customer Feedback', 'Service Integration', 'Promotional Offers'
+  //   ],
+  //   path: '/yen-crm',
+  // },
   {
     text: 'YEN BOOK',
     icon: <BookOnlineIcon />,
     subItems: [
-      'OutletBank Deposit', 'Payment Details', 'OutGoing Payment', 'Asset Management',
-      'Budget Management'
+      // 'OutletBank Deposit', 'Payment Details', 
+      'OutGoing Payment', 
+      // 'Asset Management', 'Budget Management'
     ],
     path: '/yen-book',
   },
@@ -79,25 +80,26 @@ export const menuItems: MenuItem[] = [
     ],
     path: '/yen-purchase',
   },
-  {
-    text: 'YEN STORE',
-    icon: <StoreMallDirectoryIcon />,
-    subItems: ['Purchase Requisition'],
-    path: '/yen-store',
-  },
-  {
-    text: 'YEN INVENTORY',
-    icon: <Inventory2Icon />,
-    subItems: [
-      'Outlets Inventory Management', 'Wharehouse Inventory Management'
-    ],
-    path: '/yen-inventory',
-  },
+  // {
+  //   text: 'YEN STORE',
+  //   icon: <StoreMallDirectoryIcon />,
+  //   subItems: ['Purchase Requisition'],
+  //   path: '/yen-store',
+  // },
+  // {
+  //   text: 'YEN INVENTORY',
+  //   icon: <Inventory2Icon />,
+  //   subItems: [
+  //     'Outlets Inventory Management', 'Wharehouse Inventory Management'
+  //   ],
+  //   path: '/yen-inventory',
+  // },
   {
     text: 'ACCOUNT SETTINGS',
     icon: <AccountCircleIcon />,
     subItems: [
-      'User Accounts', 'Role Management', 'Business Details', 'Personal Details'
+      // 'User Accounts', 'Role Management', 
+      'Business Details', 'Personal Details'
     ],
     path: '/account-settings',
   },

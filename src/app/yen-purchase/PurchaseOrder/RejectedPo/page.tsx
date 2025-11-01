@@ -623,24 +623,25 @@ const RejectedPo: React.FC = () => {
   const columnWidth = 60.6;
   const tableHeader = [['Vendor Details', 'Billing Address', 'PO Details']];
   const vendorDetailsRows = [
-    [
-      `${purchaseOrder.vendorName}\n` +
-      `GSTIN: ${purchaseOrder.gstNumber}\n` +
-      `Address: ${purchaseOrder.address}\n` +
-      `City: ${purchaseOrder.city}\n` +
-      `State: ${purchaseOrder.state}\n` +
-      `Country: ${purchaseOrder.country}\n` +
-      `Email: ${purchaseOrder.contactpersonEmail}\n` +
-      `Phone: ${purchaseOrder.vendorContact}`,
-      `Billing Address: ${purchaseOrder.billingAddress}`,
-      `PO No: ${purchaseOrder.randomId}\n` +
-      `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-      `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-      `Payment Terms: ${purchaseOrder.paymentTerms}\n` +
-      `Currency: ${'INR'}`,
-    ],
-  ];
-
+   [
+     `${purchaseOrder.vendorName || ' '}\n` +
+     `GSTIN: ${purchaseOrder.gstNumber || ''}\n` +
+     `Address: ${purchaseOrder.address || ''}\n` +
+     `City: ${purchaseOrder.city || ''}\n` +
+     `State: ${purchaseOrder.state || ''}\n` +
+     `Country: ${purchaseOrder.country || ''}\n` +
+     `Email: ${purchaseOrder.contactpersonEmail || ''}\n` +
+     `Phone: ${purchaseOrder.vendorContact || ''}`,
+     `Billing Address: ${purchaseOrder.billingAddress || ''}`,
+     `PO No: ${purchaseOrder.randomId || ''}\n` +
+     `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+     `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+     `Payment Terms: ${purchaseOrder.paymentTerms || ''}\n` +
+     `Status: ${purchaseOrder.poStatus || ''}\n` +
+     `Currency: INR`,
+   ],
+ ];
+ 
   doc.autoTable({
     head: tableHeader,
     body: vendorDetailsRows,
@@ -971,7 +972,7 @@ const RejectedPo: React.FC = () => {
     addFooter(doc, i, finalTotalPages);
   }
 
-  doc.save(`${purchaseOrder.randomId}.pdf`);
+  doc.save(`${purchaseOrder.vendorName} ${purchaseOrder.randomId}.pdf`);
 };
   const confirmMovePending = () => {
     // Logic to MovePending changes goes here

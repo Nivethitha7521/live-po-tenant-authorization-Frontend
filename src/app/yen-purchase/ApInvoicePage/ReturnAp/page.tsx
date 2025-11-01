@@ -651,13 +651,13 @@ const ReturnnedApInvoicePage: React.FC = () => {
 
     const vendorDetailsRows = [
       [
-        `${apinvoice.vendorName}\n` +
-        `GSTIN: ${apinvoice.gstNumber}\n` +
-        `Address: ${apinvoice.address}\n` +
-        `City: ${apinvoice.city}\n` +
-        `State: ${apinvoice.state}\n` +
-        `Country: ${apinvoice.country}\n` +
-        `Email: ${apinvoice.contactpersonEmail}`,
+        `${apinvoice.vendorName || ''}\n` +
+        `GSTIN: ${apinvoice.gstNumber || ''}\n` +
+        `Address: ${apinvoice.address || ''}\n` +
+        `City: ${apinvoice.city || ''}\n` +
+        `State: ${apinvoice.state || ''}\n` +
+        `Country: ${apinvoice.country || ''}\n` +
+        `Email: ${apinvoice.contactpersonEmail || ''}`,
         `Billing Address: ${apinvoice.billingAddress}`,
         `PO No: ${apinvoice.poRandomId}\n` +
         `GRN No: ${apinvoice.grnRandomId}\n` +
