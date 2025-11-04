@@ -632,7 +632,7 @@ const RejectedPo: React.FC = () => {
      `Country: ${purchaseOrder.country || ''}\n` +
      `Email: ${purchaseOrder.contactpersonEmail || ''}\n` +
      `Phone: ${purchaseOrder.vendorContact || ''}`,
-     `Billing Address: ${purchaseOrder.billingAddress || ''}`,
+     `Shipping Address: ${purchaseOrder.shippingAddress || ''}`,
      `PO No: ${purchaseOrder.randomId || ''}\n` +
      `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
      `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
@@ -1630,7 +1630,7 @@ const RejectedPo: React.FC = () => {
           <TableContainer
             component={Paper}
             sx={{
-              maxHeight: 'calc(100vh - 200px)', // Dynamic height based on viewport
+              maxHeight: 'calc(100vh - 250px)', // Dynamic height based on viewport
               overflowY: 'auto',
               width: '100%',
             }}

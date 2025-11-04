@@ -60,6 +60,7 @@ import { AppDispatch } from "@/redux/store";
 import YenPurchasePage from "../../page";
 import {
   fetchBusinesses,
+  fetchPhoto,
   selectBusinesses,
 } from "@/features/account-setting/businessSlice";
 import { PurchaseItemSearch } from "@/features/yen-purchase/PurchaseOrder/purchaseOrderSlice";
@@ -647,6 +648,7 @@ const CreatePurchase: React.FC = () => {
   const { imageUrls } = useSelector(selectPurchaseListState);
   const [loading, setLoading] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
   const handleCloseDialogs = useCallback(() => {
     setOpenDialog(false);
     setOpenEditDialog(false);
@@ -801,6 +803,12 @@ const CreatePurchase: React.FC = () => {
       setErrors(initialErrors);
     }
   }, [selectedOrder]);
+  useEffect(() => {
+    if (businesses.length > 0 && businesses[0].businessId && !fetchedBusinessIds.has(businesses[0].businessId)) {
+      dispatch(fetchPhoto(businesses[0].businessId));
+      setFetchedBusinessIds((prev) => new Set(prev).add(businesses[0].businessId));
+    }
+  }, [businesses, dispatch, fetchedBusinessIds]);
 
   useEffect(() => {
     dispatch(fetchBusinesses());
@@ -1531,7 +1539,7 @@ const CreatePurchase: React.FC = () => {
 
       // Vendor Details Table
       const columnWidth = 60.6;
-      const tableHeader = [['Vendor Details', 'Billing Address', 'PO Details']];
+      const tableHeader = [['Vendor Details', 'Shipping Address', 'PO Details']];
       const vendorDetailsRows = [
   [
     `${purchaseOrder.vendorName || ' '}\n` +
@@ -1542,7 +1550,7 @@ const CreatePurchase: React.FC = () => {
     `Country: ${purchaseOrder.country || ''}\n` +
     `Email: ${purchaseOrder.contactpersonEmail || ''}\n` +
     `Phone: ${purchaseOrder.vendorContact || ''}`,
-    `Billing Address: ${purchaseOrder.billingAddress || ''}`,
+    `Shipping Address: ${purchaseOrder.shippingAddress || ''}`,
     `PO No: ${purchaseOrder.randomId || ''}\n` +
     `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
     `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
@@ -2480,7 +2488,7 @@ const CreatePurchase: React.FC = () => {
           </Grid>
         </Box>
       </Box>
-      <TableContainer component={Paper} sx={{ maxHeight: "calc(100vh - 200px)", overflowY: "auto", width: "100%", marginLeft: 2 }}>
+      <TableContainer component={Paper} sx={{ maxHeight: "calc(100vh - 250px)", overflowY: "auto", width: "100%", marginLeft: 2 }}>
         <Table stickyHeader>
           <TableHead>
             <TableRow>
@@ -2488,6 +2496,7 @@ const CreatePurchase: React.FC = () => {
               <TableCell>Order ID</TableCell>
               <TableCell>Vendor Name</TableCell>
               <TableCell>Order Date</TableCell>
+              <TableCell>Approved Date</TableCell>
               <TableCell className='table-number-right'>Total PO Items</TableCell>
               <TableCell className='table-number-right'>Total Price</TableCell>
               <TableCell>Status</TableCell>
@@ -2506,6 +2515,7 @@ const CreatePurchase: React.FC = () => {
                   <TableCell>{order.randomId}</TableCell>
                   <TableCell>{order.vendorName}</TableCell>
                   <TableCell>{order.orderDate ? format(new Date(order.orderDate), "dd-MM-yyyy") : ""}</TableCell>
+                   <TableCell>{order.approvedDate ? format(new Date(order.approvedDate), "dd-MM-yyyy") : ""}</TableCell>
                   <TableCell className='table-number-right'>{order.items.reduce((acc, item) => acc + (item.pendingTotalQuantity || 0), 0)}</TableCell>
                   <TableCell className='table-number-right'>{(order.pendingOrderAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>{order.poStatus}</TableCell>

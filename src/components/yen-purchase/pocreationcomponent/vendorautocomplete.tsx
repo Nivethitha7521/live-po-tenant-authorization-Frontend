@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Autocomplete, TextField, CircularProgress } from '@mui/material';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '@/redux/store';
@@ -32,6 +32,7 @@ const VendorAutocomplete: React.FC<VendorAutocompleteProps> = ({
   const limit = 50;
   const [loading, setLoading] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const listboxRef = useRef<HTMLUListElement | null>(null);
 
   // Memoize fetchVendors to prevent unnecessary re-creation
   const fetchVendors = useCallback((searchQuery: string, skipValue: number, forceRefresh = false) => {
@@ -86,6 +87,28 @@ const VendorAutocomplete: React.FC<VendorAutocompleteProps> = ({
     }
   };
 
+  // Handle key down events - Select first matching on Tab
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Tab' && open && allVendors.length > 0) {
+      // Find the first matching option based on current search query
+      const firstMatch = allVendors.find(vendor => 
+        vendor.vendorName?.toLowerCase().includes(searchQuery.toLowerCase()) || false
+      );
+      if (firstMatch) {
+        // Select the first matching vendor
+        onChange(firstMatch);
+        setInputValue(firstMatch.vendorName || '');
+        setOpen(false);
+        // Prevent default to avoid any unwanted behavior, but allow tab to focus next field
+        event.preventDefault();
+        // Note: To programmatically focus next field, you might need a ref to next input, but for now, let natural tab flow
+      } else {
+        // If no match, just close dropdown
+        setOpen(false);
+      }
+    }
+  };
+
   return (
     <Autocomplete
       fullWidth={fullWidth}
@@ -97,10 +120,17 @@ const VendorAutocomplete: React.FC<VendorAutocompleteProps> = ({
       value={value}
       inputValue={inputValue}
       onInputChange={handleInputChange}
-      onChange={(_, value) => onChange(value)}
+      onChange={(_, selectedValue) => onChange(selectedValue)}
       open={open}
       onOpen={() => setOpen(true)}
       onClose={() => setOpen(false)}
+      onKeyDown={handleKeyDown}
+      // Enable auto-selection for Tab behavior
+      autoSelect={true}
+      disableCloseOnSelect={false}
+      blurOnSelect={true}
+      selectOnFocus={false}
+      clearOnBlur={false}
       renderInput={(params) => (
         <TextField
           {...params}
@@ -110,6 +140,7 @@ const VendorAutocomplete: React.FC<VendorAutocompleteProps> = ({
           error={error}
           helperText={helperText}
           required={required}
+          onKeyDown={handleKeyDown}
           InputProps={{
             ...params.InputProps,
             endAdornment: (
@@ -123,10 +154,11 @@ const VendorAutocomplete: React.FC<VendorAutocompleteProps> = ({
       )}
       renderOption={(props, option) => (
         <li {...props} key={option.vendorId}>
-          {option.vendorName}
+          {option.vendorName || ''}
         </li>
       )}
       ListboxProps={{
+        ref: listboxRef,
         onScroll: handleScroll as React.UIEventHandler<HTMLUListElement>
       }}
       loading={loading}

@@ -25,7 +25,7 @@ const initialState: OutletPhysicalStockState = {
 };
 
 export const fetchItems = createAsyncThunk('outletPhysicalStock/fetchItems', async () => {
-  const response = await axios.get<ItemData[]>('https://yenerp.com/fastapi/items'); // Adjust the URL based on your FastAPI endpoint
+  const response = await axios.get<ItemData[]>('http://192.168.29.116:8000/fastapi/items'); // Adjust the URL based on your FastAPI endpoint
   return response.data.map(item => ({
     ...item,
     modifiedPhysicalStock: item.currentSystemStock,

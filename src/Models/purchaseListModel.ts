@@ -88,6 +88,7 @@ export interface Item {
     poCreatedPerson:string;
     poApprovedPerson:string;
     poRejectedPerson:string;
+    locationName:string;
   }
   export interface Photo {
     filename: string;

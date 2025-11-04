@@ -637,10 +637,10 @@ const generateSummaryPDF = () => {
   const dueDate = addDays(createdDate, paymentTermsDays);
 
   const columnWidth = 60.6;
-  const tableHeader = [['Vendor Details', 'Billing Address', 'GRN Details']];
+  const tableHeader = [['Vendor Details', 'Shipping Address', 'GRN Details']];
   const vendorDetailsRows = [[
     `Name: ${grn.vendorName  || ''}\nGSTIN: ${grn.gstNumber || '' }\nAddress: ${grn.address || ''}\nCity: ${grn.city || ''}\nState: ${grn.state || ''}\nCountry: ${grn.country || ''}\nEmail: ${grn.contactpersonEmail || ''}`,
-    `Billing Address: ${grn.billingAddress || ''}`,
+    `Shipping Address: ${grn.shippingAddress || ''}`,
     `Po No: ${grn.poRandomID }\nGRN No: ${grn.randomId }\nGRN Date: ${grn.createdDate ? format(new Date(grn.createdDate), 'dd-MM-yyyy') : 'N/A'}\nPayment Terms: ${grn.paymentTerms || '15'} \nDue Date: ${format(dueDate, 'dd-MM-yyyy')}\nCurrency: INR`,
   ]];
 
@@ -934,7 +934,7 @@ const generateSummaryPDF = () => {
             </Menu>
           </Grid>
         </Box>
-        <TableContainer component={Paper} sx={{ maxHeight: 'calc(100vh - 205px)', overflowY: 'auto', width: '100%', ml: 1 }}>
+        <TableContainer component={Paper} sx={{ maxHeight: 'calc(100vh - 250px)', overflowY: 'auto', width: '100%', ml: 1 }}>
           <Table stickyHeader>
             <TableHead>
               <TableRow>

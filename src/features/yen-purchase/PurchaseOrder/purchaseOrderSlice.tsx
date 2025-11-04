@@ -48,7 +48,8 @@ export const initialState: PurchaseOrderState = {
     poRejectedPerson: '',
     discountMode: 'percentage',
     roundOffValue: 0,
-    overallDiscountValue: 0
+    overallDiscountValue: 0,
+    locationName: ''
   },
   newItem: {
     itemId: '',
@@ -167,7 +168,13 @@ export const fetchAllVendors = createAsyncThunk(
     return response.data;
   }
 );
-
+export const fetchPurchaseOrderById = createAsyncThunk(
+  'purchaseOrder/fetchPurchaseOrderById',
+  async (purchaseOrderId: string) => {
+    const response = await axios.get<PurchaseOrderData>(`${BASE_URL}/purchaseorders/${purchaseOrderId}`);
+    return response.data;
+  }
+);
 // Add a new function to invalidate cache when there are updates
 export const invalidatePurchaseItemsCache = () => {
   purchaseItemsCache.clear();
@@ -266,6 +273,7 @@ export const calculateItemTotals = createAsyncThunk(
     }
   }
 );
+
 export const calculateOverallDiscountForAllItems = createAsyncThunk<
   OverallDiscountResponse,
   CalculateOverallDiscountPayload,
@@ -444,6 +452,11 @@ export const setDiscountMode = createAction<{
   mode: 'percentage' | 'amount';
   recalculate?: boolean; // Optional flag to recalculate after mode change
 }>('purchaseOrder/setDiscountMode');
+
+// export const setDiscountMode = createAction<{
+//   mode: 'percentage' | 'amount';
+//   recalculate?: boolean; // Optional flag to recalculate after mode change
+// }>('purchaseOrder/setDiscountMode');
 
 const purchaseOrderSlice = createSlice({
   name: 'purchaseOrder',
@@ -652,6 +665,24 @@ const purchaseOrderSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || 'Failed to add purchase order';
       })
+      .addCase(updatePurchaseOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updatePurchaseOrder.fulfilled, (state, action: PayloadAction<PurchaseOrderData>) => {
+        state.loading = false;
+        // Update the purchase order in the list
+        const index = state.purchaseorderitems.findIndex(po => po.purchaseOrderId === action.payload.purchaseOrderId);
+        if (index !== -1) {
+          state.purchaseorderitems[index] = action.payload;
+        }
+        state.purchaseOrderData = action.payload; // Also update the current editing data
+        state.error = null;
+      })
+      .addCase(updatePurchaseOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to update purchase order';
+      })
       .addCase(downloadCsvTemplate.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -685,6 +716,19 @@ const purchaseOrderSlice = createSlice({
         state.snackbarMessage = action.payload as string;
         state.snackbarOpen = true;
         state.importDialogOpen = true;
+      })
+      .addCase(fetchPurchaseOrderById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchPurchaseOrderById.fulfilled, (state, action: PayloadAction<PurchaseOrderData>) => {
+        state.loading = false;
+        state.purchaseOrderData = { ...action.payload }; // Full PO object
+        state.error = null;
+      })
+      .addCase(fetchPurchaseOrderById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch purchase order';
       })
       .addCase(setDiscountMode, (state, action) => { 
         const { mode, recalculate = true } = action.payload;

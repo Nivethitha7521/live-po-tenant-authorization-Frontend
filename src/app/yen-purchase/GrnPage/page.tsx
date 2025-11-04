@@ -471,7 +471,7 @@ const GrnPage = () => {
     const dueDate = addDays(invoiceDate, paymentTermsDays); // Add payment terms days to created date
 
     // Table header with the three sections
-    const tableHeader = [['Vendor Details', 'Billing Address', 'GRN Details']];
+    const tableHeader = [['Vendor Details', 'Shipping Address', 'GRN Details']];
 
     // Vendor Details rows with correct line breaks
 const vendorDetailsRows = [
@@ -483,7 +483,7 @@ const vendorDetailsRows = [
     `State: ${grncheck.state || ''}\n` +
     `Country: ${grncheck.country || ''}\n` +
     `Email: ${grncheck.contactpersonEmail || ''}`,
-    `Billing Address: ${grncheck.billingAddress || ''}`,
+    `Shipping Address: ${grncheck.shippingAddress || ''}`,
     `PO No: ${grncheck.poRandomID || ''}\n` +
     `GRN No: ${grncheck.randomId || ''}\n` +
     `GRN Date: ${grncheck.createdDate ? format(new Date(grncheck.createdDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
@@ -1586,7 +1586,7 @@ const vendorDetailsRows = [
         <TableContainer
           component={Paper}
           sx={{
-            maxHeight: 'calc(100vh - 205px)', // Dynamic height based on viewport
+            maxHeight: 'calc(100vh - 250px)', // Dynamic height based on viewport
             overflowY: 'auto',
             width: '100%',
             ml: 1

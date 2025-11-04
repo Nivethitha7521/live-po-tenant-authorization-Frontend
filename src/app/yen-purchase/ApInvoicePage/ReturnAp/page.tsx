@@ -646,7 +646,7 @@ const ReturnnedApInvoicePage: React.FC = () => {
     // Table header and vendor details
     const columnWidth = 60.6;
     const tableHeader = [
-      ['Vendor Details', 'Billing Address', 'Invoice Details'],
+      ['Vendor Details', 'Shipping Address', 'Invoice Details'],
     ];
 
     const vendorDetailsRows = [
@@ -658,7 +658,7 @@ const ReturnnedApInvoicePage: React.FC = () => {
         `State: ${apinvoice.state || ''}\n` +
         `Country: ${apinvoice.country || ''}\n` +
         `Email: ${apinvoice.contactpersonEmail || ''}`,
-        `Billing Address: ${apinvoice.billingAddress}`,
+        `Shiiping Address: ${apinvoice.shippingAddress}`,
         `PO No: ${apinvoice.poRandomId}\n` +
         `GRN No: ${apinvoice.grnRandomId}\n` +
         `AP No: ${apinvoice.randomId}\n` +
@@ -1145,7 +1145,7 @@ const ReturnnedApInvoicePage: React.FC = () => {
           <TableContainer
             component={Paper}
             sx={{
-              maxHeight: 'calc(100vh - 180px)', // Match VerifiedApInvoicePage
+              maxHeight: 'calc(100vh - 250px)', // Match VerifiedApInvoicePage
               overflowY: 'auto',
               width: '100%',
             }}

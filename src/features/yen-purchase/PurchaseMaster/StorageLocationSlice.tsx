@@ -1,11 +1,16 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
-import { initialState, StorageLocationItem } from '@/Models/storagelocation';
+import { initialState, StorageLocationItem,Location } from '@/Models/storagelocation';
 import { ImportResult } from '@/Models/importResult';
 
 export const fetchStorageLocations = createAsyncThunk('storageLocations/fetchStorageLocations', async () => {
   const response = await axios.get('https://yenerp.com/purchaseapi/storagelocations/');
+  return response.data;
+});
+
+export const fetchLocations = createAsyncThunk('locations/fetchLocations', async () => {
+  const response = await axios.get('https://yenerp.com/fastapi/branches/');
   return response.data;
 });
 
@@ -146,6 +151,16 @@ const storageLocationSlice = createSlice({
         state.deactivatedItems = action.payload.filter((item: StorageLocationItem) => item.status === 'deactivated');
       })
       .addCase(fetchStorageLocations.rejected, (state) => {
+        state.loading = false;
+      })
+       .addCase(fetchLocations.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchLocations.fulfilled, (state, action) => {
+        state.loading = false;
+        state.location = action.payload.filter((location: Location) => location.status === '1');
+      })
+      .addCase(fetchLocations.rejected, (state) => {
         state.loading = false;
       })
       .addCase(addStorageLocation.fulfilled, (state, action) => {

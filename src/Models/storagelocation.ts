@@ -9,6 +9,12 @@ export interface StorageLocationItem {
   createdDate: Date | null;
   lastUpdatedDate: Date | null;
 }
+
+export interface Location{
+  branchId:string;
+  branchName:string;
+  status:string;
+}
 // Interface for Storage Location slice state
 export interface StorageLocationState {
   items: StorageLocationItem[];
@@ -24,6 +30,7 @@ export interface StorageLocationState {
   showDeactivated: boolean;
   storageLocationData: StorageLocationItem;
   locationNameTouched: boolean;
+  location:Location[];
   importSuccess: boolean; // Replaced importStatus
   exportSuccess: boolean; // Replaced exportStatus
   importError: string | null;
@@ -36,6 +43,7 @@ export interface StorageLocationState {
 export const initialState: StorageLocationState = {
   items: [],
   deactivatedItems: [],
+  location:[],
   loading: false,
   importing: false,
   exporting: false,

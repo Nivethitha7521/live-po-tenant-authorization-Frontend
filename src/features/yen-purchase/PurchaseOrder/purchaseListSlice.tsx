@@ -8,7 +8,7 @@ import { GrnData } from '@/Models/grnModel';
 
 const LIMIT = 20;
 const API_BASE_URL = 'https://yenerp.com/purchaseapi';
-const API_PHOTO_URL = 'https://yenerp.com/share/upload/purchaseorder/receipts';
+const API_PHOTO_URL = 'http://192.168.29.116:8000/share/upload/purchaseorder/receipts';
 
 export const fetchPurchaseOrderRandomIds = createAsyncThunk(
   'purchaseOrder/fetchRandomIds',

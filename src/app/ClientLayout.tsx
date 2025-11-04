@@ -46,8 +46,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       const storedUsername = sessionStorage.getItem('username');
       const existingToken = sessionStorage.getItem('accessToken');
       
-      // Set reload flag for this page load
-      sessionStorage.setItem('isReloading', 'true');
+      // No need for reload flag since we're removing beforeunload logout logic
       
       if (existingToken && storedUsername) {
         try {
@@ -57,7 +56,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
           return;
         } catch (error) {
           console.error('Token validation failed:', error);
-          // Only clear if it's a real validation failure, not reload
+          // Clear invalid session
           sessionStorage.removeItem('accessToken');
           sessionStorage.removeItem('username');
           sessionStorage.removeItem('tabId');
@@ -100,52 +99,9 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     initializeSession();
   }, [dispatch]);
 
-  // Handle tab/browser close events (NOT reloads)
-  useEffect(() => {
-    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
-      // Check if this is a reload or actual close
-      const isReloading = sessionStorage.getItem('isReloading') === 'true';
-      
-      if (!isReloading && isLoggedIn) {
-        // This is an actual tab/browser close, not reload
-        const browserSessionId = localStorage.getItem('browserSessionId');
-        const tabId = sessionStorage.getItem('tabId');
-        
-        if (browserSessionId && tabId) {
-          // Remove this tab from active tabs
-          let activeTabs = JSON.parse(localStorage.getItem(`activeTabs_${browserSessionId}`) || '[]');
-          activeTabs = activeTabs.filter((id: string) => id !== tabId);
-          localStorage.setItem(`activeTabs_${browserSessionId}`, JSON.stringify(activeTabs));
-
-          // If this is the last tab, logout the browser session
-          if (activeTabs.length === 0) {
-            try {
-              await dispatch(logout('browser_closed')).unwrap();
-              localStorage.removeItem(`activeTabs_${browserSessionId}`);
-            } catch (error) {
-              console.error('Logout on browser close failed:', error);
-            }
-          } else {
-            // Just logout this tab
-            try {
-              await dispatch(logout('tab_closed')).unwrap();
-            } catch (error) {
-              console.error('Logout on tab close failed:', error);
-            }
-          }
-        }
-      }
-      
-      // Clear the reload flag for next navigation
-      sessionStorage.removeItem('isReloading');
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [dispatch, isLoggedIn]);
+  // Removed handleBeforeUnload useEffect to prevent logout on reload/refresh
+  // Sessions will be handled server-side with timeouts instead
+  // This fixes automatic logout on navigation (like edit click) and reloads
 
   // Handle redirects for protected routes
   useEffect(() => {

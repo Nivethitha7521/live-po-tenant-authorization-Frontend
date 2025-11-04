@@ -305,7 +305,7 @@ table td.MuiTableCell-root {
 
 /* Global Checkbox Custom Styles */
 .MuiCheckbox-root {
-  transform: scale(0.6);
+  transform: scale(1);
 }
 
 /* Dialog Title Styling */

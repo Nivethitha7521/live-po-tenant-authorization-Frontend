@@ -9,7 +9,7 @@ const validationSchema = Yup.object({
   purchasetaxName: Yup.string()
     .required('Tax Name is required')
     .max(24, 'Maximum 24 characters required')
-    .test('no-leading-trailing-spaces', 'Subcategory cannot start or end with spaces', (value) => {
+    .test('no-leading-trailing-spaces', 'Tax cannot start or end with spaces', (value) => {
   if (!value) return true;
   return value === value.trim();
 }),

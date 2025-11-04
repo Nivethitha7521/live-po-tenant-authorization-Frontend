@@ -1,29 +1,28 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../redux/store';
-import { Business,initialState, Photo, ShippingAddress } from '@/Models/businessModel';
+import { Business, initialState, Photo, ShippingAddress } from '@/Models/businessModel';
 
-// Async thunk to fetch all Business items
+const API_BASE = 'https://yenerp.com/purchaseapi';
+
 export const fetchBusinesses = createAsyncThunk('businesses/fetchBusinesses', async () => {
-  const response = await axios.get('https://yenerp.com/purchaseapi/pobusiness/'); // Adjust API endpoint as needed
+  const response = await axios.get(`${API_BASE}/pobusiness/`);
   return response.data;
 });
 
-// Async thunk to add a new Business item
 export const addBusiness = createAsyncThunk<Business, Business>('businesses/addBusiness', async (businessData) => {
-  const response = await axios.post('https://yenerp.com/purchaseapi/pobusiness/', businessData); // Adjust API endpoint as needed
+  const response = await axios.post(`${API_BASE}/pobusiness/`, businessData);
   return response.data;
 });
 
-// Async thunk to update an existing Business item
 export const updateBusiness = createAsyncThunk<Business, Business>('businesses/updateBusiness', async (businessData) => {
-  const response = await axios.patch(`https://yenerp.com/purchaseapi/pobusiness/${businessData.businessId}`, businessData); // Adjust API endpoint as needed
+  const response = await axios.patch(`${API_BASE}/pobusiness/${businessData.businessId}`, businessData);
   return response.data;
 });
 
 export const uploadBusinessPhoto = createAsyncThunk<
-  { filename: string; id: string },  // The expected response shape
-  { businessId: string; file: File }  // The input params: business ID and the file
+  { filename: string; id: string; imageUrl: string },  // Include imageUrl in response
+  { businessId: string; file: File }
 >(
   'business/uploadPhoto',
   async ({ businessId, file }, { rejectWithValue }) => {
@@ -31,24 +30,19 @@ export const uploadBusinessPhoto = createAsyncThunk<
       const formData = new FormData();
       formData.append('file', file);
 
-      console.log('Uploading file:', file); // Log the file being uploaded
-
       const response = await axios.post(
-        `https://yenerp.com/purchaseapi/pobusiness/upload?custom_id=${businessId}`, // Use the business ID in the URL
+        `${API_BASE}/pobusiness/upload?custom_id=${businessId}`,
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',  // Ensure it's sent as multipart
+            'Content-Type': 'multipart/form-data',
           },
         }
       );
 
-      console.log('Upload response:', response.data); // Log the response data
-
-      return response.data; // Return the response (filename, id, or URL)
+      return response.data;
     } catch (error: any) {
-      console.error('Upload error:', error.response || error.message); // Log any error
-      return rejectWithValue(error.response?.data || 'Failed to upload the photo');  // Reject with the error message
+      return rejectWithValue(error.response?.data || 'Failed to upload the photo');
     }
   }
 );
@@ -57,15 +51,17 @@ export const fetchPhoto = createAsyncThunk(
   'photos/fetchPhoto',
   async (businessId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`https://yenerp.com/purchaseapi/pobusiness/view/${businessId}`, { responseType: 'blob' });
-      const imageUrl = URL.createObjectURL(response.data); // Convert blob to object URL
+      // Use the correct API base URL
+      const response = await axios.get(`${API_BASE}/pobusiness/view/${businessId}`, { 
+        responseType: 'blob' 
+      });
+      const imageUrl = URL.createObjectURL(response.data);
       return { imageUrl, businessId };
     } catch (error: any) {
       return rejectWithValue(error.response?.data || 'Error fetching photo');
     }
   }
 );
-
 // Async thunk to fetch all Business items
 export const fetchShipping = createAsyncThunk('shipping/fetchShipping', async () => {
   const response = await axios.get('https://yenerp.com/purchaseapi/poshippingaddress/'); // Adjust API endpoint as needed
@@ -140,17 +136,17 @@ const businessSlice = createSlice({
       })
       .addCase(addBusiness.fulfilled, (state, action) => {
         state.loading = false;
-      
+
         // Prevent duplicate by checking if the business already exists in the state
         const businessExists = state.businesses.some(
           (business) => business.businessId === action.payload.businessId
         );
-      
+
         if (!businessExists) {
           // Add only if not already present
           state.businesses.push(action.payload);
         }
-      })      
+      })
       .addCase(updateBusiness.fulfilled, (state, action) => {
         const index = state.businesses.findIndex((item) => item.businessId === action.payload.businessId);
         if (index !== -1) {
@@ -162,10 +158,17 @@ const businessSlice = createSlice({
         state.uploadStatus = 'loading';
         state.uploadError = null;
       })
-      .addCase(uploadBusinessPhoto.fulfilled, (state, action: PayloadAction<{ filename: string; id: string }>) => {
+      // In your component, ensure the image URL is properly set after upload
+      .addCase(uploadBusinessPhoto.fulfilled, (state, action: PayloadAction<{ filename: string; id: string; imageUrl: string }>) => {
         state.uploadStatus = 'succeeded';
         state.uploadError = null;
-        // Optionally handle the uploaded file details
+
+        // Update the business with the new image URL
+        const { id, imageUrl } = action.payload;
+        const index = state.businesses.findIndex((business) => business.businessId === id);
+        if (index !== -1) {
+          state.businesses[index].imageUrl = imageUrl;
+        }
       })
       .addCase(uploadBusinessPhoto.rejected, (state, action) => {
         state.uploadStatus = 'failed';

@@ -37,6 +37,7 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
   const [loading, setLoading] = useState(false);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   const listboxRef = useRef<HTMLUListElement | null>(null);
+  const [isUserSelection, setIsUserSelection] = useState(false);
 
   // Deduplicate items based on purchaseitemId
   const deduplicateItems = (items: PurchaseItemSearchAdd[]): PurchaseItemSearchAdd[] => {
@@ -123,7 +124,7 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
       listbox.addEventListener('scroll', handleScroll);
       return () => listbox.removeEventListener('scroll', handleScroll);
     }
-  }, [handleScroll, options]); // Re-attach when options change
+  }, [handleScroll, options]);
 
   // Handle search input change
   const handleSearchChange = (newInputValue: string) => {
@@ -131,16 +132,44 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
     if (newInputValue.length >= 1) {
       debouncedSearch(newInputValue);
     } else {
-      // If input is cleared, load initial items again
       loadItems('', 0, true);
     }
   };
 
   // Handle item selection
   const handleItemSelect = (_: any, selectedItem: PurchaseItemSearchAdd | null) => {
+    setIsUserSelection(true);
     onChange(selectedItem);
     setSearchQuery(selectedItem ? selectedItem.itemName : '');
     setOpen(false);
+  };
+
+  // Handle key down events - Select first matching on Tab
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Tab' && open && options.length > 0) {
+      // Find the first matching option based on current search query
+      const firstMatch = options.find(opt => 
+        opt.itemName.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      if (firstMatch) {
+        // Select the first matching item
+        onChange(firstMatch);
+        setSearchQuery(firstMatch.itemName);
+        setOpen(false);
+        // Prevent default to avoid any unwanted behavior, but allow tab to focus next field
+        event.preventDefault();
+        // Note: To programmatically focus next field, you might need a ref to next input, but for now, let natural tab flow
+      } else {
+        // If no match, just close dropdown
+        setOpen(false);
+      }
+    }
+  };
+
+  // Handle blur event
+  const handleBlur = (event: React.FocusEvent) => {
+    // Reset user selection flag
+    setIsUserSelection(false);
   };
 
   return (
@@ -158,12 +187,20 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
       open={open}
       onOpen={() => {
         setOpen(true);
-        // Load items immediately when opening if none are loaded
+        setIsUserSelection(false);
         if (options.length === 0 && !loading) {
           loadItems('', 0, true);
         }
       }}
       onClose={() => setOpen(false)}
+      onKeyDown={handleKeyDown}
+      onBlur={handleBlur}
+      // Enable auto-selection for Tab behavior
+      autoSelect={true}
+      disableCloseOnSelect={false}
+      blurOnSelect={true}
+      selectOnFocus={false}
+      clearOnBlur={false}
       renderInput={(params) => (
         <TextField
           {...params}
@@ -174,6 +211,7 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
           helperText={helperText}
           inputRef={inputRef}
           autoFocus={autoFocus}
+          onKeyDown={handleKeyDown}
           InputProps={{
             ...params.InputProps,
             endAdornment: (
@@ -197,7 +235,7 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
       loading={loading}
       loadingText="Loading items..."
       noOptionsText={loading ? "Loading..." : (searchQuery ? 'No items found' : 'Type to search')}
-      filterOptions={(options) => options} // Disable default filtering
+      filterOptions={(options) => options}
     />
   );
 };

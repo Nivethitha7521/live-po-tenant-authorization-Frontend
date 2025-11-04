@@ -94,6 +94,7 @@ export interface PurchaseOrderData {
   discountMode: 'percentage' | 'amount'; // Added to track discount type
   roundOffValue:number;
   overallDiscountValue:number;
+  locationName:string;
 }
 
 export type TaxDetails = Record<string, {
