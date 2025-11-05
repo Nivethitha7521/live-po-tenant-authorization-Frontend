@@ -14,7 +14,7 @@ interface PurchaseItemAutocompleteProps {
   helperText?: string;
   fullWidth?: boolean;
   inputRef?: React.Ref<HTMLInputElement>;
-  autoFocus?: boolean;
+  autoFocus?: boolean;  // NEW: Prop to enable auto-focus
 }
 
 const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
@@ -25,7 +25,7 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
   helperText = '',
   fullWidth = true,
   inputRef,
-  autoFocus = false,
+  autoFocus = false,  // NEW: Default false
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const [open, setOpen] = useState(false);
@@ -35,33 +35,41 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
   const [hasMore, setHasMore] = useState(true);
   const limit = 50;
   const [loading, setLoading] = useState(false);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const listboxRef = useRef<HTMLUListElement | null>(null);
   const [isUserSelection, setIsUserSelection] = useState(false);
 
-  // Deduplicate items based on purchaseitemId
+  // CRITICAL FIX: Sync searchQuery with external value
+  useEffect(() => {
+    if (value === null) {
+      setSearchQuery('');
+    } else if (value && value.itemName && searchQuery !== value.itemName) {
+      setSearchQuery(value.itemName);
+    }
+  }, [value]);  // Only depend on value for stability
+
+  // Deduplicate items based on purchaseitemId (unchanged)
   const deduplicateItems = (items: PurchaseItemSearchAdd[]): PurchaseItemSearchAdd[] => {
     return Array.from(
       new Map(items.map((item) => [item.purchaseitemId, item])).values()
     );
   };
 
-  // Load items function
+  // Load items function (unchanged)
   const loadItems = useCallback(async (query: string, currentSkip: number, isInitialLoad = false) => {
     setLoading(true);
     try {
       const result = await dispatch(
         searchPurchaseItems({ searchQuery: query, skip: currentSkip, limit })
       ).unwrap();
-      
+     
       const newItems = result || [];
-      
+     
       if (isInitialLoad) {
         setOptions(newItems);
       } else {
         setOptions(prev => deduplicateItems([...prev, ...newItems]));
       }
-      
+     
       setHasMore(newItems.length === limit);
       setSkip(currentSkip + limit);
     } catch (error) {
@@ -71,105 +79,97 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
       }
     } finally {
       setLoading(false);
-      if (isInitialLoad) {
-        setInitialLoadDone(true);
-      }
     }
   }, [dispatch, limit]);
 
-  // Debounced search function
+  // UPDATED Debounced search: Reduced delay for snappier typing
   const debouncedSearch = useMemo(
     () =>
       debounce((query: string) => {
         loadItems(query, 0, true);
-      }, 300),
+      }, 200),  // REDUCED: From 300ms to 200ms
     [loadItems]
   );
 
-  // Clean up debounced function on unmount
+  // Clean up debounced function on unmount (unchanged)
   useEffect(() => {
     return () => {
       debouncedSearch.cancel();
     };
   }, [debouncedSearch]);
 
-  // Load initial items when dropdown opens
-  useEffect(() => {
-    if (open && !initialLoadDone && options.length === 0) {
-      loadItems('', 0, true);
-    }
-  }, [open, initialLoadDone, options.length, loadItems]);
+  // REMOVED: No longer auto-load on open (load only on typing)
 
-  // Initialize with current value
-  useEffect(() => {
-    if (value && value.itemName) {
-      setSearchQuery(value.itemName);
-    }
-  }, [value]);
-
-  // Handle scroll to load more items
+  // Handle scroll to load more items (unchanged)
   const handleScroll = useCallback(() => {
     if (!listboxRef.current || !hasMore || loading) return;
-
     const { scrollTop, scrollHeight, clientHeight } = listboxRef.current;
     if (scrollTop + clientHeight >= scrollHeight - 10) {
       loadItems(searchQuery, skip);
     }
   }, [hasMore, loading, loadItems, searchQuery, skip]);
 
-  // Attach scroll event listener
+  // Attach scroll event listener (unchanged)
   useEffect(() => {
     const listbox = listboxRef.current;
     if (listbox) {
       listbox.addEventListener('scroll', handleScroll);
       return () => listbox.removeEventListener('scroll', handleScroll);
     }
-  }, [handleScroll, options]);
+  }, [handleScroll, options]);  // Added options dep for re-attach if needed
 
-  // Handle search input change
+  // UPDATED Handle search input change: Open only on typing, clear value if editing selected, reset list for new search
   const handleSearchChange = (newInputValue: string) => {
     setSearchQuery(newInputValue);
+    // If there's a current value and input differs, clear the value to start new search
+    if (value && newInputValue !== (value.itemName || '')) {
+      onChange(null);
+    }
     if (newInputValue.length >= 1) {
+      setOpen(true);
+      // Reset for new search
+      setOptions([]);
+      setSkip(0);
+      setHasMore(true);
       debouncedSearch(newInputValue);
     } else {
-      loadItems('', 0, true);
+      setOpen(false);
+      // No load for empty query
     }
   };
 
-  // Handle item selection
+  // Handle item selection (unchanged)
   const handleItemSelect = (_: any, selectedItem: PurchaseItemSearchAdd | null) => {
     setIsUserSelection(true);
     onChange(selectedItem);
     setSearchQuery(selectedItem ? selectedItem.itemName : '');
-    setOpen(false);
+    setOpen(false);  // Close after selection
   };
 
-  // Handle key down events - Select first matching on Tab
+  // Handle key down events - Select first matching on Tab (IMPROVED: Works even if partial open)
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Tab' && open && options.length > 0) {
-      // Find the first matching option based on current search query
-      const firstMatch = options.find(opt => 
+      const firstMatch = options.find(opt =>
         opt.itemName.toLowerCase().includes(searchQuery.toLowerCase())
       );
       if (firstMatch) {
-        // Select the first matching item
         onChange(firstMatch);
         setSearchQuery(firstMatch.itemName);
         setOpen(false);
-        // Prevent default to avoid any unwanted behavior, but allow tab to focus next field
-        event.preventDefault();
-        // Note: To programmatically focus next field, you might need a ref to next input, but for now, let natural tab flow
+        event.preventDefault();  // Prevent tab navigation, but allow focus shift
       } else {
-        // If no match, just close dropdown
         setOpen(false);
       }
     }
   };
 
-  // Handle blur event
+  // UPDATED Handle blur event: Clear partial input if no selection
   const handleBlur = (event: React.FocusEvent) => {
-    // Reset user selection flag
     setIsUserSelection(false);
+    // If no value selected and input has text, clear the input on blur
+    if (value === null && searchQuery.trim() !== '') {
+      setSearchQuery('');
+    }
   };
 
   return (
@@ -185,17 +185,18 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
       onInputChange={(_, newInputValue) => handleSearchChange(newInputValue)}
       onChange={handleItemSelect}
       open={open}
+      // CHANGED: No auto-open on focus; only opens on typing
+      openOnFocus={false}
       onOpen={() => {
         setOpen(true);
         setIsUserSelection(false);
-        if (options.length === 0 && !loading) {
-          loadItems('', 0, true);
-        }
       }}
       onClose={() => setOpen(false)}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
-      // Enable auto-selection for Tab behavior
+      // Keep filterOptions as-is (allows free typing without filtering)
+      filterOptions={(options, state) => options}
+      freeSolo={false}
       autoSelect={true}
       disableCloseOnSelect={false}
       blurOnSelect={true}
@@ -210,7 +211,7 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
           error={error}
           helperText={helperText}
           inputRef={inputRef}
-          autoFocus={autoFocus}
+          autoFocus={autoFocus}  // NEW: Use prop for auto-focus after clear
           onKeyDown={handleKeyDown}
           InputProps={{
             ...params.InputProps,
@@ -235,7 +236,6 @@ const PurchaseItemAutocomplete: React.FC<PurchaseItemAutocompleteProps> = ({
       loading={loading}
       loadingText="Loading items..."
       noOptionsText={loading ? "Loading..." : (searchQuery ? 'No items found' : 'Type to search')}
-      filterOptions={(options) => options}
     />
   );
 };

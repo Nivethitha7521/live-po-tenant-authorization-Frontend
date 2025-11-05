@@ -24,6 +24,7 @@ export interface Item {
   totalDiscount?: number;
   uom: string;
   taxPercentage: number;
+  grnPrice:number;
   totalPrice: number;
   finalPrice: number;
   befTaxDiscountAmount: number;
@@ -36,6 +37,13 @@ export interface Item {
   igst: number;
   pendingCount: number;
   pendingQuantity: number;
+  poQuantityTaxAmount:number;
+  poQuantityDiscountAmount:number;
+  poQuantitypendingTotalPrice:number;
+  poQuantitypendingFinalPrice:number;
+  poQuantitysgst:number;
+  poQuantitycgst:number;
+  poQuantityigst:number;
   pendingTotalQuantity: number;
   pendingTaxAmount?: number;
   pendingSgst?: number;

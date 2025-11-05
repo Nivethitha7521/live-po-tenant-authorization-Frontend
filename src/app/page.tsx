@@ -14,10 +14,29 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [imageExists, setImageExists] = useState(true);
+  const [checkingImage, setCheckingImage] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
   const { error, isLoggedIn } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
+
+  // Check if image exists on component mount
+  useEffect(() => {
+    const checkImage = async () => {
+      setCheckingImage(true);
+      try {
+        const response = await fetch('/images/purchaseimage.jpg');
+        setImageExists(response.ok);
+      } catch (error) {
+        setImageExists(false);
+      } finally {
+        setCheckingImage(false);
+      }
+    };
+
+    checkImage();
+  }, []);
 
   useEffect(() => {
     const checkAutoLogin = async () => {
@@ -106,44 +125,41 @@ const Login: React.FC = () => {
     );
   }
 
-  // ... (rest of the JSX remains the same as your original component)
   return (
-     <div className="min-h-screen flex">
+    <div className="min-h-screen flex">
       {/* Left Side - Image */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-500 to-blue-600 relative overflow-hidden">
         <div className="absolute inset-0 bg-black bg-opacity-20"></div>
         <div className="relative z-10 flex flex-col justify-center items-center text-white p-12 w-full">
           {/* Image Container */}
           <div className="flex justify-center items-center mb-8">
-            <Image
-              alt="Purchase Image"
-              className="max-w-md w-full h-auto rounded-lg shadow-2xl object-cover"
-              style={{ maxHeight: '400px' }}
-              width={500}
-              height={400}
-              src="/images/purchaseimage.jpg" // Empty src to trigger onError
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                target.nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-            {/* Fallback content if image fails to load */}
-            <div className="hidden max-w-md w-full h-80 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-white bg-opacity-30 rounded-full flex items-center justify-center">
-                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+            {!checkingImage && imageExists ? (
+              <Image
+                alt="Purchase Image"
+                className="max-w-md w-full h-auto rounded-lg shadow-2xl object-cover"
+                style={{ maxHeight: '400px' }}
+                width={500}
+                height={400}
+                src="/images/purchaseimage.jpg"
+                priority // This ensures the image loads first
+              />
+            ) : (
+              <div className="max-w-md w-full h-80 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-white bg-opacity-30 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-lg font-medium">Welcome to YEN ERP</p>
+                  <p className="text-sm opacity-90">Your business management solution</p>
                 </div>
-                <p className="text-lg font-medium">Welcome to YEN ERP</p>
-                <p className="text-sm opacity-90">Your business management solution</p>
               </div>
-            </div>
+            )}
           </div>
           {/* Text Content */}
           <div className="text-center max-w-md">

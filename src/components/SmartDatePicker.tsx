@@ -9,6 +9,7 @@ interface SmartDatePickerProps {
   minDate?: Date;
   maxDate?: Date;
   required?: boolean;
+  disabled?: boolean; // Added disabled prop
 }
 
 const SmartDatePicker: React.FC<SmartDatePickerProps> = ({
@@ -18,6 +19,7 @@ const SmartDatePicker: React.FC<SmartDatePickerProps> = ({
   minDate,
   maxDate,
   required = false,
+  disabled = false, // Default to false
 }) => {
   const today = new Date();
   
@@ -43,6 +45,8 @@ const SmartDatePicker: React.FC<SmartDatePickerProps> = ({
   }, [value]);
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return; // Prevent changes when disabled
+    
     const newValue = e.target.value;
     setInputValue(newValue);
     
@@ -78,6 +82,7 @@ const SmartDatePicker: React.FC<SmartDatePickerProps> = ({
       size="small"
       variant="outlined"
       required={required}
+      disabled={disabled} // Added disabled prop
     />
   );
 };

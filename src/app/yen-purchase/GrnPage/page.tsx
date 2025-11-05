@@ -474,24 +474,24 @@ const GrnPage = () => {
     const tableHeader = [['Vendor Details', 'Shipping Address', 'GRN Details']];
 
     // Vendor Details rows with correct line breaks
-const vendorDetailsRows = [
-  [
-    `${grncheck.vendorName || ' '}\n` +
-    `GSTIN: ${grncheck.gstNumber || ''}\n` +
-    `Address: ${grncheck.address || ''}\n` +
-    `City: ${grncheck.city || ''}\n` +
-    `State: ${grncheck.state || ''}\n` +
-    `Country: ${grncheck.country || ''}\n` +
-    `Email: ${grncheck.contactpersonEmail || ''}`,
-    `Shipping Address: ${grncheck.shippingAddress || ''}`,
-    `PO No: ${grncheck.poRandomID || ''}\n` +
-    `GRN No: ${grncheck.randomId || ''}\n` +
-    `GRN Date: ${grncheck.createdDate ? format(new Date(grncheck.createdDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-    `Payment Terms: ${grncheck.paymentTerms || ''}\n` +
-    `Due Date: ${dueDate ? format(new Date(dueDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-    `Currency: INR`,
-  ],
-];
+    const vendorDetailsRows = [
+      [
+        `${grncheck.vendorName || ' '}\n` +
+        `GSTIN: ${grncheck.gstNumber || ''}\n` +
+        `Address: ${grncheck.address || ''}\n` +
+        `City: ${grncheck.city || ''}\n` +
+        `State: ${grncheck.state || ''}\n` +
+        `Country: ${grncheck.country || ''}\n` +
+        `Email: ${grncheck.contactpersonEmail || ''}`,
+        `Shipping Address: ${grncheck.shippingAddress || ''}`,
+        `PO No: ${grncheck.poRandomID || ''}\n` +
+        `GRN No: ${grncheck.randomId || ''}\n` +
+        `GRN Date: ${grncheck.createdDate ? format(new Date(grncheck.createdDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+        `Payment Terms: ${grncheck.paymentTerms || ''}\n` +
+        `Due Date: ${dueDate ? format(new Date(dueDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+        `Currency: INR`,
+      ],
+    ];
     // Vendor Details Table
     doc.autoTable({
       head: tableHeader,
@@ -1805,18 +1805,19 @@ const vendorDetailsRows = [
                             value={apInvoiceDate}
                             onChange={setApInvoiceDate}
                             maxDate={new Date()}
+                            disabled={true} // This will disable the field
                           />
                         </Grid>
 
                         {/* Outgoing Date Picker */}
-                        <Grid item xs={12} md={2}>
+                        {/* <Grid item xs={12} md={2}>
                           <SmartDatePicker
                             label="Outgoing Date"
                             value={outgoingDate}
                             onChange={setOutgoingDate}
                             maxDate={new Date()}
                           />
-                        </Grid>
+                        </Grid> */}
                       </Grid>
                     </Box>
 

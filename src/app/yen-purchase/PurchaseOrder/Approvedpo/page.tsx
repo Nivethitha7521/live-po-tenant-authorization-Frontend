@@ -72,9 +72,29 @@ import { PurchaseOrderData, Item, TaxDetails } from "@/Models/purchaseModel";
 import { POsearchPurchaseItems } from "@/features/yen-purchase/PurchaseMaster/purchaseItemSlice";
 import { VendorSearch } from "@/Models/vendor";
 import ConfirmationDialog from "@/components/confirmationDialog";
+
+interface GRNItemPatch {
+  itemId: string;
+  receivedQuantity: number;
+  damagedQuantity?: number;
+  befTaxDiscount?: number;
+  afTaxDiscount?: number;
+  expiryDate?: string;
+  grnPrice?: number;
+}
+
+interface GRNPatchData {
+  grnDate?: string;
+  invoiceDate?: string;
+  invoiceNo?: string;
+  discountPrice?: number;
+  items: GRNItemPatch[];
+  grnRoundOffAmount?: number;
+}
+
 interface ExportProps {
   filteredOrders: PurchaseOrderData[];
-  businesses: any[]; // Adjust type based on your business model
+  businesses: any[];
   setSnackbarInvoiceMessage: (message: string) => void;
   setSnackbarInvoiceOpen: (open: boolean) => void;
 }
@@ -88,13 +108,14 @@ interface ItemWithCalculations {
   pendingQuantity?: number;
   pendingTotalQuantity: number;
   newPrice: number;
+  grnPrice?: number;
   taxPercentage: number;
   taxType: string;
   hsnCode?: string;
   status?: string;
   pendingTotalPrice?: number;
   totalDiscount?: number;
-  receivedQuantity?: number | string;
+  receivedQuantity?: number | string | undefined;
   befTaxDiscount?: number;
   afTaxDiscount?: number;
   expiryDate?: Date | null;
@@ -129,18 +150,17 @@ interface PurchaseOrderWithItems {
   termsandConditions?: string[];
   items: ItemWithCalculations[];
 }
-// Helper to parse backend date as local (ignores time/UTC shift)
-// Add this helper function before the component (outside CreatePurchase)
+
 const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
   if (!dateStr) return null;
-  // Extract YYYY-MM-DD from ISO/UTC string (e.g., '2025-10-29T00:00:00.000Z' -> '2025-10-29')
-  const localStr = dateStr.split('T')[0]; // Strips time
-  const date = new Date(localStr + 'T00:00:00'); // Create local Date
+  const localStr = dateStr.split('T')[0];
+  const date = new Date(localStr + 'T00:00:00');
   return isNaN(date.getTime()) ? null : date;
 };
-// Utility function for rounding
+
 const customRound = (value: number): number => Math.round(value);
 const customRoundDigit = (value: number): number => Math.round(value * 2) / 2;
+
 const TableRowMemo = React.memo(
   ({
     item,
@@ -148,6 +168,7 @@ const TableRowMemo = React.memo(
     touched,
     errors,
     handleQuantityChange,
+    handlePriceChange,
     handleDiscountChange,
     handleExpiryDateChange,
     handleQuantityBlur,
@@ -161,6 +182,7 @@ const TableRowMemo = React.memo(
       field: "receivedQuantity",
       value: string | number
     ) => void;
+    handlePriceChange: (itemId: string, value: string) => void;
     handleDiscountChange: (
       itemId: string,
       field: "befTaxDiscount" | "afTaxDiscount",
@@ -183,7 +205,7 @@ const TableRowMemo = React.memo(
         <TextField
           type="number"
           autoComplete="off"
-          value={item.receivedQuantity === undefined || item.receivedQuantity === null ? "" : item.receivedQuantity}
+          value={item.receivedQuantity ?? ""}
           onChange={(e) => handleQuantityChange(item.itemId, "receivedQuantity", e.target.value)}
           onBlur={(e) => handleQuantityBlur(item.itemId, "receivedQuantity", e.target.value)}
           inputProps={{ step: "0.01" }}
@@ -193,7 +215,18 @@ const TableRowMemo = React.memo(
           helperText={touched[index]?.receivedQuantity && errors[index]?.receivedQuantity}
         />
       </TableCell>
-      <TableCell className='table-number-right'>{item.newPrice.toFixed(2)}</TableCell>
+      <TableCell className='table-number-right'>
+        <TextField
+          type="number"
+          autoComplete="off"
+          value={item.grnPrice !== undefined ? item.grnPrice : item.newPrice}
+          onChange={(e) => handlePriceChange(item.itemId, e.target.value)}
+          inputProps={{ step: "0.01" }}
+          sx={{ width: "80px" }}
+          error={touched[index]?.grnPrice && !!errors[index]?.grnPrice}
+          helperText={touched[index]?.grnPrice && errors[index]?.grnPrice}
+        />
+      </TableCell>
       <TableCell>
         <TextField
           autoComplete="off"
@@ -220,28 +253,33 @@ const TableRowMemo = React.memo(
       </TableCell>
       <TableCell className='table-number-right'>{item.taxPercentage}%</TableCell>
       <TableCell>
-        <TextField
-          label="Expiry Date"
-          type="date"
-          value={item.expiryDate ? new Date(item.expiryDate).toISOString().split("T")[0] : ""}
-          onChange={(e) =>
-            handleExpiryDateChange(
-              item.itemId,
-              e.target.value ? new Date(e.target.value) : null
-            )
-          }
-          sx={{ mt: 1 }}
-          InputLabelProps={{ shrink: true }}
-          inputProps={{
-            min: new Date().toISOString().split("T")[0],
-          }}
-        />
+<TableCell>
+  <TextField
+    label="Expiry Date"
+    type="date"
+    value={item.expiryDate ? format(item.expiryDate, 'yyyy-MM-dd') : ''}
+    onChange={(e) =>
+      handleExpiryDateChange(
+        item.itemId,
+        e.target.value ? new Date(e.target.value) : null
+      )
+    }
+    sx={{ mt: 1 }}
+    InputLabelProps={{ shrink: true }}
+    inputProps={{
+      min: new Date().toISOString().split("T")[0],
+    }}
+    error={touched[index]?.expiryDate && !!errors[index]?.expiryDate}  // Add validation if needed
+    helperText={touched[index]?.expiryDate && errors[index]?.expiryDate}
+  />
+</TableCell>
       </TableCell>
       <TableCell className='table-number-right'>{(item.calculatedTotalPrice || 0).toFixed(2)}</TableCell>
     </TableRow>
   )
 );
 TableRowMemo.displayName = "TableRowMemo";
+
 interface OrderDetailsDialogProps {
   open: boolean;
   onClose: () => void;
@@ -269,11 +307,13 @@ interface OrderDetailsDialogProps {
   errors: Record<number, Record<string, string>>;
   setErrors: React.Dispatch<React.SetStateAction<Record<number, Record<string, string>>>>;
   handleQuantityChange: (itemId: string, field: "receivedQuantity", value: string | number) => void;
+  handlePriceChange: (itemId: string, value: string) => void;
   handleDiscountChange: (itemId: string, field: "befTaxDiscount" | "afTaxDiscount", value: string) => void;
   handleExpiryDateChange: (itemId: string, value: Date | null) => void;
   calculatedItems: ItemWithCalculations[];
+  roundOffAmount: number;
+  setRoundOffAmount: React.Dispatch<React.SetStateAction<number>>;
 }
-
 const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   open,
   onClose,
@@ -301,24 +341,26 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   errors,
   setErrors,
   handleQuantityChange,
+  handlePriceChange,
   handleDiscountChange,
   handleExpiryDateChange,
   calculatedItems,
+  roundOffAmount,
+  setRoundOffAmount,
 }) => {
-  // State for confirmation dialog
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
+
   const handleQuantityBlur = useCallback(
     (itemId: string, field: "receivedQuantity", value: string | number) => {
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
       const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
       const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-
-      // Allow empty string
+      
       if (value === "") {
         setErrors((prev) => ({
           ...prev,
@@ -326,8 +368,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
         }));
         return;
       }
-
-      // Validate non-empty input
+      
       if (!/^\d*\.?\d*$/.test(String(value))) {
         setErrors((prev) => ({
           ...prev,
@@ -335,7 +376,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
         }));
         return;
       }
-
+      
       const received = Number(value);
       if (received < 0) {
         setErrors((prev) => ({
@@ -344,7 +385,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
         }));
         return;
       }
-
+      
       if (originalPendingTotalQuantity === 0) {
         setErrors((prev) => ({
           ...prev,
@@ -352,7 +393,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
         }));
         return;
       }
-
+      
       if (received > originalPendingTotalQuantity) {
         setErrors((prev) => ({
           ...prev,
@@ -360,7 +401,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
         }));
         return;
       }
-
+      
       setErrors((prev) => ({
         ...prev,
         [index]: { ...prev[index], [field]: "" },
@@ -369,31 +410,68 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
     [updatedItems, selectedOrder]
   );
 
-  // Function to open the confirmation dialog
   const handleOpenConfirmDialog = () => {
+    // Validate round off amount before opening confirmation
+    const finalTotal = totalOrderAmount + roundOffAmount;
+    if (finalTotal < 0) {
+      setErrors((prev) => ({
+        ...prev,
+        roundOff: "Round off amount cannot make total negative"
+      }));
+      return;
+    }
     setOpenConfirmDialog(true);
   };
 
-  // Function to close the confirmation dialog
   const handleCloseConfirmDialog = () => {
     setOpenConfirmDialog(false);
   };
 
-  // Function to handle confirmation
   const handleConfirmSave = () => {
     setOpenConfirmDialog(false);
-    handleSaveChanges(); // Proceed with save changes on confirmation
+    handleSaveChanges();
   };
 
-  // Get current date formatted as yyyy-MM-dd
   const getCurrentDate = () => {
     return format(new Date(), 'yyyy-MM-dd');
   };
 
-  // Get order date formatted as yyyy-MM-dd (min date)
   const getOrderDateMin = () => {
     return selectedOrder?.orderDate ? format(startOfDay(new Date(selectedOrder.orderDate)), 'yyyy-MM-dd') : getCurrentDate();
   };
+
+  const handleRoundOffChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Allow empty, negative, and positive decimal numbers
+    if (value === '' || /^-?\d*\.?\d{0,2}$/.test(value)) {
+      const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+      setRoundOffAmount(parsedValue);
+      
+      // Clear any previous round off errors
+      setErrors((prev) => ({
+        ...prev,
+        roundOff: ""
+      }));
+    }
+  };
+
+  const handleRoundOffBlur = () => {
+    const finalTotal = totalOrderAmount + roundOffAmount;
+    if (finalTotal < 0) {
+      setErrors((prev) => ({
+        ...prev,
+        roundOff: `Round off amount cannot make total negative. Current total: ${totalOrderAmount.toFixed(2)}`
+      }));
+    } else {
+      setErrors((prev) => ({
+        ...prev,
+        roundOff: ""
+      }));
+    }
+  };
+
+  const finalTotalAmount = totalOrderAmount + roundOffAmount;
 
   return (
     <>
@@ -403,8 +481,8 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
         maxWidth={false}
         fullWidth={true}
         fullScreen={isFullScreen}
-        container={document.body} // Always render in document.body
-        disablePortal={false} // Use portal to break out of parent containers
+        container={document.body}
+        disablePortal={false}
         sx={isFullScreen ? {
           '& .MuiDialog-container': {
             position: 'fixed !important',
@@ -443,7 +521,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: isFullScreen ? '16px 24px' : '16px' // Adjust padding for fullscreen
+          padding: isFullScreen ? '16px 24px' : '16px'
         }}>
           <span>Approved Order Details {selectedOrder?.randomId || ''}</span>
           <span>Vendor Name: {selectedOrder?.vendorName || 'Unknown Vendor'}</span>
@@ -452,8 +530,8 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
           </IconButton>
         </DialogTitle>
         <DialogContent sx={{
-          padding: isFullScreen ? '0 24px' : '20px', // Adjust content padding
-          height: isFullScreen ? 'calc(100vh - 120px)' : 'auto', // Account for header/footer height
+          padding: isFullScreen ? '0 24px' : '20px',
+          height: isFullScreen ? 'calc(100vh - 120px)' : 'auto',
           overflow: 'auto'
         }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
@@ -487,16 +565,15 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                 }}
                 InputLabelProps={{ shrink: true }}
               />
-
               <TextField
                 label="GRN Date"
                 type="date"
                 value={grnDate ? format(grnDate, 'yyyy-MM-dd') : getCurrentDate()}
-                onChange={(e) => setGrnDate(e.target.value ? new Date(e.target.value) : new Date())} // Default to current if cleared
+                onChange={(e) => setGrnDate(e.target.value ? new Date(e.target.value) : new Date())}
                 disabled={true}
                 inputProps={{
-                  min: getOrderDateMin(), // Min: Order date
-                  max: getCurrentDate(), // Max: Current date
+                  min: getOrderDateMin(),
+                  max: getCurrentDate(),
                 }}
                 InputLabelProps={{ shrink: true }}
               />
@@ -529,7 +606,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                   </TableRow>
                 ) : (
                   calculatedItems
-                    .filter((item) => item.status !== "Received") // Filter out items with status "Received"
+                    .filter((item) => item.status !== "Received")
                     .map((item: ItemWithCalculations, index: number) => (
                       <TableRowMemo
                         key={item.itemId}
@@ -538,12 +615,15 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                         touched={touched}
                         errors={errors}
                         handleQuantityChange={handleQuantityChange}
+                        handlePriceChange={handlePriceChange}
                         handleDiscountChange={handleDiscountChange}
                         handleExpiryDateChange={handleExpiryDateChange}
                         handleQuantityBlur={handleQuantityBlur}
                       />
                     ))
                 )}
+                
+                {/* Tax Details */}
                 {Object.entries(taxDetails).map(([key, tax]: [string, { amount: number; percentage: number; type: string }]) => (
                   <TableRow key={key}>
                     <TableCell colSpan={10} />
@@ -553,12 +633,60 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                     <TableCell className='table-number-right'>{tax.amount.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
+                
+                {/* Total Before Round Off */}
                 <TableRow>
                   <TableCell colSpan={10} />
                   <TableCell>
-                    <strong>Total Order Amount:</strong>
+                    <strong>Total Before Round Off:</strong>
                   </TableCell>
                   <TableCell className='table-number-right'>{totalOrderAmount.toFixed(2)}</TableCell>
+                </TableRow>
+                
+                {/* Round Off Field */}
+                <TableRow>
+                  <TableCell colSpan={10} />
+                  <TableCell>
+                    <TextField
+                      label="Round Off Amount"
+                      type="number"
+                      autoComplete="off"
+                      value={roundOffAmount === 0 ? '' : roundOffAmount}
+                      onChange={handleRoundOffChange}
+                      onBlur={handleRoundOffBlur}
+                      inputProps={{ 
+                        step: "0.01",
+                        min: "-999999",
+                        max: "999999"
+                      }}
+                      sx={{ width: "150px" }}
+                      size="small"
+                      placeholder="0.00"
+                    />
+                  </TableCell>
+                  <TableCell className='table-number-right'>
+                    {roundOffAmount.toFixed(2)}
+                  </TableCell>
+                </TableRow>
+                
+                {/* Final Total */}
+                <TableRow sx={{ 
+                  backgroundColor: '#f5f5f5',
+                  '& td': {
+                    fontWeight: 'bold',
+                    fontSize: '1.1em'
+                  }
+                }}>
+                  <TableCell colSpan={10} />
+                  <TableCell>
+                    <strong>Final Total Amount:</strong>
+                  </TableCell>
+                  <TableCell className='table-number-right' 
+                    sx={{ 
+                      color: finalTotalAmount < 0 ? 'error.main' : 'inherit'
+                    }}>
+                    {finalTotalAmount.toFixed(2)}
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -571,9 +699,11 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
             </Button>
             <Tooltip
               title={
-                isReceivedQuantityValid()
+                isReceivedQuantityValid() && finalTotalAmount >= 0
                   ? "Convert this purchase order to a Goods Received Note (GRN)"
-                  : "Cannot convert to GRN: All items are fully received or no valid received quantities are provided."
+                  : !isReceivedQuantityValid()
+                    ? "Cannot convert to GRN: All items are fully received or no valid received quantities are provided."
+                    : "Cannot convert to GRN: Round off amount makes total negative."
               }
             >
               <span>
@@ -581,7 +711,13 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                   variant="contained"
                   color="success"
                   onClick={handleOpenConfirmDialog}
-                  disabled={isProcessing || !isReceivedQuantityValid() || isInvoiceDuplicate || !invoiceNumber}
+                  disabled={
+                    isProcessing || 
+                    !isReceivedQuantityValid() || 
+                    isInvoiceDuplicate || 
+                    !invoiceNumber ||
+                    finalTotalAmount < 0
+                  }
                 >
                   Convert to GRN
                 </Button>
@@ -590,14 +726,29 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
           </Box>
         </DialogActions>
       </Dialog>
-      {/* Add ConfirmationDialog */}
+      
       <ConfirmationDialog
         open={openConfirmDialog}
         onClose={handleCloseConfirmDialog}
         onConfirm={handleConfirmSave}
         title="Confirm Conversion to GRN"
-        description="Are you sure you want to convert this purchase order to a Goods Received Note (GRN)?"
-        confirmText="OK"
+        description={
+          <Box>
+            <Typography>Are you sure you want to convert this purchase order to a Goods Received Note (GRN)?</Typography>
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="body2">
+                <strong>Total Before Round Off:</strong> {totalOrderAmount.toFixed(2)}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Round Off Amount:</strong> {roundOffAmount.toFixed(2)}
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                <strong>Final Total:</strong> {finalTotalAmount.toFixed(2)}
+              </Typography>
+            </Box>
+          </Box>
+        }
+        confirmText="Convert to GRN"
         cancelText="Cancel"
       />
     </>
@@ -610,6 +761,7 @@ const CreatePurchase: React.FC = () => {
   const currentPage = useSelector(selectCurrentPage);
   const pageSize = useSelector(selectPageSize);
   const totalItems = useSelector(selectTotalItems);
+  
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrderWithItems | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
@@ -621,6 +773,7 @@ const CreatePurchase: React.FC = () => {
   const [invoiceDate, setInvoiceDate] = useState<Date | null>(null);
   const [grnDate, setGrnDate] = useState<Date | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [roundOffAmount, setRoundOffAmount] = useState(0);
   const [selectionRange, setSelectionRange] = useState({
     startDate: new Date(),
     endDate: new Date(),
@@ -649,6 +802,7 @@ const CreatePurchase: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
+
   const handleCloseDialogs = useCallback(() => {
     setOpenDialog(false);
     setOpenEditDialog(false);
@@ -665,32 +819,36 @@ const CreatePurchase: React.FC = () => {
     setIsInvoiceDuplicate(false);
     setTouched({});
     setErrors({});
+    setRoundOffAmount(0);
     console.log("Dialogs closed, states reset");
   }, []);
+
   const calculatedItems = useMemo(() => {
     if (!selectedOrder || updatedItems.length === 0) return [];
     return updatedItems.map((item) => {
       const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
       if (!originalItem) return item;
-      const receivedQuantity = Number(item.receivedQuantity) || 0; // Ensure number conversion
+      const receivedQuantity = Number(item.receivedQuantity) || 0;
       const poQuantity = originalItem.poQuantity || 0;
       const pendingTotalQuantity = originalItem.pendingTotalQuantity || poQuantity;
       const pendingCount = originalItem.pendingCount || 1;
       const pendingQuantity = originalItem.pendingQuantity || poQuantity;
       const newPrice = originalItem.newPrice || 0;
+      const grnPrice = item.grnPrice !== undefined ? item.grnPrice : newPrice;
       const taxPercentage = originalItem.taxPercentage || 0;
       const befTaxDiscount = Number(item.befTaxDiscount) || 0;
       const afTaxDiscount = Number(item.afTaxDiscount) || 0;
-      // Use receivedQuantity for calculations (now initialized to pendingTotalQuantity)
+      
       const calculatedPendingQuantity = receivedQuantity > 0 ? receivedQuantity : pendingQuantity;
       const calculatedPendingCount = pendingTotalQuantity > 0 ? pendingCount : 0;
-      const totalPrice = receivedQuantity * newPrice;
+      const totalPrice = receivedQuantity * grnPrice;
       const discountAmountBeforeTax = totalPrice * (befTaxDiscount / 100);
       const discountedPriceBeforeTax = totalPrice - discountAmountBeforeTax;
       const taxAmount = discountedPriceBeforeTax * (taxPercentage / 100);
       let finalPrice = discountedPriceBeforeTax + taxAmount;
       const discountAmountAfterTax = finalPrice * (afTaxDiscount / 100);
       finalPrice = finalPrice - discountAmountAfterTax;
+      
       return {
         ...item,
         calculatedPendingCount,
@@ -702,13 +860,15 @@ const CreatePurchase: React.FC = () => {
       };
     });
   }, [updatedItems, selectedOrder]);
+
   const taxDetails = useMemo(() => {
     const details: Record<string, { amount: number; percentage: number; type: string }> = {};
     calculatedItems.forEach((item) => {
       const taxPercentage = item.taxPercentage || 0;
       const taxType = item.taxType;
-      const discountedPriceBeforeTax = (item.calculatedTotalPrice || 0) * (1 - (Number(item.befTaxDiscount) / 100));
-
+      const price = item.grnPrice !== undefined ? item.grnPrice : item.newPrice || 0;
+      const discountedPriceBeforeTax = (item.calculatedTotalPrice || 0);
+      
       if (taxType === "igst") {
         const igst = (taxPercentage / 100) * discountedPriceBeforeTax;
         const igstKey = `igst-${taxPercentage}`;
@@ -721,14 +881,12 @@ const CreatePurchase: React.FC = () => {
         const totalTaxAmount = (taxPercentage / 100) * discountedPriceBeforeTax;
         const sgst = totalTaxAmount / 2;
         const cgst = totalTaxAmount / 2;
-
         const sgstKey = `sgst-${taxPercentage / 2}`;
         if (details[sgstKey]) {
           details[sgstKey].amount += sgst;
         } else {
           details[sgstKey] = { amount: sgst, percentage: taxPercentage / 2, type: "SGST" };
         }
-
         const cgstKey = `cgst-${taxPercentage / 2}`;
         if (details[cgstKey]) {
           details[cgstKey].amount += cgst;
@@ -754,33 +912,36 @@ const CreatePurchase: React.FC = () => {
     () =>
       customRoundDigit(
         calculatedItems.reduce(
-          (sum, item) =>
-            sum +
-            ((item.calculatedTotalPrice || 0) * (Number(item.befTaxDiscount) / 100) || 0) +
-            ((item.calculatedFinalPrice || 0) * (Number(item.afTaxDiscount) / 100) || 0),
+          (sum, item) => {
+            const price = item.grnPrice !== undefined ? item.grnPrice : item.newPrice || 0;
+            const totalPrice = (Number(item.receivedQuantity) || 0) * price;
+            return sum +
+              (totalPrice * (Number(item.befTaxDiscount) / 100) || 0) +
+              ((item.calculatedFinalPrice || 0) * (Number(item.afTaxDiscount) / 100) || 0);
+          },
           0
         )
       ),
     [calculatedItems]
   );
+
   useEffect(() => {
     if (selectedOrder) {
       setInvoiceNumber(selectedOrder.invoiceNo || "");
-
-      // Set both invoiceDate and grnDate to current date for new GRN conversion
       const currentDate = new Date();
       setInvoiceDate(currentDate);
       setGrnDate(currentDate);
-
       const initializedItems = selectedOrder.items.map((item) => {
         const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
         const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
         return {
           ...item,
-          receivedQuantity: pendingTotalQuantity, // Initialize with pendingTotalQuantity
+          receivedQuantity: pendingTotalQuantity,
+          grnPrice: undefined,
           befTaxDiscount: item.befTaxDiscount || 0,
           afTaxDiscount: item.afTaxDiscount || 0,
-          expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
+// In useEffect where you set initializedItems:
+expiryDate: item.expiryDate ? new Date(item.expiryDate + 'T00:00:00Z') : null,  // Force UTC if backend sends string
           status: pendingTotalQuantity === 0 ? "Received" : item.status || "Pending",
         };
       });
@@ -788,21 +949,23 @@ const CreatePurchase: React.FC = () => {
       const initialTouched = initializedItems.reduce(
         (acc, _, index) => ({
           ...acc,
-          [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
+          [index]: { receivedQuantity: false, grnPrice: false, befTaxDiscount: false, afTaxDiscount: false },
         }),
         {}
       );
       const initialErrors = initializedItems.reduce(
         (acc, _, index) => ({
           ...acc,
-          [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
+          [index]: { receivedQuantity: "", grnPrice: "", befTaxDiscount: "", afTaxDiscount: "" },
         }),
         {}
       );
       setTouched(initialTouched);
       setErrors(initialErrors);
+      setRoundOffAmount(0);
     }
   }, [selectedOrder]);
+
   useEffect(() => {
     if (businesses.length > 0 && businesses[0].businessId && !fetchedBusinessIds.has(businesses[0].businessId)) {
       dispatch(fetchPhoto(businesses[0].businessId));
@@ -839,34 +1002,19 @@ const CreatePurchase: React.FC = () => {
     }
   }, [invoiceNumber, purchaseinvoice, selectedOrder]);
 
-  useEffect(() => {
-    dispatch(fetchBusinesses());
-  }, [dispatch]);
-
   const handleQuantityChange = useCallback(
     (itemId: string, field: "receivedQuantity", value: string | number) => {
       console.log("Quantity Change:", { itemId, field, value });
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
       const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
       const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+      
       setTouched((prev) => ({
         ...prev,
         [index]: { ...prev[index], [field]: true },
       }));
-      // Allow empty string
-      if (value === "") {
-        setUpdatedItems((prevItems) =>
-          prevItems.map((item) =>
-            item.itemId === itemId ? { ...item, receivedQuantity: "" } : item
-          )
-        );
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: "" },
-        }));
-        return;
-      }
-      // Validate non-empty input
+      
+      const received = Number(value) || 0;
       if (!/^\d*\.?\d*$/.test(String(value))) {
         setErrors((prev) => ({
           ...prev,
@@ -874,7 +1022,7 @@ const CreatePurchase: React.FC = () => {
         }));
         return;
       }
-      const received = Number(value);
+      
       if (received < 0) {
         setErrors((prev) => ({
           ...prev,
@@ -882,6 +1030,7 @@ const CreatePurchase: React.FC = () => {
         }));
         return;
       }
+      
       if (originalPendingTotalQuantity === 0) {
         setErrors((prev) => ({
           ...prev,
@@ -893,6 +1042,7 @@ const CreatePurchase: React.FC = () => {
         setExcessDialogOpen(true);
         return;
       }
+      
       if (received > originalPendingTotalQuantity) {
         setErrors((prev) => ({
           ...prev,
@@ -904,6 +1054,7 @@ const CreatePurchase: React.FC = () => {
         setExcessDialogOpen(true);
         return;
       }
+      
       setUpdatedItems((prevItems) =>
         prevItems.map((item) =>
           item.itemId === itemId ? { ...item, receivedQuantity: received } : item
@@ -922,15 +1073,8 @@ const CreatePurchase: React.FC = () => {
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
       const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
       const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      // Allow empty string
-      if (value === "") {
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: "" },
-        }));
-        return;
-      }
-      // Validate non-empty input
+      
+      const received = Number(value) || 0;
       if (!/^\d*\.?\d*$/.test(String(value))) {
         setErrors((prev) => ({
           ...prev,
@@ -938,7 +1082,7 @@ const CreatePurchase: React.FC = () => {
         }));
         return;
       }
-      const received = Number(value);
+      
       if (received < 0) {
         setErrors((prev) => ({
           ...prev,
@@ -946,6 +1090,7 @@ const CreatePurchase: React.FC = () => {
         }));
         return;
       }
+      
       if (originalPendingTotalQuantity === 0) {
         setErrors((prev) => ({
           ...prev,
@@ -953,6 +1098,7 @@ const CreatePurchase: React.FC = () => {
         }));
         return;
       }
+      
       if (received > originalPendingTotalQuantity) {
         setErrors((prev) => ({
           ...prev,
@@ -960,12 +1106,42 @@ const CreatePurchase: React.FC = () => {
         }));
         return;
       }
+      
       setErrors((prev) => ({
         ...prev,
         [index]: { ...prev[index], [field]: "" },
       }));
     },
     [updatedItems, selectedOrder]
+  );
+
+  const handlePriceChange = useCallback(
+    (itemId: string, value: string) => {
+      const index = updatedItems.findIndex((item) => item.itemId === itemId);
+      setTouched((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], grnPrice: true },
+      }));
+      
+      if (value === "" || /^\d*\.?\d*$/.test(value)) {
+        const priceValue = value === "" ? undefined : Number(value);
+        setUpdatedItems((prevItems) =>
+          prevItems.map((item) =>
+            item.itemId === itemId ? { ...item, grnPrice: priceValue } : item
+          )
+        );
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], grnPrice: "" },
+        }));
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], grnPrice: "Invalid number" },
+        }));
+      }
+    },
+    [updatedItems]
   );
 
   const handleDiscountChange = useCallback(
@@ -975,7 +1151,7 @@ const CreatePurchase: React.FC = () => {
         ...prev,
         [index]: { ...prev[index], [field]: true },
       }));
-
+      
       if (value === "" || /^\d*\.?\d*$/.test(value)) {
         setUpdatedItems((prevItems) =>
           prevItems.map((item) =>
@@ -995,201 +1171,286 @@ const CreatePurchase: React.FC = () => {
     },
     [updatedItems]
   );
-
-  const handleExpiryDateChange = useCallback(
-    (itemId: string, value: Date | null) => {
+const handleExpiryDateChange = useCallback(
+  (itemId: string, value: Date | null) => {
+    if (value) {
+      // Create UTC date at start of day (00:00:00 UTC)
+      const utcDate = new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()));
+      
       setUpdatedItems((prevItems) =>
         prevItems.map((item) =>
           item.itemId === itemId
-            ? { ...item, expiryDate: value && !isNaN(value.getTime()) ? value : null } // Validate Date
+            ? { 
+                ...item, 
+                expiryDate: utcDate
+              }
             : item
         )
       );
-    },
-    []
-  );
-  // Fixed handleSaveChanges function with proper validation and calculation
-  const handleSaveChanges = useCallback(async () => {
-    console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate });
-
-    if (!selectedOrder?.purchaseOrderId) {
-      setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    if (!invoiceNumber.trim()) {
-      setSnackbarInvoiceMessage("Invoice number is required.");
-      setSnackbarInvoiceOpen(true);
-      setIsTouched(true);
-      return;
-    }
-
-    // Ensure invoiceDate is always current or selected (never null)
-    const finalInvoiceDate = invoiceDate || new Date();
-    if (!finalInvoiceDate) {
-      setSnackbarInvoiceMessage("Invoice date is required.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    if (isInvoiceDuplicate) {
-      setSnackbarInvoiceMessage("Duplicate invoice number detected. Please enter a unique invoice number.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    // Check for validation errors
-    const hasErrors = Object.values(errors).some((errorObj) =>
-      Object.values(errorObj).some((error) => error)
-    );
-    if (hasErrors) {
-      setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-
-    // Filter items that have valid received quantities and pending quantities
-    const validItems = updatedItems.filter((item) => {
-      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
-      const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      const receivedQuantity = item.receivedQuantity === "" ? 0 : Number(item.receivedQuantity);
-
-      // Validate discount ranges
-      const befTaxDiscount = Number(item.befTaxDiscount) || 0;
-      const afTaxDiscount = Number(item.afTaxDiscount) || 0;
-
-      if (befTaxDiscount < 0 || befTaxDiscount > 100) {
-        setSnackbarInvoiceMessage(`Before-tax discount for item "${item.itemName}" must be between 0 and 100%.`);
-        setSnackbarInvoiceOpen(true);
-        return false;
-      }
-
-      if (afTaxDiscount < 0) {
-        setSnackbarInvoiceMessage(`After-tax discount for item "${item.itemName}" cannot be negative.`);
-        setSnackbarInvoiceOpen(true);
-        return false;
-      }
-
-      return receivedQuantity > 0 && pendingTotalQuantity > 0;
-    });
-
-    // If no valid items are found, show a message and prevent GRN conversion
-    if (validItems.length === 0) {
-      const hasPendingItems = updatedItems.some((item) => {
-        const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
-        return (originalItem?.pendingTotalQuantity || 0) > 0;
-      });
-
-      if (!hasPendingItems) {
-        setSnackbarInvoiceMessage("All items in this purchase order have already been fully received.");
-        setSnackbarInvoiceOpen(true);
-      } else {
-        setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0.");
-        setSnackbarInvoiceOpen(true);
-      }
-      return;
-    }
-
-    // Check for excess quantities one more time
-    const hasExcessQuantity = validItems.some((item) => {
-      const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
-      const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      const receivedQuantity = Number(item.receivedQuantity);
-
-      if (receivedQuantity > backendPendingTotalQuantity) {
-        setExcessDialogMessage(
-          `Received quantity for item "${item.itemName}" (${receivedQuantity}) exceeds the pending total quantity (${backendPendingTotalQuantity}).`
-        );
-        setExcessDialogOpen(true);
-        return true;
-      }
-      return false;
-    });
-
-    if (hasExcessQuantity) return;
-
-    // Prepare items for submission with validated data
-    const items = validItems.map((item) => {
-      // Ensure proper number conversion and validation
-      const receivedQuantity = Number(item.receivedQuantity);
-      const befTaxDiscount = Math.max(0, Math.min(100, Number(item.befTaxDiscount) || 0));
-      const afTaxDiscount = Math.max(0, Number(item.afTaxDiscount) || 0);
-
-      return {
-        itemId: item.itemId,
-        receivedQuantity: receivedQuantity,
-        befTaxDiscount: befTaxDiscount,
-        afTaxDiscount: afTaxDiscount,
-        expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
-      };
-    });
-
-    // Log the items being sent to backend for debugging
-    console.log("Items being sent to backend:", items);
-
-    try {
-      setIsProcessing(true);
-
-      const updateResult = await dispatch(
-        updateReceivedDamagedQuantities({
-          purchaseOrderId: selectedOrder.purchaseOrderId,
-          items,
-          invoiceNo: invoiceNumber.trim(),
-          invoiceDate: finalInvoiceDate, // Use final (current if null)
-          grnDate: grnDate || new Date(), // Use grnDate or current
-          discountPrice: 0, // PO-level discount, set to 0 if not used
-        })
-      ).unwrap();
-
-      console.log("Update Result:", updateResult);
-
-      // Update selectedOrder with new backend state
-      const updatedOrderItems = selectedOrder.items.map((originalItem) => {
-        const updatedItem = items.find((item) => item.itemId === originalItem.itemId);
-        if (updatedItem) {
-          const newPendingTotalQuantity = Math.max(
-            0,
-            (originalItem.pendingTotalQuantity || 0) - updatedItem.receivedQuantity
-          );
-          const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
-          const newPendingQuantity = newPendingTotalQuantity;
-
-          return {
-            ...originalItem,
-            pendingTotalQuantity: newPendingTotalQuantity,
-            pendingCount: newPendingCount,
-            pendingQuantity: newPendingQuantity,
-            status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
-            receivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
-            totalReceivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
-            befTaxDiscount: updatedItem.befTaxDiscount,
-            afTaxDiscount: updatedItem.afTaxDiscount,
-            expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
-          };
-        }
-        return originalItem;
-      });
-
-      // Update the selected order state
-      setSelectedOrder((prev) =>
-        prev
-          ? {
-            ...prev,
-            items: updatedOrderItems,
-            pendingOrderAmount: updateResult.pendingOrderAmount || 0,
-            totalOrderAmount: updateResult.totalOrderAmount || 0,
-            invoiceNo: updateResult.invoiceNo,
-            invoiceDate: updateResult.invoiceDate,
-          }
-          : null
+    } else {
+      setUpdatedItems((prevItems) =>
+        prevItems.map((item) =>
+          item.itemId === itemId
+            ? { ...item, expiryDate: null }
+            : item
+        )
       );
-
-      // Reset form state for next session
+    }
+  },
+  []
+);
+const handleSaveChanges = useCallback(async () => {
+  console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate, roundOffAmount });
+  
+  if (!selectedOrder?.purchaseOrderId) {
+    setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+  
+  if (!invoiceNumber.trim()) {
+    setSnackbarInvoiceMessage("Invoice number is required.");
+    setSnackbarInvoiceOpen(true);
+    setIsTouched(true);
+    return;
+  }
+  
+  const finalInvoiceDate = invoiceDate || new Date();
+  if (!finalInvoiceDate) {
+    setSnackbarInvoiceMessage("Invoice date is required.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+  
+  if (isInvoiceDuplicate) {
+    setSnackbarInvoiceMessage("Duplicate invoice number detected. Please enter a unique invoice number.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+  
+  // Validate round off doesn't make total negative
+  const finalTotal = totalOrderAmount + roundOffAmount;
+  if (finalTotal < 0) {
+    setSnackbarInvoiceMessage(`Round off amount cannot make total negative. Current total: ${totalOrderAmount.toFixed(2)}`);
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+  
+  const hasErrors = Object.values(errors).some((errorObj) =>
+    Object.values(errorObj).some((error) => error)
+  );
+  if (hasErrors) {
+    setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+  
+  const validItems = updatedItems.filter((item) => {
+    const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+    const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+    const receivedQuantity = Number(item.receivedQuantity) || 0;
+    
+    const befTaxDiscount = Number(item.befTaxDiscount) || 0;
+    const afTaxDiscount = Number(item.afTaxDiscount) || 0;
+    const grnPrice = item.grnPrice !== undefined ? item.grnPrice : undefined;
+    
+    if (befTaxDiscount < 0 || befTaxDiscount > 100) {
+      setSnackbarInvoiceMessage(`Before-tax discount for item "${item.itemName}" must be between 0 and 100%.`);
+      setSnackbarInvoiceOpen(true);
+      return false;
+    }
+    
+    if (afTaxDiscount < 0) {
+      setSnackbarInvoiceMessage(`After-tax discount for item "${item.itemName}" cannot be negative.`);
+      setSnackbarInvoiceOpen(true);
+      return false;
+    }
+    
+    if (grnPrice !== undefined && (grnPrice < 0)) {
+      setSnackbarInvoiceMessage(`GRN price for item "${item.itemName}" cannot be negative.`);
+      setSnackbarInvoiceOpen(true);
+      return false;
+    }
+    
+    return receivedQuantity > 0 && pendingTotalQuantity > 0;
+  });
+  
+  if (validItems.length === 0) {
+    const hasPendingItems = updatedItems.some((item) => {
+      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+      return (originalItem?.pendingTotalQuantity || 0) > 0;
+    });
+    
+    if (!hasPendingItems) {
+      setSnackbarInvoiceMessage("All items in this purchase order have already been fully received.");
+      setSnackbarInvoiceOpen(true);
+    } else {
+      setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0.");
+      setSnackbarInvoiceOpen(true);
+    }
+    return;
+  }
+  
+  const hasExcessQuantity = validItems.some((item) => {
+    const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
+    const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+    const receivedQuantity = Number(item.receivedQuantity);
+    
+    if (receivedQuantity > backendPendingTotalQuantity) {
+      setExcessDialogMessage(
+        `Received quantity for item "${item.itemName}" (${receivedQuantity}) exceeds the pending total quantity (${backendPendingTotalQuantity}).`
+      );
+      setExcessDialogOpen(true);
+      return true;
+    }
+    return false;
+  });
+  
+  if (hasExcessQuantity) return;
+  
+  const items = validItems.map((item) => {
+    const receivedQuantity = Number(item.receivedQuantity);
+    const befTaxDiscount = Math.max(0, Math.min(100, Number(item.befTaxDiscount) || 0));
+    const afTaxDiscount = Math.max(0, Number(item.afTaxDiscount) || 0);
+    const grnPrice = item.grnPrice !== undefined ? item.grnPrice : undefined;
+    
+    return {
+      itemId: item.itemId,
+      receivedQuantity: receivedQuantity,
+      grnPrice: grnPrice,
+      befTaxDiscount: befTaxDiscount,
+      afTaxDiscount: afTaxDiscount,
+      expiryDate: item.expiryDate ? item.expiryDate : null,
+    };
+  });
+  
+  console.log("Items being sent to backend:", items);
+  console.log("Round off amount:", roundOffAmount);
+  
+  try {
+    setIsProcessing(true);
+    const updateResult = await dispatch(
+      updateReceivedDamagedQuantities({
+        purchaseOrderId: selectedOrder.purchaseOrderId,
+        items,
+        invoiceNo: invoiceNumber.trim(),
+        invoiceDate: finalInvoiceDate,
+        grnDate: grnDate || new Date(),
+        discountPrice: 0,
+        grnRoundOffAmount: roundOffAmount, // Updated parameter name
+      })
+    ).unwrap();
+    
+    console.log("Update Result:", updateResult);
+    
+    // Reset round off amount after successful save
+    setRoundOffAmount(0);
+    
+    const updatedOrderItems = selectedOrder.items.map((originalItem) => {
+      const updatedItem = items.find((item) => item.itemId === originalItem.itemId);
+      if (updatedItem) {
+        const newPendingTotalQuantity = Math.max(
+          0,
+          (originalItem.pendingTotalQuantity || 0) - updatedItem.receivedQuantity
+        );
+        const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
+        const newPendingQuantity = newPendingTotalQuantity;
+        const grnPrice = updatedItem.grnPrice !== undefined ? updatedItem.grnPrice : originalItem.newPrice;
+        return {
+          ...originalItem,
+          pendingTotalQuantity: newPendingTotalQuantity,
+          pendingCount: newPendingCount,
+          pendingQuantity: newPendingQuantity,
+          status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
+          receivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+          totalReceivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+          grnPrice: grnPrice,
+          befTaxDiscount: updatedItem.befTaxDiscount,
+          afTaxDiscount: updatedItem.afTaxDiscount,
+          expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
+        };
+      }
+      return originalItem;
+    });
+    
+    setSelectedOrder((prev) =>
+      prev
+        ? {
+          ...prev,
+          items: updatedOrderItems,
+          pendingOrderAmount: updateResult.pendingOrderAmount || 0,
+          totalOrderAmount: updateResult.totalOrderAmount || 0,
+          invoiceNo: updateResult.invoiceNo,
+          invoiceDate: updateResult.invoiceDate ? parseLocalDate(updateResult.invoiceDate) : null,
+        }
+        : null
+    );
+    
+    setUpdatedItems(
+      updatedOrderItems.map((item) => ({
+        ...item,
+        receivedQuantity: item.pendingTotalQuantity || 0,
+        grnPrice: undefined,
+        befTaxDiscount: item.befTaxDiscount || 0,
+        afTaxDiscount: item.afTaxDiscount || 0,
+        expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime())
+          ? new Date(item.expiryDate)
+          : null,
+      }))
+    );
+    
+    setTouched(
+      updatedOrderItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: { receivedQuantity: false, grnPrice: false, befTaxDiscount: false, afTaxDiscount: false },
+        }),
+        {}
+      )
+    );
+    setErrors(
+      updatedOrderItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: { receivedQuantity: "", grnPrice: "", befTaxDiscount: "", afTaxDiscount: "" },
+        }),
+        {}
+      )
+    );
+    
+    await dispatch(
+      fetchPurchaseOrders({
+        page: currentPage,
+        size: pageSize,
+        dateField: "approvedDate",
+        fromDate: moment().utc().startOf("day").toDate(),
+        toDate: moment().utc().endOf("day").toDate(),
+        status: "Approved",
+      })
+    ).unwrap();
+    
+    setSnackbarInvoiceMessage('Changes saved successfully!');
+    setSnackbarInvoiceOpen(true);
+    handleCloseDialogs();
+  } catch (error: any) {
+    console.error("Save Error:", error);
+    let errorMessage = "Failed to save changes. ";
+    if (error.message) {
+      errorMessage += error.message;
+    } else if (typeof error === 'string') {
+      errorMessage += error;
+    } else {
+      errorMessage += "Please check your inputs and try again.";
+    }
+    setSnackbarInvoiceMessage(errorMessage);
+    setSnackbarInvoiceOpen(true);
+    
+    if (selectedOrder) {
       setUpdatedItems(
-        updatedOrderItems.map((item) => ({
+        selectedOrder.items.map((item) => ({
           ...item,
-          receivedQuantity: "", // Reset to empty string
+          receivedQuantity: item.pendingTotalQuantity || 0,
+          grnPrice: undefined,
           befTaxDiscount: item.befTaxDiscount || 0,
           afTaxDiscount: item.afTaxDiscount || 0,
           expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime())
@@ -1197,115 +1458,50 @@ const CreatePurchase: React.FC = () => {
             : null,
         }))
       );
-
-      // Reset validation state
       setTouched(
-        updatedOrderItems.reduce(
+        selectedOrder.items.reduce(
           (acc, _, index) => ({
             ...acc,
-            [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
+            [index]: { receivedQuantity: false, grnPrice: false, befTaxDiscount: false, afTaxDiscount: false },
           }),
           {}
         )
       );
-
       setErrors(
-        updatedOrderItems.reduce(
+        selectedOrder.items.reduce(
           (acc, _, index) => ({
             ...acc,
-            [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
+            [index]: { receivedQuantity: "", grnPrice: "", befTaxDiscount: "", afTaxDiscount: "" },
           }),
           {}
         )
       );
-
-      // Refresh the purchase orders list
-      await dispatch(
-        fetchPurchaseOrders({
-          page: currentPage,
-          size: pageSize,
-          dateField: "approvedDate",
-          fromDate: moment().utc().startOf("day").toDate(),
-          toDate: moment().utc().endOf("day").toDate(),
-          status: "Approved",
-        })
-      ).unwrap();
-
-      setSnackbarInvoiceMessage('Changes saved successfully!');
-      setSnackbarInvoiceOpen(true);
-      handleCloseDialogs();
-
-    } catch (error: any) {
-      console.error("Save Error:", error);
-
-      let errorMessage = "Failed to save changes. ";
-      if (error.message) {
-        errorMessage += error.message;
-      } else if (typeof error === 'string') {
-        errorMessage += error;
-      } else {
-        errorMessage += "Please check your inputs and try again.";
-      }
-
-      setSnackbarInvoiceMessage(errorMessage);
-      setSnackbarInvoiceOpen(true);
-
-      // Revert updatedItems to original selectedOrder.items state on error
-      if (selectedOrder) {
-        setUpdatedItems(
-          selectedOrder.items.map((item) => ({
-            ...item,
-            receivedQuantity: "", // Reset to empty string
-            befTaxDiscount: item.befTaxDiscount || 0,
-            afTaxDiscount: item.afTaxDiscount || 0,
-            expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime())
-              ? new Date(item.expiryDate)
-              : null,
-          }))
-        );
-
-        setTouched(
-          selectedOrder.items.reduce(
-            (acc, _, index) => ({
-              ...acc,
-              [index]: { receivedQuantity: false, befTaxDiscount: false, afTaxDiscount: false },
-            }),
-            {}
-          )
-        );
-
-        setErrors(
-          selectedOrder.items.reduce(
-            (acc, _, index) => ({
-              ...acc,
-              [index]: { receivedQuantity: "", befTaxDiscount: "", afTaxDiscount: "" },
-            }),
-            {}
-          )
-        );
-      }
-    } finally {
-      setIsProcessing(false);
     }
-  }, [
-    selectedOrder,
-    invoiceNumber,
-    isInvoiceDuplicate,
-    updatedItems,
-    invoiceDate,
-    grnDate,
-    errors,
-    dispatch,
-    currentPage,
-    pageSize,
-    handleCloseDialogs,
-    setExcessDialogMessage,
-    setExcessDialogOpen,
-    setSnackbarInvoiceMessage,
-    setSnackbarInvoiceOpen,
-    setIsTouched,
-  ]);
+  } finally {
+    setIsProcessing(false);
+  }
+}, [
+  selectedOrder,
+  invoiceNumber,
+  isInvoiceDuplicate,
+  updatedItems,
+  invoiceDate,
+  grnDate,
+  roundOffAmount,
+  totalOrderAmount, // Add this dependency
+  errors,
+  dispatch,
+  currentPage,
+  pageSize,
+  handleCloseDialogs,
+  setExcessDialogMessage,
+  setExcessDialogOpen,
+  setSnackbarInvoiceMessage,
+  setSnackbarInvoiceOpen,
+  setIsTouched,
+]);
   const filteredOrders = useMemo(() => purchaseList.filter((order) => order.poStatus === "Approved"), [purchaseList]);
+
   const handleViewDetailsClick = (orderId: string) => {
     const rawOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
     if (rawOrder) {
@@ -1322,12 +1518,9 @@ const CreatePurchase: React.FC = () => {
         items: transformedItems,
       };
       setSelectedOrder(transformedOrder);
-
-      // Set both dates to current date when opening the dialog
       const currentDate = new Date();
       setInvoiceDate(currentDate);
       setGrnDate(currentDate);
-
       const initializedItems = transformedItems.map((item: ItemWithCalculations) => {
         const pendingTotalQuantity = item.pendingTotalQuantity || item.poQuantity || 0;
         const pendingCount = item.pendingCount || 1;
@@ -1335,10 +1528,10 @@ const CreatePurchase: React.FC = () => {
         const calculatedPendingCount = pendingTotalQuantity > 0 ? pendingCount : 0;
         const calculatedPendingQuantity = pendingQuantity;
         const expiryDate = item.expiryDate instanceof Date ? item.expiryDate : null;
-
         return {
           ...item,
-          receivedQuantity: 0, // Initialize to 0 for new session
+          receivedQuantity: pendingTotalQuantity,
+          grnPrice: undefined,
           befTaxDiscount: item.befTaxDiscount || 0,
           afTaxDiscount: item.afTaxDiscount || 0,
           expiryDate: expiryDate && !isNaN(expiryDate.getTime()) ? expiryDate : null,
@@ -1351,12 +1544,12 @@ const CreatePurchase: React.FC = () => {
         };
       });
       setUpdatedItems(initializedItems);
-
       const initialTouched = initializedItems.reduce(
         (acc, _, index) => ({
           ...acc,
           [index]: {
             receivedQuantity: false,
+            grnPrice: false,
             befTaxDiscount: false,
             afTaxDiscount: false,
           },
@@ -1368,6 +1561,7 @@ const CreatePurchase: React.FC = () => {
           ...acc,
           [index]: {
             receivedQuantity: "",
+            grnPrice: "",
             befTaxDiscount: "",
             afTaxDiscount: "",
           },
@@ -1376,27 +1570,27 @@ const CreatePurchase: React.FC = () => {
       );
       setTouched(initialTouched);
       setErrors(initialErrors);
+      setRoundOffAmount(0);
       setOpenDialog(true);
     }
   };
-  const handleDownload = useCallback(
+
+  // ... rest of the code remains the same for handleDownload, handleExportAllVendorsPDF, handleExportAllVendorsCSV, etc.
+ const handleDownload = useCallback(
     async (poid: string) => {
       const purchaseOrder = purchaseList.find((order) => order.purchaseOrderId === poid);
       if (!purchaseOrder) {
         console.error('Purchase Order not found for ID:', poid);
         return;
       }
-
       const business = businesses[0];
       if (!business) {
         console.error('Business information not found!');
         return;
       }
-
       const doc = new jsPDF();
       let yOffset = 10;
       let totalPages = 1;
-
       // Helper function to add page numbers to all pages
       function addPageNumbers() {
         for (let i = 1; i <= doc.getNumberOfPages(); i++) {
@@ -1406,7 +1600,6 @@ const CreatePurchase: React.FC = () => {
           doc.text(`Page ${i} of ${doc.getNumberOfPages()}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
         }
       }
-
       // Helper function to check if yOffset exceeds page height
       function checkPageOverflow(currentYOffset: number, additionalHeight: number): number {
         if (currentYOffset + additionalHeight > doc.internal.pageSize.height - 20) {
@@ -1416,7 +1609,6 @@ const CreatePurchase: React.FC = () => {
         }
         return currentYOffset;
       }
-
       // Helper function to convert WebP to JPEG
       async function convertWebPToJPEG(url: string): Promise<string> {
         try {
@@ -1452,7 +1644,6 @@ const CreatePurchase: React.FC = () => {
           throw err;
         }
       }
-
       // Helper function to get base64 data and handle WebP
       async function getBase64FromUrl(url: string): Promise<string> {
         try {
@@ -1503,7 +1694,6 @@ const CreatePurchase: React.FC = () => {
           throw err;
         }
       }
-
       // Helper function to determine image format
       function getImageFormat(url: string): 'JPEG' | 'PNG' {
         if (url.toLowerCase().endsWith('.png') || url.includes('data:image/png')) {
@@ -1511,7 +1701,6 @@ const CreatePurchase: React.FC = () => {
         }
         return 'JPEG'; // Default to JPEG (handles converted WebP)
       }
-
       // Header with logo
       try {
         if (business.imageUrl) {
@@ -1536,30 +1725,28 @@ const CreatePurchase: React.FC = () => {
       doc.text(`E-Mail: ${business.emailId}`, 90, yOffset + 25);
       doc.text(`GSTIN: ${business.gstIn}`, 90, yOffset + 30);
       yOffset += 35;
-
       // Vendor Details Table
       const columnWidth = 60.6;
       const tableHeader = [['Vendor Details', 'Shipping Address', 'PO Details']];
       const vendorDetailsRows = [
-  [
-    `${purchaseOrder.vendorName || ' '}\n` +
-    `GSTIN: ${purchaseOrder.gstNumber || ''}\n` +
-    `Address: ${purchaseOrder.address || ''}\n` +
-    `City: ${purchaseOrder.city || ''}\n` +
-    `State: ${purchaseOrder.state || ''}\n` +
-    `Country: ${purchaseOrder.country || ''}\n` +
-    `Email: ${purchaseOrder.contactpersonEmail || ''}\n` +
-    `Phone: ${purchaseOrder.vendorContact || ''}`,
-    `Shipping Address: ${purchaseOrder.shippingAddress || ''}`,
-    `PO No: ${purchaseOrder.randomId || ''}\n` +
-    `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-    `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-    `Payment Terms: ${purchaseOrder.paymentTerms || ''}\n` +
-    `Status: ${purchaseOrder.poStatus || ''}\n` +
-    `Currency: INR`,
-  ],
-];
-
+        [
+          `${purchaseOrder.vendorName || ' '}\n` +
+          `GSTIN: ${purchaseOrder.gstNumber || ''}\n` +
+          `Address: ${purchaseOrder.address || ''}\n` +
+          `City: ${purchaseOrder.city || ''}\n` +
+          `State: ${purchaseOrder.state || ''}\n` +
+          `Country: ${purchaseOrder.country || ''}\n` +
+          `Email: ${purchaseOrder.contactpersonEmail || ''}\n` +
+          `Phone: ${purchaseOrder.vendorContact || ''}`,
+          `Shipping Address: ${purchaseOrder.shippingAddress || ''}`,
+          `PO No: ${purchaseOrder.randomId || ''}\n` +
+          `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+          `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+          `Payment Terms: ${purchaseOrder.paymentTerms || ''}\n` +
+          `Status: ${purchaseOrder.poStatus || ''}\n` +
+          `Currency: INR`,
+        ],
+      ];
       doc.autoTable({
         head: tableHeader,
         body: vendorDetailsRows,
@@ -1594,15 +1781,13 @@ const CreatePurchase: React.FC = () => {
           totalPages = doc.getNumberOfPages();
         },
       });
-
       yOffset = doc.autoTable.previous.finalY;
-
       // Items Table
       const itemHeader = ['SI No', 'Description', 'HsnCode', 'No of Packing', 'Qty', 'Po Qty', 'Unit Price', 'Tax', 'Amount'];
       const tableRows = purchaseOrder.items
         .filter((item) => item.status !== 'Received')
         .map((item, index) => {
-          const unitPrice = item.newPrice || 0;
+          const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0); // Use grnPrice if available
           const quantity = item.pendingTotalQuantity || 0;
           const totalAmount = unitPrice * quantity;
           return [
@@ -1617,7 +1802,6 @@ const CreatePurchase: React.FC = () => {
             totalAmount.toFixed(2),
           ];
         });
-
       // Items Table - Simple approach to remove horizontal lines
       doc.autoTable({
         head: [itemHeader],
@@ -1659,18 +1843,16 @@ const CreatePurchase: React.FC = () => {
           totalPages = doc.getNumberOfPages();
         },
       });
-
       yOffset = doc.autoTable.previous.finalY;
-
       // Tax and Summary Calculations
       const taxRates = {
         CGST: new Map<number, number>(),
         SGST: new Map<number, number>(),
         IGST: new Map<number, number>(),
       };
-
       purchaseOrder.items.forEach((item) => {
-        const taxableAmount = (item.newPrice || 0) * (item.pendingTotalQuantity || 0);
+        const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
+        const taxableAmount = unitPrice * (item.pendingTotalQuantity || 0);
         if (item.taxType === 'cgst_sgst') {
           const cgstRate = (item.taxPercentage || 0) / 2;
           const sgstRate = (item.taxPercentage || 0) / 2;
@@ -1683,24 +1865,22 @@ const CreatePurchase: React.FC = () => {
           taxRates.IGST.set(item.taxPercentage || 0, (taxRates.IGST.get(item.taxPercentage || 0) || 0) + igstAmount);
         }
       });
-
-      const totalWithoutTax = purchaseOrder.items.reduce((sum, item) => sum + ((item.pendingTotalQuantity || 0) * (item.newPrice || 0)), 0);
+      const totalWithoutTax = purchaseOrder.items.reduce((sum, item) => {
+        const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
+        return sum + ((item.pendingTotalQuantity || 0) * unitPrice);
+      }, 0);
       const taxSummary: [string, string][] = [
         [`Total Amount`, totalWithoutTax.toFixed(2)],
         [`Total Discount`, (purchaseOrder.totalDiscount || 0).toFixed(2)],
       ];
-
       taxRates.CGST.forEach((amount, rate) => taxSummary.push([`CGST @${rate}%`, amount.toFixed(2)]));
       taxRates.SGST.forEach((amount, rate) => taxSummary.push([`SGST @${rate}%`, amount.toFixed(2)]));
       taxRates.IGST.forEach((amount, rate) => taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]));
-
       const totalWithTax = purchaseOrder.pendingOrderAmount || 0;
       const roundedTotalWithTax = Math.round(totalWithTax);
       const roundOffAmount = roundedTotalWithTax - totalWithTax;
-
       taxSummary.push([`Round Off Amount`, purchaseOrder.roundOffValue.toFixed(2)]);
       taxSummary.push([`Amount In Words: ${toWords(roundedTotalWithTax)} only`, `Total [Including Tax]: ${roundedTotalWithTax.toFixed(2)}`]);
-
       doc.autoTable({
         body: taxSummary,
         startY: yOffset,
@@ -1711,9 +1891,7 @@ const CreatePurchase: React.FC = () => {
           totalPages = doc.getNumberOfPages();
         },
       });
-
       yOffset = doc.autoTable.previous.finalY + 10;
-
       // Purchase Order Images and URLs
       const poImages = imageUrls[poid] || [];
       if (poImages.length > 0) {
@@ -1723,11 +1901,9 @@ const CreatePurchase: React.FC = () => {
         doc.setTextColor(0, 0, 0);
         doc.text('Purchase Order Images:', 10, yOffset);
         yOffset += 5;
-
         const imageWidth = 40;
         const imageHeight = 40;
         let xPos = 10;
-
         const validImageIndexes = ['_1.webp', '_2.webp'];
         for (let i = 0; i < poImages.length; i++) {
           const url = poImages[i];
@@ -1747,7 +1923,6 @@ const CreatePurchase: React.FC = () => {
             }
           }
         }
-
         if (poImages.length > 0) {
           yOffset = checkPageOverflow(yOffset, 10);
           yOffset += 5;
@@ -1766,7 +1941,6 @@ const CreatePurchase: React.FC = () => {
           yOffset += 5;
         }
       }
-
       // Terms and Conditions
       yOffset = checkPageOverflow(yOffset, 15);
       doc.setFontSize(8);
@@ -1774,16 +1948,13 @@ const CreatePurchase: React.FC = () => {
       doc.setTextColor(0, 0, 0);
       doc.text('Terms & Conditions', 10, yOffset);
       yOffset += 5;
-
       const staticTerms = [
         '1. Please quote our Purchase Order No. in your Delivery Note.',
         '2. Defective and excess quantity will not be accepted.',
         '3. Subject to Ramanathapuram Jurisdiction Only',
       ];
-
       const maxWidth = 90;
       const lineHeight = 5;
-
       staticTerms.forEach((term) => {
         const lines = doc.splitTextToSize(term, maxWidth);
         lines.forEach((line: string) => {
@@ -1793,7 +1964,6 @@ const CreatePurchase: React.FC = () => {
           yOffset += lineHeight;
         });
       });
-
       const customTerms = Array.isArray(purchaseOrder.termsandConditions)
         ? purchaseOrder.termsandConditions.filter((term) => typeof term === 'string' && term.trim().length > 0)
         : [];
@@ -1812,34 +1982,28 @@ const CreatePurchase: React.FC = () => {
           });
         });
       }
-
       // Declaration and Signature
       const declarationText = 'We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.';
       const declarationLines = doc.splitTextToSize(declarationText, 180);
       const totalDeclarationHeight = (declarationLines.length * lineHeight) + 15;
-
       yOffset = checkPageOverflow(yOffset, totalDeclarationHeight);
       doc.setFont('helvetica', 'bold');
       doc.text('Declaration:', 10, yOffset);
       yOffset += 5;
-
       declarationLines.forEach((line: string) => {
         doc.setFont('helvetica', 'normal');
         doc.text(line, 10, yOffset);
         yOffset += lineHeight;
       });
-
       yOffset += 10;
       doc.setFont('helvetica', 'bold');
       doc.text('Authorized Signatory', 130, yOffset);
-
       try {
         const imageUrl = '/images/approved.jpg';
         doc.addImage(imageUrl, 'JPEG', 130, yOffset + 10, 30, 25);
       } catch (e) {
         console.error('Failed to load approved image:', e);
       }
-
       // Add "This is computer generated" note at the bottom of every page, centered
       const computerGeneratedText = "This is computer generated";
       for (let i = 1; i <= doc.getNumberOfPages(); i++) {
@@ -1849,10 +2013,8 @@ const CreatePurchase: React.FC = () => {
         doc.setTextColor(0, 0, 0); // Black color for the note
         doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 20, { align: 'center' });
       }
-
       // Add page numbers
       addPageNumbers();
-
       doc.save(`${purchaseOrder.vendorName} ${purchaseOrder.randomId}.pdf`);
     },
     [purchaseList, businesses, imageUrls]
@@ -1862,30 +2024,24 @@ const CreatePurchase: React.FC = () => {
       const doc = new jsPDF();
       let yOffset = 7;
       let pageCount = 1;
-
       const business = businesses && businesses.length > 0 ? businesses[0] : null;
-
       if (!business) {
         setSnackbarInvoiceMessage("Business information not found!");
         setSnackbarInvoiceOpen(true);
         return;
       }
-
       const filtered: PurchaseOrderData[] = filteredOrders.filter((order) => order.poStatus === "Approved");
-
       if (filtered.length === 0) {
         setSnackbarInvoiceMessage("No approved orders found.");
         setSnackbarInvoiceOpen(true);
         return;
       }
-
       const addPageFooter = (currentPage: number, totalPages: number) => {
         const pageWidth = doc.internal.pageSize.width;
         doc.setFontSize(8);
         doc.setTextColor(0, 0, 0);
         doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
       };
-
       if (business.imageUrl) {
         try {
           doc.addImage(business.imageUrl, "JPEG", 14, yOffset, 20, 20);
@@ -1895,9 +2051,7 @@ const CreatePurchase: React.FC = () => {
           setSnackbarInvoiceOpen(true);
         }
       }
-
       yOffset += 7;
-
       doc.setFontSize(12);
       const title = "Purchase Order Summary for All Vendors";
       const pageWidth = doc.internal.pageSize.width;
@@ -1907,16 +2061,13 @@ const CreatePurchase: React.FC = () => {
       doc.text(title, titleX, yOffset);
       doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2);
       yOffset += 13;
-
       const totalOrderedAmount = filtered.reduce((sum, order) => {
         const pendingOrderAmount = order.pendingOrderAmount || 0;
         return sum + pendingOrderAmount;
       }, 0);
-
       const today = new Date();
       const currentDate = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")
         }/${today.getFullYear()}`;
-
       doc.setFontSize(10);
       const totalText = `Total Ordered Amount: ${totalOrderedAmount.toFixed(2)}`;
       const dateText = `Date: ${currentDate}`;
@@ -1925,24 +2076,19 @@ const CreatePurchase: React.FC = () => {
       doc.text(totalText, 14, yOffset);
       doc.text(dateText, pageWidth - dateWidth - 14, yOffset);
       yOffset += 5;
-
       const headers = [["S.No", "PoId", "Vendor Name", "Total Items", "Ordered Date", "Total Order Amount"]];
-
       const rows = filtered
         .map((order, index) => {
           const totalItemsQuantity =
             Array.isArray(order.items) && order.items.length > 0
               ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
               : 0;
-
           const pendingOrderAmount = order.pendingOrderAmount || 0;
           const pendingDiscountAmount = order.totalDiscount || 0;
           const finalAmount = pendingOrderAmount - pendingDiscountAmount;
-
           if (!order.randomId || !order.vendorName || !order.orderDate || pendingOrderAmount <= 0) {
             return null;
           }
-
           return [
             (index + 1).toString(),
             order.randomId.toString(),
@@ -1953,7 +2099,6 @@ const CreatePurchase: React.FC = () => {
           ];
         })
         .filter((row): row is string[] => row !== null);
-
       doc.autoTable({
         head: headers,
         body: rows,
@@ -1989,12 +2134,10 @@ const CreatePurchase: React.FC = () => {
           addPageFooter(pageCount++, doc.getNumberOfPages());
         },
       });
-
       const totalPages = doc.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         addPageFooter(i, totalPages);
-
         // Add "This is computer generated" note at the bottom of every page, centered
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
@@ -2002,40 +2145,32 @@ const CreatePurchase: React.FC = () => {
         const computerGeneratedText = "This is computer generated";
         doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 25, { align: 'center' });
       }
-
       const pdfFilename = `ApprovedPOVendors.pdf`;
       doc.save(pdfFilename);
     },
     [filteredOrders, businesses, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen]
   );
-
   const handleExportAllVendorsCSV = useCallback(
     ({ filteredOrders, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen }: ExportProps) => {
       const filtered: PurchaseOrderData[] = filteredOrders.filter((order) => order.poStatus === "Approved");
-
       if (filtered.length === 0) {
         setSnackbarInvoiceMessage("No approved orders found.");
         setSnackbarInvoiceOpen(true);
         return;
       }
-
       const headers = ["S.No", "PoId", "Vendor Name", "Total Items", "Ordered Date", "Total Order Amount"];
-
       const rows = filtered
         .map((order, index) => {
           const totalItemsQuantity =
             Array.isArray(order.items) && order.items.length > 0
               ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
               : 0;
-
           const pendingOrderAmount = order.pendingOrderAmount || 0;
           const pendingDiscountAmount = order.totalDiscount || 0;
           const finalAmount = pendingOrderAmount - pendingDiscountAmount;
-
           if (!order.randomId || !order.vendorName || !order.orderDate || pendingOrderAmount <= 0) {
             return null;
           }
-
           return [
             index + 1,
             order.randomId,
@@ -2046,7 +2181,6 @@ const CreatePurchase: React.FC = () => {
           ];
         })
         .filter((row): row is (string | number)[] => row !== null);
-
       const csvData = [headers, ...rows];
       const csv = Papa.unparse(csvData);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -2062,7 +2196,6 @@ const CreatePurchase: React.FC = () => {
   useEffect(() => {
     filteredOrders.forEach(order => {
       const orderId = order.purchaseOrderId;
-
       // Only fetch if we haven't already fetched images for this order
       if (!fetchedPurchaseOrderIds.has(orderId)) {
         // Fetch all images for this purchase order
@@ -2078,19 +2211,15 @@ const CreatePurchase: React.FC = () => {
       }
     });
   }, [filteredOrders, dispatch, fetchedPurchaseOrderIds]);
-
-
   const handleExportItemwisePDF = useCallback(() => {
     const doc = new jsPDF();
     let yOffset = 5;
     let totalPages = 1;
     const business = businesses[0];
-
     if (business?.imageUrl) {
       doc.addImage(business.imageUrl, "JPEG", 14, yOffset, 20, 20);
     }
     yOffset += 7;
-
     doc.setFontSize(12);
     const title = "Approved Purchase Order Detailed Summary";
     const pageWidth = doc.internal.pageSize.width;
@@ -2098,7 +2227,6 @@ const CreatePurchase: React.FC = () => {
     doc.text(title, (pageWidth - titleWidth) / 2, yOffset);
     doc.line((pageWidth - titleWidth) / 2, yOffset + 2, (pageWidth + titleWidth) / 2, yOffset + 2);
     yOffset += 15;
-
     const totalOrderedAmount = filteredOrders.reduce((sum, order) => sum + (order.pendingOrderAmount || 0), 0);
     const today = new Date();
     const currentDate = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")}/${today.getFullYear()}`;
@@ -2106,7 +2234,6 @@ const CreatePurchase: React.FC = () => {
     doc.text(`Total Ordered Amount: ${totalOrderedAmount.toFixed(2)}`, 14, yOffset);
     doc.text(`Date: ${currentDate}`, pageWidth - 50, yOffset);
     yOffset += 10;
-
     const headers = [
       ["S.No", "Purchase Order No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Final Price"],
     ];
@@ -2115,7 +2242,8 @@ const CreatePurchase: React.FC = () => {
         order.items
           .filter((item) => item.status !== "Received")
           .map((item) => {
-            const totalPrice = (item.pendingTotalQuantity || 0) * (item.newPrice || 0);
+            const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
+            const totalPrice = (item.pendingTotalQuantity || 0) * unitPrice;
             const discountAmount = item.totalDiscount || 0;
             const taxAmount = ((item.taxPercentage || 0) / 100) * (totalPrice - discountAmount);
             const finalPrice = totalPrice - discountAmount + taxAmount;
@@ -2125,7 +2253,7 @@ const CreatePurchase: React.FC = () => {
               order.vendorName || "",
               item.itemName || "",
               (item.pendingTotalQuantity || 0).toString(),
-              (item.newPrice || 0).toFixed(2),
+              unitPrice.toFixed(2),
               `${item.taxPercentage || 0}%`,
               discountAmount.toFixed(2),
               finalPrice.toFixed(2),
@@ -2133,7 +2261,6 @@ const CreatePurchase: React.FC = () => {
           })
       )
       .flat();
-
     doc.autoTable({
       head: headers,
       body: rows,
@@ -2161,7 +2288,6 @@ const CreatePurchase: React.FC = () => {
           doc.internal.pageSize.height - 10,
           { align: "center" }
         );
-
         // Add "This is computer generated" note at the bottom of every page, centered
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
@@ -2170,11 +2296,9 @@ const CreatePurchase: React.FC = () => {
         doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 25, { align: 'center' });
       },
     });
-
     doc.save("ApprovedPOItemwise.pdf");
     setDialogSummaryOpen(false);
   }, [businesses, filteredOrders]);
-
   const handleExportItemwiseCSV = useCallback(() => {
     const headers = [
       "S.No",
@@ -2192,7 +2316,8 @@ const CreatePurchase: React.FC = () => {
         order.items
           .filter((item) => item.status !== "Received")
           .map((item) => {
-            const totalPrice = (item.pendingTotalQuantity || 0) * (item.newPrice || 0);
+            const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
+            const totalPrice = (item.pendingTotalQuantity || 0) * unitPrice;
             const discountAmount = item.totalDiscount || 0;
             const taxAmount = ((item.taxPercentage || 0) / 100) * (totalPrice - discountAmount);
             const finalPrice = totalPrice - discountAmount + taxAmount;
@@ -2202,7 +2327,7 @@ const CreatePurchase: React.FC = () => {
               order.vendorName || "",
               item.itemName || "",
               item.pendingTotalQuantity || 0,
-              (item.newPrice || 0).toFixed(2),
+              unitPrice.toFixed(2),
               `${item.taxPercentage || 0}%`,
               discountAmount.toFixed(2),
               finalPrice.toFixed(2),
@@ -2210,7 +2335,6 @@ const CreatePurchase: React.FC = () => {
           })
       )
       .flat();
-
     const csvData = [headers, ...rows];
     const csv = Papa.unparse(csvData);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -2222,7 +2346,6 @@ const CreatePurchase: React.FC = () => {
     document.body.removeChild(link);
     setDialogSummaryOpen(false);
   }, [filteredOrders]);
-
   const handleVendorChange = useCallback((vendor: VendorSearch | null) => {
     setSelectedVendor(vendor);
     dispatch(fetchPurchaseOrders({
@@ -2237,7 +2360,6 @@ const CreatePurchase: React.FC = () => {
       randomId: selectedRandomId,
     }));
   }, [dispatch, pageSize, selectionRange, searchQueryItem, selectedRandomId]);
-
   const handleRandomIdChange = useCallback((randomId: string) => {
     setSelectedRandomId(randomId);
     dispatch(fetchPurchaseOrders({
@@ -2252,14 +2374,12 @@ const CreatePurchase: React.FC = () => {
       randomId,
     }));
   }, [dispatch, pageSize, selectionRange, selectedVendor, searchQueryItem]);
-
   const handleInvoiceNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInvoiceNumber(e.target.value);
     if (setIsTouched) {
       setIsTouched(true);
     }
   };
-
   const handleItemSelect = useCallback((item: PurchaseItemSearch | null) => {
     setNewItem(item);
     dispatch(fetchPurchaseOrders({
@@ -2274,7 +2394,6 @@ const CreatePurchase: React.FC = () => {
       randomId: selectedRandomId,
     }));
   }, [dispatch, pageSize, selectionRange, selectedVendor, selectedRandomId]);
-
   const handleFilterClick = useCallback(() => {
     dispatch(setPagination({ page: 1, size: pageSize }));
     dispatch(fetchPurchaseOrders({
@@ -2289,7 +2408,6 @@ const CreatePurchase: React.FC = () => {
       randomId: selectedRandomId,
     }));
   }, [dispatch, pageSize, selectionRange, selectedVendor, newItem, selectedRandomId]);
-
   const handleFilterClose = useCallback(() => {
     setSelectionRange({ startDate: new Date(), endDate: new Date(), key: "selection" });
     setSelectedVendor(null);
@@ -2305,36 +2423,33 @@ const CreatePurchase: React.FC = () => {
     }));
   }, [dispatch, pageSize]);
   const isReceivedQuantityValid = useCallback(() => {
-    // Check if there are any items with pendingTotalQuantity > 0
     const hasPendingItems = updatedItems.some((item) => {
       const originalItem = selectedOrder?.items.find((orig) => orig.itemId === item.itemId);
       const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
       return pendingTotalQuantity > 0;
     });
-
-    // If no items have pending quantities, return false
+    
     if (!hasPendingItems) {
       return false;
     }
-
-    // Check if at least one item has a valid receivedQuantity > 0 and pendingTotalQuantity > 0
+    
     return updatedItems.some((item) => {
       const originalItem = selectedOrder?.items.find((orig) => orig.itemId === item.itemId);
       const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      const receivedQuantity = item.receivedQuantity === "" ? 0 : Number(item.receivedQuantity);
+      const receivedQuantity = Number(item.receivedQuantity) || 0;
       return receivedQuantity > 0 && pendingTotalQuantity > 0;
     });
   }, [updatedItems, selectedOrder]);
-  if (loading) {
+
+  // ... rest of the component code (handleDownload, export functions, etc.) remains the same
+ if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
         <CircularProgress color="primary" />
       </Box>
     );
   }
-
   if (error) return <Typography>Error: {error}</Typography>;
-
   return (
     <Box sx={{ pl: 0, py: 1 }}>
       <YenPurchasePage />
@@ -2352,7 +2467,7 @@ const CreatePurchase: React.FC = () => {
             <Button variant="contained" color="primary">Rejected</Button>
           </Link>
         </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap", width: "100%", mb: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap", width: "100%", mb: 1 }}>
           <Grid container spacing={1} alignItems="center" wrap="nowrap" sx={{ width: "auto", flexGrow: 1 }}>
             <Grid item>
               <DateRangeDialog selectionRange={selectionRange} setSelectionRange={setSelectionRange} onApply={handleFilterClick} />
@@ -2515,7 +2630,7 @@ const CreatePurchase: React.FC = () => {
                   <TableCell>{order.randomId}</TableCell>
                   <TableCell>{order.vendorName}</TableCell>
                   <TableCell>{order.orderDate ? format(new Date(order.orderDate), "dd-MM-yyyy") : ""}</TableCell>
-                   <TableCell>{order.approvedDate ? format(new Date(order.approvedDate), "dd-MM-yyyy") : ""}</TableCell>
+                  <TableCell>{order.approvedDate ? format(new Date(order.approvedDate), "dd-MM-yyyy") : ""}</TableCell>
                   <TableCell className='table-number-right'>{order.items.reduce((acc, item) => acc + (item.pendingTotalQuantity || 0), 0)}</TableCell>
                   <TableCell className='table-number-right'>{(order.pendingOrderAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>{order.poStatus}</TableCell>
@@ -2546,6 +2661,7 @@ const CreatePurchase: React.FC = () => {
           <ChevronRight />
         </IconButton>
       </Box>
+      
       <OrderDetailsDialog
         open={openDialog}
         onClose={handleCloseDialogs}
@@ -2573,10 +2689,14 @@ const CreatePurchase: React.FC = () => {
         errors={errors}
         setErrors={setErrors}
         handleQuantityChange={handleQuantityChange}
+        handlePriceChange={handlePriceChange}
         handleDiscountChange={handleDiscountChange}
         handleExpiryDateChange={handleExpiryDateChange}
         calculatedItems={calculatedItems}
+        roundOffAmount={roundOffAmount}
+        setRoundOffAmount={setRoundOffAmount}
       />
+      
       <Dialog open={openEditDialog} onClose={handleCloseDialogs}>
         <DialogTitle>Confirm Submission</DialogTitle>
         <DialogContent>
@@ -2698,7 +2818,6 @@ const CreatePurchase: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
       <Dialog open={dialogExcessOpen} onClose={() => setExcessDialogOpen(false)}>
         <DialogTitle>Excess Quantity Detected</DialogTitle>
         <DialogContent>
@@ -2710,20 +2829,19 @@ const CreatePurchase: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
         onClose={() => dispatch(clearSnackbarMessage())}
         message={snackbarMessage}
       />
-
       <Snackbar
         open={snackbarInvoiceOpen}
         autoHideDuration={6000}
         onClose={() => setSnackbarInvoiceOpen(false)}
         message={snackbarInvoiceMessage}
       />
+      
     </Box>
   );
 };

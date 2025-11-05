@@ -8,7 +8,6 @@ import { GrnData } from '@/Models/grnModel';
 
 const LIMIT = 20;
 const API_BASE_URL = 'https://yenerp.com/purchaseapi';
-const API_PHOTO_URL = 'http://192.168.29.116:8000/share/upload/purchaseorder/receipts';
 
 export const fetchPurchaseOrderRandomIds = createAsyncThunk(
   'purchaseOrder/fetchRandomIds',
@@ -283,7 +282,6 @@ export const fetchPoById = createAsyncThunk(
     }
   }
 );
-
 export const updateReceivedDamagedQuantities = createAsyncThunk(
   'purchaseOrder/updateReceivedDamagedQuantities',
   async (params: {
@@ -294,20 +292,41 @@ export const updateReceivedDamagedQuantities = createAsyncThunk(
       befTaxDiscount: number;
       afTaxDiscount: number;
       expiryDate: Date | null;
+      grnPrice?: number; // Make sure this is included
     }>;
     invoiceNo: string;
     invoiceDate: Date | null;
-    grnDate: Date | null; // New field
+    grnDate: Date | null;
     discountPrice: number;
+    grnRoundOffAmount?: number; // Change from roundOffAmount to grnRoundOffAmount
   }, { rejectWithValue }) => {
     try {
       // Validate purchaseOrderId before making the request
       if (!params.purchaseOrderId) {
         throw new Error('purchaseOrderId is required');
       }
+      
+      // Prepare the data for the backend
+      const requestData = {
+        grnDate: params.grnDate,
+        invoiceDate: params.invoiceDate,
+        invoiceNo: params.invoiceNo,
+        discountPrice: params.discountPrice,
+        grnRoundOffAmount: params.grnRoundOffAmount || 0, // Include round off amount
+        items: params.items.map(item => ({
+          itemId: item.itemId,
+          receivedQuantity: item.receivedQuantity,
+          damagedQuantity: 0, // Add if needed
+          befTaxDiscount: item.befTaxDiscount,
+          afTaxDiscount: item.afTaxDiscount,
+          expiryDate: item.expiryDate,
+          grnPrice: item.grnPrice // Include GRN price
+        }))
+      };
+
       const response = await axios.patch(
         `https://yenerp.com/purchaseapi/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
-        params
+        requestData
       );
       return response.data;
     } catch (error: any) {

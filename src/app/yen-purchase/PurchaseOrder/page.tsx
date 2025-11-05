@@ -72,6 +72,7 @@ declare module 'jspdf' {
     autoTable: any;
   }
 }
+
 interface AutoTableHookData {
   cursor?: { x: number; y: number };
   settings?: any;
@@ -1012,6 +1013,8 @@ const handleEditClick = (orderId: string) => {
           taxType: item.taxType ?? null,
           pendingBefTaxDiscountAmount: item.pendingBefTaxDiscountAmount ?? null,
           pendingAfTaxDiscountAmount: item.pendingAfTaxDiscountAmount ?? null,
+          
+
         }
       }));
       console.log('Payload:', { items });

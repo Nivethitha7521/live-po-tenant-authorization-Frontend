@@ -28,6 +28,7 @@ export interface ItemDetail {
   unitPrice: number;
   totalPrice: number;
   finalPrice: number;
+  grnPrice:number;
   status?: string;
   barcode?: string;
   sgst: number;
@@ -340,7 +341,8 @@ export const initialState: GrnState = {
     returnedDiscountAmount: 0,
     returnedFinalPrice: 0,
     returnedSgst: 0,
-    returnedCgst: 0
+    returnedCgst: 0,
+    grnPrice: 0
   },
   error: null,
   vendors: [],

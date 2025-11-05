@@ -35,6 +35,7 @@ import { useBeforeUnload } from 'react-use';
 import { VendorSummary } from '@/Models/vendor';
 import ClearIcon from '@mui/icons-material/Clear';
 import SmartDatePicker from '@/components/SmartDatePicker';
+
 // Validation schema
 const validationSchema = Yup.object({
   vendorName: Yup.string().required('Vendor name is required'),
@@ -44,18 +45,22 @@ const validationSchema = Yup.object({
   paymentTerms: Yup.string().required('Payment terms are required'),
   creditLimit: Yup.number().required('Credit limit is required').min(0, 'Credit limit must be non-negative'),
 });
+
 // Rounding functions
 const roundPrice = (price: number): number => Math.round(price * 100) / 100;
+
 const CreatePurchasePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams?.get('edit') ?? null;
   const isEditMode = !!editId;
+  
   const { purchaseOrderData, newItem, importDuplicates, importErrors, importDialogOpen, importWarnings, importSuccessMessages, importUpdatedItems, searchQuery, snackbarOpen, skip, limit, snackbarMessage } = useSelector(selectPurchaseOrderState);
   const { businesses, shippingaddress } = useSelector(selectBusinesses);
   const { location: locations, loading: locationsLoading } = useSelector(selectStorageLocations);
   const discountMode = useSelector((state: RootState) => state.purchaseOrder.discountMode ?? 'percentage') as 'percentage' | 'amount';
+  
   const [open, setDialogOpen] = useState(false);
   const [openShippingDialog, setOpenShippingDialog] = useState(false);
   const [updatedShippingRow, setUpdatedShippingRow] = useState<ShippingAddress | null>(null);
@@ -77,6 +82,7 @@ const CreatePurchasePage: React.FC = () => {
   const [newItemsearch, setNewItemsearch] = useState<PurchaseItemSearchAdd | null>(null);
   const [vendorSearch, setVendorSearch] = useState<VendorSummary | null>(null);
   const [locationSearch, setLocationSearch] = useState<Location | null>(null);
+  
   // Assuming this selector exists; add to purchaseOrderSlice if needed
   const { vendors } = useSelector(selectPurchaseOrderState); // ADD: vendors array from Redux
   const [showNavigationConfirm, setShowNavigationConfirm] = useState(false);
@@ -93,6 +99,7 @@ const CreatePurchasePage: React.FC = () => {
   const itemNameRef = useRef<HTMLInputElement | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   // CRITICAL: Fetch purchase order data when in edit mode
   useEffect(() => {
     const fetchOrderData = async () => {
@@ -123,16 +130,18 @@ const CreatePurchasePage: React.FC = () => {
     };
     fetchOrderData();
   }, [isEditMode, editId, dispatch]);
- useEffect(() => {
-  if (isEditMode && purchaseOrderData.vendorName && vendors.length > 0) {  // vendors.length > 0 fails if not fetched
-    const matchedVendor = vendors.find((vendor: VendorSummary) =>
-      vendor.vendorName === purchaseOrderData.vendorName
-    );
-    if (matchedVendor && !vendorSearch) {
-      setVendorSearch(matchedVendor);  // This never runs without vendors
+
+  useEffect(() => {
+    if (isEditMode && purchaseOrderData.vendorName && vendors.length > 0) {
+      const matchedVendor = vendors.find((vendor: VendorSummary) =>
+        vendor.vendorName === purchaseOrderData.vendorName
+      );
+      if (matchedVendor && !vendorSearch) {
+        setVendorSearch(matchedVendor);
+      }
     }
-  }
-}, [isEditMode, purchaseOrderData.vendorName, vendors, vendorSearch]);
+  }, [isEditMode, purchaseOrderData.vendorName, vendors, vendorSearch]);
+
   // NEW: Auto-select location in edit mode after data loads
   useEffect(() => {
     if (isEditMode && purchaseOrderData.locationName && locations.length > 0) {
@@ -142,6 +151,7 @@ const CreatePurchasePage: React.FC = () => {
       }
     }
   }, [isEditMode, purchaseOrderData.locationName, locations, locationSearch]);
+
   // Reset form when component mounts in create mode
   useEffect(() => {
     if (!isEditMode) {
@@ -173,10 +183,11 @@ const CreatePurchasePage: React.FC = () => {
       }));
     }
   }, [isEditMode, dispatch]);
+
   // Set default shipping address
   useEffect(() => {
     if (shippingaddress.length > 0 && !purchaseOrderData.shippingAddress) {
-      const defaultShippingAddress = shippingaddress[0].address ?? '';
+      const defaultShippingAddress = shippingaddress[2].address ?? '';
       dispatch(setPurchaseOrderData({
         ...purchaseOrderData,
         shippingAddress: defaultShippingAddress
@@ -184,6 +195,7 @@ const CreatePurchasePage: React.FC = () => {
       setFormErrors(prev => ({ ...prev, shippingAddress: false }));
     }
   }, [shippingaddress, purchaseOrderData.shippingAddress, dispatch]);
+
   // Set default billing address
   useEffect(() => {
     if (businesses.length === 1 && !purchaseOrderData.billingAddress) {
@@ -191,6 +203,7 @@ const CreatePurchasePage: React.FC = () => {
       dispatch(setPurchaseOrderData({ ...purchaseOrderData, billingAddress: defaultBillingAddress }));
     }
   }, [businesses, purchaseOrderData, dispatch]);
+
   // Set default dates
   useEffect(() => {
     const currentDate = new Date().toISOString();
@@ -205,6 +218,7 @@ const CreatePurchasePage: React.FC = () => {
       dispatch(setPurchaseOrderData(updatedData));
     }
   }, [dispatch, purchaseOrderData.orderDate, purchaseOrderData.expectedDeliveryDate]);
+
   // Track form dirty state
   useEffect(() => {
     const hasChanges =
@@ -219,7 +233,9 @@ const CreatePurchasePage: React.FC = () => {
       roundOffValue !== 0;
     setIsFormDirty(hasChanges);
   }, [purchaseOrderData, overallDiscountValue, roundOffValue]);
+
   useBeforeUnload(isFormDirty, 'You have unsaved changes. Are you sure you want to leave?');
+
   // Sync input fields with Redux state
   useEffect(() => {
     setCountInput(newItem.pendingCount === 0 ? '' : newItem.pendingCount.toString());
@@ -230,6 +246,7 @@ const CreatePurchasePage: React.FC = () => {
       setNewPriceTypeInput('');
     }
   }, [newItem.pendingCount, newItem.pendingQuantity, newItem.newPrice, newPriceInput]);
+
   // Fetch initial data
   useEffect(() => {
     dispatch(fetchPurchaseOrders());
@@ -237,8 +254,9 @@ const CreatePurchasePage: React.FC = () => {
     dispatch(fetchBusinesses());
     dispatch(fetchShipping());
     dispatch(fetchLocations());
-    dispatch(fetchAllVendors());  
+    dispatch(fetchAllVendors());
   }, [dispatch, searchQuery, skip, limit]);
+
   // Check if any item has item-wise discount
   useEffect(() => {
     const hasDiscount = purchaseOrderData.items.some(item =>
@@ -254,22 +272,27 @@ const CreatePurchasePage: React.FC = () => {
       dispatch(setSnackbarOpen(true));
     }
   }, [purchaseOrderData.items, overallDiscountValue, dispatch]);
+
   // Calculate totals
   const calculateTotals = useMemo(() => {
     let subTotal = 0;
     let itemDiscountAmount = 0;
     let taxAmount = 0;
+    
     purchaseOrderData.items.forEach((item) => {
       subTotal += item.pendingTotalPrice || 0;
       itemDiscountAmount += item.pendingDiscountAmount || 0;
       taxAmount += item.pendingTaxAmount || 0;
     });
+
     const overallDiscountAmount = overallDiscountMode === 'percentage'
       ? subTotal * (overallDiscountValue / 100)
       : overallDiscountValue;
+
     const totalDiscount = itemDiscountAmount + overallDiscountAmount;
     const afterDiscount = Math.max(0, subTotal - totalDiscount);
     const finalAmount = afterDiscount + taxAmount + roundOffValue;
+
     return {
       subTotal: roundPrice(subTotal),
       roundedTotalOrderAmount: roundPrice(finalAmount),
@@ -281,6 +304,7 @@ const CreatePurchasePage: React.FC = () => {
       afterDiscount: roundPrice(afterDiscount),
     };
   }, [purchaseOrderData.items, overallDiscountMode, overallDiscountValue, roundOffValue]);
+
   // Update totals and Redux state
   useEffect(() => {
     const newTotals = calculateTotals;
@@ -291,7 +315,8 @@ const CreatePurchasePage: React.FC = () => {
       pendingTaxAmount: newTotals.roundedTotalTax,
     }));
   }, [calculateTotals, dispatch]);
-  // Handler functions (MOVED BEFORE EARLY RETURN TO FIX HOOK ERROR)
+
+  // Handler functions
   const handleOrderDateChange = (date: Date | null) => {
     const finalDate = date || new Date();
     dispatch(setPurchaseOrderData({
@@ -299,6 +324,7 @@ const CreatePurchasePage: React.FC = () => {
       orderDate: finalDate.toISOString()
     }));
   };
+
   const handleExpectedDeliveryDateChange = (date: Date | null) => {
     const finalDate = date || new Date();
     dispatch(setPurchaseOrderData({
@@ -306,17 +332,20 @@ const CreatePurchasePage: React.FC = () => {
       expectedDeliveryDate: finalDate.toISOString()
     }));
   };
+
   const resetFileInput = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
+
   const handleCloseImportDialog = () => {
     dispatch(setImportDialogOpen(false));
     dispatch(clearImportResults());
     dispatch(clearSnackbarMessage());
     resetFileInput();
   };
+
   const handleBackToPO = () => {
     if (isFormDirty) {
       setPendingNavigation(() => () => {
@@ -329,6 +358,7 @@ const CreatePurchasePage: React.FC = () => {
       router.push('/yen-purchase/PurchaseOrder');
     }
   };
+
   const handleOverallDiscountChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {
@@ -346,6 +376,7 @@ const CreatePurchasePage: React.FC = () => {
       setOverallDiscountValue(parsedValue);
     }
   };
+
   const setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amount') => {
     if (hasItemWiseDiscount) {
       dispatch(setSnackbarMessage('Cannot change discount mode when item-wise discounts exist'));
@@ -353,6 +384,7 @@ const CreatePurchasePage: React.FC = () => {
       return;
     }
     if (newMode === overallDiscountMode) return;
+
     let newValue = 0;
     if (overallDiscountValue > 0 && totals.subTotal > 0) {
       newValue = overallDiscountMode === 'percentage'
@@ -363,15 +395,19 @@ const CreatePurchasePage: React.FC = () => {
     setOverallDiscountMode(newMode);
     setOverallDiscountValue(newValue);
   };
+
   const setItemDiscountModeWithConversion = (newMode: 'percentage' | 'amount') => {
     if (newMode === discountMode) return;
+
     let newBefTaxDiscount = 0;
     let newAfTaxDiscount = 0;
     let newBefTaxDiscountAmount = 0;
     let newAfTaxDiscountAmount = 0;
+
     const totalPrice = newItem.pendingTotalQuantity * newItem.newPrice;
     const priceAfterBefDiscount = totalPrice - (newItem.befTaxDiscountAmount || 0);
     const priceAfterTax = priceAfterBefDiscount + (newItem.taxPercentage / 100 * priceAfterBefDiscount);
+
     if (totalPrice > 0) {
       if (discountMode === 'percentage') {
         newBefTaxDiscountAmount = newItem.befTaxDiscount > 0 ? (newItem.befTaxDiscount / 100) * totalPrice : 0;
@@ -381,6 +417,7 @@ const CreatePurchasePage: React.FC = () => {
         newAfTaxDiscount = newItem.afTaxDiscountAmount > 0 ? (newItem.afTaxDiscountAmount / priceAfterTax) * 100 : 0;
       }
     }
+
     dispatch(setDiscountMode({ mode: newMode }));
     dispatch(setNewItemData({
       ...newItem,
@@ -393,6 +430,7 @@ const CreatePurchasePage: React.FC = () => {
       afTaxDiscountType: newMode,
     }));
   };
+
   const handleSelectAddressChange = useCallback(
     (name: string, value: string | null) => {
       const updatedData = { ...purchaseOrderData, [name]: value ?? '' };
@@ -413,6 +451,7 @@ const CreatePurchasePage: React.FC = () => {
     },
     [dispatch, purchaseOrderData, businesses, shippingaddress]
   );
+
   const handleLocationChange = useCallback((location: Location | null) => {
     setLocationSearch(location);
     dispatch(setPurchaseOrderData({
@@ -421,6 +460,7 @@ const CreatePurchasePage: React.FC = () => {
     }));
     setFormErrors(prev => ({ ...prev, locationName: false }));
   }, [dispatch, purchaseOrderData]);
+
   const handleTextFieldChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index?: number) => {
     const { name, value } = e.target;
     if (index !== undefined) {
@@ -433,9 +473,11 @@ const CreatePurchasePage: React.FC = () => {
       setFormErrors({ ...formErrors, [name]: false });
     }
   };
+
   const toggleFullScreen = () => {
     setIsFullScreen((prev) => !prev);
   };
+
   const handleAddTerm = () => {
     if (purchaseOrderData.termsandConditions.length < 3) {
       dispatch(setPurchaseOrderData({
@@ -444,12 +486,14 @@ const CreatePurchasePage: React.FC = () => {
       }));
     }
   };
+
   const handleRemoveTerm = (index: number) => {
     dispatch(setPurchaseOrderData({
       ...purchaseOrderData,
       termsandConditions: purchaseOrderData.termsandConditions.filter((_, i) => i !== index),
     }));
   };
+
   const handleRoundOffChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value === '' || /^-?\d*\.?\d{0,2}$/.test(value)) {
@@ -457,6 +501,7 @@ const CreatePurchasePage: React.FC = () => {
       setRoundOffValue(parsedValue);
     }
   };
+
   const handleItemSelection = (item: PurchaseItemSearchAdd | null) => {
     if (item) {
       setNewItemsearch(item);
@@ -482,6 +527,15 @@ const CreatePurchasePage: React.FC = () => {
         taxType: 'cgst_sgst',
         befTaxDiscountType: discountMode,
         afTaxDiscountType: discountMode,
+        // Initialize PO quantity fields
+        poQuantity: 0,
+        poQuantitypendingTotalPrice: 0,
+        poQuantitypendingFinalPrice: 0,
+        poQuantityTaxAmount: 0,
+        poQuantityDiscountAmount: 0,
+        poQuantitysgst: 0,
+        poQuantitycgst: 0,
+        poQuantityigst: 0,
       }));
       setCountInput('1');
       setQuantityInput('');
@@ -512,12 +566,22 @@ const CreatePurchasePage: React.FC = () => {
         pendingCount: 0,
         pendingQuantity: 0,
         pendingTotalQuantity: 0,
+        // Reset PO quantity fields
+        poQuantity: 0,
+        poQuantitypendingTotalPrice: 0,
+        poQuantitypendingFinalPrice: 0,
+        poQuantityTaxAmount: 0,
+        poQuantityDiscountAmount: 0,
+        poQuantitysgst: 0,
+        poQuantitycgst: 0,
+        poQuantityigst: 0,
       }));
       setCountInput('');
       setQuantityInput('');
       setNewPriceTypeInput('');
     }
   };
+
   const handleClear = () => {
     const currentDate = new Date().toISOString();
     dispatch(setPurchaseOrderData({
@@ -544,6 +608,7 @@ const CreatePurchasePage: React.FC = () => {
       postalCode: 0,
       gstNumber: '',
     }));
+    
     dispatch(setNewItemData({
       itemId: '',
       itemName: '',
@@ -569,7 +634,17 @@ const CreatePurchasePage: React.FC = () => {
       pendingTotalPrice: 0,
       befTaxDiscountType: discountMode,
       afTaxDiscountType: discountMode,
+      // Reset PO quantity fields
+      poQuantity: 0,
+      poQuantitypendingTotalPrice: 0,
+      poQuantitypendingFinalPrice: 0,
+      poQuantityTaxAmount: 0,
+      poQuantityDiscountAmount: 0,
+      poQuantitysgst: 0,
+      poQuantitycgst: 0,
+      poQuantityigst: 0,
     }));
+    
     setVendorSearch(null);
     setLocationSearch(null);
     setNewItemsearch(null);
@@ -581,11 +656,13 @@ const CreatePurchasePage: React.FC = () => {
     setRoundOffValue(0);
     setIsFormDirty(false);
     setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
+    
     // If in edit mode, go back to list
     if (isEditMode) {
       router.push('/yen-purchase/PurchaseOrder');
     }
   };
+
   const enforceOneDiscount = (name: string, value: number) => {
     const updatedItem = { ...newItem, [name]: value };
     if (name === 'befTaxDiscount' || name === 'befTaxDiscountAmount') {
@@ -598,6 +675,7 @@ const CreatePurchasePage: React.FC = () => {
     }
     dispatch(setNewItemData(updatedItem));
   };
+
   const handleItemChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     if (name === 'pendingCount' || name === 'pendingQuantity') {
@@ -609,6 +687,7 @@ const CreatePurchasePage: React.FC = () => {
             ...newItem,
             pendingCount: parsedValue,
             pendingTotalQuantity: parsedValue * newItem.pendingQuantity,
+            poQuantity: parsedValue * newItem.pendingQuantity, // Update PO quantity
           }));
           setErrors({ ...errors, pendingCount: false });
         } else if (name === 'pendingQuantity') {
@@ -618,6 +697,7 @@ const CreatePurchasePage: React.FC = () => {
             ...newItem,
             pendingQuantity: parsedValue,
             pendingTotalQuantity: newItem.pendingCount * parsedValue,
+            poQuantity: newItem.pendingCount * parsedValue, // Update PO quantity
           }));
           setErrors({ ...errors, pendingQuantity: false });
         }
@@ -642,10 +722,12 @@ const CreatePurchasePage: React.FC = () => {
       } else {
         validationPattern = /^\d*\.?\d{0,2}$/;
       }
+
       if (value === '' || validationPattern.test(value)) {
         const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
         const maxValue = discountMode === 'percentage' && (name === 'befTaxDiscount' || name === 'afTaxDiscount') ? 99.99 : Infinity;
         let updatedValue = Math.min(parsedValue, maxValue);
+
         const totalPrice = newItem.pendingTotalQuantity * newItem.newPrice;
         if (totalPrice > 0) {
           let discountAmount = 0;
@@ -658,11 +740,13 @@ const CreatePurchasePage: React.FC = () => {
               discountAmount = updatedValue;
             }
           }
+
           if (discountAmount >= totalPrice) {
             dispatch(setSnackbarMessage(`Discount cannot be ${updatedValue}${discountMode === 'percentage' ? '%' : ''} as it would make the final price negative or zero. Maximum allowed discount is ${discountMode === 'percentage' ? '99.99%' : (totalPrice - 0.01).toFixed(2)}`));
             dispatch(setSnackbarOpen(true));
             return;
           }
+
           if (discountMode === 'percentage' && (name === 'befTaxDiscount' || name === 'afTaxDiscount')) {
             if (updatedValue >= 100) {
               dispatch(setSnackbarMessage('Discount percentage cannot be 100% or more.'));
@@ -671,6 +755,7 @@ const CreatePurchasePage: React.FC = () => {
             }
           }
         }
+
         enforceOneDiscount(name, updatedValue);
         setErrors({ ...errors, [name]: false });
       }
@@ -681,6 +766,7 @@ const CreatePurchasePage: React.FC = () => {
         setErrors({ ...errors, [name]: false });
       }
     }
+
     if (['befTaxDiscount', 'afTaxDiscount', 'befTaxDiscountAmount', 'afTaxDiscountAmount'].includes(name)) {
       if (value !== '' && parseFloat(value) > 0 && overallDiscountValue > 0) {
         setOverallDiscountValue(0);
@@ -689,6 +775,7 @@ const CreatePurchasePage: React.FC = () => {
       }
     }
   };
+
   const handleVendorSelection = (vendor: VendorSummary | null) => {
     setVendorSearch(vendor);
     if (vendor) {
@@ -707,6 +794,12 @@ const CreatePurchasePage: React.FC = () => {
         gstNumber: vendor.gstNumber,
       }));
       setFormErrors({ ...formErrors, vendorName: false, paymentTerms: false, creditLimit: false });
+      // Focus on item field after vendor selection
+      setTimeout(() => {
+        if (itemNameRef.current) {
+          itemNameRef.current.focus();
+        }
+      }, 0);
     } else {
       dispatch(setPurchaseOrderData({
         ...purchaseOrderData,
@@ -724,33 +817,42 @@ const CreatePurchasePage: React.FC = () => {
       }));
     }
   };
+
   const handleTaxTypeChange = (event: ChangeEvent<HTMLInputElement>) => {
     dispatch(setNewItemData({ ...newItem, taxType: event.target.value as 'cgst_sgst' | 'igst' }));
   };
+
   const handleDiscountModeChange = (event: ChangeEvent<HTMLInputElement>) => {
     setItemDiscountModeWithConversion(event.target.value as 'percentage' | 'amount');
   };
+
   const handleDelete = (itemId: string) => {
     dispatch(deleteItemFromPurchaseOrder(itemId));
     dispatch(clearItemForEditing());
     setNewItemsearch(null);
     setTotals(calculateTotals);
   };
+
   const handleShippingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, field: string) => {
     setUpdatedShippingRow({ ...updatedShippingRow!, [field]: e.target.value });
   };
+
   const handleEdit = (item: Item) => {
     const itemDiscountMode = (item.befTaxDiscountType || discountMode || 'percentage') as 'percentage' | 'amount';
     dispatch(setDiscountMode({ mode: itemDiscountMode }));
+    
     const befDiscount = item.befTaxDiscount || 0;
     const afDiscount = item.afTaxDiscount || 0;
     const befDiscountAmount = item.befTaxDiscountAmount || 0;
     const afDiscountAmount = item.afTaxDiscountAmount || 0;
+
     let editedBef = itemDiscountMode === 'percentage' ? (befDiscount > 0 ? befDiscount : 0) : (befDiscountAmount > 0 ? befDiscountAmount : 0);
     let editedAf = itemDiscountMode === 'percentage' ? (afDiscount > 0 ? afDiscount : 0) : (afDiscountAmount > 0 ? afDiscountAmount : 0);
+
     if (editedBef > 0 && editedAf > 0) {
       editedAf = 0;
     }
+
     dispatch(setItemForEditing({
       ...item,
       befTaxDiscount: itemDiscountMode === 'percentage' ? editedBef : 0,
@@ -760,6 +862,7 @@ const CreatePurchasePage: React.FC = () => {
       befTaxDiscountType: itemDiscountMode,
       afTaxDiscountType: itemDiscountMode,
     }));
+
     const itemForSearch: PurchaseItemSearchAdd = {
       purchaseitemId: item.itemId,
       itemName: item.itemName,
@@ -770,12 +873,14 @@ const CreatePurchasePage: React.FC = () => {
       purchasesubcategoryName: item.purchasesubcategoryName,
       hsnCode: item.hsnCode,
     };
+
     setNewItemsearch(itemForSearch);
     setCountInput(item.pendingCount.toString());
     setQuantityInput(item.pendingQuantity.toString());
     setNewPriceTypeInput(item.newPrice.toString());
     setTotals(calculateTotals);
   };
+
   const handleAddItem = useCallback(async () => {
     setErrors({
       itemName: !newItem.itemName,
@@ -783,18 +888,22 @@ const CreatePurchasePage: React.FC = () => {
       pendingQuantity: !newItem.pendingQuantity,
       newPrice: !newItem.newPrice,
     });
+
     if (!newItem.itemName || !newItem.pendingCount || !newItem.pendingQuantity || !newItem.newPrice) {
       return;
     }
+
     if (newItem.pendingTotalQuantity <= 0 || newItem.newPrice <= 0) {
       dispatch(setSnackbarMessage('Quantity and price must be greater than zero.'));
       dispatch(setSnackbarOpen(true));
       return;
     }
+
     let finalBef = newItem.befTaxDiscount || 0;
     let finalBefAmount = newItem.befTaxDiscountAmount || 0;
     let finalAf = newItem.afTaxDiscount || 0;
     let finalAfAmount = newItem.afTaxDiscountAmount || 0;
+
     if (finalBef > 0 || finalBefAmount > 0) {
       finalAf = 0;
       finalAfAmount = 0;
@@ -804,6 +913,7 @@ const CreatePurchasePage: React.FC = () => {
       finalBefAmount = 0;
       dispatch(setNewItemData({ ...newItem, befTaxDiscount: 0, befTaxDiscountAmount: 0 }));
     }
+
     setLoading(true);
     try {
       const params: {
@@ -818,11 +928,12 @@ const CreatePurchasePage: React.FC = () => {
         afTaxDiscountAmount?: number;
       } = {
         pendingTotalQuantity: newItem.pendingTotalQuantity,
-        poQuantity: newItem.pendingTotalQuantity,
+        poQuantity: newItem.pendingTotalQuantity, // Include PO quantity
         newPrice: newItem.newPrice,
         taxPercentage: newItem.taxPercentage || 0,
         taxType: newItem.taxType,
       };
+
       if (discountMode === 'percentage') {
         if (finalBef > 0) params.befTaxDiscount = finalBef;
         if (finalAf > 0) params.afTaxDiscount = finalAf;
@@ -830,8 +941,11 @@ const CreatePurchasePage: React.FC = () => {
         if (finalBefAmount > 0) params.befTaxDiscountAmount = finalBefAmount;
         if (finalAfAmount > 0) params.afTaxDiscountAmount = finalAfAmount;
       }
+
       await dispatch(calculateItemTotals(params)).unwrap();
       dispatch(addItemToPurchaseOrder());
+      
+      // Reset form fields after adding item
       setNewItemsearch(null);
       dispatch(setNewItemData({
         itemId: '',
@@ -858,18 +972,36 @@ const CreatePurchasePage: React.FC = () => {
         pendingTotalPrice: 0,
         befTaxDiscountType: discountMode,
         afTaxDiscountType: discountMode,
+        // Reset PO quantity fields
+        poQuantity: 0,
+        poQuantitypendingTotalPrice: 0,
+        poQuantitypendingFinalPrice: 0,
+        poQuantityTaxAmount: 0,
+        poQuantityDiscountAmount: 0,
+        poQuantitysgst: 0,
+        poQuantitycgst: 0,
+        poQuantityigst: 0,
       }));
+      
       setCountInput('');
       setQuantityInput('');
       setNewPriceTypeInput('');
       setTotals(calculateTotals);
-      if (itemNameRef.current) itemNameRef.current.focus();
+      // ... existing reset code ...
+
+// IMPROVED Focus: Use setTimeout to ensure component has rendered post-reset
+setTimeout(() => {
+  if (itemNameRef.current) {
+    itemNameRef.current.focus();
+  }
+}, 0);
     } catch (error) {
       dispatch(setSnackbarMessage('Failed to add item. Please try again.'));
       dispatch(setSnackbarOpen(true));
     } finally {
       setLoading(false);
     }
+
     if ((newItem.befTaxDiscount > 0 || newItem.afTaxDiscount > 0 ||
       newItem.befTaxDiscountAmount > 0 || newItem.afTaxDiscountAmount > 0) &&
       overallDiscountValue > 0) {
@@ -878,6 +1010,7 @@ const CreatePurchasePage: React.FC = () => {
       dispatch(setSnackbarOpen(true));
     }
   }, [dispatch, newItem, calculateTotals, discountMode, overallDiscountValue]);
+
   const saveShippingAddress = () => {
     if (updatedShippingRow) {
       dispatch(addShipping({ ...updatedShippingRow, shippingId: '', randomId: '' }))
@@ -891,10 +1024,12 @@ const CreatePurchasePage: React.FC = () => {
         });
     }
   };
+
   const handleCloseShippingDialog = () => {
     setOpenShippingDialog(false);
     setUpdatedShippingRow(null);
   };
+
   const handleOpenDialog = () => {
     validationSchema.validate(purchaseOrderData, { abortEarly: false })
       .then(() => {
@@ -912,29 +1047,33 @@ const CreatePurchasePage: React.FC = () => {
         dispatch(setSnackbarOpen(true));
       });
   };
+
   const handleApplyDiscount = async () => {
     if (hasItemWiseDiscount) {
       dispatch(setSnackbarMessage('Cannot apply overall discount when item-wise discounts exist'));
       dispatch(setSnackbarOpen(true));
       return;
     }
+
     if (overallDiscountValue <= 0) {
       dispatch(setSnackbarMessage('Please enter a valid discount amount'));
       dispatch(setSnackbarOpen(true));
       return;
     }
+
     if (purchaseOrderData.items.length === 0) {
       dispatch(setSnackbarMessage('Add items before applying discount'));
       dispatch(setSnackbarOpen(true));
       return;
     }
+
     setLoading(true);
     try {
       const allItems = purchaseOrderData.items.map((item) => {
         return {
           id: item.itemId,
           pendingTotalQuantity: item.pendingTotalQuantity || 0,
-          poQuantity: item.pendingTotalQuantity || 0,
+          poQuantity: item.poQuantity || item.pendingTotalQuantity || 0, // Include PO quantity
           newPrice: item.newPrice || 0,
           befTaxDiscount: 0,
           afTaxDiscount: 0,
@@ -946,6 +1085,7 @@ const CreatePurchasePage: React.FC = () => {
           taxType: item.taxType || 'cgst_sgst',
         };
       });
+
       const payload = {
         items: allItems,
         overallDiscount: overallDiscountMode === 'percentage' ? overallDiscountValue : 0,
@@ -953,16 +1093,20 @@ const CreatePurchasePage: React.FC = () => {
         overallDiscountType: overallDiscountMode,
         applyOverallDiscount: true,
       };
+
       const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
+      
       if (!result.success) {
         throw new Error(result.error || 'Failed to apply discount');
       }
+
       const updatedItems = purchaseOrderData.items.map(item => {
         const calculatedItem = result.items.find(calc => calc.id === item.itemId);
         if (calculatedItem) {
           const taxAmount = item.taxType === 'igst'
             ? calculatedItem.pendingIgst
             : (calculatedItem.pendingSgst || 0) + (calculatedItem.pendingCgst || 0);
+
           return {
             ...item,
             befTaxDiscount: 0,
@@ -980,10 +1124,19 @@ const CreatePurchasePage: React.FC = () => {
             pendingSgst: calculatedItem.pendingSgst,
             pendingCgst: calculatedItem.pendingCgst,
             pendingIgst: calculatedItem.pendingIgst,
+            // Update PO quantity fields
+            poQuantityTaxAmount: taxAmount,
+            poQuantityDiscountAmount: calculatedItem.pendingDiscountAmount,
+            poQuantitypendingTotalPrice: calculatedItem.pendingTotalPrice,
+            poQuantitypendingFinalPrice: calculatedItem.pendingFinalPrice,
+            poQuantitysgst: calculatedItem.pendingSgst,
+            poQuantitycgst: calculatedItem.pendingCgst,
+            poQuantityigst: calculatedItem.pendingIgst,
           };
         }
         return item;
       });
+
       dispatch(setPurchaseOrderData({
         ...purchaseOrderData,
         items: updatedItems,
@@ -991,6 +1144,7 @@ const CreatePurchasePage: React.FC = () => {
         pendingDiscountAmount: result.summary.totalDiscountAmount,
         pendingTaxAmount: result.summary.totalTaxAmount,
       }));
+
       dispatch(setSnackbarMessage(
         `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} discount across all items`
       ));
@@ -1006,13 +1160,14 @@ const CreatePurchasePage: React.FC = () => {
       setLoading(false);
     }
   };
+
   const removeOverallDiscount = async () => {
     setLoading(true);
     try {
       const allItems = purchaseOrderData.items.map(item => ({
         id: item.itemId,
         pendingTotalQuantity: item.pendingTotalQuantity || 0,
-        poQuantity: item.pendingTotalQuantity || 0,
+        poQuantity: item.poQuantity || item.pendingTotalQuantity || 0, // Include PO quantity
         newPrice: item.newPrice || 0,
         befTaxDiscount: 0,
         afTaxDiscount: 0,
@@ -1023,6 +1178,7 @@ const CreatePurchasePage: React.FC = () => {
         taxPercentage: item.taxPercentage || 0,
         taxType: item.taxType || 'cgst_sgst',
       }));
+
       const payload = {
         items: allItems,
         overallDiscount: 0,
@@ -1030,10 +1186,13 @@ const CreatePurchasePage: React.FC = () => {
         overallDiscountType: overallDiscountMode,
         applyOverallDiscount: false,
       };
+
       const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
+      
       if (!result.success) {
         throw new Error(result.error || 'Failed to remove discount');
       }
+
       const updatedItems = purchaseOrderData.items.map(item => {
         const calculatedItem = result.items.find(calc => calc.id === item.itemId);
         if (calculatedItem) {
@@ -1052,10 +1211,19 @@ const CreatePurchasePage: React.FC = () => {
             pendingSgst: calculatedItem.pendingSgst,
             pendingCgst: calculatedItem.pendingCgst,
             pendingIgst: calculatedItem.pendingIgst,
+            // Update PO quantity fields
+            poQuantitypendingTotalPrice: calculatedItem.pendingTotalPrice,
+            poQuantitypendingFinalPrice: calculatedItem.pendingFinalPrice,
+            poQuantityTaxAmount: calculatedItem.pendingTaxAmount,
+            poQuantityDiscountAmount: calculatedItem.pendingDiscountAmount,
+            poQuantitysgst: calculatedItem.pendingSgst,
+            poQuantitycgst: calculatedItem.pendingCgst,
+            poQuantityigst: calculatedItem.pendingIgst,
           };
         }
         return item;
       });
+
       dispatch(setPurchaseOrderData({
         ...purchaseOrderData,
         items: updatedItems,
@@ -1063,6 +1231,7 @@ const CreatePurchasePage: React.FC = () => {
         pendingDiscountAmount: result.summary.totalDiscountAmount,
         pendingTaxAmount: result.summary.totalTaxAmount,
       }));
+
       setOverallDiscountValue(0);
       dispatch(setSnackbarMessage('Overall discount removed successfully'));
       dispatch(setSnackbarOpen(true));
@@ -1074,18 +1243,23 @@ const CreatePurchasePage: React.FC = () => {
       setLoading(false);
     }
   };
+
   const handleSubmit = async () => {
     try {
       await validationSchema.validate(purchaseOrderData, { abortEarly: false });
       setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
+
       const { roundedTotalOrderAmount, roundedTotalDiscount, roundedTotalTax } = calculateTotals;
+
       if (!purchaseOrderData.items.length) {
         dispatch(setSnackbarMessage('At least one item is required.'));
         dispatch(setSnackbarOpen(true));
         return;
       }
+
       const orderDate = purchaseOrderData.orderDate || new Date().toISOString();
       const expectedDeliveryDate = purchaseOrderData.expectedDeliveryDate || new Date().toISOString();
+
       const dataToSubmit = {
         ...purchaseOrderData,
         orderDate,
@@ -1104,10 +1278,21 @@ const CreatePurchasePage: React.FC = () => {
           ...item,
           befTaxDiscountType: item.befTaxDiscountType || 'percentage',
           afTaxDiscountType: item.afTaxDiscountType || 'percentage',
+          // Ensure PO quantity fields are included
+          poQuantity: item.poQuantity || item.pendingTotalQuantity || 0,
+          poQuantitypendingTotalPrice: item.poQuantitypendingTotalPrice || item.pendingTotalPrice || 0,
+          poQuantitypendingFinalPrice: item.poQuantitypendingFinalPrice || item.pendingFinalPrice || 0,
+          poQuantityTaxAmount: item.poQuantityTaxAmount || item.pendingTaxAmount || 0,
+          poQuantityDiscountAmount: item.poQuantityDiscountAmount || item.pendingDiscountAmount || 0,
+          poQuantitysgst: item.poQuantitysgst || item.pendingSgst || 0,
+          poQuantitycgst: item.poQuantitycgst || item.pendingCgst || 0,
+          poQuantityigst: item.poQuantityigst || item.pendingIgst || 0,
         })),
       };
+
       let result;
       setSubmitLoading(true);
+
       if (isEditMode && editId) {
         result = await dispatch(updatePurchaseOrder({ purchaseOrderId: editId, purchaseOrder: dataToSubmit })).unwrap();
         dispatch(setSnackbarMessage(
@@ -1121,6 +1306,7 @@ const CreatePurchasePage: React.FC = () => {
             : `Purchase Order ${result.randomId || 'Unknown'} successfully created.`
         ));
       }
+
       dispatch(setSnackbarOpen(true));
       await dispatch(fetchPurchaseOrders());
       handleClear();
@@ -1141,6 +1327,7 @@ const CreatePurchasePage: React.FC = () => {
       setSubmitLoading(false);
     }
   };
+
   const calculateTaxDetails = () => {
     const taxDetails: { [key: string]: { pendingSgst: number; pendingCgst: number; pendingIgst: number; percentage: number } } = {};
     purchaseOrderData.items.forEach((item) => {
@@ -1162,6 +1349,7 @@ const CreatePurchasePage: React.FC = () => {
     });
     return taxDetails;
   };
+
   // Early return for loading (now after all handlers)
   if (orderLoading) {
     return (
@@ -1173,10 +1361,12 @@ const CreatePurchasePage: React.FC = () => {
       </Box>
     );
   }
+
   const taxDetails = calculateTaxDetails();
   const variancePrice = (newItem.newPrice - newItem.existingPrice).toFixed(2);
   const isBefDiscountActive = newItem.befTaxDiscount > 0 || newItem.befTaxDiscountAmount > 0;
   const isAfDiscountActive = newItem.afTaxDiscount > 0 || newItem.afTaxDiscountAmount > 0;
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
       {/* Main Content */}
@@ -1188,14 +1378,7 @@ const CreatePurchasePage: React.FC = () => {
             </Typography>
             <Button variant="contained" color="primary" onClick={handleBackToPO}>Back to PO</Button>
           </Box>
-          {/* Debug info
-          {process.env.NODE_ENV === 'development' && (
-            <Box sx={{ p: 1, bgcolor: '#f5f5f5', mb: 2, borderRadius: 1 }}>
-              <Typography variant="caption">
-                Mode: {isEditMode ? 'Edit' : 'Create'} | ID: {purchaseOrderData.randomId || 'None'} | Items: {purchaseOrderData.items?.length || 0}
-              </Typography>
-            </Box>
-          )} */}
+
           <Grid container spacing={2}>
             {/* Form Fields */}
             <Grid item xs={12} sm={3} md={2}>
@@ -1283,6 +1466,7 @@ const CreatePurchasePage: React.FC = () => {
               />
             </Grid>
           </Grid>
+
           {/* Add Item Section */}
           <Box sx={{
             p: 1,
@@ -1349,6 +1533,7 @@ const CreatePurchasePage: React.FC = () => {
                 </IconButton>
               </Box>
             </Box>
+
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4} md={2}>
                 <PurchaseItemAutocomplete
@@ -1358,6 +1543,7 @@ const CreatePurchasePage: React.FC = () => {
                   error={errors.itemName}
                   helperText={errors.itemName ? 'Item name is required' : ''}
                   inputRef={itemNameRef}
+                  // key={newItemsearch ? newItemsearch.purchaseitemId : 'empty'} // Force re-render when cleared
                 />
               </Grid>
               <Grid item xs={12} sm={4} md={0.8}>
@@ -1584,6 +1770,7 @@ const CreatePurchasePage: React.FC = () => {
                 </Button>
               </Grid>
             </Grid>
+
             {/* Items Table */}
             <TableContainer sx={{ maxHeight: '500px', overflowY: 'auto', marginBottom: '10px' }}>
               <Table stickyHeader>
@@ -1616,7 +1803,7 @@ const CreatePurchasePage: React.FC = () => {
                 <TableBody>
                   {purchaseOrderData.items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} align="center">No items added</TableCell> {/* Fixed colSpan to 10 */}
+                      <TableCell colSpan={11} align="center">No items added</TableCell>
                     </TableRow>
                   ) : (
                     purchaseOrderData.items.map((item, index) => (
@@ -1640,15 +1827,19 @@ const CreatePurchasePage: React.FC = () => {
                       </TableRow>
                     ))
                   )}
+                  
+                  {/* Totals Section */}
                   <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
-                    <TableCell className='table-number-right' colSpan={9} align="right">
+                    <TableCell className='table-number-right' colSpan={8} align="right">
                       <strong>Sub Total:</strong>
                     </TableCell>
                     <TableCell className='table-number-right' align="right">
                       <strong>{totals.subTotal.toFixed(2)}</strong>
                     </TableCell>
                     <TableCell />
+                    <TableCell />
                   </TableRow>
+
                   {Object.keys(taxDetails).map((taxPercentage) => {
                     const { pendingSgst, pendingCgst, pendingIgst } = taxDetails[taxPercentage];
                     const percentage = Number(taxPercentage);
@@ -1657,60 +1848,68 @@ const CreatePurchasePage: React.FC = () => {
                       <React.Fragment key={taxPercentage}>
                         {pendingIgst > 0 && (
                           <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
-                            <TableCell colSpan={9} className='table-number-right'>
+                            <TableCell colSpan={8} className='table-number-right'>
                               <strong>IGST ({percentage}%)</strong>
                             </TableCell>
                             <TableCell className='table-number-right'>
                               {pendingIgst.toFixed(2)}
                             </TableCell>
                             <TableCell />
+                            <TableCell />
                           </TableRow>
                         )}
                         {pendingSgst > 0 && (
                           <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
-                            <TableCell colSpan={9} className='table-number-right'>
+                            <TableCell colSpan={8} className='table-number-right'>
                               <strong>SGST ({halfPercentage}%)</strong>
                             </TableCell>
                             <TableCell className='table-number-right'>
                               {pendingSgst.toFixed(2)}
                             </TableCell>
                             <TableCell />
+                            <TableCell />
                           </TableRow>
                         )}
                         {pendingCgst > 0 && (
                           <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
-                            <TableCell colSpan={9} className='table-number-right'>
+                            <TableCell colSpan={8} className='table-number-right'>
                               <strong>CGST ({halfPercentage}%)</strong>
                             </TableCell>
                             <TableCell className='table-number-right'>
                               {pendingCgst.toFixed(2)}
                             </TableCell>
                             <TableCell />
+                            <TableCell />
                           </TableRow>
                         )}
                       </React.Fragment>
                     );
                   })}
+
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={9} align="right">
+                    <TableCell colSpan={8} align="right">
                       <strong>Total Tax:</strong>
                     </TableCell>
                     <TableCell className='table-number-right' align="right">
                       <strong>{totals.roundedTotalTax.toFixed(2)}</strong>
                     </TableCell>
                     <TableCell />
+                    <TableCell />
                   </TableRow>
+
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={9} align="right">
+                    <TableCell colSpan={8} align="right">
                       <strong>Item-wise Discount:</strong>
                     </TableCell>
                     <TableCell className='table-number-right'>
                       <strong>{totals.itemDiscountAmount.toFixed(2)}</strong>
                     </TableCell>
                     <TableCell />
+                    <TableCell />
                   </TableRow>
+
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={9} align="right">
+                    <TableCell colSpan={8} align="right">
                       <strong>Overall Discount:</strong>
                     </TableCell>
                     <TableCell className='table-number-right'>
@@ -1763,18 +1962,22 @@ const CreatePurchasePage: React.FC = () => {
                         sx={{ m: 0 }}
                       />
                     </TableCell>
+                    <TableCell />
                   </TableRow>
+
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={9} align="right">
+                    <TableCell colSpan={8} align="right">
                       <strong>Total Discount:</strong>
                     </TableCell>
                     <TableCell className='table-number-right'>
                       <strong>{totals.roundedTotalDiscount.toFixed(2)}</strong>
                     </TableCell>
                     <TableCell />
+                    <TableCell />
                   </TableRow>
+
                   <TableRow>
-                    <TableCell colSpan={9} align="right">
+                    <TableCell colSpan={8} align="right">
                       <strong>Round Off/Adjustment:</strong>
                     </TableCell>
                     <TableCell className='table-number-right'>
@@ -1794,20 +1997,24 @@ const CreatePurchasePage: React.FC = () => {
                       </Box>
                     </TableCell>
                     <TableCell />
+                    <TableCell />
                   </TableRow>
+
                   <TableRow sx={{ fontSize: '1.1em' }}>
-                    <TableCell colSpan={9} align="right">
+                    <TableCell colSpan={8} align="right">
                       <strong style={{ fontSize: '1.2em' }}>FINAL AMOUNT:</strong>
                     </TableCell>
                     <TableCell className='table-number-right' sx={{ fontSize: '1.2em', fontWeight: 'bold' }}>
                       <strong>{totals.roundedTotalOrderAmount.toFixed(2)}</strong>
                     </TableCell>
                     <TableCell />
+                    <TableCell />
                   </TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
           </Box>
+
           {/* Additional Form Fields */}
           <Grid container spacing={2}>
             <Grid item xs={12} sm={2} md={2}>
@@ -1942,6 +2149,7 @@ const CreatePurchasePage: React.FC = () => {
           </Grid>
         </Box>
       </Box>
+
       {/* Footer Actions */}
       <Box sx={{ p: 0.5, bgcolor: 'white', position: 'sticky', bottom: 0, zIndex: 10 }}>
         <Grid container spacing={2} justifyContent="flex-end">
@@ -1962,6 +2170,7 @@ const CreatePurchasePage: React.FC = () => {
           </Grid>
         </Grid>
       </Box>
+
       {/* Dialogs */}
       <Dialog open={open} onClose={() => setDialogOpen(false)}>
         <DialogTitle>{isHoldOrderDialog ? 'Confirm Hold Purchase Order' : (isEditMode ? 'Confirm Update' : 'Confirm Purchase Order')}</DialogTitle>
@@ -1985,6 +2194,7 @@ const CreatePurchasePage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
       <Dialog open={openShippingDialog} onClose={handleCloseShippingDialog}>
         <DialogTitle>Add New Shipping Address</DialogTitle>
         <DialogContent>
@@ -2026,6 +2236,7 @@ const CreatePurchasePage: React.FC = () => {
           <Button onClick={saveShippingAddress} color="primary">Save</Button>
         </DialogActions>
       </Dialog>
+
       <Dialog open={showNavigationConfirm} onClose={() => setShowNavigationConfirm(false)}>
         <DialogTitle>Unsaved Changes</DialogTitle>
         <DialogContent>
@@ -2046,9 +2257,11 @@ const CreatePurchasePage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
       <Backdrop sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: '#fff' }} open={loading}>
         <CircularProgress color="inherit" />
       </Backdrop>
+
       <Dialog open={importDialogOpen} onClose={handleCloseImportDialog}>
         <DialogTitle>CSV Import Results</DialogTitle>
         <DialogContent>
@@ -2147,6 +2360,7 @@ const CreatePurchasePage: React.FC = () => {
           <Button onClick={handleCloseImportDialog} color="primary">Close</Button>
         </DialogActions>
       </Dialog>
+
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
@@ -2156,4 +2370,5 @@ const CreatePurchasePage: React.FC = () => {
     </Box>
   );
 };
+
 export default CreatePurchasePage;
