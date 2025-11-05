@@ -255,7 +255,7 @@ const TableRowMemo = React.memo(
       <TableCell>
 <TableCell>
   <TextField
-    label="Expiry Date"
+    label="Expiry Date" 
     type="date"
     value={item.expiryDate ? format(item.expiryDate, 'yyyy-MM-dd') : ''}
     onChange={(e) =>
