@@ -112,7 +112,6 @@ const VerifiedApInvoicePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVendorName, setSelectedVendorName] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<VendorSearch | null>(null);
-  const [status, setStatus] = useState('Outgoing Posted'); // Default status filter is "Pending"
   const [filteredAp, setFilteredAp] = useState<ApInvoice[]>([]); // Explicit type declaration
   const [dialogDownloadOpen, setDialogDownloadOpen] = useState(false);
   const [dialogSummaryOpen, setDialogSummaryOpen] = useState(false);
@@ -142,15 +141,13 @@ const VerifiedApInvoicePage: React.FC = () => {
       const action = fetchApInvoices({
         page: newPage,
         size: pageSize,
-        status,
         dateFilterField: dateField,
-        fromDate,
-        toDate
+    
       });
       dispatch(action);
       setShouldFetch(false);
     }
-  }, [dispatch, newPage, pageSize, status, dateField, fromDate, toDate, loading, shouldFetch]);
+  }, [dispatch, newPage, pageSize, dateField, loading, shouldFetch]);
   useEffect(() => {
     businesses.forEach((business) => {
       if (!fetchedBusinessIds.has(business.businessId)) {
@@ -176,7 +173,7 @@ const VerifiedApInvoicePage: React.FC = () => {
     const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;
     dispatch(setPagination({ page: newPage, size: pageSize }));
     dispatch(fetchApInvoices({
-      page: newPage, size: pageSize, status, dateFilterField: dateField, fromDate: appliedFromDate, toDate: appliedToDate, vendorName: selectedVendorName || '',
+      page: newPage, size: pageSize, dateFilterField: dateField, vendorName: selectedVendorName || '',
     }));
   };
 
@@ -662,7 +659,6 @@ const VerifiedApInvoicePage: React.FC = () => {
       fromDate: formattedStartDate,
       toDate: formattedEndDate,
       vendorName: selectedVendorName || '',
-      status: status || '',
     }))
       .then(response => {
         const data = response.payload || [];
@@ -689,7 +685,7 @@ const VerifiedApInvoicePage: React.FC = () => {
       key: 'selection',       // Retain the key
     });
     setSelectedVendor(null); // Clear vendor selection
-    dispatch(fetchApInvoices({ page: 1, size: pageSize, status, dateFilterField: dateField, fromDate, toDate }));
+    dispatch(fetchApInvoices({ page: 1, size: pageSize, dateFilterField: dateField, fromDate, toDate }));
   }
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -715,7 +711,7 @@ const VerifiedApInvoicePage: React.FC = () => {
       // Dispatch the action and await the result
       await dispatch(convertToGrnFromApReturned(selectedInvoice.invoiceId)).unwrap();
       dispatch(fetchApInvoices({
-        page: newPage, size: pageSize, status, dateFilterField: dateField, fromDate, toDate, vendorName: selectedVendorName || '',
+        page: newPage, size: pageSize,  dateFilterField: dateField, vendorName: selectedVendorName || '',
       }));
       // Action completed successfully
       console.log('Conversion to GRN successful!');
@@ -884,7 +880,7 @@ const VerifiedApInvoicePage: React.FC = () => {
         item.itemName || 'Item Description',
         item.hsnCode,
         item.nos,
-        item.eachQuantity,
+       `${item.eachQuantity || 0} ${item.uom || 'Kgs'}`,
         `${item.stockQuantity} ${item.uom || 'Kgs'}`,
         `${unitPrice.toFixed(2)}`,
         `${item.purchasetaxName}%`,
@@ -1000,11 +996,6 @@ const VerifiedApInvoicePage: React.FC = () => {
 
     doc.text("Authorized Signatory:", 120, doc.autoTable.previous.finalY + 48);
     doc.text("_____________________", 120, doc.autoTable.previous.finalY + 60);
-    const imageUrl = '/images/pending.jpeg';
-
-    yOffset = doc.autoTable.previous.finalY + 5;
-    doc.addImage(imageUrl, 'JPEG', 150, yOffset, 30, 25);
-
     // Add page numbers to all pages and "This is computer generated" footer
     const totalPages = doc.getNumberOfPages();
     const pageHeight = doc.internal.pageSize.height;
@@ -1071,7 +1062,7 @@ const VerifiedApInvoicePage: React.FC = () => {
     ...Object.keys(taxAmounts.igst), // Collect keys from igst as well
   ]);
 
-  const filterAp = apInvoices.filter(ap => ap.status === 'Outgoing Posted');
+  const filterAp = apInvoices;
 
   return (
     <Box>
@@ -1230,7 +1221,9 @@ const VerifiedApInvoicePage: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>S.No</TableCell>
-                  <TableCell>APId</TableCell>
+                      <TableCell>PO ID</TableCell>
+                    <TableCell>GRN ID</TableCell>
+                  <TableCell>AP ID</TableCell>              
                   <TableCell>Invoice ID</TableCell>
                   <TableCell>Vendor Name</TableCell>
                   <TableCell>Invoice Date</TableCell>
@@ -1255,6 +1248,8 @@ const VerifiedApInvoicePage: React.FC = () => {
                     return (
                       <TableRow key={invoice.randomId}>
                         <TableCell>{index + 1}</TableCell>
+                        <TableCell>{invoice.poRandomId}</TableCell>
+                        <TableCell>{invoice.grnRandomId}</TableCell>
                         <TableCell>{invoice.randomId}</TableCell>
                         <TableCell>{invoice.invoiceNo}</TableCell>
                         <TableCell>{invoice.vendorName}</TableCell>
@@ -1570,21 +1565,6 @@ const VerifiedApInvoicePage: React.FC = () => {
           </DialogActions>
         </Dialog>
 
-        {/* Post Outgoing Payment Confirmation Dialog
-        <Dialog open={outgoingDialogOpen} onClose={() => setOutgoingDialogOpen(false)}>
-          <DialogTitle>Post Outgoing Payment</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to post the outgoing payment?
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOutgoingDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handlePostOutgoingPayment} color="primary">
-              Confirm
-            </Button>
-          </DialogActions>
-        </Dialog> */}
         <Backdrop
           sx={{
             color: '#fff',

@@ -1592,7 +1592,7 @@ setTimeout(() => {
                   label="Existing Price"
                   name="existingPrice"
                   type="number"
-                  value={newItem.existingPrice.toFixed(2)}
+                  value={newItem.existingPrice}
                   size="small"
                 />
               </Grid>
@@ -1617,7 +1617,7 @@ setTimeout(() => {
                   label="Price Variance"
                   name="priceVariance"
                   type="number"
-                  value={newItem.priceVariance.toFixed(2)}
+                  value={newItem.priceVariance}
                   size="small"
                   sx={{ '& .MuiInputBase-input': { color: newItem.priceVariance > 0 ? 'green' : newItem.priceVariance < 0 ? 'red' : 'black' } }}
                 />

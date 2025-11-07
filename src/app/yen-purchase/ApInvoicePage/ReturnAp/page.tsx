@@ -142,7 +142,6 @@ const ReturnnedApInvoicePage: React.FC = () => {
       const action = fetchApInvoices({
         page: newPage,
         size: pageSize,
-        status,
         dateFilterField: dateField,
         fromDate,
         toDate
@@ -174,7 +173,7 @@ const ReturnnedApInvoicePage: React.FC = () => {
     const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;
     dispatch(setPagination({ page: newPage, size: pageSize }));
     dispatch(fetchApInvoices({
-      page: newPage, size: pageSize, status, dateFilterField: dateField, fromDate: appliedFromDate, toDate: appliedToDate, vendorName: selectedVendorName || '',
+      page: newPage, size: pageSize,  dateFilterField: dateField, fromDate: appliedFromDate, toDate: appliedToDate, vendorName: selectedVendorName || '',
     }));
   };
 
@@ -295,7 +294,7 @@ const ReturnnedApInvoicePage: React.FC = () => {
       fromDate: formattedStartDate,
       toDate: formattedEndDate,
       vendorName: selectedVendorName || '',
-      status: status || '',
+   
     }))
       .then(response => {
         const data = response.payload || [];
@@ -322,7 +321,7 @@ const ReturnnedApInvoicePage: React.FC = () => {
       key: 'selection',       // Retain the key
     });
     setSelectedVendor(null); // Clear vendor selection
-    dispatch(fetchApInvoices({ page: 1, size: pageSize, status, dateFilterField: dateField, fromDate, toDate }));
+    dispatch(fetchApInvoices({ page: 1, size: pageSize, dateFilterField: dateField, fromDate, toDate }));
   }
   const handleOpen = () => {
     setDialogSummaryOpen(true);
@@ -712,7 +711,7 @@ const ReturnnedApInvoicePage: React.FC = () => {
         item.itemName || 'Item Description',
         item.hsnCode,
         item.nos,
-        item.eachQuantity,
+        `${item.eachQuantity || 0} ${item.uom || 'Kgs'}`,
         `${item.stockQuantity} ${item.uom || 'Kgs'}`,
         `${unitPrice.toFixed(2)}`,
         `${item.purchasetaxName}%`,

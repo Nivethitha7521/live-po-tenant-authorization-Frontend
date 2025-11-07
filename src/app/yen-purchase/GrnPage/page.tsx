@@ -1771,14 +1771,25 @@ const GrnPage = () => {
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <Box sx={{ pl: 0, width: '100%' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, fontWeight: 'bold' }}>
-                      <Typography variant="h6">PO NO: {selectedGrn?.poRandomID || 'PO0001'}</Typography>
-                      <Typography variant="h6">{'-->'}</Typography>
-                      <Typography variant="h6">GRN NO: {selectedGrn?.randomId || 'GN0001'}</Typography>
+                    <Box sx={{ pl: 0, width: '100%' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>PO NO:</Typography>
+                        <Typography variant="h6">{selectedGrn?.poRandomID || 'PO0001'}</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{'-->'}</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>GRN NO:</Typography>
+                        <Typography variant="h6">{selectedGrn?.randomId || 'GN0001'}</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Vendorname:</Typography>
+                        <Typography variant="h6">{selectedGrn?.vendorName || 'KK MOTORS'}</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Invoice No:</Typography>
+                        <Typography variant="h6">{selectedGrn?.invoiceNo}</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Invoice Date:</Typography>
+                        <Typography variant="h6">
+                          {selectedGrn?.invoiceDate ? format(new Date(selectedGrn.invoiceDate), 'dd-MM-yyyy') : 'N/A'}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
-                      Vendorname: {selectedGrn?.vendorName || 'KK MOTORS'}
-                    </Typography>
 
                     {/* GRN Date, AP Invoice Date and Outgoing Date in the same row */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', mb: 1 }}>

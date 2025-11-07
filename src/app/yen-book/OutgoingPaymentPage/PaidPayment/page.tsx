@@ -285,9 +285,9 @@ const PaidPaymentComponent = () => {
     }
 
     doc.setFontSize(12);
-    doc.text("Paid Payment Invoice Summary", titleX, yOffset + 10);
+    doc.text("Payment Acknowledgement Summary", titleX, yOffset + 10);
 
-    const titleWidth = doc.getTextWidth("Paid Payment Invoice Summary");
+    const titleWidth = doc.getTextWidth("Payment Acknowledgement  Summary");
     const lineY = yOffset + 12;
     doc.setLineWidth(0.1);
     doc.line(titleX, lineY, titleX + titleWidth, lineY);
@@ -399,167 +399,158 @@ const PaidPaymentComponent = () => {
     document.body.removeChild(link);
     handleCloseDialog();
   };
+const handleDownload = async (outgoingId: string) => {
+  const outgoingdetail = paidOutgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
+  if (!outgoingdetail) {
+    console.error('Outgoing not found!');
+    return;
+  }
+  const business = businesses.length > 0 ? businesses[0] : null;
+  const doc = new jsPDF();
+  let yOffset = 10;
 
-  const handleDownload = async (outgoingId: string) => {
-    const outgoingdetail = paidOutgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
-    if (!outgoingdetail) {
-      console.error('Outgoing not found!');
-      return;
+  // Header Section
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 128);
+  doc.text('Payment Acknowledgement', 90, yOffset + 5);
+  const textWidth = doc.getTextWidth('Payment Acknowledgement');
+  doc.setDrawColor(0, 0, 128);
+  doc.line(90, yOffset + 7, 90 + textWidth, yOffset + 7);
+  yOffset += 10;
+
+  // Add Business Logo if available
+  if (business && business.imageUrl) {
+    try {
+      doc.addImage(business.imageUrl, 'JPEG', 20, 5, 20, 20);
+    } catch (e) {
+      console.error("Image failed to load:", e);
     }
+  }
 
-    const business = businesses.length > 0 ? businesses[0] : null;
-    const doc = new jsPDF();
-    let yOffset = 10;
+  // FIXED: Use calculateTotalPaid for paid amount
+  const totalPaidAmount = calculateTotalPaid(outgoingdetail);
 
-    // Header Section
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 128);
-    doc.text('Paid Payment', 90, yOffset + 5);
+  // Vendor and Business Details
+  const vendorDetailsRows = [
+    [
+      `Vendor Name: ${outgoingdetail.vendorName || ''}\n` +
+      `GSTIN: ${outgoingdetail.gstNumber || ''}\n` +
+      `Address: ${outgoingdetail.address || ''}\n` +
+      `City: ${outgoingdetail.city || ''}\n` +
+      `State: ${outgoingdetail.state || ''}\n` +
+      `Country: ${outgoingdetail.country || ''}\n` +
+      `Email: ${outgoingdetail.contactpersonEmail || ''}`,
+      `Business Name: ${business?.companyName || ''}\n` +
+      `GSTIN: ${business?.gstIn || ''}\n` +
+      `Address: ${business?.address1 || ''}\n` +
+      `Phone: ${business?.phoneNo || ''}\n` +
+      `Email: ${business?.emailId || ''}`,
+      `Outgoing No: ${outgoingdetail.randomId}\n` +
+      `Date: ${outgoingdetail.createdDate
+        ? format(new Date(outgoingdetail.createdDate), 'dd-MM-yyyy')
+        : 'Not Provided'}\n` +
+      `Total Paid: ${totalPaidAmount.toFixed(2)}`
+    ]
+  ];
 
-    const textWidth = doc.getTextWidth('Paid Payment');
-    doc.setDrawColor(0, 0, 128);
-    doc.line(90, yOffset + 7, 90 + textWidth, yOffset + 7);
+  doc.autoTable({
+    head: [['Vendor Details', 'Business Details', 'Outgoing Payment Details']],
+    body: vendorDetailsRows,
+    startY: yOffset,
+    theme: 'grid',
+    styles: { fontSize: 9, cellPadding: 4, halign: 'left', valign: 'top', overflow: 'linebreak' },
+    columnStyles: { 0: { cellWidth: 60.6 }, 1: { cellWidth: 60.6 }, 2: { cellWidth: 60.6 } },
+    headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], fontStyle: 'bold' },
+    bodyStyles: { lineWidth: 0.1, lineColor: [0, 0, 0], textColor: [0, 0, 0], minCellHeight: 15 },
+    tableLineColor: [0, 0, 0],
+    tableLineWidth: 0.1,
+  });
 
-    yOffset += 10;
+  yOffset = doc.autoTable.previous.finalY;
 
-    if (business && business.imageUrl) {
-      try {
-        doc.addImage(business.imageUrl, 'JPEG', 20, 5, 20, 20);
-      } catch (e) {
-        console.error("Image failed to load:", e);
-      }
-    }
-
-    // FIXED: Use calculateTotalPaid for paid amount
-    const totalPaidAmount = calculateTotalPaid(outgoingdetail);
-
-    const vendorDetailsRows = [
-      [
-        `Vendor Name: ${outgoingdetail.vendorName || ''}\n` +
-        `GSTIN: ${outgoingdetail.gstNumber || ''}\n` +
-        `Address: ${outgoingdetail.address || ''}\n` +
-        `City: ${outgoingdetail.city || ''}\n` +
-        `State: ${outgoingdetail.state || ''}\n` +
-        `Country: ${outgoingdetail.country || ''}\n` +
-        `Email: ${outgoingdetail.contactpersonEmail || ''}`,
-        `Business Name: ${business?.companyName}\n` +
-        `GSTIN: ${business?.gstIn}\n` +
-        `Address: ${business?.address1}\n` +
-        `Phone: ${business?.phoneNo}\n` +
-        `Email: ${business?.emailId}`,
-        `Outgoing No: ${outgoingdetail.randomId}\n` +
-        `Date: ${outgoingdetail.createdDate
-          ? format(new Date(outgoingdetail.createdDate), 'dd-MM-yyyy')
-          : 'Not Provided'}\n` +
-        `Total Paid: ₹${totalPaidAmount.toFixed(2)}`
-      ]
-    ];
-
+  // Payment History Section
+  if (outgoingdetail.paymentHistory && outgoingdetail.paymentHistory.length > 0) {
+    const paymentHeaders = ['Date', 'Payment Method', 'Reference No', 'Type', 'Amount'];
+    const paymentRows = outgoingdetail.paymentHistory.map((payment: any) => [
+      payment.date ? format(new Date(payment.date), 'dd-MM-yyyy') : 'N/A',
+      payment.paymentMethod || 'N/A',
+      payment.neftNo || payment.rtgsNo || payment.chequeNo || 'N/A',
+      payment.paymentType || 'Regular',
+            (payment.amount || 0).toFixed(2),
+    ]);
+    // Add total row
+  
     doc.autoTable({
-      head: [['Vendor Details', 'Business Details', 'Outgoing Payment Details']],
-      body: vendorDetailsRows,
+      head: [paymentHeaders],
+      body: paymentRows,
       startY: yOffset,
       theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 4, halign: 'left', valign: 'top', overflow: 'linebreak' },
-      columnStyles: { 0: { cellWidth: 60.6 }, 1: { cellWidth: 60.6 }, 2: { cellWidth: 60.6 } },
-      headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], fontStyle: 'bold' },
-      bodyStyles: { lineWidth: 0.1, lineColor: [0, 0, 0], textColor: [0, 0, 0], minCellHeight: 15 },
-      tableLineColor: [0, 0, 0],
-      tableLineWidth: 0.1,
+      styles: { fontSize: 8, halign: 'center', cellPadding: 2 },
+      headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], lineWidth: 0.1, lineColor: [0, 0, 0] },
+      bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0] },
+      columnStyles: {
+        0: { halign: 'left' },
+        1: { halign: 'left' },
+        2: { halign: 'left' },
+        3: { halign: 'center' },
+         4: { halign: 'right' },
+      },
     });
-
     yOffset = doc.autoTable.previous.finalY;
+  }
 
-    // Payment History Section
-    if (outgoingdetail.paymentHistory && outgoingdetail.paymentHistory.length > 0) {
-      const paymentHeaders = ['Date', 'Payment Method', 'Reference No', 'Amount', 'Type'];
-      const paymentRows = outgoingdetail.paymentHistory.map((payment: any) => [
-        payment.date ? format(new Date(payment.date), 'dd-MM-yyyy') : 'N/A',
-        payment.paymentMethod || 'N/A',
-        payment.neftNo || payment.rtgsNo || payment.chequeNo || 'N/A',
-        `₹${(payment.amount || 0).toFixed(2)}`,
-        payment.paymentType || 'Regular'
-      ]);
+  // Summary Section
+  const discount = outgoingdetail.discountDetails || 0;
+  const totalPayableAmount = outgoingdetail.totalPayableAmount || 0;
+  const summaryTable = [
+    ['Discount', discount.toFixed(2)],
+    ['Total Paid Amount', totalPaidAmount.toFixed(2)],
+    ['Total Payable Amount', totalPayableAmount.toFixed(2)]
+  ];
+  doc.autoTable({
+    head: [['Description', 'Amount']],
+    body: summaryTable,
+    startY: yOffset,
+    theme: 'grid',
+    styles: { fontSize: 10, cellPadding: 3, overflow: 'linebreak', halign: 'right' },
+    columnStyles: {
+      0: { cellWidth: 90, halign: 'right' },
+      1: { cellWidth: 91.7, halign: 'right' }
+    },
+    headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [0, 0, 0], lineWidth: 0.1 },
+    bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1 },
+  });
 
-      // Add total row
-      paymentRows.push([
-        '', '', 'Total:', `₹${totalPaidAmount.toFixed(2)}`, ''
-      ]);
+  yOffset = doc.autoTable.previous.finalY + 10;
 
-      doc.autoTable({
-        head: [paymentHeaders],
-        body: paymentRows,
-        startY: yOffset,
-        theme: 'grid',
-        styles: { fontSize: 8, halign: 'center', cellPadding: 2 },
-        headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], lineWidth: 0.1, lineColor: [0, 0, 0] },
-        bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0] },
-        columnStyles: {
-          3: { halign: 'right' }, 
-          4: { halign: 'center' }
-        },
-      });
-
-      yOffset = doc.autoTable.previous.finalY + 10;
-    }
-
-    // Summary Section
-    const discount = outgoingdetail.discountDetails || 0;
-    const totalPayableAmount = outgoingdetail.totalPayableAmount || 0;
-
-    const summaryTable = [
-      ['Discount', `₹${discount.toFixed(2)}`],
-      ['Total Paid Amount', `₹${totalPaidAmount.toFixed(2)}`],
-      ['Total Payable Amount', `₹${totalPayableAmount ? totalPayableAmount.toFixed(2) : '0.00'}`]
-    ];
-
-    doc.autoTable({
-      head: [['Description', 'Amount']], 
-      body: summaryTable,
-      startY: yOffset,
-      theme: 'grid',
-      styles: { fontSize: 10, halign: 'right', cellPadding: 3 },
-      headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [0, 0, 0], lineWidth: 0.1 },
-      bodyStyles: { lineColor: [0, 0, 0], lineWidth: 0.1 },
+  // Add PAID logo below the table
+  const statusImage = '/images/paid.jpg';
+  if (statusImage) {
+    const img = new Image();
+    img.src = statusImage;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => {
+        doc.addImage(img, 'JPG', 150, yOffset,30, 25);
+        resolve();
+      };
+      img.onerror = reject;
     });
+  }
 
-    // Status Image
-    let statusImage = '';
-    if (outgoingdetail.status === 'Fully Paid') {
-      statusImage = '/images/paid.jpg';
-    } else if (outgoingdetail.status === 'Partially Paid') {
-      statusImage = '/images/partial.jpg';
-    }
-
-    if (statusImage) {
-      const img = new Image();
-      img.src = statusImage;
-
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => {
-          doc.addImage(img, 'jpg', 150, yOffset + 10, 30, 20);
-          resolve();
-        };
-        img.onerror = reject;
-      });
-    }
-
-    const totalPages = doc.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(0);
-      const pageY = doc.internal.pageSize.height - 10;
-      const computerGeneratedY = pageY - 10;
-      doc.text("This is computer generated", doc.internal.pageSize.width / 2, computerGeneratedY, { align: 'center' });
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, pageY, { align: 'center' });
-    }
-
-    doc.save(`${outgoingdetail.vendorName} ${outgoingdetail.randomId}_PaymentDetails.pdf`);
-  };
-
-  const handleViewDetails = (index: number) => {
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    const pageY = doc.internal.pageSize.height - 10;
+    const computerGeneratedY = pageY - 10;
+    doc.text("This is computer generated", doc.internal.pageSize.width / 2, computerGeneratedY, { align: 'center' });
+    doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, pageY, { align: 'center' });
+  }
+  doc.save(`${outgoingdetail.vendorName} ${outgoingdetail.randomId}_PaymentDetails.pdf`);
+};
+ const handleViewDetails = (index: number) => {
     setSelectedOutgoing(paidOutgoings[index]);
     setOpenDetailsDialog(true);
   };
@@ -721,6 +712,7 @@ const PaidPaymentComponent = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>No</TableCell>
+                    <TableCell>Outgoing Reference</TableCell>
                     <TableCell>Vendor Name</TableCell>
                     <TableCell>Invoice No</TableCell>
                     <TableCell>Invoice Date</TableCell>
@@ -744,6 +736,7 @@ const PaidPaymentComponent = () => {
                     return (
                       <TableRow key={payment.outgoingId}>
                         <TableCell>{index + 1}</TableCell>
+                        <TableCell>{payment.randomId}</TableCell>
                         <TableCell>{payment.vendorName}</TableCell>
                         <TableCell>{payment.invoiceNo || "N/A"}</TableCell>
                         <TableCell>{payment.invoiceDate ? format(new Date(payment.invoiceDate), 'dd-MM-yyyy') : 'N/A'}</TableCell>
@@ -816,6 +809,10 @@ const PaidPaymentComponent = () => {
                 {/* Basic Information */}
                 <Table>
                   <TableBody>
+                     <TableRow>
+                      <TableCell><strong>Outgoing Reference:</strong></TableCell>
+                      <TableCell>{selectedOutgoing.randomId}</TableCell>
+                    </TableRow>
                     <TableRow>
                       <TableCell><strong>Vendor Name:</strong></TableCell>
                       <TableCell>{selectedOutgoing.vendorName}</TableCell>

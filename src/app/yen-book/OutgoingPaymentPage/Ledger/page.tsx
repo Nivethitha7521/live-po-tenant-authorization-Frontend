@@ -395,6 +395,19 @@ const LedgerPage = () => {
     setOpenDialog(false);
   };
 
+  // FIX: Debug transactions to see what's coming from API
+  useEffect(() => {
+    if (transactions && transactions.length > 0) {
+      console.log('Transactions from API:', transactions);
+      console.log('Transaction types:', transactions.map(t => ({
+        type: t.type,
+        description: t.description,
+        amount: t.credit_amount > 0 ? t.credit_amount : t.debit_amount,
+        balance: t.balance
+      })));
+    }
+  }, [transactions]);
+
   // All-time summary values from ledgerData
   const allTimeOpeningBalance = ledgerData?.openingBalance || 0;
   const totalPayableAll = ledgerData?.totalPayableAmount || 0;
@@ -411,6 +424,10 @@ const LedgerPage = () => {
   const totalDebit = transactions?.reduce((sum, t) => sum + t.debit_amount, 0) || 0;
   const totalCredit = transactions?.reduce((sum, t) => sum + t.credit_amount, 0) || 0;
   const finalBalance = transactions?.[transactions.length - 1]?.balance || periodOpeningBalance;
+
+  // FIX: Check if we have invoice transactions
+  const hasInvoices = transactions?.some(t => t.type === 'invoice');
+  console.log('Has invoice transactions:', hasInvoices);
 
   if (loading) {
     return (
@@ -564,6 +581,15 @@ const LedgerPage = () => {
           </Grid>
         </Box>
 
+        {/* FIX: Debug information - remove in production */}
+        {transactions && transactions.length > 0 && (
+          <Box sx={{ p: 1, backgroundColor: '#f5f5f5', mb: 2, borderRadius: 1 }}>
+            <Typography variant="caption" color="textSecondary">
+              Debug: {transactions.length} transactions found. Types: {[...new Set(transactions.map(t => t.type))].join(', ')}
+            </Typography>
+          </Box>
+        )}
+
         {/* Summary Cards - All-time */}
         {selectedVendorName && (
           <Grid container spacing={2} mb={2} mx={0.5}>
@@ -612,9 +638,6 @@ const LedgerPage = () => {
                   <Typography variant="body2" color="textSecondary">
                     {finalBalance >= 0 ? 'We Owe Vendor' : 'Vendor Owes Us'}
                   </Typography>
-                  {/* <Typography variant="caption" color="textSecondary">
-                    {finalBalance >= 0 ? '(Need to Pay)' : '(Vendor to Adjust)'}
-                  </Typography> */}
                 </CardContent>
               </Card>
             </Grid>
@@ -644,10 +667,11 @@ const LedgerPage = () => {
                   <>
                     {transactions.map((transaction: Transaction, index: number) => (
                       <TableRow
-                        key={`${transaction.reference_id}-${index}`}
+                        key={`${transaction.reference_id}-${index}-${transaction.type}`}
                         hover
                         sx={{
-                          backgroundColor: transaction.type === 'opening_balance' ? '#e3f2fd' : 'inherit',
+                          backgroundColor: transaction.type === 'opening_balance' ? '#e3f2fd' : 
+                                         transaction.type === 'invoice' ? '#f3e5f5' : 'inherit',
                         }}
                       >
                       <TableCell>{index +1}</TableCell>
@@ -659,6 +683,10 @@ const LedgerPage = () => {
                               {transaction.notes}
                             </Typography>
                           )}
+                          {/* FIX: Show transaction type for debugging */}
+                          <Typography variant="caption" color="textSecondary" display="block">
+                            Type: {transaction.type}
+                          </Typography>
                         </TableCell>
                         <TableCell sx={{ fontWeight: 'medium' }}>{transaction.status || 'N/A'}</TableCell>
                         <TableCell align="right">
@@ -709,7 +737,7 @@ const LedgerPage = () => {
                   </>
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                       <Typography variant="h6" color="textSecondary">
                         {selectedVendorName
                           ? 'No transactions found for this vendor in the selected date range'

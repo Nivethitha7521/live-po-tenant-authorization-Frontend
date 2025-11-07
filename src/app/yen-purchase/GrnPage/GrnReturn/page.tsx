@@ -665,7 +665,7 @@ const generateSummaryPDF = () => {
       (item.returnHistory || []).map((history, historyIndex) => [
         item.itemName ,
         item.uom ,
-        (item.quantity || 0).toString(),
+       `${item.quantity || 0} ${item.uom || 'Kgs'}`,
         (item.returnedQuantity || 0).toString(),
         (item.unitPrice || 0).toFixed(2),
         history.date ? format(new Date(history.date), 'dd-MM-yyyy HH:mm:ss') : 'N/A',

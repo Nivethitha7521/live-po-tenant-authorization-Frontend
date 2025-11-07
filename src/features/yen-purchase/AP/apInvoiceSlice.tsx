@@ -1,25 +1,22 @@
 import { RootState } from '@/redux/store';
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { format } from 'date-fns';
-import { GrnData } from '../../../Models/grnModel';
 import { ApInvoice, ApInvoiceRandomId, ApInvoiceState, initialState } from '@/Models/apModel';
 
 
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://https://yenerp.com00/purchaseapi';
 
 
 // Fetch AP Invoices with pagination and advanced filtering
 export const fetchApInvoices = createAsyncThunk(
   'apinvoice/fetchApInvoices',
   async (
-    { page, size, fromDate, toDate, vendorName, status, dateFilterField }: {
+    { page, size, fromDate, toDate, vendorName, dateFilterField }: {
       page: number;
       size: number;
       fromDate?: Date;
       toDate?: Date;
       vendorName?: string;
-      status?: string;
       dateFilterField?: string;  // New parameter for date field
     },
     { rejectWithValue }
@@ -32,7 +29,6 @@ export const fetchApInvoices = createAsyncThunk(
         fromDate?: string;
         toDate?: string;
         vendorName?: string;
-        status?: string;
         dateFilterField?: string;  // Add dateFilterField to params
       } = {
         skip: (page - 1) * size, // Pagination skip
@@ -50,10 +46,6 @@ export const fetchApInvoices = createAsyncThunk(
 
       if (vendorName) {
         params.vendorName = vendorName;
-      }
-
-      if (status) {
-        params.status = status;
       }
 
       if (dateFilterField) {

@@ -1326,7 +1326,7 @@ Description:<br />
             <TableContainer
               component={Paper}
               sx={{
-                maxHeight: 'calc(100vh - 230px)', // Dynamic height based on viewport
+                maxHeight: 'calc(100vh - 300px)', // Dynamic height based on viewport
                 overflowY: 'auto',
                 width: '100%',
               }}

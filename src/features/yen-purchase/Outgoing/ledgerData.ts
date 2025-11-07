@@ -76,7 +76,7 @@ export const fetchLedgerData = createAsyncThunk(
   'ledger/fetchLedgerData',
   async ({ vendorName, startDate, endDate }: { vendorName: string; startDate?: string; endDate?: string }, { rejectWithValue }) => {
     try {
-      let url = `https://yenerp.com/purchaseapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`;
+      let url = `http://https://yenerp.com00/purchaseapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`;
       
       // Add date parameters if provided
       const params = new URLSearchParams();

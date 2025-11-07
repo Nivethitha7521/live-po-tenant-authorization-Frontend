@@ -119,16 +119,22 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       ].filter((name) => name && name !== 'Unknown Vendor');
 
       if (vendorNames.length > 0) {
-        Promise.all([
-          dispatch(fetchActiveDebitsMultipleVendor(vendorNames)).unwrap(),
-          dispatch(fetchActiveAdvancesMultipleVendor(vendorNames)).unwrap()
-        ])
-          .then(() => {
-            console.log(`Fetched payment options for ${vendorNames.length} vendors`);
+        // FIXED: Handle each dispatch individually to prevent overall failure on empty data
+        const debitsPromise = dispatch(fetchActiveDebitsMultipleVendor(vendorNames)).unwrap().catch((error: any) => {
+          console.error('Failed to fetch debits:', error);
+          return []; // Return empty on error/empty
+        });
+        const advancesPromise = dispatch(fetchActiveAdvancesMultipleVendor(vendorNames)).unwrap().catch((error: any) => {
+          console.error('Failed to fetch advances:', error);
+          return []; // Return empty on error/empty
+        });
+
+        Promise.all([debitsPromise, advancesPromise])
+          .then(([debitsResult, advancesResult]) => {
+            console.log(`Fetched payment options for ${vendorNames.length} vendors (debits: ${debitsResult.length}, advances: ${advancesResult.length})`);
           })
           .catch((error) => {
-            console.error('Error fetching payment options:', error);
-            setErrors((prev) => ({ ...prev, _general: 'Failed to load payment options' }));
+            console.error('Unexpected error in payment options fetch:', error);
           })
           .finally(() => {
             setIsLoading(false);
