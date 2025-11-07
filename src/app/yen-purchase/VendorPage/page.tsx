@@ -11,7 +11,7 @@ const subItems = [
 ];
 
 const MenuPage = () => {
-  const pathname = usePathname();
+  const pathname = usePathname(); 
   const router = useRouter();
 
   React.useEffect(() => {
