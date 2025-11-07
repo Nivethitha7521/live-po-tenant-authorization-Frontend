@@ -25,7 +25,7 @@ const MenuPage = () => {
     color: isActive ? "#000000" : "white",
     fontWeight: "normal",
     transition: 'all 0.2s ease',
-    boxShadow: isActive ? '0px 0px 10px rgba(0, 0, 0, 0.5)' : 'none',
+    boxShadow: isActive ? '0px 0px 10px rgba(0, 0, 0, 0.5)' : 'none', 
     minWidth: '100px',
     borderRadius: '4px',
     textTransform: 'none',
