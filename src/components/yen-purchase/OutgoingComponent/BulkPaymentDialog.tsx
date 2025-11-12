@@ -91,12 +91,14 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     return new Date(maxTime);
   }, [selectedOutgoings]);
 
+  // FIXED: Use local YYYY-MM-DD for input constraints
   const maxInvoiceDateStr = useMemo(() => 
-    maxInvoiceDate.toISOString().split('T')[0], [maxInvoiceDate]
+    maxInvoiceDate.toLocaleDateString('en-CA'), [maxInvoiceDate]
   );
 
+  // FIXED: Use local YYYY-MM-DD for input constraints
   const currentDateStr = useMemo(() => 
-    new Date().toISOString().split('T')[0], []
+    new Date().toLocaleDateString('en-CA'), []
   );
 
   useEffect(() => {
@@ -315,9 +317,10 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     setErrors((prev) => ({ ...prev, _paymentMode: '' }));
   };
 
+  // FIXED: Explicit local midnight parsing
   const handlePaymentDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
-    const newDate = dateValue ? new Date(dateValue) : new Date();  // Ensure Date object
+    const newDate = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();  // Explicit local midnight
     
     // Validate against max invoice date
     const maxInv = new Date(maxInvoiceDate);
@@ -1060,11 +1063,12 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
             </>
           )}
 
+          {/* FIXED: Use local YYYY-MM-DD for value */}
           <TextField
             fullWidth
             label="Payment Date"
             type="date"
-            value={paymentDetails.paymentDate.toISOString().split('T')[0]}  // Serialize Date to string for input
+            value={paymentDetails.paymentDate.toLocaleDateString('en-CA')}  // FIXED: Local serialization
             onChange={handlePaymentDateChange}
             error={!!errors._paymentDate}
             helperText={errors._paymentDate}
@@ -1168,8 +1172,8 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
           </Box>
 
           
-            <Typography >
-              Are you sure you want to process this bulk payment.
+            <Typography variant="body1">
+              Are you sure you want to process this bulk payment?
             </Typography>
        
         </DialogContent>

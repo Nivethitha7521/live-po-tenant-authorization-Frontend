@@ -72,7 +72,7 @@ import { PurchaseOrderData, Item, TaxDetails } from "@/Models/purchaseModel";
 import { POsearchPurchaseItems } from "@/features/yen-purchase/PurchaseMaster/purchaseItemSlice";
 import { VendorSearch } from "@/Models/vendor";
 import ConfirmationDialog from "@/components/confirmationDialog";
-
+import { isValid} from "date-fns"; 
 interface GRNItemPatch {
   itemId: string;
   receivedQuantity: number;
@@ -254,24 +254,28 @@ const TableRowMemo = React.memo(
       <TableCell className='table-number-right'>{item.taxPercentage}%</TableCell>
       <TableCell>
         <TableCell>
-          <TextField
-            label="Expiry Date"
-            type="date"
-            value={item.expiryDate ? format(item.expiryDate, 'yyyy-MM-dd') : ''}
-            onChange={(e) =>
-              handleExpiryDateChange(
-                item.itemId,
-                e.target.value ? new Date(e.target.value) : null
-              )
-            }
-            sx={{ mt: 1 }}
-            InputLabelProps={{ shrink: true }}
-            inputProps={{
-              min: new Date().toISOString().split("T")[0],
-            }}
-            error={touched[index]?.expiryDate && !!errors[index]?.expiryDate}  // Add validation if needed
-            helperText={touched[index]?.expiryDate && errors[index]?.expiryDate}
-          />
+<TextField
+  label="Expiry Date"
+  type="date"
+  value={
+    item.expiryDate && isValid(item.expiryDate) 
+      ? format(item.expiryDate, 'yyyy-MM-dd') 
+      : ''
+  }
+  onChange={(e) =>
+    handleExpiryDateChange(
+      item.itemId,
+      e.target.value ? new Date(e.target.value) : null  // This is already safe
+    )
+  }
+  sx={{ mt: 1 }}
+  InputLabelProps={{ shrink: true }}
+  inputProps={{
+    min: format(new Date(), 'yyyy-MM-dd'),  // Use current date (2025-11-12)
+  }}
+  error={touched[index]?.expiryDate && !!errors[index]?.expiryDate}
+  helperText={touched[index]?.expiryDate && errors[index]?.expiryDate}
+/>
         </TableCell>
       </TableCell>
       <TableCell className='table-number-right'>{(item.calculatedTotalPrice || 0).toFixed(2)}</TableCell>
@@ -796,7 +800,6 @@ const CreatePurchase: React.FC = () => {
   });
   const [selectedVendor, setSelectedVendor] = useState<VendorSearch | null>(null);
   const [selectedRandomId, setSelectedRandomId] = useState("");
-  const [status] = useState("Approved");
   const [dialogDownloadOpen, setDialogDownloadOpen] = useState(false);
   const [dialogSummaryOpen, setDialogSummaryOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -996,9 +999,6 @@ const CreatePurchase: React.FC = () => {
         page: currentPage,
         size: pageSize,
         dateField: "approvedDate",
-        fromDate: moment().utc().startOf("day").toDate(),
-        toDate: moment().utc().endOf("day").toDate(),
-        status: "Approved",
       })
     );
   }, [dispatch, currentPage, pageSize]);
@@ -1438,9 +1438,6 @@ const CreatePurchase: React.FC = () => {
           page: currentPage,
           size: pageSize,
           dateField: "approvedDate",
-          fromDate: moment().utc().startOf("day").toDate(),
-          toDate: moment().utc().endOf("day").toDate(),
-          status: "Approved",
         })
       ).unwrap();
 
@@ -1515,8 +1512,8 @@ const CreatePurchase: React.FC = () => {
     setSnackbarInvoiceOpen,
     setIsTouched,
   ]);
-  const filteredOrders = useMemo(() => purchaseList.filter((order) => order.poStatus === "Approved"), [purchaseList]);
-
+  const filteredOrders = useMemo(() => purchaseList.filter((order) => order.poStatus === "Approved" || order.poStatus === "PartiallyReceived"), [purchaseList]);
+  console.log(filteredOrders);
   const handleViewDetailsClick = (orderId: string) => {
     const rawOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
     if (rawOrder) {
@@ -2214,8 +2211,6 @@ const CreatePurchase: React.FC = () => {
       page: 1,
       size: pageSize,
       dateField: "approvedDate",
-      fromDate: moment(selectionRange.startDate).startOf("day").toDate(),
-      toDate: moment(selectionRange.endDate).endOf("day").toDate(),
       vendorName: vendor ? vendor.vendorName : "",
       status: "Approved",
       itemName: searchQueryItem,
@@ -2228,8 +2223,6 @@ const CreatePurchase: React.FC = () => {
       page: 1,
       size: pageSize,
       dateField: "approvedDate",
-      fromDate: moment(selectionRange.startDate).startOf("day").toDate(),
-      toDate: moment(selectionRange.endDate).endOf("day").toDate(),
       vendorName: selectedVendor ? selectedVendor.vendorName : "",
       status: "Approved",
       itemName: searchQueryItem,
@@ -2248,8 +2241,6 @@ const CreatePurchase: React.FC = () => {
       page: 1,
       size: pageSize,
       dateField: "approvedDate",
-      fromDate: moment(selectionRange.startDate).startOf("day").toDate(),
-      toDate: moment(selectionRange.endDate).endOf("day").toDate(),
       vendorName: selectedVendor ? selectedVendor.vendorName : "",
       status: "Approved",
       itemName: item ? item.itemName : "",
@@ -2586,8 +2577,6 @@ const CreatePurchase: React.FC = () => {
                         page: currentPage,
                         size: pageSize,
                         dateField: "approvedDate",
-                        fromDate: moment(selectionRange.startDate).startOf("day").toDate(),
-                        toDate: moment(selectionRange.endDate).endOf("day").toDate(),
                         vendorName: selectedVendor ? selectedVendor.vendorName : "",
                         status: "Approved",
                         itemName: newItem ? newItem.itemName : "",

@@ -247,7 +247,6 @@ export const searchPurchaseItems = createAsyncThunk<PurchaseItemSearchAdd[], { s
       const response = await axios.get<SearchResponse>(`https://yenerp.com/purchaseapi/rawMaterials/search`, {
         params: { itemName: searchQuery, skip, limit },
       });
-
       // Store the fetched data in localStorage with a timestamp
       const items = response.data?.items || []; // Ensure items is always an array
       localStorage.setItem(cacheKey, JSON.stringify({

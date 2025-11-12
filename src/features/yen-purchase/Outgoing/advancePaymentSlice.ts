@@ -37,7 +37,7 @@ export const fetchAdvances = createAsyncThunk<
         ...(vendorName && { vendorName }),
       });
 
-      const response = await axios.get(`http://https://yenerp.com00/purchaseapi/advancevendor/vendorwise/advance?${params}`);
+      const response = await axios.get(`https://yenerp.com/purchaseapi/advancevendor/vendorwise/advance?${params}`);
       return {
         data: response.data.data || [],
         totalItems: response.data.totalItems || 0,

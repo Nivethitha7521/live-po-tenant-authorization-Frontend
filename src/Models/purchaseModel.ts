@@ -59,6 +59,7 @@ export interface Item {
   taxType: 'cgst_sgst' | 'igst';
   additionalTaxes?: { [key: string]: number }; // Optional additional taxes
   status: string;
+  randomId:string;
 }
 
 export interface PurchaseOrderData {
@@ -127,6 +128,7 @@ export interface Vendor {
 
 export interface PurchaseItemSearchAdd {
   purchaseitemId: string;
+  itemCode:string;
   itemName: string;
   purchasetaxName: number;
   purchasePrice: number;
@@ -134,6 +136,7 @@ export interface PurchaseItemSearchAdd {
   purchasesubcategoryName: any;
   uom: string;
   hsnCode: string;
+  randomId:string;
 }
 
 export interface PurchaseOrderState {

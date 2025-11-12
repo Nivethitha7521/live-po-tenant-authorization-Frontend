@@ -11,6 +11,7 @@ import PurchaseTaxPage from './PurchaseTax/page';
 import StorageLocationPage from './StorageLocation/page';
 import ItemTypePage from './ItemType/page';
 import YenPurchasePage from '../page';
+import FreightPage from './Freight/page';
 
 const PurchaseMasterItemPage: React.FC = () => {
   const dispatch = useDispatch();
@@ -37,6 +38,8 @@ const PurchaseMasterItemPage: React.FC = () => {
         return <StorageLocationPage />;
       case 'item-type':
         return <ItemTypePage />;
+      case 'freight':
+        return <FreightPage />;
       default:
         return null;
     }
@@ -154,9 +157,25 @@ const PurchaseMasterItemPage: React.FC = () => {
               '&:hover': {
                 backgroundColor: activeSection === 'item-type' ? 'white' : 'primary.dark',
               },
+              mr:1
             }}
           >
             Item Type
+          </Button>
+
+          <Button
+            onClick={() => handleSectionClick('freight')}
+            variant="contained"
+            sx={{
+              color: activeSection === 'freight' ? 'black' : 'white',
+              backgroundColor: activeSection === 'freight' ? 'white' : 'primary.main',
+              textTransform: 'capitalize',
+              '&:hover': {
+                backgroundColor: activeSection === 'freight' ? 'white' : 'primary.dark',
+              },
+            }}
+          >
+            Freight
           </Button>
 
         </Box>

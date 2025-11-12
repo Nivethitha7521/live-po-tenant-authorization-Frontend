@@ -508,6 +508,8 @@ const CreatePurchasePage: React.FC = () => {
       dispatch(setNewItemData({
         itemId: item.purchaseitemId,
         itemName: item.itemName,
+        itemCode:item.itemCode,
+        randomId:item.randomId,
         pendingCount: 1,
         pendingQuantity: 0,
         pendingTotalQuantity: 0,
@@ -872,6 +874,8 @@ const CreatePurchasePage: React.FC = () => {
       purchasecategoryName: item.purchasecategoryName,
       purchasesubcategoryName: item.purchasesubcategoryName,
       hsnCode: item.hsnCode,
+      itemCode: item.itemCode,
+      randomId:item.randomId
     };
 
     setNewItemsearch(itemForSearch);
@@ -963,6 +967,7 @@ const CreatePurchasePage: React.FC = () => {
         afTaxDiscountAmount: 0,
         uom: '',
         pendingCount: 0,
+        itemCode:'',
         pendingQuantity: 0,
         pendingTotalQuantity: 0,
         purchasecategoryName: '',

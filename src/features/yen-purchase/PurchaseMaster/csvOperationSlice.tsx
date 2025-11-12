@@ -73,7 +73,7 @@ export const exportCSV = createAsyncThunk('csvOperations/exportCSV', async (_, {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    window.URL.revokeObjectURL(url);
+    window.URL.revokeObjectURL(url); 
 
     return { success: true };
   } catch (error: any) {

@@ -1253,72 +1253,97 @@ const GrnPage = () => {
     return totalPrice - discountAmount;
   };
   const calculateFinalTotalAmount = () => {
-    if (!selectedGrn) return 0; // Guard clause
+    if (!selectedGrn || !selectedGrn.itemDetails) return 0; // Guard clause for both selectedGrn and itemDetails
+
     let totalAmount = 0;
-    selectedGrn.itemDetails.forEach(item => {
-      const totalPrice = calculateItemTotal(item.receivedQuantity, item.damagedQuantity, item.returnedQuantity, item.unitPrice);
+
+    // Add safe iteration with optional chaining
+    selectedGrn.itemDetails?.forEach(item => {
+      const totalPrice = calculateItemTotal(
+        item.receivedQuantity || 0,
+        item.damagedQuantity || 0,
+        item.returnedQuantity || 0,
+        item.unitPrice || 0
+      );
       const priceAfterDiscount = applyDiscount(totalPrice, item.discount || 0);
-      const taxAmount = (item.purchasetaxName / 100) * priceAfterDiscount;
+      const taxAmount = ((item.purchasetaxName || 0) / 100) * priceAfterDiscount;
       totalAmount += priceAfterDiscount + taxAmount;
     });
+
     return totalAmount;
   };
   const calculateTaxDetails = () => {
     // Initialize taxDetails object
     let taxDetails: { [key: string]: { sgstAmount: number; cgstAmount: number; igstAmount: number } } = {};
 
+    // Add null check for selectedGrn and itemDetails
+    if (!selectedGrn || !selectedGrn.itemDetails) {
+      return taxDetails;
+    }
+
     // Loop through each item in the selected GRN's item details
-    selectedGrn?.itemDetails.forEach(item => {
+    selectedGrn.itemDetails.forEach(item => {
+      // Add default values for all properties
+      const receivedQuantity = item.receivedQuantity || 0;
+      const damagedQuantity = item.damagedQuantity || 0;
+      const returnedQuantity = item.returnedQuantity || 0;
+      const unitPrice = item.unitPrice || 0;
+      const befTaxDiscountAmount = item.befTaxDiscountAmount || 0;
+      const afTaxDiscountAmount = item.afTaxDiscountAmount || 0;
+      const purchasetaxName = item.purchasetaxName || 0;
+      const taxType = item.taxType || '';
+
       // Calculate the total price based on received and damaged quantity
-      const totalPrice = calculateItemTotal(item.receivedQuantity, item.damagedQuantity, item.returnedQuantity, item.unitPrice);
+      const totalPrice = calculateItemTotal(receivedQuantity, damagedQuantity, returnedQuantity, unitPrice);
 
       // Apply befTaxDiscount before calculating the tax
       let priceAfterBefTaxDiscount = totalPrice;
-      if (item.befTaxDiscountAmount) {
-        priceAfterBefTaxDiscount -= item.befTaxDiscountAmount; // Subtract befTaxDiscountAmount from total price
+      if (befTaxDiscountAmount) {
+        priceAfterBefTaxDiscount -= befTaxDiscountAmount;
       }
 
-      // Calculate taxRate and taxType
-      const taxRate = item.purchasetaxName || 0; // Default to 0 if tax rate is missing
-      const taxType = item.taxType || ''; // Default to empty if tax type is missing
-
       // Calculate tax amount based on price after befTaxDiscount
-      const taxAmount = (taxRate / 100) * priceAfterBefTaxDiscount;
+      const taxAmount = (purchasetaxName / 100) * priceAfterBefTaxDiscount;
 
       // Initialize the taxDetails object for this rate if it doesn't exist
-      if (!taxDetails[taxRate]) {
-        taxDetails[taxRate] = { sgstAmount: 0, cgstAmount: 0, igstAmount: 0 };
+      if (!taxDetails[purchasetaxName]) {
+        taxDetails[purchasetaxName] = { sgstAmount: 0, cgstAmount: 0, igstAmount: 0 };
       }
 
       // Apply tax calculation logic based on taxType
       if (taxType === 'cgst_sgst') {
-        taxDetails[taxRate].sgstAmount += taxAmount / 2; // SGST is half of total tax amount
-        taxDetails[taxRate].cgstAmount += taxAmount / 2; // CGST is half of total tax amount
+        taxDetails[purchasetaxName].sgstAmount += taxAmount / 2;
+        taxDetails[purchasetaxName].cgstAmount += taxAmount / 2;
       } else if (taxType === 'igst') {
-        taxDetails[taxRate].igstAmount += taxAmount; // IGST is the full tax amount
+        taxDetails[purchasetaxName].igstAmount += taxAmount;
       }
 
       // Apply afTaxDiscount after tax is calculated
-      if (item.afTaxDiscountAmount) {
+      if (afTaxDiscountAmount) {
         if (taxType === 'cgst_sgst') {
-          taxDetails[taxRate].sgstAmount -= item.afTaxDiscountAmount / 2; // Subtract half of afTaxDiscountAmount from SGST
-          taxDetails[taxRate].cgstAmount -= item.afTaxDiscountAmount / 2; // Subtract half of afTaxDiscountAmount from CGST
+          taxDetails[purchasetaxName].sgstAmount -= afTaxDiscountAmount / 2;
+          taxDetails[purchasetaxName].cgstAmount -= afTaxDiscountAmount / 2;
         } else if (taxType === 'igst') {
-          taxDetails[taxRate].igstAmount -= item.afTaxDiscountAmount; // Subtract afTaxDiscountAmount from IGST
+          taxDetails[purchasetaxName].igstAmount -= afTaxDiscountAmount;
         }
       }
     });
 
     return taxDetails;
-  };
-
-  // Use tax details in the component
+  };  // Use tax details in the component
+  // Use tax details in the component with safe access
   const finalTotalAmount = calculateFinalTotalAmount();
   const taxDetails = calculateTaxDetails();
-  const roundedFinalTotalAmount = customRound(finalTotalAmount + Object.values(taxDetails).reduce(
-    (acc, { sgstAmount, cgstAmount, igstAmount }) => acc + sgstAmount + cgstAmount + igstAmount,
-    0
-  ));
+
+  // Add safe calculation for roundedFinalTotalAmount
+  const roundedFinalTotalAmount = customRound(
+    finalTotalAmount +
+    Object.values(taxDetails).reduce(
+      (acc, { sgstAmount = 0, cgstAmount = 0, igstAmount = 0 }) =>
+        acc + sgstAmount + cgstAmount + igstAmount,
+      0
+    )
+  );
 
   const safeSelectedGrnId = selectedGrnId || 'default-id';
 
@@ -1895,27 +1920,27 @@ const GrnPage = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {selectedGrn?.itemDetails.map((item, index) => (
+                      {selectedGrn?.itemDetails?.map((item, index) => ( // Add ?. for safe access
                         <TableRow key={item.itemId}>
                           <TableCell>{index + 1}</TableCell>
                           {sortedSelectedHeaders
                             .filter((header) => header !== 'totalPrice' && header !== 'finalPrice')
                             .map((header) => (
                               <TableCell key={header}>
-                                {header === 'itemName' && item.itemName}
-                                {header === 'nos' && item.nos}
-                                {header === 'eachQuantity' && item.eachQuantity}
-                                {header === 'receivedQuantity' && item.receivedQuantity}
+                                {header === 'itemName' && (item.itemName || '')}
+                                {header === 'nos' && (item.nos || 0)}
+                                {header === 'eachQuantity' && (item.eachQuantity || 0)}
+                                {header === 'receivedQuantity' && (item.receivedQuantity || 0)}
                                 {header === 'returnedQuantity' && (item.returnedQuantity || 0)}
                                 {header === 'totalQuantity' && (
                                   typeof item.totalQuantity === 'number' && item.totalQuantity !== 0
                                     ? item.totalQuantity
-                                    : item.receivedQuantity
+                                    : (item.receivedQuantity || 0)
                                 )}
-                                {header === 'uom' && item.uom}
-                                {header === 'unitPrice' && item.unitPrice.toFixed(2)}
+                                {header === 'uom' && (item.uom || '')}
+                                {header === 'unitPrice' && (item.unitPrice || 0).toFixed(2)}
+                                {header === 'purchasetaxName' && (item.purchasetaxName || 0)}
 
-                                {header === 'purchasetaxName' && item.purchasetaxName}
 
                                 {header === 'befTaxDiscount' && (
                                   <TextField

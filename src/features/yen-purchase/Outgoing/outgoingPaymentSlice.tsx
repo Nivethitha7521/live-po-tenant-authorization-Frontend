@@ -62,7 +62,7 @@ export const fetchOutgoings = createAsyncThunk<
     { rejectWithValue }
   ) => {
     try {
-      const url = 'http://https://yenerp.com00/purchaseapi/outgoingpayments/';
+      const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
       const params: any = {
         skip: (page - 1) * size,
         limit: size,
@@ -112,7 +112,7 @@ export const fetchVendorDetails = createAsyncThunk(
       }
 
       const response = await axios.get<VendorDetail[]>(
-        `http://https://yenerp.com00/purchaseapi/outgoingpayments/vendors/details?${params.toString()}`
+        `https://yenerp.com/purchaseapi/outgoingpayments/vendors/details?${params.toString()}`
       );
       return response.data;
     } catch (error) {
@@ -121,7 +121,7 @@ export const fetchVendorDetails = createAsyncThunk(
   }
 );
 export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
-  const response = await axios.get<GRN[]>(`http://https://yenerp.com00/purchaseapi/grns/`);
+  const response = await axios.get<GRN[]>(`https://yenerp.com/purchaseapi/grns/`);
   const grnData = response.data.map(item => ({
     grnId: item.grnId,
     randomId: item.randomId,
@@ -131,18 +131,18 @@ export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
 
 // Async thunk to add a new Outgoing item
 export const addOutgoing = createAsyncThunk<Outgoing, Omit<Outgoing, 'outgoingId'>>('outgoings/addOutgoing', async (outgoingData) => {
-  const response = await axios.post('http://https://yenerp.com00/purchaseapi/outgoingpayments/', outgoingData); // Adjust the API endpoint as needed
+  const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/', outgoingData); // Adjust the API endpoint as needed
   return response.data;
 });
 
 // Async thunk to update an existing Outgoing item
 export const updateOutgoing = createAsyncThunk<Outgoing, Outgoing>('outgoings/updateOutgoing', async (outgoingData) => {
-  const response = await axios.patch(`http://https://yenerp.com00/purchaseapi/outgoingpayments/${outgoingData.outgoingId}`, outgoingData); // Adjust the API endpoint as needed
+  const response = await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingData.outgoingId}`, outgoingData); // Adjust the API endpoint as needed
   return response.data;
 });
 
 export const fetchBank = createAsyncThunk('bank/fetchBanks', async () => {
-  const response = await axios.get(`http://https://yenerp.com00/masterapi/bankmasters/`);
+  const response = await axios.get(`https://yenerp.com/masterapi/bankmasters/`);
   return response.data;
 });
 export const processPayment = createAsyncThunk<
@@ -197,7 +197,7 @@ export const processPayment = createAsyncThunk<
         paymentDate: paymentDate.toISOString(),
       };
 
-      await axios.patch(`http://https://yenerp.com00/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.message || 'Payment processing failed');
     }
@@ -214,7 +214,7 @@ export const fetchActiveDebitsVendor = createAsyncThunk<
   'debitNotes/fetchActiveDebitsVendor', // Unique action type
   async (vendorName, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`http://https://yenerp.com00/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
+      const response = await axios.get(`https://yenerp.com/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
       if (!response.data.debits) {
         throw new Error('No debits found in response');
       }
@@ -241,7 +241,7 @@ export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
       // Use the multiple endpoint for efficiency
       const vendorNamesStr = vendorNames.join(',');
       const response = await axios.get(
-        `http://https://yenerp.com00/purchaseapi/debitnote/multiplevendors/active-debits?vendor_names=${encodeURIComponent(vendorNamesStr)}`
+        `https://yenerp.com/purchaseapi/debitnote/multiplevendors/active-debits?vendor_names=${encodeURIComponent(vendorNamesStr)}`
       );
       
       return response.data.debits || [];
@@ -270,7 +270,7 @@ export const processBulkPayment = createAsyncThunk<
       };
 
       const response = await axios.patch(
-        'http://https://yenerp.com00/purchaseapi/outgoingpayments/bulk/bulk-payment',
+        'https://yenerp.com/purchaseapi/outgoingpayments/bulk/bulk-payment',
         requestPayload
       );
 
@@ -317,7 +317,7 @@ export const addNewPayment = createAsyncThunk<Outgoing, PaymentDetails>(
         ...paymentData,
       };
 
-      const response = await axios.post('http://https://yenerp.com00/purchaseapi/outgoingpayments/', outgoingWithDate);
+      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/', outgoingWithDate);
       console.log('Response from API:', response.data); // Log response from API
       return response.data;
     } catch (error: any) {
@@ -332,7 +332,7 @@ export const addNewVendorPayment = createAsyncThunk(
   async (paymentData: any, { rejectWithValue }) => {
     console.log('addNewPayment called with data:', paymentData);
     try {
-      const response = await axios.post('http://https://yenerp.com00/purchaseapi/outgoingpayments/advance/', {
+      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/advance/', {
         ...paymentData,
         isPreOutgoing: !paymentData.poId,
       });
@@ -349,7 +349,7 @@ export const addNewVendorPayment = createAsyncThunk(
 export const fetchTaxDetails = createAsyncThunk<TaxDetail[], string>(
   'outgoings/fetchTaxDetails',
   async (outgoingId) => {
-    const response = await axios.get<TaxDetail[]>(`http://https://yenerp.com00/purchaseapi/outgoingpayments/${outgoingId}/tax-details`);
+    const response = await axios.get<TaxDetail[]>(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/tax-details`);
     return response.data; // Assuming the response is directly an array of TaxDetail
   }
 );
@@ -375,7 +375,7 @@ export const selectOutgoingPayment = createAsyncThunk<
   ) => {
     try {
       // Fetch outgoing payment details
-      const response = await axios.get<Outgoing>(`http://https://yenerp.com00/purchaseapi/outgoingpayments/${outgoingId}`);
+      const response = await axios.get<Outgoing>(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}`);
       const outgoingData = response.data;
 
       const totalPayableAmount = outgoingData.totalPayableAmount ?? 0;
@@ -438,7 +438,7 @@ export const selectOutgoingPayment = createAsyncThunk<
       }
 
       // Send updated data to the server
-      await axios.patch(`http://https://yenerp.com00/purchaseapi/outgoingpayments/${outgoingId}`, updatedOutgoing);
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}`, updatedOutgoing);
 
       return updatedOutgoing;
     } catch (error: any) {

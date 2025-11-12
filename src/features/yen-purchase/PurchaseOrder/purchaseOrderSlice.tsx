@@ -105,7 +105,8 @@ export const initialState: PurchaseOrderState = {
     poQuantitysgst: 0,
     poQuantitycgst: 0,
     poQuantityigst: 0,
-    grnPrice: 0
+    grnPrice: 0,
+    randomId: ''
   },
   purchaseorderitems: [],
   vendors: [],

@@ -77,6 +77,12 @@ const moduleConfig: Record<
       { key: 'existingId', label: 'Existing Vendor ID' },
     ],
   },
+  freight: {
+    entityName: 'Freight',
+    idField: 'randomId',
+    nameField: 'freightName',
+    nameLabel: 'Freight Name',
+  },
 };
 
 interface CommonImportResultDialogProps {

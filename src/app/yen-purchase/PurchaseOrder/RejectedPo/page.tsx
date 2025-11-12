@@ -132,11 +132,11 @@ const RejectedPo: React.FC = () => {
 
   useEffect(() => {
     if (shouldFetch && !loading) {
-      const action = fetchPurchaseOrders({ page: newPage, size: pageSize, dateField: dateField, fromDate, toDate });
+      const action = fetchPurchaseOrders({ page: newPage, size: pageSize, dateField: dateField });
       dispatch(action);
       setShouldFetch(false);
     }
-  }, [dispatch, newPage, pageSize, status, shouldFetch, loading, fromDate, toDate]);
+  }, [dispatch, newPage, pageSize, status, shouldFetch, loading]);
 
   useEffect(() => {
     dispatch(fetchBusinesses());
@@ -229,8 +229,6 @@ const RejectedPo: React.FC = () => {
     dispatch(fetchPurchaseOrders({
       page: newPage,
       size: pageSize,
-      fromDate: appliedFromDate,  // Pass Date object directly, starting at 00:00:00
-      toDate: appliedToDate,      // Pass Date object directly, ending at 23:59:59
       vendorName: selectedVendorName || '',
       status: status || '',
       itemName: searchQueryItem || '',

@@ -154,13 +154,11 @@ const Polist: React.FC = () => {
       const action = fetchPurchaseOrders({
         page: newPage,
         size: pageSize,
-        fromDate, // Pass fromDate
-        toDate, // Pass toDate
       });
       dispatch(action);
       setShouldFetch(false);
     }
-  }, [dispatch, newPage, pageSize, shouldFetch, loading, fromDate, toDate]);
+  }, [dispatch, newPage, pageSize, shouldFetch, loading]);
   useEffect(() => {
     dispatch(fetchBusinesses());
   }, [dispatch]);
@@ -337,7 +335,7 @@ const Polist: React.FC = () => {
   };
   const filteredOrders = purchaseList.filter(order =>
     (order.poStatus === 'CreditLimit for Approve' || order.poStatus === 'Pending for Approve' ||
-      (order.poStatus !== 'Approved' && order.poStatus !== 'Rejected')) &&
+      (order.poStatus !== 'Approved' && order.poStatus !== 'Rejected' && order.poStatus !== 'PartiallyReceived' )) &&
     order.items.some(item => item.pendingTotalQuantity > 0)
   );
   const handlePageChange = (newPage: number) => {
@@ -353,8 +351,6 @@ const Polist: React.FC = () => {
     dispatch(fetchPurchaseOrders({
       page: newPage,
       size: pageSize,
-      fromDate: appliedFromDate, // Pass Date object directly, starting at 00:00:00
-      toDate: appliedToDate, // Pass Date object directly, ending at 23:59:59
       vendorName: selectedVendorName || '',
       status: status || '',
       itemName: searchQueryItem || '',
@@ -1028,7 +1024,7 @@ const handleEditClick = (orderId: string) => {
           dispatch(setSnackbarMessage('Changes saved successfully!'));
           dispatch(setSnackbarOpen(true));
           // Re-fetch the updated purchase orders to refresh the UI
-          dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize, fromDate, toDate, status }));
+          dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize, status }));
         })
         .catch(error => {
           console.error('Failed to save changes:', error);
@@ -1076,9 +1072,9 @@ const handleEditClick = (orderId: string) => {
     dispatch(fetchPurchaseOrders({
       page: 1, // Assuming page is 1 for this example
       size: pageSize, // Example page size
-      fromDate: formattedStartDate, // Pass Date object directly
-      toDate: formattedEndDate, // Pass Date object directly
-      vendorName: selectedVendorName || '',
+ fromDate: moment(selectionRange.startDate).startOf("day").toDate(),
+      toDate: moment(selectionRange.endDate).endOf("day").toDate(),
+            vendorName: selectedVendorName || '',
       status: status || '',
       itemName: searchQueryItem || '', // Pass itemName filter if necessary
       randomId: selectedRandomId || ''
@@ -1111,7 +1107,7 @@ const handleEditClick = (orderId: string) => {
     setSelectedRandomId(''); // Clear randomId
     setStatusFilter([]); // Clear all selected statuses
     dispatch(fetchPurchaseOrders({
-      page: 1, size: pageSize, fromDate, toDate
+      page: 1, size: pageSize
     }));
   }
   const handleRejectOrder = async (orderId: string) => {
@@ -1120,7 +1116,7 @@ const handleEditClick = (orderId: string) => {
       try {
         await dispatch(rejectPurchaseOrder(selectedOrder.purchaseOrderId));
         dispatch(fetchPurchaseOrders({
-          page: newPage, size: pageSize, fromDate, toDate
+          page: newPage, size: pageSize
         }));
       } catch (error) {
         console.error('Failed to update order status:', error);
@@ -1133,7 +1129,7 @@ const handleEditClick = (orderId: string) => {
     if (selectedOrder) {
       try {
         await dispatch(approvePurchaseOrder(selectedOrder.purchaseOrderId));
-        dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize, fromDate, toDate, status }));
+        dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize,status }));
       } catch (error) {
         console.error('Failed to update order status:', error);
       }

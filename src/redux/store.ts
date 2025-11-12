@@ -48,6 +48,7 @@ import itemTypeReducer from '../features/yen-purchase/PurchaseMaster/itemTypeSli
 import purchaselistReducer from '../features/yen-purchase/PurchaseOrder/purchaseListSlice';
 import businessReducer from '@/features/account-setting/businessSlice';
 import personalReducer from '@/features/account-setting/personalSlice';
+import freightReducer from '@/features/yen-purchase/PurchaseMaster/FreightMasterSlice';
 // import locationReducer from '../features/masterAdminSlice/locationSlice';
 // import subcategoryReducer from '../features/masterAdminSlice/subcategorySlice';
 // import inventoryTypeReducer from '../features/masterAdminSlice/inventoryTypeSlice';
@@ -156,6 +157,7 @@ const store = configureStore({
     debitCreditNote:debitCreditNoteReducer,
     outgoingLedger:outgoingLedgerReducer,
     advances: advancePaymentReducer, // Make sure this is correctly named
+    freightItems:freightReducer,
     // addOns: addOnReducer,    
     // variants: variantReducer,
 
