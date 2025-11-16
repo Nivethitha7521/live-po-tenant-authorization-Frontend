@@ -142,7 +142,7 @@ export const updateOutgoing = createAsyncThunk<Outgoing, Outgoing>('outgoings/up
 });
 
 export const fetchBank = createAsyncThunk('bank/fetchBanks', async () => {
-  const response = await axios.get(`https://yenerp.com/masterapi/bankmasters/`);
+  const response = await axios.get(`https://yenerp.com//masterapi/bankmasters/`);
   return response.data;
 });
 export const processPayment = createAsyncThunk<

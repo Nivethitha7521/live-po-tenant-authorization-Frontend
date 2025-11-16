@@ -164,6 +164,7 @@ export interface FrontendApInvoiceResponse {
     apReturnedPerson:string;
     debitAmount?:number;
     hasDebitCreditNotes: boolean
+    apRoundOff:number;
   }
   
   export interface ApInvoiceRandomId {

@@ -123,7 +123,7 @@ const AddEditDialog: React.FC<AddEditDialogProps> = ({ open, onClose, onCategory
       setCategoryNameError('Maximum 24 characters allowed');
     } else if (!/^[a-zA-Z0-9\s]*$/.test(value)) {
       setCategoryNameError('Only letters, numbers, and spaces allowed');
-    } else if (value.startsWith(' ') || value.endsWith(' ')) {
+    } else if (value.startsWith(' ') || value.endsWith(' ') ) {
       setCategoryNameError('Category name cannot start or end with spaces');
     } else if (isDuplicateCategoryName(value)) {
       setCategoryNameError('Category name already exists');
@@ -151,6 +151,7 @@ const AddEditDialog: React.FC<AddEditDialogProps> = ({ open, onClose, onCategory
   const handleSelectOpen = () => {
     setSelectOpen(true);
     setTempSubcategories(categoryData.subcategories);
+    setSubcategoriesTouched(true); // Mark as touched when opened
   };
 
   const handleSelectClose = () => {
@@ -163,6 +164,7 @@ const AddEditDialog: React.FC<AddEditDialogProps> = ({ open, onClose, onCategory
     } else {
       setTempSubcategories([...tempSubcategories, value]);
     }
+    setHasUnsavedChanges(true);
   };
 
   const handleApplySelection = () => {
@@ -173,9 +175,10 @@ const AddEditDialog: React.FC<AddEditDialogProps> = ({ open, onClose, onCategory
       })
     );
     setIsTouched(true);
-    setHasUnsavedChanges(true);
+    setSubcategoriesTouched(true);
     handleSelectClose();
   };
+
   const handleCancelSelection = () => {
     setTempSubcategories(categoryData.subcategories);
     handleSelectClose();
@@ -191,6 +194,7 @@ const AddEditDialog: React.FC<AddEditDialogProps> = ({ open, onClose, onCategory
 
     // Force validation before submission
     validateCategoryName(categoryData.purchasecategoryName, true);
+    setSubcategoriesTouched(true);
 
     if (categoryNameError) {
       dispatch(setSnackbarMessage(categoryNameError));
@@ -243,13 +247,16 @@ const AddEditDialog: React.FC<AddEditDialogProps> = ({ open, onClose, onCategory
       setLoading(false);
     }
   };
+
   const handleClearSubcategories = () => {
     setTempSubcategories([]); // Clear temporary subcategories
     dispatch(setCategoryData({ ...categoryData, subcategories: [] })); // Clear Redux state subcategories
     setIsTouched(true);
     setHasUnsavedChanges(true);
+    setSubcategoriesTouched(true);
     setSelectOpen(false); // Close dropdown to refresh UI
   };
+
   const handleCloseDialog = () => {
     if (hasUnsavedChanges) {
       setCloseDialogConfirmationOpen(true);
@@ -269,6 +276,22 @@ const AddEditDialog: React.FC<AddEditDialogProps> = ({ open, onClose, onCategory
   };
 
   const assignedSubcategories = new Set(categories.flatMap((category) => category.subcategories));
+
+  // UPDATED: Render count instead of individual chips to avoid misalignment/UI bloat
+  const renderSelectedValue = (selected: string[]) => {
+    if (selected.length === 0) {
+      return <Box sx={{ color: 'text.secondary', fontStyle: 'italic' }}>Select subcategories...</Box>;
+    }
+    return (
+      <Chip
+        label={`${selected.length} selected`}
+        color="primary"
+        variant="outlined"
+        size="small"
+        onDelete={selected.length > 0 ? handleClearSubcategories : undefined}
+      />
+    );
+  };
 
   return (
     <>
@@ -310,37 +333,10 @@ const AddEditDialog: React.FC<AddEditDialogProps> = ({ open, onClose, onCategory
             <Select
               multiple
               open={selectOpen}
-              onOpen={() => {
-                handleSelectOpen();
-                setSubcategoriesTouched(true); // Mark as touched when opened
-              }}
+              onOpen={handleSelectOpen}
               onClose={handleCancelSelection}
               value={categoryData.subcategories}
-              renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selected.map((value) => (
-                    <Chip
-                      key={value}
-                      label={value}
-                      onDelete={(e) => {
-                        e.stopPropagation();
-                        const updatedSubcategories = categoryData.subcategories.filter(
-                          (sub) => sub !== value
-                        );
-                        setTempSubcategories(updatedSubcategories);
-                        dispatch(
-                          setCategoryData({
-                            ...categoryData,
-                            subcategories: updatedSubcategories,
-                          })
-                        );
-                        setSubcategoriesTouched(true); // Mark as touched when deleting
-                        setHasUnsavedChanges(true);
-                      }}
-                    />
-                  ))}
-                </Box>
-              )}
+              renderValue={renderSelectedValue} // UPDATED: Use count-based renderer
               fullWidth
               MenuProps={{
                 PaperProps: {
@@ -365,6 +361,21 @@ const AddEditDialog: React.FC<AddEditDialogProps> = ({ open, onClose, onCategory
                   <ListItemText primary={subcategory.purchasesubcategoryName} />
                 </MenuItem>
               ))}
+              {/* UPDATED: Clear All option for convenience */}
+              {tempSubcategories.length > 0 && (
+                <MenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClearSubcategories();
+                  }}
+                  sx={{ justifyContent: 'center', py: 1 }}
+                >
+                  <IconButton size="small" color="error">
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                  Clear All ({tempSubcategories.length})
+                </MenuItem>
+              )}
               <Box
                 sx={{
                   display: 'flex',
@@ -377,16 +388,16 @@ const AddEditDialog: React.FC<AddEditDialogProps> = ({ open, onClose, onCategory
                   borderTop: '1px solid #e0e0e0',
                 }}
               >
-                <Button onClick={handleCancelSelection} sx={{ mr: 1 }}>
+                <Button onClick={handleCancelSelection} sx={{ mr: 1 }} size="small">
                   Cancel
                 </Button>
-                <Button onClick={handleApplySelection} color="primary">
-                  OK
+                <Button onClick={handleApplySelection} color="primary" size="small">
+                  OK ({tempSubcategories.length} selected)
                 </Button>
               </Box>
             </Select>
-            {isTouched && categoryData.subcategories.length === 0 && (
-              <FormHelperText>At least one subcategory is required</FormHelperText>
+            {subcategoriesTouched && categoryData.subcategories.length === 0 && (
+              <FormHelperText error>At least one subcategory is required</FormHelperText>
             )}
           </FormControl>
         </DialogContent>

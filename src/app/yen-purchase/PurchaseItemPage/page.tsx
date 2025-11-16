@@ -301,7 +301,6 @@ const handleImportCSV = async (file: File, mode: 'merge' | 'replace' | 'rollback
 
   const handleDownloadSampleCSV = () => {
     const headers = [
-      { label: 'Item Code (Required)', key: 'itemCode' },
       { label: 'Item Name (Required)', key: 'itemName' },
       { label: 'Category (Required)', key: 'purchasecategoryName' },
       { label: 'Subcategory (Required)', key: 'purchasesubcategoryName' },
@@ -323,11 +322,10 @@ const handleImportCSV = async (file: File, mode: 'merge' | 'replace' | 'rollback
 
     const sampleData = [
       {
-        itemCode:"678",
-        itemName: 'Sample Item',
+        itemName: 'Sample Item',                                    
         purchasecategoryName: 'Sample Category',
         purchasesubcategoryName: 'Sample Subcategory',
-        itemgroupName: 'Sample Group',
+        itemgroupName: 'Sample Group',      
         uom: 'pcs',
         stockQuantity: '100.00',
         supplier: 'Sample Supplier',

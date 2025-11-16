@@ -4,6 +4,7 @@ import { RootState } from '@/redux/store';
 import { format } from 'date-fns';
 import { initialState, PhotoResponse, PhotosResponse, Item, PurchaseInvoice, PurchaseOrderData, PurchaseRandomId, UploadResponse } from '@/Models/purchaseModel';
 import { GrnData } from '@/Models/grnModel';
+import { OverallDiscountRequest, OverallDiscountResponse } from '@/app/yen-purchase/PurchaseOrder/Models/Itemcalculation';
 
 
 const LIMIT = 20;
@@ -431,7 +432,22 @@ export const editPhotoByIndex = createAsyncThunk(
     }
   }
 );
-
+// New thunk for overall discount
+export const calculateOverallDiscount = createAsyncThunk<
+  OverallDiscountResponse,  // Return type
+  OverallDiscountRequest,   // Arg type (define similarly if needed)
+  { rejectValue: string }
+>(
+  'purchase/calculateOverallDiscount',
+  async (request, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/purchaseorders/items/grn/calculate-overall-discount`, request);  // Your API call
+      return response.data;  // Assumes it matches OverallDiscountResponse
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'API Error');
+    }
+  }
+);
 // Create the slice
 const purchaseListSlice = createSlice({
   name: 'purchaseList',
@@ -785,7 +801,18 @@ const purchaseListSlice = createSlice({
         state.loading = false;
         state.selectedPo = action.payload;
         state.poDialogOpen = true;
-      });
+      })
+      .addCase(calculateOverallDiscount.pending, (state) => {
+      state.loading = true;
+    })
+    .addCase(calculateOverallDiscount.fulfilled, (state, action) => {
+      state.loading = false;
+      // Handle success if needed (e.g., update local state, but handled in component)
+    })
+    .addCase(calculateOverallDiscount.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    });;
   },
 });
 

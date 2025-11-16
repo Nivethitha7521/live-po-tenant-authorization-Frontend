@@ -255,6 +255,8 @@ export interface PurchaseListState {
   importErrors: string[];
    importSuccessMessages: string[]; // Added for success messages
   importUpdatedItems: string[]; // Added for updated items
+   calculatedOverallDiscount: OverallDiscountResponse | null;
+  isCalculatingDiscount: boolean;
 }
 export const initialState: PurchaseListState = {
   purchaseList: [],
@@ -291,6 +293,8 @@ export const initialState: PurchaseListState = {
   importWarnings:[],
   importSuccessMessages: [], // Initialize success messages
   importUpdatedItems: [], // Initialize updated items
+   calculatedOverallDiscount: null,
+  isCalculatingDiscount: false,
 };
 // Define the Item type for the payload
 export interface PurchaseOrderItem {

@@ -18,8 +18,8 @@ import {
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DownloadIcon from '@mui/icons-material/Download';
-import DescriptionIcon from '@mui/icons-material/Description';  // CSV icon
-import EditIcon from '@mui/icons-material/Edit';  // CSV icon
+import DescriptionIcon from '@mui/icons-material/Description'; // CSV icon
+import EditIcon from '@mui/icons-material/Edit'; // CSV icon
 import FilterAltIcon from '@mui/icons-material/FilterAlt'; // Import the filter icon
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import ClearIcon from "@mui/icons-material/Clear"; // Clear icon
@@ -54,7 +54,6 @@ import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import SmartDatePicker from '@/components/SmartDatePicker';
-
 const customRound = (amount: number) => {
   const roundedAmount = Math.round(amount);
   if (roundedAmount - amount < 0.03) {
@@ -69,14 +68,12 @@ const allHeaders = [
   'returnedQuantity', 'totalQuantity', 'uom', 'unitPrice', 'purchasetaxName', 'befTaxDiscount', 'afTaxDiscount',
   'expiryDate', 'totalPrice', 'finalPrice'
 ];
-
 // Define preferred header order for table rendering
 const preferredHeaderOrder = [
   'itemName', 'nos', 'eachQuantity', 'receivedQuantity',
   'returnedQuantity', 'totalQuantity', 'uom', 'unitPrice', 'purchasetaxName', 'befTaxDiscount', 'afTaxDiscount',
   'expiryDate', 'totalPrice', 'finalPrice'
 ];
-
 // Map header keys to user-friendly display names
 const headerDisplayNames: { [key: string]: string } = {
   itemName: 'Item Name',
@@ -94,7 +91,6 @@ const headerDisplayNames: { [key: string]: string } = {
   totalPrice: 'Total Price',
   finalPrice: 'Final Price',
 };
-
 const GrnPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { purchaseorders, loading, error, snackbarMessageGRN, snackbarOpenGRN, selectedHeaders } = useSelector(selectGrn);
@@ -156,7 +152,10 @@ const GrnPage = () => {
   const handlePopoverOpen = (event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handlePopoverClose = () => setAnchorEl(null);
   const debitCreditNotes = useSelector((state: RootState) => selectDebitCreditNote(state).debitCreditNotes);
-
+ // AP ROUND OFF STATE (REPLACED discountPrice)
+  const [apRoundOff, setApRoundOff] = useState<number>(0);
+  const [enteredApRoundOff, setEnteredApRoundOff] = useState<number>(0);
+  const [apRoundOffError, setApRoundOffError] = useState<string>('');
   // Sort selectedHeaders based on preferredHeaderOrder
   const sortedSelectedHeaders = useMemo(() => {
     // Create a copy of selectedHeaders to avoid mutating the original array
@@ -175,10 +174,8 @@ const GrnPage = () => {
       }
     }) : [];
   }, [grns, sortOrder]);
-
   const grnIds = useMemo(() => sortedGrns.map((grn) => grn.grnId), [sortedGrns]);
   const [isConvertedToAP, setIsConvertedToAP] = useState(false);
-
   const isValidJSON = (data: string): boolean => {
     try {
       JSON.parse(data);
@@ -188,17 +185,22 @@ const GrnPage = () => {
     }
   };
   useEffect(() => {
-    const storedBusinesses = localStorage.getItem("businesses");
-    if (storedBusinesses && isValidJSON(storedBusinesses)) {
-      const businesses = JSON.parse(storedBusinesses);
-      console.log("Loaded businesses from localStorage:", businesses);
-    } else {
-      dispatch(fetchBusinesses()).then((response) => {
-        localStorage.setItem("businesses", JSON.stringify(response.payload));
-      });
+  const loadBusinesses = async () => {
+    try {
+      const storedBusinesses = localStorage.getItem("businesses");
+      if (storedBusinesses && isValidJSON(storedBusinesses)) {
+        const parsedBusinesses = JSON.parse(storedBusinesses);
+        console.log("Loaded businesses from localStorage:", parsedBusinesses);
+      } else {
+        await dispatch(fetchBusinesses()).unwrap(); // Wait for the dispatch to complete
+      }
+    } catch (error) {
+      console.error("Error loading businesses:", error);
     }
-  }, [dispatch]);
+  };
 
+  loadBusinesses();
+}, [dispatch]);
   useEffect(() => {
     dispatch(fetchAllVendors());
     dispatch(fetchRandomNumbers());
@@ -208,14 +210,11 @@ const GrnPage = () => {
     const handleBeforeUnload = () => {
       localStorage.removeItem("businesses"); // Clear stored data when app is closed/reloaded
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
-
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
-
   useEffect(() => {
     if (shouldFetch && !loading) {
       const action = fetchGrns({
@@ -236,17 +235,99 @@ const GrnPage = () => {
     }
     const appliedFromDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : fromDate;
     const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;
-
     dispatch(setPagination({ page: newPage, size: pageSize }));
     dispatch(fetchGrns({ page: newPage, size: pageSize, status, fromDate: appliedFromDate, toDate: appliedToDate, vendorName: selectedVendorName || '' }));
   };
+ 
+const lenientRegex = /^-?\d*\.?\d{0,2}$/; // e.g., "2", "2.", "2.0", "2.01", "-1.99"
 
+// handleApRoundOffInputChange (updated: allows 2 decimals during typing, live preview with warning if >2 abs)
+const handleApRoundOffInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+  if (value === '') {
+    setEnteredApRoundOff(0);
+    setApRoundOff(0);
+    setApRoundOffError('');
+    return;
+  }
+  if (lenientRegex.test(value)) {
+    const parsedValue = parseFloat(value) || 0;
+    // Round to nearest 0.01 for live preview (e.g., 0.001 → 0.00)
+    const previewValue = Math.round(parsedValue * 100) / 100;
+    if (Math.abs(parsedValue) > 2) {
+      setApRoundOffError("Heads up: Limited to ±2.00. Finish typing to validate & round.");
+    } else {
+      setApRoundOffError("");
+    }
+    setEnteredApRoundOff(parsedValue); // Use raw parsed for live input feel, round on blur
+    setApRoundOff(parsedValue);
+  } else {
+    setApRoundOffError("Type numbers only (e.g., 2 for 2.00, 1.99, -1.50). Supports up to 2 decimals.");
+  }
+};
+// UPDATED: handleApRoundOffBlur (removes strict regex; always rounds to 0.01, caps at ±2.00, validates post-cap)
+const handleApRoundOffBlur = () => {
+  let currentValue = enteredApRoundOff;
+  // Snap to nearest 0.01 step (e.g., 0.001 → 0.00, 1.995 → 2.00, 2.005 → 2.01 then cap)
+  currentValue = Math.round(currentValue * 100) / 100;
+ 
+  let errorMsg = "";
+  let capped = false;
+ 
+  // Cap at ±2.00
+  if (currentValue > 2.00) {
+    currentValue = 2.00;
+    capped = true;
+    errorMsg = "Capped at +2.00 (rounded from your input).";
+  } else if (currentValue < -2.00) {
+    currentValue = -2.00;
+    capped = true;
+    errorMsg = "Capped at -2.00 (rounded from your input).";
+  } else {
+    // Ensure it's a valid 0.01 step (should always be after Math.round, but double-check)
+    const remainder = Math.abs(currentValue * 100) % 1;
+    if (remainder > 0.0001) { // Floating point tolerance
+      errorMsg = "Invalid step: Rounded to nearest 0.01 (e.g., 0.001 → 0.00).";
+    }
+  }
+ 
+  // Set error if capped or invalid step
+  if (capped || errorMsg) {
+    setApRoundOffError(errorMsg);
+  } else {
+    setApRoundOffError("");
+  }
+ 
+  const totalReceivedAmount = selectedGrn?.totalReceivedAmount || 0;
+  const finalTotal = totalReceivedAmount + currentValue;
+  if (finalTotal < 0) {
+    setApRoundOffError(`Cannot make total negative (${finalTotal.toFixed(2)}). Reset to 0.`);
+    setEnteredApRoundOff(0);
+    setApRoundOff(0);
+    return;
+  }
+ 
+  setEnteredApRoundOff(currentValue);
+  setApRoundOff(currentValue);
+};
+// handleApRoundOffChange (updated: allows 2 decimals, aligns with input change logic)
+const handleApRoundOffChange = (newRoundOff: number) => {
+  // Validate if the value is within allowed range (pre-blur, no strict rounding here)
+  if (Math.abs(newRoundOff) > 2) {
+    setApRoundOffError('AP Round Off must be between -2.00 and +2.00');
+    setSnackbarOpen(true);
+    return;
+  }
+ 
+  setEnteredApRoundOff(newRoundOff);
+  setApRoundOff(newRoundOff);
+  setApRoundOffError('');
+};
   const handleNextPage = () => {
     if (currentPage * pageSize) {
       handlePageChange(currentPage + 1);
     }
   };
-
   const handlePreviousPage = () => {
     if (currentPage > 1) {
       handlePageChange(currentPage - 1);
@@ -264,7 +345,6 @@ const GrnPage = () => {
     });
     return statusMap;
   }, [grns, debitCreditNotes]);
-
   const handleViewCreditNotes = (grnId: string) => {
     console.log('Opening DebitCreditNoteDialog for grnId:', grnId);
     dispatch(setDebitCreditDocumentId(grnId)); // Set documentId
@@ -279,7 +359,6 @@ const GrnPage = () => {
     setIsFullScreen(!isFullScreen);
   };
   const selectedGrn = Array.isArray(grns) ? grns.find(grn => grn.grnId === selectedGrnId) : null;
-
   useEffect(() => {
     // Assuming 'poData' is your purchase order data object
     if (selectedGrn) {
@@ -298,16 +377,13 @@ const GrnPage = () => {
   // Function to handle opening the invoice edit dialog
   const handleEditInvoice = (grnId: string) => {
     console.log(`GRN ID Clicked for Editing Invoice: ${grnId}`);
-
     const selectedGrn = grns.find(grn => grn.grnId === grnId); // Assume grns is available in scope
-
     if (selectedGrn) {
       // Set invoice details from selected GRN
       setInvoiceNo(selectedGrn.invoiceNo || ''); // Set Invoice No
       setInvoiceDate(selectedGrn.invoiceDate ? new Date(selectedGrn.invoiceDate) : null); // Ensure proper Date object handling
       setSelectedGrnId(grnId); // Store selected GRN ID
       setInvoiceOpen(true); // Open the dialog
-
       dispatch(setSelectedGrnId(grnId)); // Optionally dispatch to the store if needed
     } else {
       console.error(`GRN with ID ${grnId} not found`);
@@ -321,7 +397,6 @@ const GrnPage = () => {
       dispatch(setSelectedGrnId(grnId)); // Set the selected GRN ID
     }
   };
-
   const handleReturnComplete = () => {
     setReturnDialogOpen(false); // Close dialog
     setSelectedGrnItems([]); // Clear selected items
@@ -331,34 +406,40 @@ const GrnPage = () => {
   const handleReturnCancel = () => {
     setReturnDialogOpen(false); // Close dialog without clearing selectedGrnId
   };
-
+  // Calculate AP amounts for display
+  const calculateAPAmounts = () => {
+    const grnTotal = selectedGrn?.totalReceivedAmount || 0;
+    const apTotal = grnTotal + apRoundOff;
+   
+    return {
+      grnTotal: customRound(grnTotal),
+      apTotal: customRound(apTotal),
+      roundOff: apRoundOff
+    };
+  };
+  const apAmounts = calculateAPAmounts();
   const handleSaveInvoice = () => {
     if (!invoiceNo || !invoiceDate || !selectedGrnId) {
       console.error('Invoice No, Invoice Date, or GRN ID is missing');
       return; // Prevent saving if required fields are empty
     }
-
     const grnId = selectedGrnId;
     if (grnId === null) {
       console.error('GRN ID cannot be null');
       return;
     }
-
     // Prepare the payload for the API request
     const updatedInvoiceDetails = {
       grnId: grnId, // Ensure grnId is always a string
       invoiceNo,
-      invoiceDate: invoiceDate.toISOString(),  // Ensure invoiceDate is a string
+      invoiceDate: invoiceDate.toISOString(), // Ensure invoiceDate is a string
     };
-
     // Dispatch the thunk to update the invoice details
     dispatch(updateInvoiceDetails(updatedInvoiceDetails))
       .unwrap() // unwrap the result to directly get the response data or error
       .then(() => {
         console.log('Invoice updated successfully');
-
         // Fetch the most recent GRNs after successful update
-
         dispatch(fetchGrns({ page: newPage, size: pageSize, status, fromDate, toDate }))
           .then(() => {
             console.log('Recent GRNs fetched successfully');
@@ -372,20 +453,16 @@ const GrnPage = () => {
         console.error('Error updating invoice:', error);
       });
   };
-
   const handleEnteredDiscountChange = (newDiscount: number) => {
     setEnteredDiscount(newDiscount);
-
     const newTotalDiscount = (selectedGrn?.discountPrice || 0) + newDiscount;
     setDiscountPrice(newTotalDiscount);
     const newTotalDiscountAmount = (selectedGrn?.totalDiscount || 0) + newDiscount;
     setTotalDiscount(newTotalDiscountAmount);
     // Calculate the adjusted total received amount
     const updatedTotalReceivedAmount = (selectedGrn?.totalReceivedAmount || 0) - newTotalDiscount;
-
     setTotalReceivedAmount(updatedTotalReceivedAmount);
   };
-
   const handleHeaderSelectChange = (header: string) => {
     // Toggle header selection and dispatch to Redux
     const newSelectedHeaders = selectedHeaders.includes(header)
@@ -393,20 +470,18 @@ const GrnPage = () => {
       : [...selectedHeaders, header];
     dispatch(setSelectedHeaders(newSelectedHeaders));
   };
-
   useEffect(() => {
     businesses.forEach((business) => {
       if (!fetchedBusinessIds.has(business.businessId)) {
         dispatch(fetchPhoto(business.businessId));
+        dispatch(fetchBusinesses());
         setFetchedBusinessIds(prevSet => new Set(prevSet).add(business.businessId));
       }
     });
   }, [businesses, fetchedBusinessIds, dispatch]);
-
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorElDownload(event.currentTarget as HTMLElement); // Cast event.currentTarget to HTMLElement
   };
-
   const handleCloseAnchor = () => {
     setAnchorElDownload(null); // Close the dropdown menu
   };
@@ -422,57 +497,44 @@ const GrnPage = () => {
     setSelectedVendor(vendor);
     setSelectedVendorName(vendor ? vendor.vendorName : '');
   };
-
-  const handleDownload = async (grnId: string) => {
+ const handleDownload = async (grnId: string) => {
     const grncheck = grns.find((grn) => grn.grnId === grnId);
-
     if (!grncheck) {
       console.error('GRN not found!');
       return;
     }
-
     const business = businesses.length > 0 ? businesses[0] : null;
-
     if (!business) {
       console.error('Business info not found!');
       return;
     }
-
     const doc = new jsPDF();
     let yOffset = 10;
-
     // Header Section
     if (business.imageUrl) {
       doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
     }
-
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 128);
     doc.text('Goods Receipt Note', 90, yOffset + 5);
-
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text(business.companyName || '', 90, yOffset + 10);
-
     doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
     doc.text(business.address1 || '', 90, yOffset + 15);
     doc.text(`Tel.No: ${business.phoneNo || ''}`, 90, yOffset + 20);
     doc.text(`E-Mail: ${business.emailId || ''}`, 90, yOffset + 25);
     doc.text(`GSTIN: ${business.gstIn || ''}`, 90, yOffset + 30);
-
     yOffset += 40;
-
     // Calculate Due Date
     const invoiceDate = grncheck.invoiceDate ? new Date(grncheck.invoiceDate) : new Date('2025-06-30'); // Fallback to 30/06/2025
     const paymentTermsDays = grncheck.paymentTerms ? parseInt(grncheck.paymentTerms, 10) : 15; // Fallback to 15 days
     const dueDate = addDays(invoiceDate, paymentTermsDays); // Add payment terms days to created date
-
     // Table header with the three sections
     const tableHeader = [['Vendor Details', 'Shipping Address', 'GRN Details']];
-
     // Vendor Details rows with correct line breaks
     const vendorDetailsRows = [
       [
@@ -524,16 +586,13 @@ const GrnPage = () => {
       tableLineColor: [0, 0, 0],
       tableLineWidth: 0.1,
     });
-
     yOffset += 45;
-
     // Items Table Section
     const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count', 'Qty', 'Po Qty', 'Unit Price', 'Received Qty', 'Tax', 'Amount'];
     const tableRows = grncheck.itemDetails.map((item, index) => {
       const unitPrice = item.unitPrice || 0;
       const quantity = item.totalQuantity || 0;
       const totalAmount = unitPrice * quantity;
-
       return [
         `${index + 1}`,
         item.itemName || 'Item Description',
@@ -547,7 +606,6 @@ const GrnPage = () => {
         `${totalAmount.toFixed(2)}`,
       ];
     });
-
     // Items Table
     doc.autoTable({
       head: [itemHeader],
@@ -582,25 +640,20 @@ const GrnPage = () => {
         9: { halign: 'right' },
       },
     });
-
     yOffset = doc.autoTable.previous.finalY;
-
     // Calculate individual tax amounts
     const taxRates = {
       CGST: new Map<number, number>(),
       SGST: new Map<number, number>(),
       IGST: new Map<number, number>(),
     };
-
     grncheck.itemDetails.forEach(item => {
       const taxableAmount = item.unitPrice * (item.totalQuantity || 0);
-
       if (item.taxType === 'cgst_sgst') {
         const cgstRate = item.purchasetaxName / 2;
         const sgstRate = item.purchasetaxName / 2;
         const cgstAmount = (cgstRate / 100) * taxableAmount;
         const sgstAmount = (sgstRate / 100) * taxableAmount;
-
         taxRates.CGST.set(cgstRate, (taxRates.CGST.get(cgstRate) || 0) + cgstAmount);
         taxRates.SGST.set(sgstRate, (taxRates.SGST.get(sgstRate) || 0) + sgstAmount);
       } else if (item.taxType === 'igst') {
@@ -608,32 +661,31 @@ const GrnPage = () => {
         taxRates.IGST.set(item.purchasetaxName, (taxRates.IGST.get(item.purchasetaxName) || 0) + igstAmount);
       }
     });
-
     // Calculate total without tax
     const totalWithoutTax = grncheck.itemDetails.reduce((sum, item) => {
       return sum + (item.unitPrice * (item.totalQuantity || 0));
     }, 0);
-
-    // Tax summary
+    // Tax summary - UPDATED to include grnRoundOffAmount
     const taxSummary: [string, string][] = [
       [`Total Amount`, totalWithoutTax.toFixed(2) || '0'],
       [`Total Discount`, grncheck.totalDiscount?.toFixed(2) || '0'],
     ];
-
     taxRates.CGST.forEach((amount, rate) => {
       taxSummary.push([`CGST @${rate}%`, amount.toFixed(2)]);
     });
-
     taxRates.SGST.forEach((amount, rate) => {
       taxSummary.push([`SGST @${rate}%`, amount.toFixed(2)]);
     });
-
     taxRates.IGST.forEach((amount, rate) => {
       taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]);
     });
-
+    
+    // Add grnRoundOffAmount above Total Including Tax
+    if (grncheck.grnRoundOffAmount !== undefined && grncheck.grnRoundOffAmount !== 0) {
+      taxSummary.push([`Round Off Amount`, grncheck.grnRoundOffAmount.toFixed(2)]);
+    }
+    
     taxSummary.push([`Total [Including Tax]`, grncheck.totalReceivedAmount?.toFixed(2) || '0']);
-
     // Tax Summary Table
     doc.autoTable({
       body: taxSummary,
@@ -648,18 +700,14 @@ const GrnPage = () => {
       },
       margin: { bottom: 15 },
     });
-
     // Declarations and Authorized Signatory
     yOffset = doc.autoTable.previous.finalY;
     doc.text("Declaration:", 10, yOffset + 35);
     doc.text("We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.", 10, yOffset + 40);
-
     doc.text("Authorized Signatory:", 120, yOffset + 48);
     doc.text("_____________________", 120, yOffset + 60);
-
     const imageUrl = '/images/pending.jpeg';
     doc.addImage(imageUrl, 'JPEG', 150, yOffset + 5, 30, 25);
-
     // Add page numbers and computer generated note to all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
@@ -669,14 +717,11 @@ const GrnPage = () => {
       const pageCenterX = pageWidth / 2;
       const bottomY = doc.internal.pageSize.height - 10;
       const computerGeneratedY = bottomY - 5;
-
       // Add "This is computer generated" centered above page number
       doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
-
       // Add page number centered below
       doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
     }
-
     // Save the PDF
     doc.save(`${grncheck.vendorName} ${grncheck.randomId}.pdf`);
   };
@@ -686,16 +731,13 @@ const GrnPage = () => {
     setApInvoiceDate(new Date()); // Reset to current date
     setOutgoingDate(new Date()); // Reset to current date
   };
-
   const handleSearchChange = (event: React.ChangeEvent<{}>, newValue: string) => {
     setSearchQuery(newValue); // Update the search query
   };
-
   const getRandomId = (purchaseOrderId: string): string | undefined => {
     const order = purchaseorders.find(po => po.purchaseOrderId === purchaseOrderId);
     return order?.randomId;
   };
-
   const handleOpen = () => {
     setDialogSummaryOpen(true);
   };
@@ -710,57 +752,54 @@ const GrnPage = () => {
     setEditedItems((prev) => {
       const item = prev[itemId] || {};
       let updatedItem = { ...item };
-
       if (field === 'expiryDate') {
         updatedItem[field] = value ? new Date(value).toISOString() : null;
       } else {
         updatedItem[field] = Number(value) || 0;
       }
-
       return {
         ...prev,
         [itemId]: updatedItem,
       };
     });
   };
-  const handleSaveAll = async () => {
+   const handleSaveAll = async () => {
     if (!selectedGrnId) {
       setErrorMessage('No GRN selected to save.');
       setLoading(false);
       return;
     }
-
-    const finalDiscountPrice = enteredDiscount;
-
+    // Validate AP Round Off before saving
+    if (apRoundOffError) {
+      setSnackbarMessage('Please fix AP Round Off errors before saving.');
+      setSnackbarOpen(true);
+      return;
+    }
+    const finalApRoundOff = enteredApRoundOff; // This is the AP round-off adjustment
     const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
       itemId,
       befTaxDiscount: itemData.befTaxDiscount,
       afTaxDiscount: itemData.afTaxDiscount,
       expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
     }));
-
     const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
     const outgoingDateValue = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
-
     const payload = {
       grnId: selectedGrnId,
-      discountPrice: finalDiscountPrice,
+      apRoundOff: finalApRoundOff, // AP round off (REMOVED discountPrice)
       itemUpdates,
       apInvoiceDate: apInvoiceDateValue,
       outgoingDate: outgoingDateValue,
     };
-
     try {
       setLoading(true);
       const resultAction = await dispatch(updateItemDetails(payload));
-
       if (updateItemDetails.fulfilled.match(resultAction)) {
         setErrorMessage(null);
         setDialogueViewOpen(false);
         setIsConvertedToAP(true);
         setSnackbarMessage('GRN successfully converted to AP and Outgoing.');
         setSnackbarOpen(true);
-
         dispatch(
           fetchGrns({
             page: newPage,
@@ -850,23 +889,18 @@ const GrnPage = () => {
   const handleStartDateChange = (value: Date | null) => {
     setStartDate(value); // Update the startDate state with Date or null
   };
-
   // Handler for end date change
   const handleEndDateChange = (value: Date | null) => {
     setEndDate(value); // Update the endDate state with Date or null
   };
-
   const generatePDF = () => {
     const doc = new jsPDF();
     let yOffset = 7; // Starting y-offset for content
-
     const business = businesses.length > 0 ? businesses[0] : null;
-
     if (!business) {
       console.error('Business info not found!');
       return;
     }
-
     // Add business image on the left side
     if (business.imageUrl) {
       try {
@@ -875,9 +909,7 @@ const GrnPage = () => {
         console.error("Image failed to load:", e);
       }
     }
-
     yOffset += 10; // Move down after image to create space for the title
-
     // Add a title for the PDF
     doc.setFontSize(12); // Increase title font size
     const title = "GRN Order Summary";
@@ -888,49 +920,37 @@ const GrnPage = () => {
     doc.text(title, titleX, yOffset); // Centered title
     doc.setLineWidth(0.1); // Set line width for the underline
     doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2); // Draw the underline
-
     yOffset += 15; // Move yOffset down after the title
-
     // Format the current date
     const today = new Date();
     const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-
     // Calculate the total ordered amount before generating the table
     const totalReceivedAmount = (filteredGrns || []).reduce((sum, order) => {
       const totalOrderAmount = order.totalReceivedAmount || 0; // Ensure it's a number
       return sum + totalOrderAmount;
     }, 0);
-
     doc.setFontSize(10); // Smaller font size for these details
-
     const dateX = 10; // Left-aligned start for the date
     const totalReceivedX = pageWidth - 10 - doc.getStringUnitWidth(`Total Received: ${totalReceivedAmount.toFixed(2)}`) * 10 / doc.internal.scaleFactor;
-
     // Place "Current Date" and "Total Received Amount" on the same row
     doc.text(`Date: ${currentDate}`, dateX, yOffset); // Date on the left
     doc.text(`Total Received: ${totalReceivedAmount.toFixed(2)}`, totalReceivedX, yOffset); // Total on the right
-
     yOffset += 5; // Add space before the table for better readability
-
     // Table headers for summary data
     const headers = [
       ["S.No", "GrnId", "Vendor Name", "Total Items", "GRN Date", "Total Order Amount", "Final Amount"],
     ];
-
     // Prepare rows for purchase order summary (filter only the valid orders)
     const rows = (grns || []).map((grn, index) => {
       const totalItemsQuantity = Array.isArray(grn.itemDetails) && grn.itemDetails.length > 0
         ? grn.itemDetails.reduce((sum, item) => sum + (item.quantity || 0), 0)
         : 0;
-
       const totalOrderAmount = grn.totalReceivedAmount || 0;
       const totalDiscount = grn.totalDiscount || 0;
       const finalAmount = totalOrderAmount - totalDiscount;
-
       if (!grn.randomId || !grn.vendorName || !grn.grnDate || totalOrderAmount <= 0) {
         return null;
       }
-
       return [
         `${index + 1}`,
         grn.randomId.toString(),
@@ -941,7 +961,6 @@ const GrnPage = () => {
         finalAmount.toFixed(2).toString(),
       ];
     }).filter(row => row !== null);
-
     // Add the table to the PDF with custom styles
     doc.autoTable({
       head: headers,
@@ -958,7 +977,6 @@ const GrnPage = () => {
         textColor: [255, 255, 255] // White text color for header
       },
     });
-
     // Add page numbers and computer generated note to all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
@@ -968,31 +986,24 @@ const GrnPage = () => {
       const pageCenterX = pageWidth / 2;
       const bottomY = doc.internal.pageSize.height - 10;
       const computerGeneratedY = bottomY - 5;
-
       // Add "This is computer generated" centered above page number
       doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
-
       // Add page number centered below
       doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
     }
-
     // Save the PDF with a dynamic name based on purchase order ID
     const pdfFilename = 'GRNVendorwise.pdf';
     doc.save(pdfFilename);
     setDialogDownloadOpen(false);
   };
-
   const generateSummaryPDF = () => {
     const doc = new jsPDF();
     let yOffset = 7; // Starting y-offset for content
-
     const business = businesses.length > 0 ? businesses[0] : null;
-
     if (!business) {
       console.error('Business info not found!');
       return;
     }
-
     // Add business image on the left side
     if (business.imageUrl) {
       try {
@@ -1001,9 +1012,7 @@ const GrnPage = () => {
         console.error("Image failed to load:", e);
       }
     }
-
     yOffset += 10; // Move down after image to create space for the title
-
     // Add a title for the PDF
     doc.setFontSize(12); // Increase title font size
     const title = "GRN Detailed Summary";
@@ -1014,36 +1023,27 @@ const GrnPage = () => {
     doc.text(title, titleX, yOffset); // Centered title
     doc.setLineWidth(0.1); // Set line width for the underline
     doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2); // Draw the underline
-
     yOffset += 15; // Move yOffset down after the title
-
     // Format the current date
     const today = new Date();
     const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1)
       .toString()
       .padStart(2, '0')}/${today.getFullYear()}`;
-
     // Calculate the total ordered amount before generating the table
     const totalReceivedAmount = (filteredGrns || []).reduce((sum, order) => {
       const totalOrderAmount = order.totalReceivedAmount || 0; // Ensure it's a number
       return sum + totalOrderAmount;
     }, 0);
-
     doc.setFontSize(10); // Smaller font size for these details
-
     const dateX = 10; // Left-aligned start for the date
     const totalReceivedX = pageWidth - 10 - doc.getStringUnitWidth(`Total Received: ${totalReceivedAmount.toFixed(2)}`) * 10 / doc.internal.scaleFactor;
-
     // Place "Current Date" and "Total Received Amount" on the same row
     doc.text(`Date: ${currentDate}`, dateX, yOffset); // Date on the left
     doc.text(`Total Received: ${totalReceivedAmount.toFixed(2)}`, totalReceivedX, yOffset); // Total on the right
-
     yOffset += 5; // Add space before the table for better readability
-
     const headers = [
       ["S.No", "Purchase Order No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Final Price"],
     ];
-
     // Safely handle purchaseList being null or undefined
     const rows = (grns || []).map((grn, index) => {
       // Ensure that order.items is an array
@@ -1059,7 +1059,6 @@ const GrnPage = () => {
         item.finalPrice, // Final price after tax and discount
       ]);
     }).flat(); // Flatten the array to a single-level array of rows
-
     // Add the table to the PDF with custom styles
     doc.autoTable({
       head: headers,
@@ -1080,7 +1079,6 @@ const GrnPage = () => {
         textColor: [0, 0, 0] // Black text color for rows
       },
     });
-
     // Add page numbers and computer generated note to all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
@@ -1090,14 +1088,11 @@ const GrnPage = () => {
       const pageCenterX = pageWidth / 2;
       const bottomY = doc.internal.pageSize.height - 10;
       const computerGeneratedY = bottomY - 5;
-
       // Add "This is computer generated" centered above page number
       doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
-
       // Add page number centered below
       doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
     }
-
     // Save the PDF with a dynamic name
     const pdfFilename = `GRNItemwise.pdf`;
     doc.save(pdfFilename);
@@ -1116,44 +1111,37 @@ const GrnPage = () => {
       "Discount",
       "Final Price"
     ];
-
     // Map the GRN data into the CSV rows
     const rows = (filteredGrns || []).map((grn, index) => {
       // For each GRN, we loop through the items (itemDetails)
       return (grn.itemDetails || []).map((item) => [
         `${index + 1}`,
-        grn.randomId,  // Purchase Order Number
-        grn.vendorName,  // Vendor Name
-        item.itemName,  // Item Name
-        item.quantity,  // Quantity
-        item.totalPrice,  // Price
-        `${item.purchasetaxName}%`,  // Tax
-        item.discountAmount,  // Discount
-        item.finalPrice,  // Final Price
+        grn.randomId, // Purchase Order Number
+        grn.vendorName, // Vendor Name
+        item.itemName, // Item Name
+        item.quantity, // Quantity
+        item.totalPrice, // Price
+        `${item.purchasetaxName}%`, // Tax
+        item.discountAmount, // Discount
+        item.finalPrice, // Final Price
       ]);
-    }).flat();  // Flatten the rows array to a single level
-
+    }).flat(); // Flatten the rows array to a single level
     // Combine the headers and rows into the final CSV data
     const csvData = [headers, ...rows];
-
     // Use PapaParse to generate the CSV string
     const csv = Papa.unparse(csvData);
-
     // Create a blob for the CSV data
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-
     // Create a download link
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
     link.setAttribute("download", "GRNItemwise.csv");
-
     // Trigger the download
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    handleClose();  // Close or clean up any UI elements (if needed)
+    handleClose(); // Close or clean up any UI elements (if needed)
   };
   const handleExportCSV = () => {
     // Define the headers for the CSV
@@ -1166,61 +1154,50 @@ const GrnPage = () => {
       "Total Order Amount",
       "Final Amount"
     ];
-
     // Map the GRN data into the CSV rows
     const rows = (filteredGrns || []).map((grn, index) => {
       const totalItemsQuantity = Array.isArray(grn.itemDetails) && grn.itemDetails.length > 0
         ? grn.itemDetails.reduce((sum, item) => sum + (item.quantity || 0), 0)
         : 0;
-
       const totalOrderAmount = grn.totalReceivedAmount || 0;
       const totalDiscount = grn.totalDiscount || 0;
       const finalAmount = totalOrderAmount - totalDiscount;
-
       if (!grn.randomId || !grn.vendorName || !grn.grnDate || totalOrderAmount <= 0) {
         return null;
       }
-
       return [
         `${index + 1}`,
         grn.randomId.toString(),
         grn.vendorName.toString(),
         totalItemsQuantity.toString(),
-        grn.grnDate ? format(new Date(grn.grnDate), 'dd-MM-yyyy') : '',  // Format grn.grnDate
+        grn.grnDate ? format(new Date(grn.grnDate), 'dd-MM-yyyy') : '', // Format grn.grnDate
         totalOrderAmount.toFixed(2).toString(),
         finalAmount.toFixed(2).toString(),
       ];
     }).filter(row => row !== null);
-
     // Combine the headers and rows into the final CSV data
     const csvData = [headers, ...rows];
-
     // Use PapaParse to generate the CSV string
     const csv = Papa.unparse(csvData);
-
     // Create a blob for the CSV data
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-
     // Create a download link
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
     link.setAttribute("download", "GRNVendorwise.csv");
-
     // Trigger the download
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     setDialogDownloadOpen(false);
   };
-
   const handleVerifyConfirm = async (selectedGrnId: string) => {
     if (!selectedGrnId) {
       setErrorMessage('No GRN selected for submission.');
       setLoading(false);
       return;
     }
-
     try {
       setLoading(true); // Set loading true at the start
       await handleSaveAll(); // Call handleSaveAll and wait for completion
@@ -1239,9 +1216,7 @@ const GrnPage = () => {
   const handleCancel = () => {
     setDialogSaveOpen(false);
   };
-
   const filteredGrns = sortedGrns.filter(grn => grn.status === 'active');
-
   // utils/calculations.ts
   const calculateItemTotal = (receivedQuantity: number, damagedQuantity: number, returnedQuantity: number, unitPrice: number): number => {
     const netQuantity = receivedQuantity - damagedQuantity;
@@ -1254,9 +1229,7 @@ const GrnPage = () => {
   };
   const calculateFinalTotalAmount = () => {
     if (!selectedGrn || !selectedGrn.itemDetails) return 0; // Guard clause for both selectedGrn and itemDetails
-
     let totalAmount = 0;
-
     // Add safe iteration with optional chaining
     selectedGrn.itemDetails?.forEach(item => {
       const totalPrice = calculateItemTotal(
@@ -1269,18 +1242,15 @@ const GrnPage = () => {
       const taxAmount = ((item.purchasetaxName || 0) / 100) * priceAfterDiscount;
       totalAmount += priceAfterDiscount + taxAmount;
     });
-
     return totalAmount;
   };
   const calculateTaxDetails = () => {
     // Initialize taxDetails object
     let taxDetails: { [key: string]: { sgstAmount: number; cgstAmount: number; igstAmount: number } } = {};
-
     // Add null check for selectedGrn and itemDetails
     if (!selectedGrn || !selectedGrn.itemDetails) {
       return taxDetails;
     }
-
     // Loop through each item in the selected GRN's item details
     selectedGrn.itemDetails.forEach(item => {
       // Add default values for all properties
@@ -1292,24 +1262,19 @@ const GrnPage = () => {
       const afTaxDiscountAmount = item.afTaxDiscountAmount || 0;
       const purchasetaxName = item.purchasetaxName || 0;
       const taxType = item.taxType || '';
-
       // Calculate the total price based on received and damaged quantity
       const totalPrice = calculateItemTotal(receivedQuantity, damagedQuantity, returnedQuantity, unitPrice);
-
       // Apply befTaxDiscount before calculating the tax
       let priceAfterBefTaxDiscount = totalPrice;
       if (befTaxDiscountAmount) {
         priceAfterBefTaxDiscount -= befTaxDiscountAmount;
       }
-
       // Calculate tax amount based on price after befTaxDiscount
       const taxAmount = (purchasetaxName / 100) * priceAfterBefTaxDiscount;
-
       // Initialize the taxDetails object for this rate if it doesn't exist
       if (!taxDetails[purchasetaxName]) {
         taxDetails[purchasetaxName] = { sgstAmount: 0, cgstAmount: 0, igstAmount: 0 };
       }
-
       // Apply tax calculation logic based on taxType
       if (taxType === 'cgst_sgst') {
         taxDetails[purchasetaxName].sgstAmount += taxAmount / 2;
@@ -1317,7 +1282,6 @@ const GrnPage = () => {
       } else if (taxType === 'igst') {
         taxDetails[purchasetaxName].igstAmount += taxAmount;
       }
-
       // Apply afTaxDiscount after tax is calculated
       if (afTaxDiscountAmount) {
         if (taxType === 'cgst_sgst') {
@@ -1328,13 +1292,11 @@ const GrnPage = () => {
         }
       }
     });
-
     return taxDetails;
-  };  // Use tax details in the component
+  }; // Use tax details in the component
   // Use tax details in the component with safe access
   const finalTotalAmount = calculateFinalTotalAmount();
   const taxDetails = calculateTaxDetails();
-
   // Add safe calculation for roundedFinalTotalAmount
   const roundedFinalTotalAmount = customRound(
     finalTotalAmount +
@@ -1344,13 +1306,8 @@ const GrnPage = () => {
       0
     )
   );
-
   const safeSelectedGrnId = selectedGrnId || 'default-id';
-
   const filteredItems = selectedGrn?.itemDetails;
-
-
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -1360,21 +1317,18 @@ const GrnPage = () => {
   }
   const handleFilterClick = () => {
     let filtered: GrnData[] = grns;
-
     const formattedStartDate = selectionRange?.startDate instanceof Date
       ? moment(selectionRange.startDate).startOf('day').toDate()
       : fromDate;
     const formattedEndDate = selectionRange?.endDate instanceof Date
       ? moment(selectionRange.endDate).endOf('day').toDate()
       : toDate;
-
     // Filter based on selected vendor name
     if (selectedVendorName) {
       filtered = filtered.filter(grn =>
         grn.vendorName?.toLowerCase().includes(selectedVendorName.toLowerCase())
       );
     }
-
     // Filter based on start date
     if (formattedStartDate) {
       filtered = filtered.filter(grn => {
@@ -1382,7 +1336,6 @@ const GrnPage = () => {
         return grnDateParsed && grnDateParsed >= formattedStartDate;
       });
     }
-
     // Filter based on end date
     if (formattedEndDate) {
       filtered = filtered.filter(grn => {
@@ -1390,14 +1343,11 @@ const GrnPage = () => {
         return grnDateParsed && grnDateParsed <= formattedEndDate;
       });
     }
-
     // Filter based on status
     if (status) {
       filtered = filtered.filter(grn => grn.status === status);
     }
-
     console.log('Filtered GRN (Frontend):', filtered);
-
     // Send filters to the backend
     dispatch(fetchGrns({
       page: newPage,
@@ -1424,18 +1374,16 @@ const GrnPage = () => {
         setSnackbarOpenGRN(true);
       });
   };
-
   const handleFilterClose = () => {
     // Reset filter states (except for the date)
     setSelectionRange({
-      startDate: new Date(),  // Set to current date
-      endDate: new Date(),    // Set to current date
-      key: 'selection',       // Retain the key
+      startDate: new Date(), // Set to current date
+      endDate: new Date(), // Set to current date
+      key: 'selection', // Retain the key
     });
     setSelectedVendor(null); // Clear vendor selection
     dispatch(fetchGrns({ page: 1, size: pageSize, status }));
   }
-
   if (error) {
     return <Typography>Error: {error}</Typography>;
   }
@@ -1464,14 +1412,13 @@ const GrnPage = () => {
                   GRN List
                 </Button>
               </Link>
-
               <Link href="/yen-purchase/GrnPage/GrnReturn" passHref>
                 <Button variant="contained" color="primary" sx={{ mr: 2 }}>
                   Return GRN
                 </Button>
               </Link>
             </Box>
-            {/* 
+            {/*
             <Typography
               sx={{
                 pl: 2,
@@ -1502,7 +1449,6 @@ const GrnPage = () => {
                 onApply={handleFilterClick}
               />
             </Grid>
-
             {/* All Vendors Autocomplete */}
             <Grid item xs={2}>
               <VendorSearchAutocomplete
@@ -1511,7 +1457,6 @@ const GrnPage = () => {
                 label="Vendor Name"
               />
             </Grid>
-
             {/* Filter Button with Icon and Text */}
             <Grid item>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -1539,7 +1484,6 @@ const GrnPage = () => {
                 </Typography>
               </Box>
             </Grid>
-
             {/* Clear Filter Button with Icon and Text */}
             <Grid item>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -1567,9 +1511,7 @@ const GrnPage = () => {
                 </Typography>
               </Box>
             </Grid>
-
             <Grid item sx={{ flexGrow: 1 }} />
-
             {/* Download Icon */}
             <Grid item>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -1597,7 +1539,6 @@ const GrnPage = () => {
                 </Typography>
               </Box>
             </Grid>
-
             <Menu
               anchorEl={anchorElDownload}
               open={Boolean(anchorElDownload)}
@@ -1669,26 +1610,22 @@ const GrnPage = () => {
                               <VisibilityIcon />
                             </IconButton>
                           </Tooltip>
-
                           {/* Debit/Credit Note Button */}
-
                           <Tooltip title={tooltipTitle}>
                             <span>
                               <IconButton
                                 color="primary"
                                 onClick={() => handleViewCreditNotes(grn.grnId)}
-                                disabled={isDisabled}                              >
+                                disabled={isDisabled} >
                                 <DescriptionIcon />
                               </IconButton>
                             </span>
                           </Tooltip>
-
                           <Tooltip title="Return GRN">
                             <IconButton color="primary" onClick={() => handleReturnClick(grn.grnId)}>
                               <ExitToAppIcon />
                             </IconButton>
                           </Tooltip>
-
                           {/* Download PDF Button */}
                           <Tooltip title="Download PDF">
                             <IconButton color="primary" onClick={() => handleDownload(grn.grnId)}>
@@ -1710,7 +1647,6 @@ const GrnPage = () => {
             </TableBody>
           </Table>
         </TableContainer>
-
         <Grid item xs={12}>
           <Box sx={{ display: 'flex', justifyContent: 'end', alignItems: 'center' }}>
             <IconButton
@@ -1732,7 +1668,6 @@ const GrnPage = () => {
             </IconButton>
           </Box>
         </Grid>
-
         <Dialog
           open={dialogueviewOpen}
           onClose={handleDialogClose}
@@ -1815,7 +1750,6 @@ const GrnPage = () => {
                         </Typography>
                       </Box>
                     </Box>
-
                     {/* GRN Date, AP Invoice Date and Outgoing Date in the same row */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', mb: 1 }}>
                       <Grid container spacing={2} alignItems="center" justifyContent="flex-start">
@@ -1833,7 +1767,6 @@ const GrnPage = () => {
                             </Typography>
                           </Box>
                         </Grid>
-
                         {/* AP Invoice Date Picker */}
                         <Grid item xs={12} md={2}>
                           <SmartDatePicker
@@ -1844,7 +1777,6 @@ const GrnPage = () => {
                             disabled={true} // This will disable the field
                           />
                         </Grid>
-
                         {/* Outgoing Date Picker */}
                         {/* <Grid item xs={12} md={2}>
                           <SmartDatePicker
@@ -1856,7 +1788,6 @@ const GrnPage = () => {
                         </Grid> */}
                       </Grid>
                     </Box>
-
                     <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
                       <IconButton onClick={handlePopoverOpen} sx={{ p: 0.5 }}>
                         <FilterListIcon />
@@ -1900,7 +1831,6 @@ const GrnPage = () => {
                   </Box>
                 </Popover>
               </Grid>
-
               {/* Rest of your table code remains the same */}
               <Grid item xs={12}>
                 <TableContainer component={Paper}>
@@ -1940,8 +1870,6 @@ const GrnPage = () => {
                                 {header === 'uom' && (item.uom || '')}
                                 {header === 'unitPrice' && (item.unitPrice || 0).toFixed(2)}
                                 {header === 'purchasetaxName' && (item.purchasetaxName || 0)}
-
-
                                 {header === 'befTaxDiscount' && (
                                   <TextField
                                     type="number"
@@ -1960,7 +1888,6 @@ const GrnPage = () => {
                                     }
                                   />
                                 )}
-
                                 {header === 'expiryDate' && (
                                   <TextField
                                     type="date"
@@ -1987,24 +1914,29 @@ const GrnPage = () => {
                           )}
                         </TableRow>
                       ))}
-
-                      {/* Discount row */}
-                      <TableRow>
+                     <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length} align="right">
-                          <strong>Discount:</strong>
+                          <strong>AP Round Off:</strong>
                         </TableCell>
                         <TableCell>
                           <TextField
                             autoComplete="false"
                             type="number"
-                            value={enteredDiscount}
-                            onChange={(e) => handleEnteredDiscountChange(Number(e.target.value))}
-                            placeholder="Enter GRN Discount Price"
-                            style={{ width: '100px' }}
+                            value={enteredApRoundOff === 0 ? '' :enteredApRoundOff}
+                            onChange={handleApRoundOffInputChange}
+                            onBlur={handleApRoundOffBlur}
+                            placeholder="0"
+                            style={{ width: '120px' }}
+                            inputProps={{
+                              step: 0.01,
+                              min: -2,
+                              max: 2
+                            }}
+                            helperText={apRoundOffError }
+                            error={!!apRoundOffError}
                           />
                         </TableCell>
                       </TableRow>
-
                       {/* Tax details rows */}
                       {Object.entries(taxDetails).map(([rate, { sgstAmount, cgstAmount, igstAmount }]) => (
                         <React.Fragment key={rate}>
@@ -2037,8 +1969,12 @@ const GrnPage = () => {
                           )}
                         </React.Fragment>
                       ))}
-
                       {/* Summary rows */}
+                      <TableRow>
+                        <TableCell colSpan={sortedSelectedHeaders.length -1}></TableCell>
+                        <TableCell>RoundOff Amount:</TableCell>
+                        <TableCell>{selectedGrn?.grnRoundOffAmount}</TableCell>
+                        </TableRow>
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>
@@ -2092,10 +2028,10 @@ const GrnPage = () => {
             <TextField
               label="Invoice Date"
               type="date"
-              value={invoiceDate ? invoiceDate.toLocaleDateString('en-CA') : ''}  // Ensure the format is YYYY-MM-DD
+              value={invoiceDate ? invoiceDate.toLocaleDateString('en-CA') : ''} // Ensure the format is YYYY-MM-DD
               onChange={(e) => {
                 const selectedDate = e.target.value;
-                setInvoiceDate(selectedDate ? new Date(selectedDate) : null);  // Convert string back to Date or set to null
+                setInvoiceDate(selectedDate ? new Date(selectedDate) : null); // Convert string back to Date or set to null
               }}
               fullWidth
               sx={{ marginTop: 2 }}
@@ -2106,7 +2042,6 @@ const GrnPage = () => {
             <Button onClick={handleSaveInvoice} variant='contained' color="primary">Save</Button>
           </DialogActions>
         </Dialog>
-
         <Dialog open={dialogSaveOpen} onClose={handleCancel}>
           <DialogTitle>Confirm Submission</DialogTitle>
           <DialogContent>
@@ -2137,7 +2072,6 @@ const GrnPage = () => {
             >
               Download CSV
             </Button>
-
             {/* Button to generate PDF */}
             <Button
               onClick={generatePDF}
@@ -2173,7 +2107,6 @@ const GrnPage = () => {
             >
               Export Excel
             </Button>
-
             {/* Generate PDF Button */}
             <Button
               onClick={generateSummaryPDF}
@@ -2183,14 +2116,12 @@ const GrnPage = () => {
             >
               Generate PDF
             </Button>
-
             {/* Cancel Button */}
             <Button variant='outlined' onClick={handleClose}>
               Cancel
             </Button>
           </DialogActions>
         </Dialog>
-
         <Snackbar
           open={snackbarOpen}
           message={snackbarMessage}
@@ -2221,5 +2152,4 @@ const GrnPage = () => {
     </Box>
   );
 };
-
 export default React.memo(GrnPage);

@@ -17,7 +17,7 @@ import {
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FilterAltIcon from '@mui/icons-material/FilterAlt'; // Import the filter icon
 import DownloadIcon from '@mui/icons-material/Download';
-import DescriptionIcon from '@mui/icons-material/Description';  // CSV icon
+import DescriptionIcon from '@mui/icons-material/Description'; // CSV icon
 import ClearIcon from "@mui/icons-material/Clear"; // Clear icon
 import { AppDispatch, RootState } from '@/redux/store';
 import { fetchApInvoices, selectApinvoice, convertToGrnFromApReturned, updateApdiscountInvoice, setPagination, setSnackbarMessage, setSnackbarOpen, clearSnackbarMessage, setSearchQuery, selectTotalItems, selectCurrentPage, selectPageSize, postOutgoingAndUpdateDiscount } from '../../../features/yen-purchase/AP/apInvoiceSlice';
@@ -50,7 +50,6 @@ interface TaxAmounts {
   cgst: { [key: string]: number }; // CGST amounts with rate as key
   igst: { [key: string]: number }; // IGST amounts with rate as key
 }
-
 const initialApInvoiceState: ApInvoice = {
   invoiceId: '',
   purchaseOrderId: '',
@@ -92,15 +91,15 @@ const initialApInvoiceState: ApInvoice = {
   grnRandomId: '',
   apRandomId: '',
   debitAmount: 0,
-  hasDebitCreditNotes: false
+  hasDebitCreditNotes: false,
+  apRoundOff: 0
 };
-
 const VerifiedApInvoicePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const [apInvoice] = useState<ApInvoice>(initialApInvoiceState);
   const [selectedInvoice, setSelectedInvoice] = useState<ApInvoice | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false); // For viewing item details
-  const [returnDialogOpen, setReturnDialogOpen] = useState(false);   // For confirming AP return
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false); // For confirming AP return
   const [outgoingDialogOpen, setOutgoingDialogOpen] = useState(false); // For confirming outgoing payment
   const { apInvoices, loading, error, snackbarOpen, snackbarMessage } = useSelector(selectApinvoice);
   const { businesses } = useSelector(selectBusinesses);
@@ -112,7 +111,6 @@ const VerifiedApInvoicePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVendorName, setSelectedVendorName] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<VendorSearch | null>(null);
-  const [filteredAp, setFilteredAp] = useState<ApInvoice[]>([]); // Explicit type declaration
   const [dialogDownloadOpen, setDialogDownloadOpen] = useState(false);
   const [dialogSummaryOpen, setDialogSummaryOpen] = useState(false);
   const currentPage = useSelector(selectCurrentPage);
@@ -142,7 +140,7 @@ const VerifiedApInvoicePage: React.FC = () => {
         page: newPage,
         size: pageSize,
         dateFilterField: dateField,
-    
+  
       });
       dispatch(action);
       setShouldFetch(false);
@@ -164,33 +162,44 @@ const VerifiedApInvoicePage: React.FC = () => {
     setSelectedInvoice(invoice);
     setDetailsDialogOpen(true); // Open the details dialog
   };
+  // Compute applied dates for consistent filtering across pages
+const appliedFromDate = useMemo(() => 
+  selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : undefined, 
+  [selectionRange]
+);
+
+const appliedToDate = useMemo(() => 
+  selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : undefined, 
+  [selectionRange]
+);
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
       // Optionally handle out-of-bounds page number
       return;
     }
-    const appliedFromDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : fromDate;
-    const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;
     dispatch(setPagination({ page: newPage, size: pageSize }));
     dispatch(fetchApInvoices({
-      page: newPage, size: pageSize, dateFilterField: dateField, vendorName: selectedVendorName || '',
+      page: newPage, 
+      size: pageSize, 
+      dateFilterField: dateField, 
+      fromDate: appliedFromDate,
+      toDate: appliedToDate,
+      vendorName: selectedVendorName || '',
     }));
   };
-
   const handleNextPage = () => {
     if (currentPage * pageSize) {
       handlePageChange(currentPage + 1);
     }
   };
-
   const handlePreviousPage = () => {
     if (currentPage > 1) {
       handlePageChange(currentPage - 1);
     }
   };
   // const handleOutgoingDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //   const dateValue = event.target.value ? new Date(event.target.value) : null;
-  //   setOutgoingDate(dateValue);
+  // const dateValue = event.target.value ? new Date(event.target.value) : null;
+  // setOutgoingDate(dateValue);
   // };
   const handleViewCreditNotes = (invoiceId: string) => {
     console.log('Opening DebitCreditNoteDialog for invoiceId:', invoiceId);
@@ -204,10 +213,9 @@ const VerifiedApInvoicePage: React.FC = () => {
     setSelectedInvoice(null); // Clear the selected invoice
   };
   // const handleDiscountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //   const value = event.target.value;
-  //   setApDiscountPrice(value === '' ? 0 : parseFloat(value) || 0); // Handle empty input and invalid numbers
+  // const value = event.target.value;
+  // setApDiscountPrice(value === '' ? 0 : parseFloat(value) || 0); // Handle empty input and invalid numbers
   // };
-
   const handleOpen = () => {
     setDialogSummaryOpen(true);
   };
@@ -229,14 +237,11 @@ const VerifiedApInvoicePage: React.FC = () => {
   const generateInvoicePDF = () => {
     const doc = new jsPDF();
     let yOffset = 7; // Starting y-offset for content
-
     const business = businesses.length > 0 ? businesses[0] : null;
-
     if (!business) {
       console.error('Business info not found!');
       return;
     }
-
     // Add business image on the left side
     if (business.imageUrl) {
       try {
@@ -245,66 +250,52 @@ const VerifiedApInvoicePage: React.FC = () => {
         console.error("Image failed to load:", e);
       }
     }
-
     yOffset += 10; // Move down after image to create space for the title
-
     // Add a title for the PDF
     doc.setFontSize(12); // Increase title font size
-    const title = "APInvoice Order Summary";
+    const title = "Verified AP Invoice Vendorwise Summary";
     const pageWidth = doc.internal.pageSize.width; // Get page width directly
     const fontSize = doc.getFontSize(); // Get font size using the public method
     const titleWidth = doc.getStringUnitWidth(title) * fontSize / doc.internal.scaleFactor;
     const titleX = (pageWidth - titleWidth) / 2;
     doc.text(title, titleX, yOffset); // Centered title
-
     // Underline the title - Adjusting the line position
     const underlineOffset = 3; // Adjust distance from the title to underline
     doc.setLineWidth(0.1); // Set line width for the underline
     doc.line(titleX, yOffset + underlineOffset, titleX + titleWidth, yOffset + underlineOffset); // Draw the underline
-
     yOffset += 15; // Move yOffset down after the title and underline to ensure space
-
     // Format the current date
     const today = new Date();
     const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-
     // Calculate the total ordered amount before generating the table
-    const totalInvoiceAmount = (filterAp || []).reduce((sum, order) => {
+    const verifiedApInvoices = apInvoices.filter(ap => ap.status !== 'Returned');
+    const totalInvoiceAmount = verifiedApInvoices.reduce((sum, order) => {
       const orderInvoiceAmount = order.invoiceAmount || 0; // Get the invoice amount for the order
       return sum + orderInvoiceAmount; // Accumulate the total invoice amount
     }, 0);
-
     // Display "Total Invoice Amount" and "Date" on the same row
     doc.setFontSize(10); // Smaller font size for these details
     doc.text(`Total Invoice Amount: ${totalInvoiceAmount.toFixed(2)}`, 14, yOffset); // Total on the left
-
     // Calculate xOffset for the date to align it to the right
     const totalWidth = doc.getStringUnitWidth(`Total Invoice Amount: ${totalInvoiceAmount.toFixed(2)}`) * fontSize / doc.internal.scaleFactor;
     const dateX = pageWidth - totalWidth - 14; // Right-align date text
-
     doc.text(`Date: ${currentDate}`, dateX, yOffset); // Date on the right of the total
-
     yOffset += 5; // Add space before the table for better readability
-
     // Table headers for summary data
     const headers = [
       ["S.No", "AP.No", "Invoice Date", "InvoiceNo", "Vendor Name", "TotalItems"]
     ];
-
     // Prepare rows for purchase order summary (filter on only the valid orders)
-    const rows = (filterAp || []).map((ap, index) => {
+    const rows = verifiedApInvoices.map((ap, index) => {
       const totalItemsQuantity = Array.isArray(ap.itemDetails) && ap.itemDetails.length > 0
         ? ap.itemDetails.reduce((sum, item) => sum + (item.quantity || 0), 0)
         : 0;
-
       const totalInvoiceAmount = ap.invoiceAmount || 0;
       const totalDiscount = ap.discountDetails || 0;
       const finalAmount = totalInvoiceAmount - totalDiscount;
-
       if (!ap.randomId || !ap.vendorName || !ap.apinvoiceDate || totalInvoiceAmount <= 0) {
         return null;
       }
-
       return [
         (index + 1).toString(), // Serial number as first column
         ap.randomId.toString(),
@@ -314,7 +305,6 @@ const VerifiedApInvoicePage: React.FC = () => {
         totalItemsQuantity.toString(),
       ];
     }).filter(row => row !== null);
-
     // Add the table to the PDF with custom styles
     doc.autoTable({
       head: headers,
@@ -334,16 +324,15 @@ const VerifiedApInvoicePage: React.FC = () => {
         fillColor: [255, 255, 255], // White background for rows
         textColor: [0, 0, 0] // Black text color for rows
       },
-      columnStyles: {
-        0: { halign: 'center' }, // Center-align "SNO"
-        1: { halign: 'center' }, // Center-align "apId"
-        2: { halign: 'center' }, // Center-align "Invoice Date"
-        3: { halign: 'center' }, // Center-align "InvoiceNo"
-        4: { halign: 'center' }, // Center-align "Vendor Name"
-        5: { halign: 'center' } // Center-align "Total Items"
-      }
+    columnStyles: {
+  0: { halign: 'center' }, // S.No: center
+  1: { halign: 'left' }, // AP.No: center
+  2: { halign: 'left' }, // Invoice Date: center
+  3: { halign: 'left' }, // InvoiceNo: center
+  4: { halign: 'left' },   // Vendor Name: left
+  5: { halign: 'right' },  // TotalItems: right
+}
     });
-
     // Add page numbers to all pages and "This is computer generated" footer
     const totalPages = doc.getNumberOfPages();
     const pageHeight = doc.internal.pageSize.height;
@@ -363,9 +352,8 @@ const VerifiedApInvoicePage: React.FC = () => {
       const compX = (pageWidth - compTextWidth) / 2;
       doc.text(compText, compX, computerGeneratedY);
     }
-
     // Save the PDF with a dynamic name based on purchase order ID
-    const pdfFilename = `ApVendorwise.pdf`;
+    const pdfFilename = `VerifiedApVendorwise.pdf`;
     doc.save(pdfFilename);
     setDialogDownloadOpen(false);
   };
@@ -373,7 +361,6 @@ const VerifiedApInvoicePage: React.FC = () => {
     setSelectedVendor(vendor);
     setSelectedVendorName(vendor ? vendor.vendorName : '');
   };
-
   const handleExportCSV = () => {
     // Define the headers for the CSV
     const headers = [
@@ -382,59 +369,47 @@ const VerifiedApInvoicePage: React.FC = () => {
       "Total Items",
       "Invoice Date",
       "Total Invoice Amount",
-      "Final Amount"
     ];
-
     // Map the AP data into the CSV rows
-    const rows = (filterAp || []).map((ap) => {
+    const verifiedApInvoices = apInvoices.filter(ap => ap.status !== 'Returned');
+    const rows = verifiedApInvoices.map((ap) => {
       const totalItemsQuantity = Array.isArray(ap.itemDetails) && ap.itemDetails.length > 0
         ? ap.itemDetails.reduce((sum, item) => sum + (item.quantity || 0), 0)
         : 0;
-
       const totalInvoiceAmount = ap.invoiceAmount || 0;
       const totalDiscount = ap.discountDetails || 0;
       const finalAmount = totalInvoiceAmount - totalDiscount;
-
       if (!ap.randomId || !ap.vendorName || !ap.apinvoiceDate || totalInvoiceAmount <= 0) {
         return null;
       }
-
       return [
         ap.randomId.toString(),
         ap.vendorName.toString(),
         totalItemsQuantity.toString(),
-        ap.apinvoiceDate ? format(new Date(ap.apinvoiceDate), 'dd-MM-yyyy') : '',  // Format ap.apinvoiceDate
+        ap.apinvoiceDate ? format(new Date(ap.apinvoiceDate), 'dd-MM-yyyy') : '', // Format ap.apinvoiceDate
         totalInvoiceAmount.toFixed(2).toString(),
-        finalAmount.toFixed(2).toString(),
       ];
     }).filter(row => row !== null);
-
     // Combine the headers and rows into the final CSV data
     const csvData = [headers, ...rows];
-
     // Use PapaParse to generate the CSV string
     const csv = Papa.unparse(csvData);
-
     // Create a blob for the CSV data
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-
     // Create a download link
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "APVendorwise.csv");
-
+    link.setAttribute("download", "VerifiedApVendorwise.csv");
     // Trigger the download
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     setDialogDownloadOpen(false);
   };
-
   const handleSearchChange = (event: React.ChangeEvent<{}>, newValue: string) => {
     setSearchQuery(newValue); // Update the search query
   };
-
   const handleVendorSelect = (vendor: Vendor | null) => {
     if (vendor) {
       setSelectedVendor(vendor);
@@ -446,9 +421,7 @@ const VerifiedApInvoicePage: React.FC = () => {
   };
   const generatePendingInvoiceSummaryPDF = () => {
     const doc = new jsPDF();
-
     const yOffset = 10; // Start position for the content
-
     // Add business image to the left corner (if available)
     const business = businesses.length > 0 ? businesses[0] : null;
     if (business && business.imageUrl) {
@@ -458,60 +431,47 @@ const VerifiedApInvoicePage: React.FC = () => {
         console.error("Image failed to load:", e);
       }
     }
-
     // Adjust yOffset after the image (if any)
     let currentYOffset = yOffset + 10; // Add space after the image
-
     // Title for the Invoice Summary
     doc.setFontSize(12);
-    const title = "Pending Invoice Summary";
+    const title = "Verified AP Invoice Itemwise Summary";
     const pageWidth = doc.internal.pageSize.width;
     const titleWidth = doc.getStringUnitWidth(title) * doc.getFontSize() / doc.internal.scaleFactor;
     const titleX = (pageWidth - titleWidth) / 2; // Center the title
     doc.text(title, titleX, currentYOffset);
     doc.setLineWidth(0.1); // Set line width for the underline
     doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2); // Draw the underline
-
     currentYOffset += 15; // Move down after title for space
-
-    // Filter out invoices with status 'Pending'
-    const pendingInvoices = (apInvoices || []).filter(invoice => invoice.status === "Outgoing Posted");
-
-    // Calculate the total amounts for the pending invoices
-    const totalAmount = pendingInvoices.reduce((sum, invoice) => {
+    // Filter out invoices with status !== 'Returned'
+    const verifiedInvoices = (apInvoices || []).filter(invoice => invoice.status !== "Returned");
+    // Calculate the total amounts for the verified invoices
+    const totalAmount = verifiedInvoices.reduce((sum, invoice) => {
       const total = invoice.itemDetails.reduce((totalItem, item) => totalItem + (item.stockQuantity * item.unitPrice), 0);
       return sum + total;
     }, 0);
-
-    const totalTax = pendingInvoices.reduce((sum, invoice) => {
+    const totalTax = verifiedInvoices.reduce((sum, invoice) => {
       const tax = invoice.itemDetails.reduce((taxItem, item) => taxItem + (item.purchasetaxName * item.stockQuantity * item.unitPrice) / 100, 0);
       return sum + tax;
     }, 0);
-
-    const totalDiscount = pendingInvoices.reduce((sum, invoice) => {
+    const totalDiscount = verifiedInvoices.reduce((sum, invoice) => {
       const discount = invoice.itemDetails.reduce((discountItem, item) => discountItem + (item.discountAmount || 0), 0);
       return sum + discount;
     }, 0);
-
     const totalInvoiceAmount = totalAmount + totalTax - totalDiscount;
-
     const today = new Date();
     const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-
     // Display the summary data (total amounts, date)
     doc.setFontSize(10);
     doc.text(`Total Invoice Amount: ${totalInvoiceAmount.toFixed(2)}`, 14, currentYOffset);
     doc.text(`Date: ${currentDate}`, pageWidth - 14, currentYOffset, { align: 'right' });
-
     currentYOffset += 5; // Add space before the table for better readability
-
     // Table headers for Invoice Summary
     const headers = [
       ["S.No", "AP.No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Total"],
     ];
-
-    // Rows based on pending invoices data
-    const rows = pendingInvoices.map((invoice, index) => {
+    // Rows based on verified invoices data
+    const rows = verifiedInvoices.map((invoice, index) => {
       return invoice.itemDetails.map((item) => [
         (index + 1).toString(), // Serial number as first column
         invoice.randomId.toString(),
@@ -524,7 +484,6 @@ const VerifiedApInvoicePage: React.FC = () => {
         item.totalPrice // Total
       ]);
     }).flat(); // Flatten the rows array
-
     // Add the table to the PDF with custom styles
     doc.autoTable({
       head: headers,
@@ -544,14 +503,18 @@ const VerifiedApInvoicePage: React.FC = () => {
         fillColor: [255, 255, 255], // White background for rows
         textColor: [0, 0, 0], // Black text color for rows
       },
-      columnStyles: {
-        4: { halign: 'right' }, // Right-align "Price"
-        5: { halign: 'right' }, // Right-align "Tax"
-        6: { halign: 'right' }, // Right-align "Discount"
-        7: { halign: 'right' }, // Right-align "Total"
-      },
+     columnStyles: {
+  0: { halign: 'center' }, // S.No: center
+  1: { halign: 'center' }, // AP.No: center
+  2: { halign: 'left' },   // Vendor Name: left
+  3: { halign: 'left' },   // Item Name: left
+  4: { halign: 'right' },  // Quantity: right
+  5: { halign: 'right' },  // Price: right
+  6: { halign: 'right' },  // Tax: right
+  7: { halign: 'right' },  // Discount: right
+  8: { halign: 'right' },  // Total: right
+}
     });
-
     // Add page numbers to all pages and "This is computer generated" footer
     const totalPages = doc.getNumberOfPages();
     const pageHeight = doc.internal.pageSize.height;
@@ -571,18 +534,18 @@ const VerifiedApInvoicePage: React.FC = () => {
       const compX = (pageWidth - compTextWidth) / 2;
       doc.text(compText, compX, computerGeneratedY);
     }
-
-    // Save the PDF with a dynamic name based on the first Pending Invoice Number
-    const pdfFilename = `PendingInvoiceItemwise.pdf`;
+    // Save the PDF with a dynamic name based on the first Verified Invoice Number
+    const pdfFilename = `VerifiedApItemwise.pdf`;
     doc.save(pdfFilename);
     handleClose();
   };
+  
   const generatePendingInvoiceSummaryCSV = () => {
     // Define CSV headers
     const headers = ["S.No", "AP.No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Total"];
-
-    // Prepare rows by mapping through pending invoices
-    const rows = (apInvoices || []).filter(invoice => invoice.status === "Pending").map((invoice, index) => {
+    // Prepare rows by mapping through verified invoices
+    const verifiedInvoices = (apInvoices || []).filter(invoice => invoice.status !== "Returned");
+    const rows = verifiedInvoices.map((invoice, index) => {
       return invoice.itemDetails.map((item) => [
         (index + 1).toString(), // Serial number
         invoice.randomId.toString(),
@@ -590,85 +553,45 @@ const VerifiedApInvoicePage: React.FC = () => {
         item.itemName,
         item.stockQuantity,
         item.unitPrice,
-        `${item.purchasetaxName}%`,  // Tax Rate
-        item.discountAmount,         // Discount Amount
-        item.totalPrice              // Total
+        `${item.purchasetaxName}%`, // Tax Rate
+        item.discountAmount, // Discount Amount
+        item.totalPrice // Total
       ]);
     }).flat();
-
     // Combine headers and rows
     const csvData = [headers, ...rows];
-
     // Convert to CSV format using PapaParse
     const csv = Papa.unparse(csvData);
-
     // Create a Blob and trigger download
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "PendingInvoiceItemwise.csv");
+    link.setAttribute("download", "VerifiedApItemwise.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
     handleClose(); // Close any modal/dialog if used
   };
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
   const handleFilterClick = () => {
-    let filtered = apInvoices;
-
-    const formattedStartDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : fromDate;
-    const formattedEndDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;
-
-    // Filter based on selected vendor name
-    if (selectedVendorName) {
-      filtered = filtered.filter(ap =>
-        ap.vendorName?.toLowerCase().includes(selectedVendorName.toLowerCase())
-      );
-    }
-
-    // Filter based on start date
-    if (formattedStartDate) {
-      filtered = filtered.filter(ap => {
-        const invoiceDateParsed = ap.apinvoiceDate ? new Date(ap.apinvoiceDate) : null;
-        return invoiceDateParsed && invoiceDateParsed >= formattedStartDate;
-      });
-    }
-
-    // Filter based on end date
-    if (formattedEndDate) {
-      filtered = filtered.filter(ap => {
-        const invoiceDateParsed = ap.apinvoiceDate ? new Date(ap.apinvoiceDate) : null;
-        return invoiceDateParsed && invoiceDateParsed <= formattedEndDate;
-      });
-    }
-
-    // Filter based on status
-    if (status) {
-      filtered = filtered.filter(ap => ap.status === status);
-    }
-
-    // Dispatch the action with filters
+    dispatch(setPagination({ page: 1, size: pageSize }));
     dispatch(fetchApInvoices({
-      page: newPage,
+      page: 1,
       size: pageSize,
-      fromDate: formattedStartDate,
-      toDate: formattedEndDate,
+      dateFilterField: dateField,
+      fromDate: appliedFromDate,
+      toDate: appliedToDate,
       vendorName: selectedVendorName || '',
     }))
       .then(response => {
         const data = response.payload || [];
-
         // Handle no results inside the fulfilled case
         if (data.length === 0) {
           setSnackbarMessage('No matching AP invoices found.');
           setSnackbarOpen(true); // Open snackbar
-        } else {
-          setFilteredAp(filtered); // Update filtered AP invoices state for frontend display
         }
       })
       .catch(error => {
@@ -680,18 +603,17 @@ const VerifiedApInvoicePage: React.FC = () => {
   const handleFilterClose = () => {
     // Reset filter states (except for the date)
     setSelectionRange({
-      startDate: new Date(),  // Set to current date
-      endDate: new Date(),    // Set to current date
-      key: 'selection',       // Retain the key
+      startDate: new Date(), // Set to current date
+      endDate: new Date(), // Set to current date
+      key: 'selection', // Retain the key
     });
     setSelectedVendor(null); // Clear vendor selection
+    dispatch(setPagination({ page: 1, size: pageSize }));
     dispatch(fetchApInvoices({ page: 1, size: pageSize, dateFilterField: dateField, fromDate, toDate }));
   }
-
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorElDownload(event.currentTarget as HTMLElement); // Cast event.currentTarget to HTMLElement
   };
-
   const handleCloseAnchor = () => {
     setAnchorElDownload(null); // Close the dropdown menu
   };
@@ -703,7 +625,6 @@ const VerifiedApInvoicePage: React.FC = () => {
     handleOpen(); // Perform itemwise action
     handleCloseAnchor(); // Close the dropdown after the action
   };
-
   const handleReturnAp = async () => {
     if (!selectedInvoice) return;
     setLoading(true);
@@ -711,318 +632,264 @@ const VerifiedApInvoicePage: React.FC = () => {
       // Dispatch the action and await the result
       await dispatch(convertToGrnFromApReturned(selectedInvoice.invoiceId)).unwrap();
       dispatch(fetchApInvoices({
-        page: newPage, size: pageSize,  dateFilterField: dateField, vendorName: selectedVendorName || '',
+        page: newPage, size: pageSize, dateFilterField: dateField, vendorName: selectedVendorName || '',
       }));
       // Action completed successfully
       console.log('Conversion to GRN successful!');
-
     } catch (err) {
       // Log or handle error
       console.error('Error converting AP to GRN:', err);
-
     } finally {
       // Close dialogs after the action is finished
       setReturnDialogOpen(false);
       setDetailsDialogOpen(false);
       setLoading(false);
-
     }
   };
-
-
-  // const handlePostOutgoingPayment = () => {
-  //   if (!selectedInvoice) return;
-  //   setLoading(true);
-
-  //   const discountToApply = isNaN(apDiscountPrice) || apDiscountPrice === null ? 0 : apDiscountPrice;
-
-  //   dispatch(postOutgoingAndUpdateDiscount({
-  //     invoiceId: selectedInvoice.invoiceId,
-  //     apDiscountPrice: discountToApply,
-  //     outgoingDate // Pass the selected outgoingDate
-  //   }))
-  //     .unwrap()
-  //     .then(() => {
-  //       console.log('Outgoing payment posted and discount applied successfully!');
-  //       dispatch(setSnackbarMessage('Outgoing payment posted and discount applied successfully'));
-  //       dispatch(setSnackbarOpen(true));
-  //       setOutgoingDate(null); // Reset date after submission
-  //     })
-  //     .catch((err: any) => {
-  //       console.error('Error posting outgoing payment and applying discount:', err);
-  //       dispatch(setSnackbarMessage('Error posting outgoing payment and applying discount'));
-  //       dispatch(setSnackbarOpen(true));
-  //     })
-  //     .finally(() => {
-  //       setOutgoingDialogOpen(false);
-  //       setDetailsDialogOpen(false);
-  //       setLoading(false);
-  //       dispatch(fetchApInvoices({
-  //         page: newPage,
-  //         size: pageSize,
-  //         status,
-  //         dateFilterField: dateField,
-  //         fromDate,
-  //         toDate
-  //       }));
-  //     });
-  // };
+ 
   const handleDownload = async (apinvoiceId: string) => {
-    const apinvoice = apInvoices.find((invoice: ApInvoice) => invoice.invoiceId === apinvoiceId);
-
-    if (!apinvoice) {
-      console.error('AP Invoice not found!');
-      return;
-    }
-
-    const business = businesses.length > 0 ? businesses[0] : null;
-
-    if (!business) {
-      console.error('Business info not found!');
-      return;
-    }
-
-    const doc = new jsPDF();
-    let yOffset = 10;
-
-    if (business.imageUrl) {
-      doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
-    }
-
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 128);
-    doc.text('AP Invoice', 90, yOffset + 5);
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text(business.companyName || '', 90, yOffset + 10);
-
-    doc.setFontSize(8);
-    doc.setTextColor(0, 0, 0);
-    doc.text(business.address1 || '', 90, yOffset + 15);
-    doc.text(`Tel.No: ${business.phoneNo || ''}`, 90, yOffset + 20);
-    doc.text(`E-Mail: ${business.emailId || ''}`, 90, yOffset + 25);
-    doc.text(`GSTIN: ${business.gstIn || ''}`, 90, yOffset + 30);
-
-    yOffset += 40;
-    const invoiceDate = apinvoice.invoiceDate ? new Date(apinvoice.invoiceDate) : new Date('2025-06-30');
-    const paymentTermsDays = apinvoice.paymentTerms ? parseInt(apinvoice.paymentTerms, 10) : 15;
-    const dueDate = addDays(invoiceDate, paymentTermsDays);
-
-    const columnWidth = 60.6;
-    const tableHeader = [
-      ['Vendor Details', 'shipping Address', 'Invoice Details'],
+  const apinvoice = apInvoices.find((invoice: ApInvoice) => invoice.invoiceId === apinvoiceId);
+  if (!apinvoice) {
+    console.error('AP Invoice not found!');
+    return;
+  }
+  const business = businesses.length > 0 ? businesses[0] : null;
+  if (!business) {
+    console.error('Business info not found!');
+    return;
+  }
+  const doc = new jsPDF();
+  let yOffset = 10;
+  if (business.imageUrl) {
+    doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
+  }
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 128);
+  doc.text('AP Invoice', 90, yOffset + 5);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text(business.companyName || '', 90, yOffset + 10);
+  doc.setFontSize(8);
+  doc.setTextColor(0, 0, 0);
+  doc.text(business.address1 || '', 90, yOffset + 15);
+  doc.text(`Tel.No: ${business.phoneNo || ''}`, 90, yOffset + 20);
+  doc.text(`E-Mail: ${business.emailId || ''}`, 90, yOffset + 25);
+  doc.text(`GSTIN: ${business.gstIn || ''}`, 90, yOffset + 30);
+  yOffset += 40;
+  const invoiceDate = apinvoice.invoiceDate ? new Date(apinvoice.invoiceDate) : new Date('2025-06-30');
+  const paymentTermsDays = apinvoice.paymentTerms ? parseInt(apinvoice.paymentTerms, 10) : 15;
+  const dueDate = addDays(invoiceDate, paymentTermsDays);
+  const columnWidth = 60.6;
+  const tableHeader = [
+    ['Vendor Details', 'Shipping Address', 'Invoice Details'],
+  ];
+  const vendorDetailsRows = [
+    [
+      `${apinvoice.vendorName || ''}\n` +
+      `GSTIN: ${apinvoice.gstNumber || ''}\n` +
+      `Address: ${apinvoice.address || ''}\n` +
+      `City: ${apinvoice.city || ''}\n` +
+      `State: ${apinvoice.state || ''}\n` +
+      `Country: ${apinvoice.country || ''}\n` +
+      `Email: ${apinvoice.contactpersonEmail || ''}`,
+      `Billing Address: ${apinvoice.shippingAddress }`,
+      `PO No: ${apinvoice.poRandomId }\n` +
+      `GRN No: ${apinvoice.grnRandomId }\n` +
+      `AP No: ${apinvoice.randomId }\n` +
+      `Invoice No: ${apinvoice.invoiceNo }\n` +
+      `Invoice Date: ${apinvoice.invoiceDate ? format(new Date(apinvoice.invoiceDate), 'dd-MM-yyyy') : ''}\n` +
+      `Payment Terms: ${apinvoice.paymentTerms || '15'} \n` +
+      `Due Date: ${format(dueDate, 'dd-MM-yyyy')}\n` +
+      `Currency: ${'INR'}`,
+    ]
+  ];
+  doc.autoTable({
+    head: tableHeader,
+    body: vendorDetailsRows,
+    startY: yOffset,
+    theme: 'grid',
+    styles: {
+      fontSize: 9,
+      cellPadding: 4,
+      halign: 'left',
+      valign: 'top',
+      overflow: 'linebreak',
+    },
+    columnStyles: {
+      0: { cellWidth: columnWidth, valign: 'top' },
+      1: { cellWidth: columnWidth, valign: 'top' },
+      2: { cellWidth: columnWidth, valign: 'top' },
+    },
+    headStyles: {
+      fillColor: [0, 0, 128],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+    },
+    bodyStyles: {
+      lineColor: [0, 0, 0],
+      minCellHeight: 15,
+    },
+    tableLineColor: [0, 0, 0],
+    lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
+  });
+  yOffset += 45;
+  const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count', 'Qty', 'Stock Qty', 'Unit Price', 'Tax', 'Amount'];
+  const tableRows = apinvoice.itemDetails.map((item, index) => {
+    const unitPrice = item.unitPrice || 0;
+    const quantity = item.quantity || 0;
+    const totalAmount = unitPrice * quantity;
+    return [
+      `${index + 1}`,
+      item.itemName || 'Item Description',
+      item.hsnCode,
+      item.nos,
+     `${item.eachQuantity || 0} ${item.uom || 'Kgs'}`,
+      `${item.stockQuantity} ${item.uom || 'Kgs'}`,
+      `${unitPrice.toFixed(2)}`,
+      `${item.purchasetaxName}%`,
+      `${totalAmount.toFixed(2)}`,
     ];
+  });
+ doc.autoTable({
+head: [itemHeader],
+body: tableRows,
+startY: yOffset,
+theme: 'grid',
+styles: {
+  fontSize: 8,
+  halign: 'center',
+  cellPadding: 2,
+},
+columnStyles: {
+0: { halign: 'center' }, // SI No: center
+1: { halign: 'left' },   // Description: left
+2: { halign: 'center' }, // HsnCode: center
+3: { halign: 'center' }, // Pkt Count: center
+4: { halign: 'left' },   // Qty: left (text with UOM)
+5: { halign: 'right' },  // Stock Qty: right
+6: { halign: 'right' },  // Unit Price: right
+7: { halign: 'center' }, // Tax: center
+8: { halign: 'right' },  // Amount: right
+},
+headStyles: {
+  fillColor: [0, 0, 128],
+  textColor: [255, 255, 255],
+},
+bodyStyles: {
+  lineColor: [0, 0, 0],
+  lineWidth: 0.1,
+},
 
-    const vendorDetailsRows = [
-      [
-        `${apinvoice.vendorName  || ''}\n` +
-        `GSTIN: ${apinvoice.gstNumber || ''}\n` +
-        `Address: ${apinvoice.address || ''}\n` +
-        `City: ${apinvoice.city || ''}\n` +
-        `State: ${apinvoice.state || ''}\n` +
-        `Country: ${apinvoice.country || ''}\n` +
-        `Email: ${apinvoice.contactpersonEmail || ''}`,
-        `Billing Address: ${apinvoice.shippingAddress }`,
-        `PO No: ${apinvoice.poRandomId }\n` +
-        `GRN No: ${apinvoice.grnRandomId }\n` +
-        `AP No: ${apinvoice.randomId }\n` +
-        `Invoice No: ${apinvoice.invoiceNo }\n` +
-        `Invoice Date: ${apinvoice.invoiceDate ? format(new Date(apinvoice.invoiceDate), 'dd-MM-yyyy') : ''}\n` +
-        `Payment Terms: ${apinvoice.paymentTerms || '15'} \n` +
-        `Due Date: ${format(dueDate, 'dd-MM-yyyy')}\n` +
-        `Currency: ${'INR'}`,
-      ]
-    ];
-
-    doc.autoTable({
-      head: tableHeader,
-      body: vendorDetailsRows,
-      startY: yOffset,
-      theme: 'grid',
-      styles: {
-        fontSize: 9,
-        cellPadding: 4,
-        halign: 'left',
-        valign: 'top',
-        overflow: 'linebreak',
-      },
-      columnStyles: {
-        0: { cellWidth: columnWidth, valign: 'top' },
-        1: { cellWidth: columnWidth, valign: 'top' },
-        2: { cellWidth: columnWidth, valign: 'top' },
-      },
-      headStyles: {
-        fillColor: [0, 0, 128],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-      },
-      bodyStyles: {
-        lineColor: [0, 0, 0],
-        minCellHeight: 15,
-      },
-      tableLineColor: [0, 0, 0],
-      lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
-    });
-
-    yOffset += 45;
-
-    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count', 'Qty', 'Stock Qty', 'Unit Price', 'Tax', 'Amount'];
-    const tableRows = apinvoice.itemDetails.map((item, index) => {
-      const unitPrice = item.unitPrice || 0;
-      const quantity = item.quantity || 0;
-      const totalAmount = unitPrice * quantity;
-
-      return [
-        `${index + 1}`,
-        item.itemName || 'Item Description',
-        item.hsnCode,
-        item.nos,
-       `${item.eachQuantity || 0} ${item.uom || 'Kgs'}`,
-        `${item.stockQuantity} ${item.uom || 'Kgs'}`,
-        `${unitPrice.toFixed(2)}`,
-        `${item.purchasetaxName}%`,
-        `${totalAmount.toFixed(2)}`,
-      ];
-    });
-
-   doc.autoTable({
-  head: [itemHeader],
-  body: tableRows,
-  startY: yOffset,
-  theme: 'grid',
-  styles: {
-    fontSize: 8,
-    halign: 'center',
-    cellPadding: 2,
-  },
-  headStyles: {
-    fillColor: [0, 0, 128],
-    textColor: [255, 255, 255],
-  },
-  bodyStyles: {
-    lineColor: [0, 0, 0],
-    lineWidth: 0.1,
-  },
-  didDrawCell: (data: any) => {
-    // Remove bottom border for the last row
-    if (data.row.index === tableRows.length - 1 && data.section === 'body') {
-      doc.setDrawColor(255, 255, 255); // Set to white (background color)
-      doc.setLineWidth(0.2);
-      // Draw over the bottom border with white line
-      doc.line(
-        data.cell.x,
-        data.cell.y + data.cell.height,
-        data.cell.x + data.cell.width,
-        data.cell.y + data.cell.height
-      );
-    }
-  },
+didDrawCell: (data: any) => {
+  // Remove bottom border for the last row
+  if (data.row.index === tableRows.length - 1 && data.section === 'body') {
+    doc.setDrawColor(255, 255, 255); // Set to white (background color)
+    doc.setLineWidth(0.2);
+    // Draw over the bottom border with white line
+    doc.line(
+      data.cell.x,
+      data.cell.y + data.cell.height,
+      data.cell.x + data.cell.width,
+      data.cell.y + data.cell.height
+    );
+  }
+},
 });
-
-    yOffset = doc.autoTable.previous.finalY;
-
-    const taxRates = {
-      CGST: new Map<number, number>(),
-      SGST: new Map<number, number>(),
-      IGST: new Map<number, number>(),
-    };
-
-    apinvoice.itemDetails.forEach((item) => {
-      const taxableAmount = item.unitPrice * item.stockQuantity;
-
-      if (item.taxType === 'cgst_sgst') {
-        const cgstRate = item.purchasetaxName / 2;
-        const sgstRate = item.purchasetaxName / 2;
-        const cgstAmount = (cgstRate / 100) * taxableAmount;
-        const sgstAmount = (sgstRate / 100) * taxableAmount;
-
-        taxRates.CGST.set(cgstRate, (taxRates.CGST.get(cgstRate) || 0) + cgstAmount);
-        taxRates.SGST.set(sgstRate, (taxRates.SGST.get(sgstRate) || 0) + sgstAmount);
-      } else if (item.taxType === 'igst') {
-        const igstAmount = (item.purchasetaxName / 100) * taxableAmount;
-        taxRates.IGST.set(item.purchasetaxName, (taxRates.IGST.get(item.purchasetaxName) || 0) + igstAmount);
-      }
-    });
-
-    const totalWithoutTax = apinvoice.itemDetails.reduce((sum, item) => {
-      return sum + item.unitPrice * item.stockQuantity;
-    }, 0);
-
-    const taxSummary: [string, string][] = [
-      [`Total Amount`, totalWithoutTax.toFixed(2) || '0'],
-      [`Total Discount`, apinvoice.discountDetails?.toFixed(2) || '0'],
-    ];
-
-    taxRates.CGST.forEach((amount, rate) => {
-      taxSummary.push([`CGST @${rate}%`, amount.toFixed(2)]);
-    });
-
-    taxRates.SGST.forEach((amount, rate) => {
-      taxSummary.push([`SGST @${rate}%`, amount.toFixed(2)]);
-    });
-
-    taxRates.IGST.forEach((amount, rate) => {
-      taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]);
-    });
-
-    yOffset = doc.autoTable.previous.finalY;
-    taxSummary.push([`Total [Including Tax]`, apinvoice.invoiceAmount?.toFixed(2) || '0']);
-
-    doc.autoTable({
-      head: [['Description', 'Amount']],
-      body: taxSummary,
-      startY: yOffset,
-      theme: 'grid',
-      styles: {
-        fontSize: 8,
-        halign: 'right',
-        cellPadding: 2,
-        lineColor: [0, 0, 0],
-        lineWidth: 0.1,
-        fontStyle: 'bold',
-      },
-      headStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0],
-        fontStyle: 'bold',
-      },
-    });
-
-    doc.text("Declaration:", 10, doc.autoTable.previous.finalY + 35);
-    doc.text("We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.", 10, doc.autoTable.previous.finalY + 40);
-
-    doc.text("Authorized Signatory:", 120, doc.autoTable.previous.finalY + 48);
-    doc.text("_____________________", 120, doc.autoTable.previous.finalY + 60);
-    // Add page numbers to all pages and "This is computer generated" footer
-    const totalPages = doc.getNumberOfPages();
-    const pageHeight = doc.internal.pageSize.height;
-    const pageWidth = doc.internal.pageSize.width;
-    const footerY = pageHeight - 20;
-    const computerGeneratedY = pageHeight - 10;
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      // Center page number
-      const pageText = `Page ${i} of ${totalPages}`;
-      const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
-      const pageX = (pageWidth - pageTextWidth) / 2;
-      doc.text(pageText, pageX, footerY, { align: 'center' });
-      // Center "This is computer generated"
-      const compText = "This is computer generated";
-      const compTextWidth = doc.getStringUnitWidth(compText) * doc.getFontSize() / doc.internal.scaleFactor;
-      const compX = (pageWidth - compTextWidth) / 2;
-      doc.text(compText, compX, computerGeneratedY);
-    }
-
-    doc.save(`${apinvoice.vendorName} ${apinvoice.randomId}.pdf`);
+  yOffset = doc.autoTable.previous.finalY;
+  const taxRates = {
+    CGST: new Map<number, number>(),
+    SGST: new Map<number, number>(),
+    IGST: new Map<number, number>(),
   };
+  apinvoice.itemDetails.forEach((item) => {
+    const taxableAmount = item.unitPrice * item.stockQuantity;
+    if (item.taxType === 'cgst_sgst') {
+      const cgstRate = item.purchasetaxName / 2;
+      const sgstRate = item.purchasetaxName / 2;
+      const cgstAmount = (cgstRate / 100) * taxableAmount;
+      const sgstAmount = (sgstRate / 100) * taxableAmount;
+      taxRates.CGST.set(cgstRate, (taxRates.CGST.get(cgstRate) || 0) + cgstAmount);
+      taxRates.SGST.set(sgstRate, (taxRates.SGST.get(sgstRate) || 0) + sgstAmount);
+    } else if (item.taxType === 'igst') {
+      const igstAmount = (item.purchasetaxName / 100) * taxableAmount;
+      taxRates.IGST.set(item.purchasetaxName, (taxRates.IGST.get(item.purchasetaxName) || 0) + igstAmount);
+    }
+  });
+  const totalWithoutTax = apinvoice.itemDetails.reduce((sum, item) => {
+    return sum + item.unitPrice * item.stockQuantity;
+  }, 0);
+  const taxSummary: [string, string][] = [
+    [`Total Amount`, totalWithoutTax.toFixed(2) || '0'],
+    [`Total Discount`, apinvoice.discountDetails?.toFixed(2) || '0'],
+  ];
+  taxRates.CGST.forEach((amount, rate) => {
+    taxSummary.push([`CGST @${rate}%`, amount.toFixed(2)]);
+  });
+  taxRates.SGST.forEach((amount, rate) => {
+    taxSummary.push([`SGST @${rate}%`, amount.toFixed(2)]);
+  });
+  taxRates.IGST.forEach((amount, rate) => {
+    taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]);
+  });
+  // Add Round off Amount after taxes
+  taxSummary.push([`Round off Amount`, apinvoice.apRoundOff?.toFixed(2) || '0']);
+  // Final Total (including round off if applicable; assuming invoiceAmount already includes it)
+  taxSummary.push([`Total [Including Tax]`, apinvoice.invoiceAmount?.toFixed(2) || '0']);
+  doc.autoTable({
+    head: [['Description', 'Amount']],
+    body: taxSummary,
+    startY: yOffset,
+    theme: 'grid',
+    styles: {
+      fontSize: 8,
+      halign: 'right',
+      cellPadding: 2,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.1,
+      fontStyle: 'bold',
+    },
+    columnStyles: {
+      0: { halign: 'left' }, // Description: left
+      1: { halign: 'right' }, // Amount: right
+    },
+    headStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+    },
+  });
+  yOffset = doc.autoTable.previous.finalY; // Update yOffset after tax table
+  doc.text("Declaration:", 10, yOffset + 35);
+  doc.text("We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.", 10, yOffset + 40);
+  doc.text("Authorized Signatory:", 120, yOffset + 48);
+  doc.text("_____________________", 120, yOffset + 60);
+  // Add page numbers to all pages and "This is computer generated" footer
+  const totalPages = doc.getNumberOfPages();
+  const pageHeight = doc.internal.pageSize.height;
+  const pageWidth = doc.internal.pageSize.width;
+  const footerY = pageHeight - 20;
+  const computerGeneratedY = pageHeight - 10;
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    // Center page number
+    const pageText = `Page ${i} of ${totalPages}`;
+    const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
+    const pageX = (pageWidth - pageTextWidth) / 2;
+    doc.text(pageText, pageX, footerY, { align: 'center' });
+    // Center "This is computer generated"
+    const compText = "This is computer generated";
+    const compTextWidth = doc.getStringUnitWidth(compText) * doc.getFontSize() / doc.internal.scaleFactor;
+    const compX = (pageWidth - compTextWidth) / 2;
+    doc.text(compText, compX, computerGeneratedY);
+  }
+  doc.save(`${apinvoice.vendorName} ${apinvoice.randomId}.pdf`);
+};
   const handleStartDateChange = (value: Date | null) => {
     setStartDate(value); // Update the startDate state with Date or null
   };
-
   // Handler for end date change
   const handleEndDateChange = (value: Date | null) => {
     setEndDate(value); // Update the endDate state with Date or null
@@ -1031,39 +898,31 @@ const VerifiedApInvoicePage: React.FC = () => {
     ? selectedInvoice.itemDetails.reduce((acc: TaxAmounts, item) => {
       const totalPrice = item.totalPrice || 0;
       const taxPercentage = Number(item.purchasetaxName); // Assuming this is the total tax percentage
-
       if (item.taxType === "cgst_sgst") {
         const sgstPercentage = taxPercentage / 2; // Divide for SGST
         const cgstPercentage = taxPercentage / 2; // Divide for CGST
-
         const sgstAmount = (totalPrice * sgstPercentage) / 100;
         const cgstAmount = (totalPrice * cgstPercentage) / 100;
-
         // Accumulate SGST
         acc.sgst[sgstPercentage] = (acc.sgst[sgstPercentage] || 0) + sgstAmount;
         // Accumulate CGST
         acc.cgst[cgstPercentage] = (acc.cgst[cgstPercentage] || 0) + cgstAmount;
-
       } else if (item.taxType === "igst") {
         const igstAmount = (totalPrice * taxPercentage) / 100;
-
         // Accumulate IGST
         acc.igst[taxPercentage] = (acc.igst[taxPercentage] || 0) + igstAmount; // Use taxPercentage as key
       }
-
       return acc;
     }, { sgst: {}, cgst: {}, igst: {} } as TaxAmounts) // Initialize igst as an object
     : { sgst: {}, cgst: {}, igst: {} }; // Initialize igst as an object
-
   // Collect all unique rates
   const uniqueRates = new Set([
     ...Object.keys(taxAmounts.sgst),
     ...Object.keys(taxAmounts.cgst),
     ...Object.keys(taxAmounts.igst), // Collect keys from igst as well
   ]);
-
-  const filterAp = apInvoices;
-
+  // Filter for Verified status only (non-returned)
+  const verifiedApInvoices = useMemo(() => apInvoices.filter(invoice => invoice.status !== 'Returned'), [apInvoices]);
   return (
     <Box>
       <YenPurchasePage />
@@ -1099,7 +958,6 @@ const VerifiedApInvoicePage: React.FC = () => {
             </Button>
           </Link>
         </Box>
-
         {/* Second Row: Search Vendor, Date Range, Filter, Clear, and Download Icons */}
         <Grid container alignItems="center" spacing={1} wrap="nowrap" ml={0.2} sx={{ mb: 0.7 }}>
           {/* Date Range Dialog */}
@@ -1109,7 +967,6 @@ const VerifiedApInvoicePage: React.FC = () => {
               setSelectionRange={setSelectionRange}
             />
           </Grid>
-
           {/* All Vendors Autocomplete */}
           <Grid item xs={2}>
             <VendorSearchAutocomplete
@@ -1118,7 +975,6 @@ const VerifiedApInvoicePage: React.FC = () => {
               label="All Vendors"
             />
           </Grid>
-
           {/* Filter Icon */}
           <Grid item>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -1144,7 +1000,6 @@ const VerifiedApInvoicePage: React.FC = () => {
               </Typography>
             </Box>
           </Grid>
-
           <Grid item>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <IconButton
@@ -1169,17 +1024,15 @@ const VerifiedApInvoicePage: React.FC = () => {
               </Typography>
             </Box>
           </Grid>
-
           {/* Spacer to push Download to the right */}
           <Grid item sx={{ flexGrow: 1 }} />
-
           {/* Download Icon */}
           <Grid item>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <IconButton
                 onClick={handleClick}
                 color="primary"
-                disabled={!filterAp || Object.keys(filterAp).length === 0}
+                disabled={!apInvoices || apInvoices.length === 0}
                 size="small"
                 sx={{ p: 0.3 }}
                 className="icon-button-outline"
@@ -1207,7 +1060,6 @@ const VerifiedApInvoicePage: React.FC = () => {
             <MenuItem onClick={handleItemwiseClick}>Itemwise</MenuItem>
           </Menu>
         </Grid>
-
         <Grid container spacing={1} sx={{ pl: 2 }}>
           <TableContainer
             component={Paper}
@@ -1223,7 +1075,7 @@ const VerifiedApInvoicePage: React.FC = () => {
                   <TableCell>S.No</TableCell>
                       <TableCell>PO ID</TableCell>
                     <TableCell>GRN ID</TableCell>
-                  <TableCell>AP ID</TableCell>              
+                  <TableCell>AP ID</TableCell>
                   <TableCell>Invoice ID</TableCell>
                   <TableCell>Vendor Name</TableCell>
                   <TableCell>Invoice Date</TableCell>
@@ -1233,14 +1085,14 @@ const VerifiedApInvoicePage: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {apInvoices.length === 0 ? (
+                {verifiedApInvoices.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} align="center">
                       No data available
                     </TableCell>
                   </TableRow>
                 ) : (
-                  apInvoices.map((invoice, index) => {
+                  verifiedApInvoices.map((invoice, index) => {
                     const { isDisabled, tooltipTitle } = invoiceCreditNoteStatus[invoice.invoiceId] || {
                       isDisabled: true,
                       tooltipTitle: 'No Debit/Credit Notes Available',
@@ -1296,7 +1148,6 @@ const VerifiedApInvoicePage: React.FC = () => {
               </TableBody>
             </Table>
           </TableContainer>
-
           <Grid item xs={12}>
             <Box sx={{ display: 'flex', justifyContent: 'end', alignItems: 'center', mt: 0.1 }}>
               <IconButton
@@ -1319,7 +1170,6 @@ const VerifiedApInvoicePage: React.FC = () => {
             </Box>
           </Grid>
         </Grid>
-
         <Dialog open={detailsDialogOpen} onClose={handleCloseDetailsDialog} maxWidth={false}
           fullWidth={true}
           fullScreen={isFullScreen}
@@ -1410,7 +1260,6 @@ const VerifiedApInvoicePage: React.FC = () => {
                     sx={{ maxWidth: 200 }}
                   /> */}
                 </Box>
-
                 <TableContainer component={Paper} sx={{ mt: 2 }}>
                   <Table sx={{ '& .MuiTableCell-root': { borderBottom: 'none' } }}>
                     <TableHead>
@@ -1430,97 +1279,84 @@ const VerifiedApInvoicePage: React.FC = () => {
                         <TableCell>Final Price</TableCell>
                       </TableRow>
                     </TableHead>
-                    <TableBody>
-                      {selectedInvoice.itemDetails.map((item, index) => (
-                        <TableRow key={item.itemId} sx={{ '&:not(:last-child)': { borderBottom: 'none' } }}>
-                          <TableCell>{item.itemName}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{item.uom}</TableCell>
-                          <TableCell>{item.returnedQuantity || 0}</TableCell>
-                          <TableCell>{item.nos}</TableCell>
-                          <TableCell>{item.eachQuantity}</TableCell>
-                          <TableCell>{item.stockQuantity}</TableCell>
-                          <TableCell>{item.befTaxDiscount}</TableCell>
-                          <TableCell>{item.afTaxDiscount}</TableCell>
-                          <TableCell>{item.purchasetaxName}</TableCell>
-                          <TableCell>{item.unitPrice}</TableCell>
-                          <TableCell>{item.totalPrice.toFixed(2)}</TableCell>
-                          <TableCell>{item.finalPrice.toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
-                      {/* Discount Input Row */}
-                      {/* <TableRow>
-                        <TableCell colSpan={12} align="right">
-                          <strong>New Discount Price:</strong>
-                        </TableCell>
-                        <TableCell>
-                          <TextField
-                            type="number"
-                            value={apDiscountPrice.toString()}
-                            onChange={handleDiscountChange}
-                            inputProps={{ min: "0", step: "0.01" }}
-                            className="custom-textfield"
-                          />
-                        </TableCell>
-                      </TableRow> */}
-                      {/* Total Discounted Amount */}
-                      <TableRow>
-                        <TableCell colSpan={12} align="right">
-                          <strong>Total Discounted Amount:</strong>
-                        </TableCell>
-                        <TableCell>
-                          {selectedInvoice.discountPrice.toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                      {/* Tax Breakdown */}
-                      {Array.from(uniqueRates).map((rate) => (
-                        <React.Fragment key={rate}>
-                          {taxAmounts.sgst[rate] !== undefined && (
-                            <TableRow>
-                              <TableCell colSpan={11} />
-                              <TableCell>
-                                <strong>{`SGST (${Number(rate)}%):`}</strong>
-                              </TableCell>
-                              <TableCell>{taxAmounts.sgst[rate].toFixed(2)}</TableCell>
-                            </TableRow>
-                          )}
-                          {taxAmounts.cgst[rate] !== undefined && (
-                            <TableRow>
-                              <TableCell colSpan={11} />
-                              <TableCell>
-                                <strong>{`CGST (${Number(rate)}%):`}</strong>
-                              </TableCell>
-                              <TableCell>{taxAmounts.cgst[rate].toFixed(2)}</TableCell>
-                            </TableRow>
-                          )}
-                          {taxAmounts.igst[rate] !== undefined && (
-                            <TableRow>
-                              <TableCell colSpan={11} />
-                              <TableCell>
-                                <strong>{`IGST (${Number(rate)}%):`}</strong>
-                              </TableCell>
-                              <TableCell>{taxAmounts.igst[rate].toFixed(2)}</TableCell>
-                            </TableRow>
-                          )}
-                        </React.Fragment>
-                      ))}
-                      {/* Total Debit Amount */}
-                      <TableRow>
-                        <TableCell colSpan={12} align="right">
-                          <strong>Total Debit Amount:</strong>
-                        </TableCell>
-                        <TableCell>{selectedInvoice.debitAmount?.toFixed(2) ?? '0.00'}</TableCell>
-                      </TableRow>
-                      {/* Total Invoice Amount After Discount */}
-                      <TableRow>
-                        <TableCell colSpan={12} align="right">
-                          <strong>Total Invoice Amount:</strong>
-                        </TableCell>
-                        <TableCell>
-                          {(selectedInvoice.invoiceAmount - (selectedInvoice.discountPrice)).toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
+                 <TableBody>
+  {selectedInvoice.itemDetails.map((item, index) => (
+    <TableRow key={item.itemId} sx={{ '&:not(:last-child)': { borderBottom: 'none' } }}>
+      <TableCell>{item.itemName}</TableCell>
+      <TableCell>{item.quantity}</TableCell>
+      <TableCell>{item.uom}</TableCell>
+      <TableCell>{item.returnedQuantity || 0}</TableCell>
+      <TableCell>{item.nos}</TableCell>
+      <TableCell>{item.eachQuantity}</TableCell>
+      <TableCell>{item.stockQuantity}</TableCell>
+      <TableCell>{item.befTaxDiscount}</TableCell>
+      <TableCell>{item.afTaxDiscount}</TableCell>
+      <TableCell>{item.purchasetaxName}</TableCell>
+      <TableCell>{item.unitPrice}</TableCell>
+      <TableCell>{item.totalPrice.toFixed(2)}</TableCell>
+      <TableCell>{item.finalPrice.toFixed(2)}</TableCell>
+    </TableRow>
+  ))}
+  
+  {/* Tax Breakdown */}
+  {Array.from(uniqueRates).map((rate) => (
+    <React.Fragment key={rate}>
+      {taxAmounts.sgst[rate] !== undefined && (
+        <TableRow>
+          <TableCell colSpan={11} />
+          <TableCell>
+            <strong>{`SGST (${Number(rate)}%):`}</strong>
+          </TableCell>
+          <TableCell>{taxAmounts.sgst[rate].toFixed(2)}</TableCell>
+        </TableRow>
+      )}
+      {taxAmounts.cgst[rate] !== undefined && (
+        <TableRow>
+          <TableCell colSpan={11} />
+          <TableCell>
+            <strong>{`CGST (${Number(rate)}%):`}</strong>
+          </TableCell>
+          <TableCell>{taxAmounts.cgst[rate].toFixed(2)}</TableCell>
+        </TableRow>
+      )}
+      {taxAmounts.igst[rate] !== undefined && (
+        <TableRow>
+          <TableCell colSpan={11} />
+          <TableCell>
+            <strong>{`IGST (${Number(rate)}%):`}</strong>
+          </TableCell>
+          <TableCell>{taxAmounts.igst[rate].toFixed(2)}</TableCell>
+        </TableRow>
+      )}
+    </React.Fragment>
+  ))}
+  
+  {/* Round off Amount */}
+  <TableRow>
+    <TableCell colSpan={12} align="right">
+      <strong>Round off Amount:</strong>
+    </TableCell>
+    <TableCell>{selectedInvoice.apRoundOff?.toFixed(2) ?? '0.00'}</TableCell>
+  </TableRow>
+  
+  {/* Total Debit Amount */}
+  <TableRow>
+    <TableCell colSpan={12} align="right">
+      <strong>Total Debit Amount:</strong>
+    </TableCell>
+    <TableCell>{selectedInvoice.debitAmount?.toFixed(2) ?? '0.00'}</TableCell>
+  </TableRow>
+  
+  {/* Total Invoice Amount After Discount */}
+  <TableRow>
+    <TableCell colSpan={12} align="right">
+      <strong>Total Invoice Amount:</strong>
+    </TableCell>
+    <TableCell>
+      {(selectedInvoice.invoiceAmount - (selectedInvoice.discountPrice || 0)).toFixed(2)}
+    </TableCell>
+  </TableRow>
+</TableBody>
                   </Table>
                 </TableContainer>
               </Box>
@@ -1537,8 +1373,8 @@ const VerifiedApInvoicePage: React.FC = () => {
               disabled={selectedInvoice?.status === 'Outgoing Posted'} // Disable if already posted
             >
               Post Outgoing Payment
-            </Button>   */}
-             <Button variant="contained" onClick={handleCloseDetailsDialog}>Close</Button> 
+            </Button> */}
+             <Button variant="contained" onClick={handleCloseDetailsDialog}>Close</Button>
           </DialogActions>
         </Dialog>
         {/* Snackbar for notifications */}
@@ -1548,7 +1384,6 @@ const VerifiedApInvoicePage: React.FC = () => {
           onClose={() => dispatch(clearSnackbarMessage())}
           message={snackbarMessage}
         />
-
         {/* Return AP Invoice Confirmation Dialog */}
         <Dialog open={returnDialogOpen} onClose={() => setReturnDialogOpen(false)}>
           <DialogTitle>Return AP Invoice</DialogTitle>
@@ -1564,7 +1399,6 @@ const VerifiedApInvoicePage: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
-
         <Backdrop
           sx={{
             color: '#fff',
@@ -1595,7 +1429,6 @@ const VerifiedApInvoicePage: React.FC = () => {
             >
               Download CSV
             </Button>
-
             {/* Button to generate PDF */}
             <Button
               onClick={generateInvoicePDF}
@@ -1631,7 +1464,6 @@ const VerifiedApInvoicePage: React.FC = () => {
             >
               Export Excel
             </Button>
-
             {/* Generate PDF Button */}
             <Button
               onClick={generatePendingInvoiceSummaryPDF}
@@ -1641,7 +1473,6 @@ const VerifiedApInvoicePage: React.FC = () => {
             >
               Generate PDF
             </Button>
-
             {/* Cancel Button */}
             <Button variant='outlined' onClick={handleClose}>
               Cancel
@@ -1655,10 +1486,8 @@ const VerifiedApInvoicePage: React.FC = () => {
           autoHideDuration={3000}
           onClose={() => dispatch(clearSnackbarMessage())} // Manually close the snackbar when clicked
         />
-
       </Box>
     </Box>
   );
 };
-
 export default React.memo(VerifiedApInvoicePage);

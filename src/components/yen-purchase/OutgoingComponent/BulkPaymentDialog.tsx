@@ -15,6 +15,7 @@ import {
   selectOutgoings,
   fetchOutgoings,
   clearAdvances,
+  fetchBank,
 } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import { fetchActiveAdvancesMultipleVendor, selectAdvances } from '@/features/yen-purchase/Outgoing/advancePaymentSlice';
@@ -564,11 +565,20 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         (outgoing) => outgoing.outgoingId as string
       );
 
+      // FIXED: Normalize paymentDate to noon local time to prevent UTC serialization shift
+      const normalizedPaymentDate = new Date(paymentDetails.paymentDate);
+      normalizedPaymentDate.setHours(12, 0, 0, 0);  // Set to noon local to ensure correct date in UTC
+
+      // Debug log (remove in prod)
+      console.log('Bulk - Local paymentDate:', paymentDetails.paymentDate.toLocaleDateString());
+      console.log('Bulk - Normalized paymentDate:', normalizedPaymentDate.toLocaleDateString());
+      console.log('Bulk - Serialized paymentDate (ISO):', normalizedPaymentDate.toISOString());
+
       // Use Date object directly (thunk will serialize to string)
       const bulkPaymentRequest: BulkPaymentRequest = {
         payments,
         outgoingIds,
-        paymentDate: paymentDetails.paymentDate,  // Pass Date object
+        paymentDate: normalizedPaymentDate,  // Use normalized date
       };
 
       const result = await dispatch(processBulkPayment(bulkPaymentRequest)).unwrap();

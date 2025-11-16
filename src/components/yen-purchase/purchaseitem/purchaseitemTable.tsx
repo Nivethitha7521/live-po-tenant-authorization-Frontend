@@ -37,8 +37,8 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
         <TableHead>
           <TableRow>
             <TableCell className='table-number-right'>S.No</TableCell>
-            <TableCell className='table-number-right'>Item Code</TableCell>
-            <TableCell>Item ID</TableCell>
+            <TableCell className='table-number-right'>SAP Code</TableCell>
+            <TableCell>Item Code</TableCell>
             <TableCell>Item Name</TableCell>
             <TableCell>Category</TableCell>
             <TableCell>SubCategory</TableCell>

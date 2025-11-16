@@ -14,7 +14,7 @@ export interface ItemUpdate {
 }
 const BASE_URL = 'https://yenerp.com/purchaseapi';
 const customRoundOf = (value: number) => {
-  return Math.round(value * 100) / 100; // Round to two decimal placeshttp://192.168.29.116:8000
+  return Math.round(value * 100) / 100; // Round to two decimal placeshttp://10.112.139.136:8000
 };
 
 export const fetchGrns = createAsyncThunk<FetchGrnsPayload, FetchGrnsArgs>(
@@ -180,18 +180,19 @@ export const updateGrnStatus = createAsyncThunk(
 // };
 
 
+// In your grnSlice.ts
 export const updateItemDetails = createAsyncThunk(
   'grn/updateItemDetails',
   async (
     {
       grnId,
-      discountPrice,
+      apRoundOff, // REPLACED discountPrice with apRoundOff
       itemUpdates,
       apInvoiceDate,
       outgoingDate,
     }: {
       grnId: string;
-      discountPrice: number;
+      apRoundOff: number; // CHANGED from discountPrice to apRoundOff
       itemUpdates: ItemUpdate[];
       apInvoiceDate?: string;
       outgoingDate?: string;
@@ -200,7 +201,7 @@ export const updateItemDetails = createAsyncThunk(
   ) => {
     try {
       const url = new URL(`${BASE_URL}/grns/convert-to-ap/ap-to-outgoing/${grnId}`);
-      url.searchParams.append('discountPrice', discountPrice.toString());
+      url.searchParams.append('apRoundOff', apRoundOff.toString()); // CHANGED parameter name
       if (apInvoiceDate) {
         url.searchParams.append('apInvoiceDate', apInvoiceDate);
       }
@@ -213,13 +214,15 @@ export const updateItemDetails = createAsyncThunk(
       return {
         grnId,
         itemUpdates: response.data.updatedItems,
-        discountPrice,
+        apRoundOff, // CHANGED from discountPrice to apRoundOff
         success: true,
         apInvoiceConverted: response.data.apInvoiceConverted,
         apInvoiceDetails: response.data.apInvoiceDetails,
         outgoingConverted: response.data.outgoingConverted,
         outgoingDetails: response.data.outgoingDetails,
-        totalReceivedAmount: response.data.totalReceivedAmount,
+        grnTotalReceivedAmount: response.data.grnTotalReceivedAmount, // NEW
+        apInvoiceAmount: response.data.apInvoiceAmount, // NEW
+        apRoundOffApplied: response.data.apRoundOffApplied, // NEW
         totalDiscount: response.data.totalDiscount,
         totalTax: response.data.totalTax,
         grnStatus: response.data.grnStatus,
@@ -238,7 +241,7 @@ export const fetchGrnsWithItemStatus = createAsyncThunk<
   'grn/fetchGrnsWithItemStatus',
   async (status, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/api/grns/items/status/${status}`);
+      const response = await axios.get(`${BASE_URL}/grns/items/status/${status}`);
       return response.data;
     } catch (error) {
       return rejectWithValue('Failed to fetch GRNs with the specified item status.');
@@ -511,25 +514,27 @@ export const grnSlice = createSlice({
           state.grns[index] = action.payload;
         }
       })
+      // In your extraReducers
       .addCase(updateItemDetails.pending, (state) => {
         state.error = null;
         state.loading = true;
       })
       .addCase(updateItemDetails.fulfilled, (state, action) => {
-        const { grnId, itemUpdates, discountPrice } = action.payload;
+        const { grnId, itemUpdates, apRoundOff } = action.payload;
 
         // Find and update the specific GRN
         const grn = state.grns.find(grn => grn.grnId === grnId);
         if (grn) {
           grn.itemDetails = itemUpdates; // Update item details
-          grn.discountPrice = discountPrice; // Update discount price in the GRN
+          grn.apRoundOff = apRoundOff; // Update AP round off in the GRN
         }
         state.loading = false;
       })
       .addCase(updateItemDetails.rejected, (state, action) => {
-        state.error = null; // Set error message from API
+        state.error = action.payload as string; // Set error message from API
         state.loading = false;
       })
+  
       .addCase(fetchRandomNumbers.pending, (state) => {
         state.error = null;
       })
@@ -600,7 +605,7 @@ export const grnSlice = createSlice({
 
         state.error = action.payload as string;
       })
-   
+
       .addCase(fetchItemwiseGrns.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -636,20 +641,20 @@ export const grnSlice = createSlice({
         state.updateStatus = 'failed'; // Set failed status
       })
       .addCase(fetchDebitCreditNotesByGrn.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    })
-    .addCase(fetchDebitCreditNotesByGrn.fulfilled, (state, action: PayloadAction<DebitCreditNote[]>) => {
-      state.loading = false;
-      state.debitCreditNotes = action.payload;
-      console.log('Updated debitCreditNotes:', action.payload); // Debug log
-    })
-    .addCase(fetchDebitCreditNotesByGrn.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-      state.snackbarMessageGRN = action.payload as string || 'Failed to fetch DebitCreditNotes';
-      state.snackbarOpenGRN = true;
-    })
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchDebitCreditNotesByGrn.fulfilled, (state, action: PayloadAction<DebitCreditNote[]>) => {
+        state.loading = false;
+        state.debitCreditNotes = action.payload;
+        console.log('Updated debitCreditNotes:', action.payload); // Debug log
+      })
+      .addCase(fetchDebitCreditNotesByGrn.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+        state.snackbarMessageGRN = action.payload as string || 'Failed to fetch DebitCreditNotes';
+        state.snackbarOpenGRN = true;
+      })
 
       .addCase(fetchReturnReasons.fulfilled, (state, action: PayloadAction<ReturnReason[]>) => {
         state.loading = false;
@@ -660,7 +665,7 @@ export const grnSlice = createSlice({
         state.snackbarMessageGRN = action.payload as string || 'Failed to fetch return reasons';
         state.snackbarOpenGRN = true;
       })
-     .addCase(addReturnReason.fulfilled, (state, action: PayloadAction<ReturnReason>) => {
+      .addCase(addReturnReason.fulfilled, (state, action: PayloadAction<ReturnReason>) => {
         state.returnReasons.push(action.payload);
       })
       .addCase(addReturnReason.rejected, (state, action) => {

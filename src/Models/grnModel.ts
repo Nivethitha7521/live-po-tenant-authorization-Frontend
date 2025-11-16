@@ -85,6 +85,8 @@ export interface GrnData {
   totalReturnedTax?: number; // Added
   totalReturnedDiscount?: number; // Added
   hasDebitCreditNotes: boolean; // Ensure this field is present
+  apRoundOff:number;
+  grnRoundOffAmount:number;
 }
 
 export interface TaxDetails {
