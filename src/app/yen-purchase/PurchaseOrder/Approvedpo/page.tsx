@@ -82,6 +82,7 @@ import { isValid } from "date-fns";
 import SaveIcon from '@mui/icons-material/Save';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { ExportProps, ItemWithCalculations, OverallDiscountResponse, OverallDiscountResponseItem, PurchaseOrderWithItems } from "../Models/Itemcalculation";
+import ItemSearchAutocomplete from "../Component/ItemSearch";
 const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
   if (!dateStr) return null;
   const localStr = dateStr.split('T')[0];
@@ -307,6 +308,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
 }) => {
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
@@ -910,14 +912,13 @@ const CreatePurchase: React.FC = () => {
   const [dialogExcessMessage, setExcessDialogMessage] = useState("");
   const [touched, setTouched] = useState<Record<number, Record<string, boolean>>>({});
   const [errors, setErrors] = useState<Record<number, Record<string, string>> & { roundOff?: string }>({});
-  const [allItems, setAllItems] = useState<PurchaseItemSearch[]>([]);
   const [newItem, setNewItem] = useState<PurchaseItemSearch | null>(null);
   const [open, setOpen] = useState(false);
   const [skip, setSkip] = useState(0);
   const [limit] = useState(50);
   const [isFetchingItems, setIsFetchingItems] = useState(false);
   const { imageUrls } = useSelector(selectPurchaseListState);
-  const [isFullScreen, setIsFullScreen] = useState(false);
+const [selectedItem, setSelectedItem] = useState<PurchaseItemSearch | null>(null);
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
   const handleCloseDialogs = useCallback(() => {
     setOpenDialog(false);
@@ -1130,6 +1131,7 @@ const calculatedItems = useMemo(() => {
         dateField: "approvedDate",
       })
     );
+
   }, [dispatch, currentPage, pageSize]);
   useEffect(() => {
     if (invoiceNumber && selectedOrder?.vendorName) {
@@ -1560,7 +1562,12 @@ const calculatedItems = useMemo(() => {
     setSnackbarInvoiceOpen,
     setIsTouched,
   ]);
-  const filteredOrders = useMemo(() => purchaseList.filter((order) => order.poStatus === "Approved" || order.poStatus === "PartiallyReceived"), [purchaseList]);
+const filteredOrders = useMemo(() => 
+  purchaseList.filter((order) => 
+    (order.poStatus === "Approved" || order.poStatus === "PartiallyReceived") &&
+    // Only show orders that have at least one item with pending quantity
+    order.items.some(item => (item.pendingTotalQuantity || 0) > 0)
+  ), [purchaseList]);
   console.log(filteredOrders);
   const handleViewDetailsClick = (orderId: string) => {
     const rawOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
@@ -1939,333 +1946,380 @@ const calculatedItems = useMemo(() => {
     },
     [purchaseList, businesses]
   );
-  const handleExportAllVendorsPDF = useCallback(
-    ({ filteredOrders, businesses, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen }: ExportProps) => {
-      const doc = new jsPDF();
-      let yOffset = 7;
-      let pageCount = 1;
-      const business = businesses && businesses.length > 0 ? businesses[0] : null;
-      if (!business) {
-        setSnackbarInvoiceMessage("Business information not found!");
-        setSnackbarInvoiceOpen(true);
-        return;
-      }
-      const filtered: PurchaseOrderData[] = filteredOrders.filter((order) => order.poStatus === "Approved");
-      if (filtered.length === 0) {
-        setSnackbarInvoiceMessage("No approved orders found.");
-        setSnackbarInvoiceOpen(true);
-        return;
-      }
-      const addPageFooter = (currentPage: number, totalPages: number) => {
-        const pageWidth = doc.internal.pageSize.width;
-        doc.setFontSize(8);
-        doc.setTextColor(0, 0, 0);
-        doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-      };
-      if (business.imageUrl) {
-        try {
-          doc.addImage(business.imageUrl, "JPEG", 14, yOffset, 20, 20);
-        } catch (e) {
-          console.error("Failed to load business logo:", e);
-          setSnackbarInvoiceMessage("Failed to load business logo.");
-          setSnackbarInvoiceOpen(true);
-        }
-      }
-      yOffset += 7;
-      doc.setFontSize(12);
-      const title = "Purchase Order Summary for All Vendors";
-      const pageWidth = doc.internal.pageSize.width;
-      const fontSize = doc.getFontSize();
-      const titleWidth = doc.getStringUnitWidth(title) * fontSize / doc.internal.scaleFactor;
-      const titleX = (pageWidth - titleWidth) / 2;
-      doc.text(title, titleX, yOffset);
-      doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2);
-      yOffset += 13;
-      const totalOrderedAmount = filtered.reduce((sum, order) => {
-        const pendingOrderAmount = order.pendingOrderAmount || 0;
-        return sum + pendingOrderAmount;
-      }, 0);
-      const today = new Date();
-      const currentDate = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")
-        }/${today.getFullYear()}`;
-      doc.setFontSize(10);
-      const totalText = `Total Ordered Amount: ${totalOrderedAmount.toFixed(2)}`;
-      const dateText = `Date: ${currentDate}`;
-      const totalWidth = doc.getStringUnitWidth(totalText) * 10 / doc.internal.scaleFactor;
-      const dateWidth = doc.getStringUnitWidth(dateText) * 10 / doc.internal.scaleFactor;
-      doc.text(totalText, 14, yOffset);
-      doc.text(dateText, pageWidth - dateWidth - 14, yOffset);
-      yOffset += 5;
-      const headers = [["S.No", "PoId", "Vendor Name", "Total Items", "Ordered Date", "Total Order Amount"]];
-      const rows = filtered
-        .map((order, index) => {
-          const totalItemsQuantity =
-            Array.isArray(order.items) && order.items.length > 0
-              ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
-              : 0;
-          const pendingOrderAmount = order.pendingOrderAmount || 0;
-          const pendingDiscountAmount = order.totalDiscount || 0;
-          const finalAmount = pendingOrderAmount - pendingDiscountAmount;
-          if (!order.randomId || !order.vendorName || !order.orderDate || pendingOrderAmount <= 0) {
-            return null;
-          }
-          return [
-            (index + 1).toString(),
-            order.randomId.toString(),
-            order.vendorName.toString(),
-            totalItemsQuantity.toString(),
-            order.orderDate ? format(new Date(order.orderDate), "dd-MM-yyyy") : "",
-            finalAmount.toFixed(2).toString(),
-          ];
-        })
-        .filter((row): row is string[] => row !== null);
-      doc.autoTable({
-        head: headers,
-        body: rows,
-        startY: yOffset,
-        styles: {
-          fillColor: [255, 255, 255],
-          textColor: [0, 0, 0],
-          lineColor: [0, 0, 0],
-          fontSize: 8,
-          cellPadding: 2,
-        },
-        headStyles: {
-          fillColor: [0, 0, 128],
-          textColor: [255, 255, 255],
-          fontSize: 8,
-          halign: "center",
-        },
-        bodyStyles: {
-          fillColor: [255, 255, 255],
-          textColor: [0, 0, 0],
-        },
-        columnStyles: {
-          0: { cellWidth: 17, halign: "center" },
-          1: { cellWidth: 28, halign: "center" },
-          2: { cellWidth: 46, halign: "center" },
-          3: { cellWidth: 28, halign: "right" },
-          4: { cellWidth: 28, halign: "center" },
-          5: { cellWidth: 35, halign: "right" },
-        },
-        margin: { left: 14, right: 14 },
-        tableWidth: 182,
-        didDrawPage: (data: { pageCount: number }) => {
-          addPageFooter(pageCount++, doc.getNumberOfPages());
-        },
-      });
-      const totalPages = doc.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        addPageFooter(i, totalPages);
-        // Add "This is computer generated" note at the bottom of every page, centered
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0); // Black color for the note
-        const computerGeneratedText = "This is computer generated";
-        doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 25, { align: 'center' });
-      }
-      const pdfFilename = `ApprovedPOVendors.pdf`;
-      doc.save(pdfFilename);
-    },
-    [filteredOrders, businesses, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen]
-  );
-  const handleExportAllVendorsCSV = useCallback(
-    ({ filteredOrders, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen }: ExportProps) => {
-      const filtered: PurchaseOrderData[] = filteredOrders.filter((order) => order.poStatus === "Approved");
-      if (filtered.length === 0) {
-        setSnackbarInvoiceMessage("No approved orders found.");
-        setSnackbarInvoiceOpen(true);
-        return;
-      }
-      const headers = ["S.No", "PoId", "Vendor Name", "Total Items", "Ordered Date", "Total Order Amount"];
-      const rows = filtered
-        .map((order, index) => {
-          const totalItemsQuantity =
-            Array.isArray(order.items) && order.items.length > 0
-              ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
-              : 0;
-          const pendingOrderAmount = order.pendingOrderAmount || 0;
-          const pendingDiscountAmount = order.totalDiscount || 0;
-          const finalAmount = pendingOrderAmount - pendingDiscountAmount;
-          if (!order.randomId || !order.vendorName || !order.orderDate || pendingOrderAmount <= 0) {
-            return null;
-          }
-          return [
-            index + 1,
-            order.randomId,
-            order.vendorName,
-            totalItemsQuantity,
-            order.orderDate ? format(new Date(order.orderDate), "dd-MM-yyyy") : "",
-            finalAmount.toFixed(2),
-          ];
-        })
-        .filter((row): row is (string | number)[] => row !== null);
-      const csvData = [headers, ...rows];
-      const csv = Papa.unparse(csvData);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute("download", `ApprovedPOVendors.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    },
-    [filteredOrders, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen]
-  );
-  useEffect(() => {
-    filteredOrders.forEach(order => {
-      const orderId = order.purchaseOrderId;
-      // Only fetch if we haven't already fetched images for this order
-      if (!fetchedPurchaseOrderIds.has(orderId)) {
-        // Fetch all images for this purchase order
-        dispatch(fetchAllImages(orderId))
-          .unwrap()
-          .then(() => {
-            // Mark this order as fetched
-            setFetchedPurchaseOrderIds(prev => new Set(prev).add(orderId));
-          })
-          .catch((error: any) => {
-            console.error('Failed to fetch images for order:', orderId, error);
-          });
-      }
-    });
-  }, [filteredOrders, dispatch, fetchedPurchaseOrderIds]);
-  const handleExportItemwisePDF = useCallback(() => {
+const handleExportAllVendorsPDF = useCallback(
+  ({ filteredOrders, businesses, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen }: ExportProps) => {
     const doc = new jsPDF();
-    let yOffset = 5;
-    let totalPages = 1;
-    const business = businesses[0];
-    if (business?.imageUrl) {
-      doc.addImage(business.imageUrl, "JPEG", 14, yOffset, 20, 20);
+    let yOffset = 7;
+    let pageCount = 1;
+    const business = businesses && businesses.length > 0 ? businesses[0] : null;
+    
+    if (!business) {
+      setSnackbarInvoiceMessage("Business information not found!");
+      setSnackbarInvoiceOpen(true);
+      return;
     }
+
+    // UPDATED: Filter for both Approved and PartiallyReceived statuses
+    const filtered: PurchaseOrderData[] = filteredOrders.filter((order) => 
+      order.poStatus === "Approved" || order.poStatus === "PartiallyReceived"
+    );
+
+    if (filtered.length === 0) {
+      setSnackbarInvoiceMessage("No approved or partially received orders found.");
+      setSnackbarInvoiceOpen(true);
+      return;
+    }
+
+    const addPageFooter = (currentPage: number, totalPages: number) => {
+      const pageWidth = doc.internal.pageSize.width;
+      doc.setFontSize(8);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    };
+
+    if (business.imageUrl) {
+      try {
+        doc.addImage(business.imageUrl, "JPEG", 14, yOffset, 20, 20);
+      } catch (e) {
+        console.error("Failed to load business logo:", e);
+        setSnackbarInvoiceMessage("Failed to load business logo.");
+        setSnackbarInvoiceOpen(true);
+      }
+    }
+
     yOffset += 7;
     doc.setFontSize(12);
-    const title = "Approved Purchase Order Detailed Summary";
+    
+    // UPDATED: Title to reflect both statuses
+    const title = "Purchase Order Summary - Approved & Partially Received";
     const pageWidth = doc.internal.pageSize.width;
-    const titleWidth = doc.getStringUnitWidth(title) * 12 / doc.internal.scaleFactor;
-    doc.text(title, (pageWidth - titleWidth) / 2, yOffset);
-    doc.line((pageWidth - titleWidth) / 2, yOffset + 2, (pageWidth + titleWidth) / 2, yOffset + 2);
-    yOffset += 15;
-    const totalOrderedAmount = filteredOrders.reduce((sum, order) => sum + (order.pendingOrderAmount || 0), 0);
+    const fontSize = doc.getFontSize();
+    const titleWidth = doc.getStringUnitWidth(title) * fontSize / doc.internal.scaleFactor;
+    const titleX = (pageWidth - titleWidth) / 2;
+    doc.text(title, titleX, yOffset);
+    doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2);
+    yOffset += 13;
+
+    const totalOrderedAmount = filtered.reduce((sum, order) => {
+      const pendingOrderAmount = order.pendingOrderAmount || 0;
+      return sum + pendingOrderAmount;
+    }, 0);
+
     const today = new Date();
-    const currentDate = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")}/${today.getFullYear()}`;
+    const currentDate = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")
+      }/${today.getFullYear()}`;
+
     doc.setFontSize(10);
-    doc.text(`Total Ordered Amount: ${totalOrderedAmount.toFixed(2)}`, 14, yOffset);
-    doc.text(`Date: ${currentDate}`, pageWidth - 50, yOffset);
-    yOffset += 10;
-    const headers = [
-      ["S.No", "Purchase Order No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Final Price"],
-    ];
-    const rows = filteredOrders
-      .map((order, index) =>
-        order.items
-          .filter((item) => item.status !== "Received")
-          .map((item) => {
-            const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
-            const totalPrice = (item.pendingTotalQuantity || 0) * unitPrice;
-            const discountAmount = item.totalDiscount || 0;
-            const taxAmount = ((item.taxPercentage || 0) / 100) * (totalPrice - discountAmount);
-            const finalPrice = totalPrice - discountAmount + taxAmount;
-            return [
-              (index + 1).toString(),
-              order.randomId || "",
-              order.vendorName || "",
-              item.itemName || "",
-              (item.pendingTotalQuantity || 0).toString(),
-              unitPrice.toFixed(2),
-              `${item.taxPercentage || 0}%`,
-              discountAmount.toFixed(2),
-              finalPrice.toFixed(2),
-            ];
-          })
-      )
-      .flat();
+    const totalText = `Total Ordered Amount: ${totalOrderedAmount.toFixed(2)}`;
+    const dateText = `Date: ${currentDate}`;
+    const totalWidth = doc.getStringUnitWidth(totalText) * 10 / doc.internal.scaleFactor;
+    const dateWidth = doc.getStringUnitWidth(dateText) * 10 / doc.internal.scaleFactor;
+    doc.text(totalText, 14, yOffset);
+    doc.text(dateText, pageWidth - dateWidth - 14, yOffset);
+    yOffset += 5;
+
+    // UPDATED: Added Status column
+    const headers = [["S.No", "PoId", "Vendor Name", "Status", "Total Items", "Ordered Date", "Total Order Amount"]];
+    
+    const rows = filtered
+      .map((order, index) => {
+        const totalItemsQuantity =
+          Array.isArray(order.items) && order.items.length > 0
+            ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
+            : 0;
+        const pendingOrderAmount = order.pendingOrderAmount || 0;
+        const pendingDiscountAmount = order.totalDiscount || 0;
+        const finalAmount = pendingOrderAmount - pendingDiscountAmount;
+
+        if (!order.randomId || !order.vendorName || !order.orderDate || pendingOrderAmount <= 0) {
+          return null;
+        }
+
+        return [
+          (index + 1).toString(),
+          order.randomId.toString(),
+          order.vendorName.toString(),
+          order.poStatus || "", // NEW: Status column
+          totalItemsQuantity.toString(),
+          order.orderDate ? format(new Date(order.orderDate), "dd-MM-yyyy") : "",
+          finalAmount.toFixed(2).toString(),
+        ];
+      })
+      .filter((row): row is string[] => row !== null);
+
     doc.autoTable({
       head: headers,
       body: rows,
       startY: yOffset,
-      theme: "grid",
-      styles: { fontSize: 8, halign: "center", cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1 },
-      headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], fontStyle: "bold" },
-      bodyStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0] },
-      columnStyles: {
-        0: { halign: "center" },
-        4: { halign: "right" },
-        5: { halign: "right" },
-        6: { halign: "right" },
-        7: { halign: "right" },
-        8: { halign: "right" },
+      styles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        fontSize: 8,
+        cellPadding: 2,
       },
-      margin: { bottom: 15 },
+      headStyles: {
+        fillColor: [0, 0, 128],
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        halign: "center",
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+      },
+      columnStyles: {
+        0: { cellWidth: 15, halign: "center" },
+        1: { cellWidth: 25, halign: "center" },
+        2: { cellWidth: 40, halign: "center" },
+        3: { cellWidth: 25, halign: "center" }, // NEW: Status column style
+        4: { cellWidth: 25, halign: "right" },
+        5: { cellWidth: 25, halign: "center" },
+        6: { cellWidth: 30, halign: "right" },
+      },
+      margin: { left: 14, right: 14 },
+      tableWidth: 185,
       didDrawPage: (data: { pageCount: number }) => {
-        totalPages = data.pageCount;
-        doc.setPage(data.pageCount);
-        doc.setFontSize(8);
-        doc.text(
-          `Page ${data.pageCount} of ${totalPages}`,
-          doc.internal.pageSize.width / 2,
-          doc.internal.pageSize.height - 10,
-          { align: "center" }
-        );
-        // Add "This is computer generated" note at the bottom of every page, centered
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0); // Black color for the note
-        const computerGeneratedText = "This is computer generated";
-        doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 25, { align: 'center' });
+        addPageFooter(pageCount++, doc.getNumberOfPages());
       },
     });
-    doc.save("ApprovedPOItemwise.pdf");
-    setDialogSummaryOpen(false);
-  }, [businesses, filteredOrders]);
-  const handleExportItemwiseCSV = useCallback(() => {
-    const headers = [
-      "S.No",
-      "Purchase Order No",
-      "Vendor Name",
-      "Item Name",
-      "Quantity",
-      "Price",
-      "Tax",
-      "Discount",
-      "Final Price",
-    ];
-    const rows = filteredOrders
-      .map((order, index) =>
-        order.items
-          .filter((item) => item.status !== "Received")
-          .map((item) => {
-            const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
-            const totalPrice = (item.pendingTotalQuantity || 0) * unitPrice;
-            const discountAmount = item.totalDiscount || 0;
-            const taxAmount = ((item.taxPercentage || 0) / 100) * (totalPrice - discountAmount);
-            const finalPrice = totalPrice - discountAmount + taxAmount;
-            return [
-              index + 1,
-              order.randomId || "",
-              order.vendorName || "",
-              item.itemName || "",
-              item.pendingTotalQuantity || 0,
-              unitPrice.toFixed(2),
-              `${item.taxPercentage || 0}%`,
-              discountAmount.toFixed(2),
-              finalPrice.toFixed(2),
-            ];
-          })
-      )
-      .flat();
+
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      addPageFooter(i, totalPages);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      const computerGeneratedText = "This is computer generated";
+      doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 25, { align: 'center' });
+    }
+
+    const pdfFilename = `ApprovedAndPartiallyReceivedPOVendors.pdf`;
+    doc.save(pdfFilename);
+  },
+  [filteredOrders, businesses, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen]
+);
+  
+const handleExportAllVendorsCSV = useCallback(
+  ({ filteredOrders, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen }: ExportProps) => {
+    // UPDATED: Filter for both statuses
+    const filtered: PurchaseOrderData[] = filteredOrders.filter((order) => 
+      order.poStatus === "Approved" || order.poStatus === "PartiallyReceived"
+    );
+
+    if (filtered.length === 0) {
+      setSnackbarInvoiceMessage("No approved or partially received orders found.");
+      setSnackbarInvoiceOpen(true);
+      return;
+    }
+
+    // UPDATED: Added Status column
+    const headers = ["S.No", "PoId", "Vendor Name", "Status", "Total Items", "Ordered Date", "Total Order Amount"];
+    
+    const rows = filtered
+      .map((order, index) => {
+        const totalItemsQuantity =
+          Array.isArray(order.items) && order.items.length > 0
+            ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
+            : 0;
+        const pendingOrderAmount = order.pendingOrderAmount || 0;
+        const pendingDiscountAmount = order.totalDiscount || 0;
+        const finalAmount = pendingOrderAmount - pendingDiscountAmount;
+
+        if (!order.randomId || !order.vendorName || !order.orderDate || pendingOrderAmount <= 0) {
+          return null;
+        }
+
+        return [
+          index + 1,
+          order.randomId,
+          order.vendorName,
+          order.poStatus || "", // NEW: Status column
+          totalItemsQuantity,
+          order.orderDate ? format(new Date(order.orderDate), "dd-MM-yyyy") : "",
+          finalAmount.toFixed(2),
+        ];
+      })
+      .filter((row): row is (string | number)[] => row !== null);
+
     const csvData = [headers, ...rows];
     const csv = Papa.unparse(csvData);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", "ApprovedPOItemwise.csv");
+    link.setAttribute("download", `ApprovedAndPartiallyReceivedPOVendors.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setDialogSummaryOpen(false);
-  }, [filteredOrders]);
+  },
+  [filteredOrders, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen]
+);
+
+const handleExportItemwisePDF = useCallback(() => {
+  const doc = new jsPDF();
+  let yOffset = 5;
+  let totalPages = 1;
+  const business = businesses[0];
+  
+  // UPDATED: Filter for both statuses
+  const filtered = filteredOrders.filter(order => 
+    order.poStatus === "Approved" || order.poStatus === "PartiallyReceived"
+  );
+
+  if (business?.imageUrl) {
+    doc.addImage(business.imageUrl, "JPEG", 14, yOffset, 20, 20);
+  }
+  
+  yOffset += 7;
+  doc.setFontSize(12);
+  
+  // UPDATED: Title to reflect both statuses
+  const title = "Approved & Partially Received Purchase Order Detailed Summary";
+  const pageWidth = doc.internal.pageSize.width;
+  const titleWidth = doc.getStringUnitWidth(title) * 12 / doc.internal.scaleFactor;
+  doc.text(title, (pageWidth - titleWidth) / 2, yOffset);
+  doc.line((pageWidth - titleWidth) / 2, yOffset + 2, (pageWidth + titleWidth) / 2, yOffset + 2);
+  yOffset += 15;
+
+  const totalOrderedAmount = filtered.reduce((sum, order) => sum + (order.pendingOrderAmount || 0), 0);
+  const today = new Date();
+  const currentDate = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")}/${today.getFullYear()}`;
+  
+  doc.setFontSize(10);
+  doc.text(`Total Ordered Amount: ${totalOrderedAmount.toFixed(2)}`, 14, yOffset);
+  doc.text(`Date: ${currentDate}`, pageWidth - 50, yOffset);
+  yOffset += 10;
+
+  // UPDATED: Added Status column
+  const headers = [
+    ["S.No", "Purchase Order No", "Vendor Name", "Status", "Item Name", "Quantity", "Price", "Tax", "Discount", "Final Price"],
+  ];
+  
+  const rows = filtered
+    .map((order, index) =>
+      order.items
+        .filter((item) => item.status !== "Received")
+        .map((item) => {
+          const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
+          const totalPrice = (item.pendingTotalQuantity || 0) * unitPrice;
+          const discountAmount = item.totalDiscount || 0;
+          const taxAmount = ((item.taxPercentage || 0) / 100) * (totalPrice - discountAmount);
+          const finalPrice = totalPrice - discountAmount + taxAmount;
+          
+          return [
+            (index + 1).toString(),
+            order.randomId || "",
+            order.vendorName || "",
+            order.poStatus || "", // NEW: Status column
+            item.itemName || "",
+            (item.pendingTotalQuantity || 0).toString(),
+            unitPrice.toFixed(2),
+            `${item.taxPercentage || 0}%`,
+            discountAmount.toFixed(2),
+            finalPrice.toFixed(2),
+          ];
+        })
+    )
+    .flat();
+
+  doc.autoTable({
+    head: headers,
+    body: rows,
+    startY: yOffset,
+    theme: "grid",
+    styles: { fontSize: 8, halign: "center", cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1 },
+    headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], fontStyle: "bold" },
+    bodyStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0] },
+    columnStyles: {
+      0: { halign: "center" },
+      5: { halign: "right" },
+      6: { halign: "right" },
+      7: { halign: "right" },
+      8: { halign: "right" },
+      9: { halign: "right" },
+    },
+    margin: { bottom: 15 },
+    didDrawPage: (data: { pageCount: number }) => {
+      totalPages = data.pageCount;
+      doc.setPage(data.pageCount);
+      doc.setFontSize(8);
+      doc.text(
+        `Page ${data.pageCount} of ${totalPages}`,
+        doc.internal.pageSize.width / 2,
+        doc.internal.pageSize.height - 10,
+        { align: "center" }
+      );
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      const computerGeneratedText = "This is computer generated";
+      doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 25, { align: 'center' });
+    },
+  });
+  
+  doc.save("ApprovedAndPartiallyReceivedPOItemwise.pdf");
+  setDialogSummaryOpen(false);
+}, [businesses, filteredOrders]);
+ 
+const handleExportItemwiseCSV = useCallback(() => {
+  // UPDATED: Filter for both statuses
+  const filtered = filteredOrders.filter(order => 
+    order.poStatus === "Approved" || order.poStatus === "PartiallyReceived"
+  );
+
+  // UPDATED: Added Status column
+  const headers = [
+    "S.No",
+    "Purchase Order No",
+    "Vendor Name",
+    "Status", // NEW: Status column
+    "Item Name",
+    "Quantity",
+    "Price",
+    "Tax",
+    "Discount",
+    "Final Price",
+  ];
+  
+  const rows = filtered
+    .map((order, index) =>
+      order.items
+        .filter((item) => item.status !== "Received")
+        .map((item) => {
+          const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
+          const totalPrice = (item.pendingTotalQuantity || 0) * unitPrice;
+          const discountAmount = item.totalDiscount || 0;
+          const taxAmount = ((item.taxPercentage || 0) / 100) * (totalPrice - discountAmount);
+          const finalPrice = totalPrice - discountAmount + taxAmount;
+          
+          return [
+            index + 1,
+            order.randomId || "",
+            order.vendorName || "",
+            order.poStatus || "", // NEW: Status column
+            item.itemName || "",
+            item.pendingTotalQuantity || 0,
+            unitPrice.toFixed(2),
+            `${item.taxPercentage || 0}%`,
+            discountAmount.toFixed(2),
+            finalPrice.toFixed(2),
+          ];
+        })
+    )
+    .flat();
+
+  const csvData = [headers, ...rows];
+  const csv = Papa.unparse(csvData);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute("download", "ApprovedAndPartiallyReceivedPOItemwise.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setDialogSummaryOpen(false);
+}, [filteredOrders]);
   const handleVendorChange = useCallback((vendor: VendorSearch | null) => {
     setSelectedVendor(vendor);
     dispatch(fetchPurchaseOrders({
@@ -2273,7 +2327,7 @@ const calculatedItems = useMemo(() => {
       size: pageSize,
       dateField: "approvedDate",
       vendorName: vendor ? vendor.vendorName : "",
-      status: "Approved",
+      status: "Approved,PartiallyReceived",
       itemName: searchQueryItem,
       randomId: selectedRandomId,
     }));
@@ -2285,7 +2339,7 @@ const calculatedItems = useMemo(() => {
       size: pageSize,
       dateField: "approvedDate",
       vendorName: selectedVendor ? selectedVendor.vendorName : "",
-      status: "Approved",
+      status: "Approved,PartiallyReceived",
       itemName: searchQueryItem,
       randomId,
     }));
@@ -2303,39 +2357,42 @@ const calculatedItems = useMemo(() => {
       size: pageSize,
       dateField: "approvedDate",
       vendorName: selectedVendor ? selectedVendor.vendorName : "",
-      status: "Approved",
+      status: "Approved,PartiallyReceived",
       itemName: item ? item.itemName : "",
       randomId: selectedRandomId,
     }));
   }, [dispatch, pageSize, selectionRange, selectedVendor, selectedRandomId]);
-  const handleFilterClick = useCallback(() => {
-    dispatch(setPagination({ page: 1, size: pageSize }));
-    dispatch(fetchPurchaseOrders({
-      page: 1,
-      size: pageSize,
-      dateField: "approvedDate",
-      fromDate: moment(selectionRange.startDate).startOf("day").toDate(),
-      toDate: moment(selectionRange.endDate).endOf("day").toDate(),
-      vendorName: selectedVendor ? selectedVendor.vendorName : "",
-      status: "Approved",
-      itemName: newItem ? newItem.itemName : "",
-      randomId: selectedRandomId,
-    }));
-  }, [dispatch, pageSize, selectionRange, selectedVendor, newItem, selectedRandomId]);
-  const handleFilterClose = useCallback(() => {
-    setSelectionRange({ startDate: new Date(), endDate: new Date(), key: "selection" });
-    setSelectedVendor(null);
-    setNewItem(null);
-    setSelectedRandomId("");
-    dispatch(fetchPurchaseOrders({
-      page: 1,
-      size: pageSize,
-      dateField: "approvedDate",
-      fromDate: moment().utc().startOf("day").toDate(),
-      toDate: moment().utc().endOf("day").toDate(),
-      status: "Approved",
-    }));
-  }, [dispatch, pageSize]);
+ const handleFilterClick = useCallback(() => {
+  dispatch(setPagination({ page: 1, size: pageSize }));
+  
+  // UPDATED: Pass status as comma-separated string
+  dispatch(fetchPurchaseOrders({
+    page: 1,
+    size: pageSize,
+    dateField: "approvedDate",
+    fromDate: moment(selectionRange.startDate).startOf("day").toDate(),
+    toDate: moment(selectionRange.endDate).endOf("day").toDate(),
+    vendorName: selectedVendor ? selectedVendor.vendorName : "",
+    status: "Approved,PartiallyReceived", // Pass as comma-separated string
+    itemName: newItem ? newItem.itemName : "",
+    randomId: selectedRandomId,
+  }));
+}, [dispatch, pageSize, selectionRange, selectedVendor, newItem, selectedRandomId]);
+
+const handleFilterClose = useCallback(() => {
+  setSelectionRange({ startDate: new Date(), endDate: new Date(), key: "selection" });
+  setSelectedVendor(null);
+  setNewItem(null);
+  setSelectedRandomId("");
+  
+  // UPDATED: Pass status as comma-separated string
+  dispatch(fetchPurchaseOrders({
+    page: 1,
+    size: pageSize,
+    dateField: "approvedDate",
+    status: "Approved,PartiallyReceived", // Pass as comma-separated string
+  }));
+}, [dispatch, pageSize]);
   const isReceivedQuantityValid = useCallback(() => {
     const hasPendingItems = updatedItems.some((item) => {
       const originalItem = selectedOrder?.items.find((orig) => orig.itemId === item.itemId);
@@ -2424,6 +2481,10 @@ const calculatedItems = useMemo(() => {
     setSnackbarInvoiceMessage,
     setSnackbarInvoiceOpen,
   ]);
+   const handleItemChange = (item: PurchaseItemSearch | null) => {
+    setNewItem(item);
+    setSearchQueryItem(item ? item.itemName : ''); // Update the search query with the item name
+  };
   const removeOverallDiscount = useCallback(() => {
     setUpdatedItems((prev) =>
       prev.map((item) => ({
@@ -2473,82 +2534,12 @@ const calculatedItems = useMemo(() => {
               <VendorSearchAutocomplete value={selectedVendor} onChange={handleVendorChange} label="All Vendors" />
             </Grid>
             <Grid item xs={6} sm={4} md={2}>
-              <Autocomplete
-                fullWidth
-                options={allItems}
-                getOptionLabel={(option: PurchaseItemSearch) => option.itemName || ""}
-                isOptionEqualToValue={(option: PurchaseItemSearch, value: PurchaseItemSearch | null) =>
-                  option.purchaseitemId === value?.purchaseitemId
-                }
-                value={newItem}
-                onInputChange={(event, newInputValue) => {
-                  if (event && event.type !== "click") {
-                    setIsFetchingItems(true);
-                    dispatch(POsearchPurchaseItems({ searchQuery: newInputValue, skip: 0, limit }))
-                      .unwrap()
-                      .then((newItems) => {
-                        setAllItems(newItems);
-                        setSkip(limit);
-                      })
-                      .finally(() => setIsFetchingItems(false));
-                  }
-                }}
-                onChange={(_, value) => handleItemSelect(value)}
-                open={open}
-                onOpen={() => {
-                  setOpen(true);
-                  if (allItems.length === 0 && !isFetchingItems) {
-                    setIsFetchingItems(true);
-                    dispatch(POsearchPurchaseItems({ searchQuery: searchQueryItem || "", skip: 0, limit }))
-                      .unwrap()
-                      .then((newItems) => {
-                        setAllItems(newItems);
-                        setSkip(limit);
-                      })
-                      .finally(() => setIsFetchingItems(false));
-                  }
-                }}
-                onClose={() => setOpen(false)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="All Items"
-                    variant="outlined"
-                    size="small"
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {isFetchingItems ? <CircularProgress size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <li {...props} key={option.purchaseitemId}>{option.itemName}</li>
-                )}
-                ListboxProps={{
-                  onScroll: (event: React.UIEvent<HTMLUListElement>) => {
-                    const target = event.currentTarget;
-                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 10) {
-                      if (!isFetchingItems) {
-                        setIsFetchingItems(true);
-                        dispatch(POsearchPurchaseItems({ searchQuery: searchQueryItem, skip, limit }))
-                          .unwrap()
-                          .then((newItems) => {
-                            if (newItems.length > 0) {
-                              setAllItems((prevItems) => [...prevItems, ...newItems]);
-                              setSkip((prevSkip) => prevSkip + limit);
-                            }
-                          })
-                          .finally(() => setIsFetchingItems(false));
-                      }
-                    }
-                  },
-                }}
-              />
+             <ItemSearchAutocomplete
+    value={newItem}
+    onChange={handleItemChange}
+    label="All Items"
+    limit={50}
+  />
             </Grid>
             <Grid item xs={6} sm={4} md={1}>
               <PurchaseOrderRandomIdSearch value={selectedRandomId} onChange={handleRandomIdChange} label="PO ID" />
@@ -2650,6 +2641,15 @@ const calculatedItems = useMemo(() => {
           </Table>
         </TableContainer>
         {/* Pagination - keep as is */}
+          <Box sx={{ display: "flex", justifyContent: "end", alignItems: "center", mt: 2 }}>
+        <IconButton onClick={() => dispatch(setPagination({ page: currentPage - 1, size: pageSize }))} disabled={currentPage === 1}>
+          <ChevronLeft />
+        </IconButton>
+        <Typography variant="body1" sx={{ mx: 2 }}>Page {currentPage}</Typography>
+        <IconButton onClick={() => dispatch(setPagination({ page: currentPage + 1, size: pageSize }))} disabled={currentPage * pageSize >= totalItems}>
+          <ChevronRight />
+        </IconButton>
+      </Box>
         <OrderDetailsDialog
           open={openDialog}
           onClose={handleCloseDialogs}
@@ -2721,7 +2721,7 @@ const calculatedItems = useMemo(() => {
                           size: pageSize,
                           dateField: "approvedDate",
                           vendorName: selectedVendor ? selectedVendor.vendorName : "",
-                          status: "Approved",
+                          status: "Approved,PartiallyReceived",
                           itemName: newItem ? newItem.itemName : "",
                           randomId: selectedRandomId,
                         })
@@ -2802,7 +2802,7 @@ const calculatedItems = useMemo(() => {
           </DialogContent>
           <DialogActions>
             <Button onClick={handleExportItemwiseCSV} color="primary" variant="contained">
-              DOWNLAOD CSV
+              DOWNLOAD CSV
             </Button>
             <Button onClick={handleExportItemwisePDF} color="secondary" variant="contained">
               GENERATE PDF

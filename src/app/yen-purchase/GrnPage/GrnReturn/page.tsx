@@ -91,8 +91,6 @@ const GrnReturn: React.FC = () => {
       newPage,
       pageSize,
       dateField,
-      fromDate: memoizedFromDate,
-      toDate: memoizedToDate,
       loading,
       shouldFetch,
     });
@@ -101,8 +99,6 @@ const GrnReturn: React.FC = () => {
         page: newPage,
         size: pageSize,
         dateFilterField: dateField,
-        fromDate: memoizedFromDate,
-        toDate: memoizedToDate,
       });
       console.log('Action payload:', action);
       dispatch(action);
@@ -113,8 +109,6 @@ const GrnReturn: React.FC = () => {
     newPage,
     pageSize,
     dateField,
-    memoizedFromDate,
-    memoizedToDate,
     loading,
     shouldFetch,
   ]);
@@ -324,14 +318,9 @@ const toggleFullScreen = () => {
   };
 
   const handleFilterClose = () => {
-    setSelectionRange({
-      startDate: new Date(),
-      endDate: new Date(),
-      key: 'selection',
-    });
     setSelectedVendor(null);
     setSelectedVendorName('');
-    dispatch(fetchReturnedGrns({ page: newPage, size: pageSize, status, dateFilterField: dateField, fromDate, toDate }));
+    dispatch(fetchReturnedGrns({ page: newPage, size: pageSize, status, dateFilterField: dateField}));
     setFilteredGrn([]);
   };
 const generatePDF = () => {

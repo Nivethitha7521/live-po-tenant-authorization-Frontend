@@ -76,17 +76,17 @@ export const fetchPurchaseOrders = createAsyncThunk(
     vendorName,
     itemName,
     randomId,
-    dateField = 'orderDate' // Add an optional parameter for date field
+    dateField = 'orderDate'
   }: {
     page: number;
     size: number;
     status?: string;
-    fromDate?: Date;
-    toDate?: Date;
+    fromDate?: string | Date;  // Allow both string and Date
+    toDate?: string | Date;    // Allow both string and Date
     vendorName?: string;
     itemName?: string;
     randomId?: string;
-    dateField?: 'orderDate' | 'approvedDate' | 'rejectedDate'; // Specify which date field to filter by
+    dateField?: 'orderDate' | 'approvedDate' | 'rejectedDate';
   }) => {
     const params: {
       skip?: number;
@@ -97,7 +97,7 @@ export const fetchPurchaseOrders = createAsyncThunk(
       vendorName?: string;
       itemName?: string;
       randomId?: string;
-      filterBy?: string; // Optional field for dynamic date filtering
+      filterBy?: string;
     } = {};
 
     // Pagination
@@ -110,9 +110,16 @@ export const fetchPurchaseOrders = createAsyncThunk(
     if (itemName) params.itemName = itemName;
     if (randomId) params.randomId = randomId;
 
-    // Date filters for specific fields (orderDate, approvedDate, rejectedDate)
-    if (fromDate) params.fromDate = fromDate.toISOString();
-    if (toDate) params.toDate = toDate.toISOString();
+    // Handle date conversion - convert string dates to Date objects if needed
+    if (fromDate) {
+      const fromDateObj = typeof fromDate === 'string' ? new Date(fromDate) : fromDate;
+      params.fromDate = fromDateObj.toISOString();
+    }
+    
+    if (toDate) {
+      const toDateObj = typeof toDate === 'string' ? new Date(toDate) : toDate;
+      params.toDate = toDateObj.toISOString();
+    }
 
     // Add the filterBy parameter to specify which date field to filter by
     if (dateField) params.filterBy = dateField;
@@ -130,8 +137,6 @@ export const fetchPurchaseOrders = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       console.error('Error fetching purchase orders:', error);
-
-      // Handle error gracefully and return an empty array
       return { errorMessage: 'Error fetching purchase orders. Please try again.' };
     }
   }

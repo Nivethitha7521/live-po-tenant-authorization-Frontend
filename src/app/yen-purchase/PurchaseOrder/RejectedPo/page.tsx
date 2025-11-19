@@ -129,6 +129,8 @@ const RejectedPo: React.FC = () => {
   const [newItemId, setNewItemId] = useState<string>('');
   const [shouldFetch, setShouldFetch] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  
+  const filteredOrders = purchaseList.filter(order => order.poStatus === 'Rejected');
 
   useEffect(() => {
     if (shouldFetch && !loading) {
@@ -323,7 +325,7 @@ const RejectedPo: React.FC = () => {
     doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2);
     yOffset += 15;
 
-    const totalOrderedAmount = (filteredOrder || []).reduce((sum, order) => {
+    const totalOrderedAmount = (filteredOrders || []).reduce((sum, order) => {
       const pendingOrderAmount = order.pendingOrderAmount || 0;
       return sum + pendingOrderAmount;
     }, 0);
@@ -340,7 +342,7 @@ const RejectedPo: React.FC = () => {
 
     const headers = [["SNo", "PoId", "Vendor Name", "Total Items Quantity", "Ordered Date", "Total Order Amount"]];
 
-    const rows = (filteredOrder || []).map((order, index) => {
+    const rows = (filteredOrders || []).map((order, index) => {
       const totalItemsQuantity = Array.isArray(order.items) && order.items.length > 0
         ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
         : 0;
@@ -452,64 +454,62 @@ const RejectedPo: React.FC = () => {
     setOpenMovePendingDialog(true);
   };
   const generateSummaryPDF = () => {
-    const doc = new jsPDF();
-    let yOffset = 5;
-    let totalPages = 1;
-
-    const business = businesses.length > 0 ? businesses[0] : null;
-
-    if (!business) {
-      console.error('Business info not found!');
-      doc.setFontSize(12);
-      doc.text('Error: Business info not found', 14, yOffset + 10);
-      const finalTotalPages = doc.getNumberOfPages();
-      for (let i = 1; i <= finalTotalPages; i++) {
-        doc.setPage(i);
-        addFooter(doc, i, finalTotalPages);
-      }
-      doc.save('RejectedPOItemwise.pdf');
-      return;
-    }
-
-    if (business.imageUrl) {
-      doc.addImage(business.imageUrl, 'JPEG', 14, yOffset, 20, 20);
-    }
-
-    yOffset += 7;
-
+  const doc = new jsPDF();
+  let yOffset = 5;
+  let totalPages = 1;
+  const business = businesses.length > 0 ? businesses[0] : null;
+  if (!business) {
+    console.error('Business info not found!');
     doc.setFontSize(12);
-    const title = 'Rejected Purchase Order Detailed Summary';
-    const pageWidth = doc.internal.pageSize.width;
-    const fontSize = doc.getFontSize();
-    const titleWidth = doc.getStringUnitWidth(title) * fontSize / doc.internal.scaleFactor;
-    const titleX = (pageWidth - titleWidth) / 2;
-    doc.text(title, titleX, yOffset);
-    doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2);
-    yOffset += 15;
-
-    const totalOrderedAmount = (filteredOrder || []).reduce((sum, order) => {
-      const pendingOrderAmount = order.pendingOrderAmount || 0;
-      return sum + pendingOrderAmount;
-    }, 0);
-
-    const today = new Date();
-    const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-
-    doc.setFontSize(10);
-    const totalText = `Total Ordered Amount: ${totalOrderedAmount.toFixed(2)}`;
-    doc.text(totalText, 14, yOffset);
-    const dateWidth = doc.getStringUnitWidth(`Date: ${currentDate}`) * 10 / doc.internal.scaleFactor;
-    const dateX = pageWidth - dateWidth - 14;
-    doc.text(`Date: ${currentDate}`, dateX, yOffset);
-    yOffset += 10;
-
-    const headers = [
-      ['S.No', 'Purchase Order No', 'Vendor Name', 'Item Name', 'Quantity', 'Price', 'Tax', 'Discount', 'Final Price', 'Expiry Date'],
-    ];
-
-    const rows = (filteredOrder || []).flatMap((order, index) =>
-      (order.items || []).map((item: Item) => [
-        (index + 1).toString(),
+    doc.text('Error: Business info not found', 14, yOffset + 10);
+    const finalTotalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= finalTotalPages; i++) {
+      doc.setPage(i);
+      addFooter(doc, i, finalTotalPages);
+    }
+    doc.save('RejectedPOItemwise.pdf');
+    handleClose();
+    return;
+  }
+  if (business.imageUrl) {
+    try {
+      doc.addImage(business.imageUrl, 'JPEG', 14, yOffset, 20, 20);
+    } catch (e) {
+      console.error("Image failed to load:", e);
+    }
+  }
+  yOffset += 7;
+  doc.setFontSize(12);
+  const title = 'Rejected Purchase Order Detailed Summary';
+  const pageWidth = doc.internal.pageSize.width;
+  const fontSize = doc.getFontSize();
+  const titleWidth = doc.getStringUnitWidth(title) * fontSize / doc.internal.scaleFactor;
+  const titleX = (pageWidth - titleWidth) / 2;
+  doc.text(title, titleX, yOffset);
+  doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2);
+  yOffset += 15;
+  const totalOrderedAmount = (filteredOrders || []).reduce((sum, order) => {
+    const pendingOrderAmount = order.pendingOrderAmount || 0;
+    return sum + pendingOrderAmount;
+  }, 0);
+  const today = new Date();
+  const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+  doc.setFontSize(10);
+  const totalText = `Total Ordered Amount: ${totalOrderedAmount.toFixed(2)}`;
+  doc.text(totalText, 14, yOffset);
+  const dateWidth = doc.getStringUnitWidth(`Date: ${currentDate}`) * 10 / doc.internal.scaleFactor;
+  const dateX = pageWidth - dateWidth - 14;
+  doc.text(`Date: ${currentDate}`, dateX, yOffset);
+  yOffset += 10;
+  const headers = [
+    ['S.No', 'Purchase Order No', 'Vendor Name', 'Item Name', 'Quantity', 'Price', 'Tax', 'Discount', 'Final Price', 'Expiry Date'],
+  ];
+  const rows: (string | number)[][] = [];
+  let sno = 1;
+  (filteredOrders || []).forEach((order) => {
+    (order.items || []).forEach((item) => {
+      rows.push([
+        sno++,
         order.randomId || 'N/A',
         order.vendorName || 'N/A',
         item.itemName || 'N/A',
@@ -519,62 +519,59 @@ const RejectedPo: React.FC = () => {
         (item.pendingDiscountAmount || 0).toFixed(2),
         (item.pendingFinalPrice || 0).toFixed(2),
         item.expiryDate ? format(new Date(item.expiryDate), 'dd-MM-yyyy') : 'N/A',
-      ])
-    );
-
-    if (rows.length === 0) {
-      doc.setFontSize(10);
-      doc.text('No rejected purchase orders found.', 14, yOffset);
-      const finalTotalPages = doc.getNumberOfPages();
-      for (let i = 1; i <= finalTotalPages; i++) {
-        doc.setPage(i);
-        addFooter(doc, i, finalTotalPages);
-      }
-      doc.save('RejectedPOItemwise.pdf');
-      handleClose();
-      return;
-    }
-
-    doc.autoTable({
-      head: headers,
-      body: rows,
-      startY: yOffset,
-      styles: {
-        fontSize: 8,
-        lineColor: [0, 0, 0],
-      },
-      headStyles: {
-        fillColor: [0, 0, 128],
-        textColor: [255, 255, 255],
-      },
-      bodyStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0],
-      },
-      columnStyles: {
-        4: { halign: 'right' },
-        5: { halign: 'right' },
-        6: { halign: 'right' },
-        7: { halign: 'right' },
-        8: { halign: 'right' },
-      },
-      didDrawPage: (data: { pageCount: number }) => {
-        totalPages = data.pageCount;
-        addFooter(doc, data.pageCount, totalPages);
-      },
-      margin: { bottom: 15 },
+      ]);
     });
-
+  });
+  if (rows.length === 0) {
+    doc.setFontSize(10);
+    doc.text('No rejected purchase orders found.', 14, yOffset);
     const finalTotalPages = doc.getNumberOfPages();
     for (let i = 1; i <= finalTotalPages; i++) {
       doc.setPage(i);
       addFooter(doc, i, finalTotalPages);
     }
-
-    const pdfFilename = `RejectedPOItemwise.pdf`;
-    doc.save(pdfFilename);
+    doc.save('RejectedPOItemwise.pdf');
     handleClose();
-  };
+    return;
+  }
+  doc.autoTable({
+    head: headers,
+    body: rows,
+    startY: yOffset,
+    styles: {
+      fontSize: 8,
+      lineColor: [0, 0, 0],
+    },
+    headStyles: {
+      fillColor: [0, 0, 128],
+      textColor: [255, 255, 255],
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+    },
+    columnStyles: {
+      4: { halign: 'right' },
+      5: { halign: 'right' },
+      6: { halign: 'right' },
+      7: { halign: 'right' },
+      8: { halign: 'right' },
+    },
+    didDrawPage: (data: { pageCount: number }) => {
+      totalPages = data.pageCount;
+      addFooter(doc, data.pageCount, totalPages);
+    },
+    margin: { bottom: 15 },
+  });
+  const finalTotalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= finalTotalPages; i++) {
+    doc.setPage(i);
+    addFooter(doc, i, finalTotalPages);
+  }
+  const pdfFilename = `RejectedPOItemwise.pdf`;
+  doc.save(pdfFilename);
+  handleClose();
+};
 
  const handleDownload = async (poid: string) => {
   const purchaseOrder = purchaseList.find((order) => order.purchaseOrderId === poid);
@@ -1040,7 +1037,6 @@ const RejectedPo: React.FC = () => {
   };
 
 
-  const filteredOrders = purchaseList.filter(order => order.poStatus === 'Rejected');
   const handleFilterClick = () => {
     let filtered = purchaseList;
 

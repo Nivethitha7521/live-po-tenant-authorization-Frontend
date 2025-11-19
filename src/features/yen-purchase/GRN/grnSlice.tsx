@@ -62,11 +62,10 @@ export const fetchReturnedGrns = createAsyncThunk<
   { rejectValue: string }
 >(
   'grns/fetchReturned',
-  async ({ page, size, status, fromDate, toDate, vendorName, dateFilterField = 'grnReturnedDate', daysFilterDate }, { rejectWithValue }) => {
+  async ({ page, size, fromDate, toDate, vendorName, dateFilterField = 'grnReturnedDate', daysFilterDate }, { rejectWithValue }) => {
     const params: {
       skip?: number;
       limit?: number;
-      status?: string;
       fromDate?: string;
       toDate?: string;
       vendorName?: string;
@@ -77,7 +76,6 @@ export const fetchReturnedGrns = createAsyncThunk<
     params.skip = (page - 1) * size;
     params.limit = size;
 
-    if (status) params.status = status;
     if (vendorName) params.vendorName = vendorName;
     if (fromDate) params.fromDate = fromDate.toISOString();
     if (toDate) params.toDate = toDate.toISOString();

@@ -777,7 +777,7 @@ const handleDownload = async (outgoingId: string) => {
             </TableContainer>
             
             <Grid item xs={12}>
-              <Box sx={{ display: 'flex', justifyContent: 'end', alignItems: 'center', mt: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'end', alignItems: 'center', mt: 0.5 }}>
                 <IconButton
                   onClick={handlePreviousPage}
                   disabled={currentPage === 1}

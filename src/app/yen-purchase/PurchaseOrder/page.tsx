@@ -66,6 +66,7 @@ import PhotoDisplay from '../../../components/yen-purchase/pendingpo/photoDispla
 import { VendorSearch } from '@/Models/vendor';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import ItemSearchAutocomplete from './Component/ItemSearch';
 // Add the TypeScript declaration for autoTable (if necessary)
 declare module 'jspdf' {
   interface jsPDF {
@@ -110,7 +111,7 @@ const Polist: React.FC = () => {
   const [openImageDialog, setOpenImageDialog] = useState<boolean>(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
+const [selectedItem, setSelectedItem] = useState<PurchaseItemSearch | null>(null);
   const [statusFilter, setStatusFilter] = useState(['Pending for Approve', 'CreditLimit for Approve']);
   const [filteredOrder, setFilteredOrders] = useState<PurchaseOrderData[]>([]); // Explicit type declaration
   const [file, setFile] = useState<File | null>(null);
@@ -127,7 +128,6 @@ const Polist: React.FC = () => {
     endDate: new Date(),
     key: 'selection',
   });
-  const [anchorElDate, setAnchorElDate] = useState<null | HTMLElement>(null);
   const [selectedVendor, setSelectedVendor] = useState<VendorSearch | null>(null);
   const [selectedVendorName, setSelectedVendorName] = useState('');
   const [selectedRandomId, setSelectedRandomId] = useState('');
@@ -289,53 +289,13 @@ const Polist: React.FC = () => {
     setSelectedVendor(vendor);
     setSelectedVendorName(vendor ? vendor.vendorName : '');
   };
-  // Handle input change and update the search query for items
-  const handleSearchChangeItem = (newInputValue: string) => {
-    setSearchQueryItem(newInputValue);
-    setSkip(0); // Reset skip when search query changes
-    setAllItems([]); // Clear all items when search query changes
-    // Immediately fetch items with the new search query
-    dispatch(POsearchPurchaseItems({ searchQuery: newInputValue, skip: 0, limit }))
-      .unwrap()
-      .then((newItems) => {
-        setAllItems(newItems);
-        setSkip(limit); // Set skip to limit for next fetch
-      });
-  };
-  const handleItemSelect = (item: PurchaseItemSearch | null) => {
-    if (item) {
-      setNewItem(item);
-      setNewItemId(item.purchaseitemId);
-      // Set open state to false after selection
-      setOpen(false);
-    } else {
-      setNewItem(null);
-      setNewItemId('');
-    }
-  };
-  const loadMoreItems = () => {
-    dispatch(POsearchPurchaseItems({ searchQuery: searchQueryItem, skip, limit }))
-      .unwrap()
-      .then((newItems) => {
-        if (newItems.length > 0) {
-          setAllItems((prevItems) => [...prevItems, ...newItems]);
-          setSkip((prevSkip) => prevSkip + limit);
-        }
-      });
-  };
-  // Scroll handler (unchanged)
-  const handleScroll = (event: React.UIEvent<HTMLUListElement>) => {
-    const target = event.currentTarget;
-    if (target.scrollHeight - target.scrollTop === target.clientHeight) {
-      loadMoreItems();
-    }
-  };
+  
   const handleRandomIdChange = (randomId: string) => {
     setSelectedRandomId(randomId);
   };
   const filteredOrders = purchaseList.filter(order =>
     (order.poStatus === 'CreditLimit for Approve' || order.poStatus === 'Pending for Approve' ||
-      (order.poStatus !== 'Approved' && order.poStatus !== 'Rejected' && order.poStatus !== 'PartiallyReceived' )) &&
+      (order.poStatus !== 'Approved' && order.poStatus !== 'Rejected' && order.poStatus !== 'PartiallyReceived')) &&
     order.items.some(item => item.pendingTotalQuantity > 0)
   );
   const handlePageChange = (newPage: number) => {
@@ -548,9 +508,9 @@ const Polist: React.FC = () => {
       setDialogOpen(true);
     }
   };
-const handleEditClick = (orderId: string) => {
-  router.push(`/yen-purchase/PurchaseOrder/Createpurchase?edit=${orderId}`);
-};
+  const handleEditClick = (orderId: string) => {
+    router.push(`/yen-purchase/PurchaseOrder/Createpurchase?edit=${orderId}`);
+  };
   const handleOpen = () => {
     setDialogSummaryOpen(true);
   };
@@ -968,6 +928,10 @@ const handleEditClick = (orderId: string) => {
     document.body.removeChild(link);
     handleClose();
   };
+  const handleItemChange = (item: PurchaseItemSearch | null) => {
+  setNewItem(item);
+  setSearchQueryItem(item ? item.itemName : ''); // Update the search query with the item name
+};
   const handleConfirmSave = () => {
     if (updatedItems.length > 0) {
       console.log('Updated Items:', updatedItems);
@@ -1009,7 +973,7 @@ const handleEditClick = (orderId: string) => {
           taxType: item.taxType ?? null,
           pendingBefTaxDiscountAmount: item.pendingBefTaxDiscountAmount ?? null,
           pendingAfTaxDiscountAmount: item.pendingAfTaxDiscountAmount ?? null,
-          
+
 
         }
       }));
@@ -1039,55 +1003,40 @@ const handleEditClick = (orderId: string) => {
     setDialogOpen(false);
   };
   const handleFilterClick = () => {
-    let filtered = purchaseList;
-    // Ensure proper date handling with Date objects
-    const formattedStartDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : fromDate;
-    const formattedEndDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;
-    // Apply frontend filters before the API call
-    if (selectedVendorName) {
-      filtered = filtered.filter(purchase =>
-        purchase.vendorName?.toLowerCase().includes(selectedVendorName.toLowerCase())
-      );
-    }
-    if (formattedStartDate) {
-      filtered = filtered.filter(purchase => {
-        const orderDateParsed = purchase.orderDate ? new Date(purchase.orderDate) : null;
-        return orderDateParsed && orderDateParsed >= formattedStartDate;
-      });
-    }
-    if (formattedEndDate) {
-      filtered = filtered.filter(purchase => {
-        const orderDateParsed = purchase.orderDate ? new Date(purchase.orderDate) : null;
-        return orderDateParsed && orderDateParsed <= formattedEndDate;
-      });
-    }
-    if (status) {
-      filtered = filtered.filter(purchase => purchase.poStatus === status);
-    }
-    if (selectedRandomId) {
-      filtered = filtered.filter(purchase => purchase.randomId == randomIdFilter);
-    }
-    console.log('Filtered Orders (Frontend):', filtered);
-    // After frontend filters, dispatch the fetchPurchaseOrders action to fetch filtered data from the backend
-    dispatch(fetchPurchaseOrders({
-      page: 1, // Assuming page is 1 for this example
-      size: pageSize, // Example page size
- fromDate: moment(selectionRange.startDate).startOf("day").toDate(),
-      toDate: moment(selectionRange.endDate).endOf("day").toDate(),
-            vendorName: selectedVendorName || '',
+    // Prepare API parameters
+    const apiParams: any = {
+      page: 1,
+      size: pageSize,
+      vendorName: selectedVendorName || '',
       status: status || '',
-      itemName: searchQueryItem || '', // Pass itemName filter if necessary
-      randomId: selectedRandomId || ''
-    }))
+      itemName: searchQueryItem || '',
+      randomId: selectedRandomId || '',
+      filterBy: "orderDate"
+    };
+
+    // Send dates as ISO string (date portion only)
+    if (selectionRange?.startDate) {
+      const startDate = new Date(selectionRange.startDate);
+      apiParams.fromDate = startDate.toISOString().split('T')[0]; // "2025-11-12"
+    }
+
+    if (selectionRange?.endDate) {
+      const endDate = new Date(selectionRange.endDate);
+      apiParams.toDate = endDate.toISOString().split('T')[0]; // "2025-11-15"
+    }
+
+    console.log('API Filter Parameters:', apiParams);
+
+    // Make single API call with all filters
+    dispatch(fetchPurchaseOrders(apiParams))
       .then(response => {
         const data = response.payload || [];
         if (data.length === 0) {
           console.log('No matching orders found.');
           setSnackbarMessage('No matching orders found.');
           setSnackbarOpen(true);
-        } else {
-          setFilteredOrders(data); // Assuming you want to set the filtered data
         }
+        // Handle the filtered data from API
       })
       .catch(error => {
         console.error('Error fetching purchase orders:', error);
@@ -1129,7 +1078,7 @@ const handleEditClick = (orderId: string) => {
     if (selectedOrder) {
       try {
         await dispatch(approvePurchaseOrder(selectedOrder.purchaseOrderId));
-        dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize,status }));
+        dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize, status }));
       } catch (error) {
         console.error('Failed to update order status:', error);
       }
@@ -1234,51 +1183,15 @@ const handleEditClick = (orderId: string) => {
               label="All Vendors"
             />
           </Grid>
-          {/* Item Search */}
           <Grid item xs={6} sm={4} md={2}>
-            <Autocomplete
-              fullWidth
-              options={allItems}
-              getOptionLabel={(option: any) => option.itemName || ''} // Replace with PurchaseItemSearch
-              isOptionEqualToValue={(option: any, value: any) =>
-                option.purchaseitemId === value?.purchaseitemId
-              }
+            <ItemSearchAutocomplete
               value={newItem}
-              onInputChange={(event, newInputValue) => {
-                handleSearchChangeItem(newInputValue);
-              }}
-              onChange={(_, value) => handleItemSelect(value)}
-              open={open}
-              onOpen={() => {
-                setOpen(true);
-                if (allItems.length === 0) {
-                  dispatch(POsearchPurchaseItems({ searchQuery: '', skip: 0, limit }))
-                    .unwrap()
-                    .then((newItems) => {
-                      setAllItems(newItems);
-                      setSkip(limit);
-                    });
-                }
-              }}
-              onClose={() => setOpen(false)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="All Items"
-                  variant="outlined"
-                  size="small"
-                />
-              )}
-              renderOption={(props, option) => (
-                <li {...props} key={option.purchaseitemId}>
-                  {option.itemName}
-                </li>
-              )}
-              ListboxProps={{
-                onScroll: handleScroll as React.UIEventHandler<HTMLUListElement>,
-              }}
+              onChange={handleItemChange}
+              label="All Items"
+              limit={50}
             />
           </Grid>
+
           {/* PO ID Search */}
           <Grid item xs={6} sm={4} md={1}>
             <PurchaseOrderRandomIdSearch

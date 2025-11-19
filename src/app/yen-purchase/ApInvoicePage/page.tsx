@@ -154,6 +154,7 @@ const VerifiedApInvoicePage: React.FC = () => {
       }
     });
   }, [businesses, fetchedBusinessIds, dispatch]);
+  
   useEffect(() => {
     dispatch(fetchAllVendors());
     dispatch(fetchBusinesses());
@@ -728,7 +729,7 @@ const appliedToDate = useMemo(() =>
       fontStyle: 'bold',
     },
     bodyStyles: {
-      lineColor: [0, 0, 0],
+      lineColor: [0, 0, 0],   
       minCellHeight: 15,
     },
     tableLineColor: [0, 0, 0],
@@ -923,6 +924,7 @@ didDrawCell: (data: any) => {
   ]);
   // Filter for Verified status only (non-returned)
   const verifiedApInvoices = useMemo(() => apInvoices.filter(invoice => invoice.status !== 'Returned'), [apInvoices]);
+  
   return (
     <Box>
       <YenPurchasePage />

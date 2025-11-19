@@ -98,6 +98,8 @@ export interface Bank {
   confirmAcountNumber: string;
   ifscCode: string;
   branchName: string;
+  status:string;
+
 }
 export interface DebitNote {
   randomId: string;
@@ -105,7 +107,7 @@ export interface DebitNote {
   vendorName: string;
   totalAmount: number;
   finalAmount:number;
-  status: string;
+  status?: string;
   createdDate: string;
   pendingAmount:number;
 }

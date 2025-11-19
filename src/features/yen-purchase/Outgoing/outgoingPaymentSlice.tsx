@@ -140,11 +140,20 @@ export const updateOutgoing = createAsyncThunk<Outgoing, Outgoing>('outgoings/up
   const response = await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingData.outgoingId}`, outgoingData); // Adjust the API endpoint as needed
   return response.data;
 });
-
-export const fetchBank = createAsyncThunk('bank/fetchBanks', async () => {
-  const response = await axios.get(`https://yenerp.com//masterapi/bankmasters/`);
-  return response.data;
-});
+// Thunk
+export const fetchBank = createAsyncThunk<Bank[], void, { dispatch: any }>(
+  'outgoingPayment/fetchBanks',  // Updated path to match slice
+  async (_, { dispatch }) => {
+    try {
+      const response = await axios.get('https://yenerp.com/masterapi/bankmasters/');  // Fixed double slash
+      return response.data;
+    } catch (error) {
+      dispatch(setSnackbarMessage('Failed to fetch banks. Please try again.'));
+      dispatch(setSnackbarOpen(true));
+      throw error;  // Re-throw for rejected case
+    }
+  }
+);
 export const processPayment = createAsyncThunk<
   void,
   ProcessPaymentRequest,
@@ -619,14 +628,17 @@ const outgoingSlice = createSlice({
       .addCase(fetchGRN.rejected, (state, action) => {
         state.loading = false;
       })
-      .addCase(fetchBank.pending, (state) => {
+    .addCase(fetchBank.pending, (state) => {
         state.loading = true;
       })
       .addCase(fetchBank.fulfilled, (state, action: PayloadAction<Bank[]>) => {
-        state.banks = action.payload;
+        state.loading = false;
+        state.banks = action.payload.filter((bank) => bank.status === 'active');  // Filter active banks here (or in component)
       })
       .addCase(fetchBank.rejected, (state, action) => {
         state.loading = false;
+        state.banks = [];  // Reset on error
+        console.error('Fetch banks error:', action.error);
       })
       .addCase(selectOutgoingPayment.pending, (state) => {
         state.loading = true;

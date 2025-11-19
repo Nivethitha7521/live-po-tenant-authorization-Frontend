@@ -220,23 +220,23 @@ const GrnPage = () => {
       const action = fetchGrns({
         page: newPage,
         size: pageSize,
-        fromDate: memoizedFromDate,
-        toDate: memoizedToDate,
+     
       });
       console.log('Action payload:', action);
       dispatch(action);
       setShouldFetch(false);
     }
-  }, [dispatch, newPage, pageSize, memoizedFromDate, memoizedToDate, loading, shouldFetch]);
+  }, [dispatch, newPage, pageSize, loading, shouldFetch]);
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
       // Optionally handle out-of-bounds page number
       return;
     }
     const appliedFromDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : fromDate;
-    const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;
+    const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;+-
+    
     dispatch(setPagination({ page: newPage, size: pageSize }));
-    dispatch(fetchGrns({ page: newPage, size: pageSize, status, fromDate: appliedFromDate, toDate: appliedToDate, vendorName: selectedVendorName || '' }));
+    dispatch(fetchGrns({ page: newPage, size: pageSize, status,  vendorName: selectedVendorName || '' }));
   };
  
 const lenientRegex = /^-?\d*\.?\d{0,2}$/; // e.g., "2", "2.", "2.0", "2.01", "-1.99"
@@ -401,7 +401,7 @@ const handleApRoundOffChange = (newRoundOff: number) => {
     setReturnDialogOpen(false); // Close dialog
     setSelectedGrnItems([]); // Clear selected items
     dispatch(setSelectedGrnId(null)); // Clear selected GRN ID
-    dispatch(fetchGrns({ page: currentPage, size: pageSize, fromDate, toDate })); // Refresh GRN list
+    dispatch(fetchGrns({ page: currentPage, size: pageSize })); // Refresh GRN list
   };
   const handleReturnCancel = () => {
     setReturnDialogOpen(false); // Close dialog without clearing selectedGrnId
@@ -440,7 +440,7 @@ const handleApRoundOffChange = (newRoundOff: number) => {
       .then(() => {
         console.log('Invoice updated successfully');
         // Fetch the most recent GRNs after successful update
-        dispatch(fetchGrns({ page: newPage, size: pageSize, status, fromDate, toDate }))
+        dispatch(fetchGrns({ page: newPage, size: pageSize, status }))
           .then(() => {
             console.log('Recent GRNs fetched successfully');
             setInvoiceOpen(false); // Close the dialog after saving
@@ -804,8 +804,6 @@ const handleApRoundOffChange = (newRoundOff: number) => {
           fetchGrns({
             page: newPage,
             size: pageSize,
-            fromDate: memoizedFromDate,
-            toDate: memoizedToDate,
           })
         );
       } else {
@@ -1595,7 +1593,7 @@ const handleApRoundOffChange = (newRoundOff: number) => {
                     <TableRow key={grn.grnId}>
                       <TableCell className='table-number-right'>{index + 1}</TableCell>
                       <TableCell>{grn.randomId}</TableCell>
-                      <TableCell>{getRandomId(grn.purchaseOrderId) ?? 'N/A'}</TableCell>
+                      <TableCell>{grn.poRandomID}</TableCell>
                       <TableCell>{grn.vendorName}</TableCell>
                       <TableCell>{grn.invoiceNo}</TableCell>
                       <TableCell>{grn.invoiceDate ? format(grn.invoiceDate, 'dd-MM-yyyy') : ''}</TableCell>

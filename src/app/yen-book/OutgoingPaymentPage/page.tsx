@@ -1085,6 +1085,11 @@ const OutgoingPaymentComponent = React.memo(() => {
                   </Button>
                 </Link>
               </Grid>
+               <Grid item>
+                <Link href="/yen-book/OutgoingPaymentPage/PaymentHistory" passHref>
+                  <Button variant="contained" color="primary" sx={{ mr: 1 }}>Payment History</Button>
+                </Link>
+              </Grid>
               <Grid item>
                 <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
                   <Button variant="contained" color="primary" sx={{ mr: 1 }}>Ledger</Button>

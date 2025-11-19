@@ -25,6 +25,7 @@ import {
   setSnackbarOpen,
   fetchActiveDebitsVendor,
   ProcessPaymentRequest,
+  fetchBank
 } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import { fetchActiveAdvancesVendorByName } from '@/features/yen-purchase/Outgoing/advancePaymentSlice';
 
@@ -80,6 +81,9 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
   const invoiceDateStr = invoiceDate.toISOString().split('T')[0];
   const currentDate = new Date().toISOString().split('T')[0];
 
+useEffect(()=>{
+  dispatch(fetchBank());
+},[dispatch]);
 useEffect(() => {
   if (selectedOutgoing && open) {
     dispatch(fetchActiveDebitsVendor(selectedOutgoing.vendorName));
