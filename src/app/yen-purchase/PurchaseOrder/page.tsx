@@ -199,7 +199,7 @@ const Polist: React.FC = () => {
         const taxType = item.taxType || 'cgst_sgst';
         let sgst = 0, cgst = 0, igst = 0;
         if (taxType === 'igst') {
-          igst = (taxPercentage / 100) * discountedPriceBeforeTax;
+          igst = (taxPercentage / 100) * discountedPriceBeforeTax; 
           igst = customRounddigit(igst);
           const igstKey = `igst-${taxPercentage}`;
           if (taxDetails[igstKey]) {
