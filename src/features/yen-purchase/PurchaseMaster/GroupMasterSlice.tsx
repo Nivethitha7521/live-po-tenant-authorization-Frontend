@@ -9,7 +9,7 @@ export const fetchPurchaseGroupItems = createAsyncThunk(
   'purchaseGroupItems/fetchPurchaseGroupItems',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<PurchaseGroupItem[]>('https://yenerp.com/purchaseapi/itemgroups/');
+      const response = await axios.get<PurchaseGroupItem[]>('http://192.168.29.117:8000/purchaseapi/itemgroups/');
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to fetch purchase group items');
@@ -22,7 +22,7 @@ export const addPurchaseGroupItem = createAsyncThunk<PurchaseGroupItem, Omit<Pur
   'purchaseGroupItems/addPurchaseGroupItem',
   async (groupItemData, { rejectWithValue }) => {
     try {
-      const response = await axios.post('https://yenerp.com/purchaseapi/itemgroups/', groupItemData);
+      const response = await axios.post('http://192.168.29.117:8000/purchaseapi/itemgroups/', groupItemData);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to add purchase group item');
@@ -36,7 +36,7 @@ export const updatePurchaseGroupItem = createAsyncThunk<PurchaseGroupItem, Purch
   async (groupItemData, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        `https://yenerp.com/purchaseapi/itemgroups/${groupItemData.itemgroupId}`,
+        `http://192.168.29.117:8000/purchaseapi/itemgroups/${groupItemData.itemgroupId}`,
         groupItemData
       );
       return response.data;
@@ -51,7 +51,7 @@ export const deactivatePurchaseGroupItem = createAsyncThunk<PurchaseGroupItem, s
   'purchaseGroupItems/deactivatePurchaseGroupItem',
   async (itemgroupId, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`https://yenerp.com/purchaseapi/itemgroups/${itemgroupId}`, {
+      const response = await axios.patch(`http://192.168.29.117:8000/purchaseapi/itemgroups/${itemgroupId}`, {
         status: 'deactivated',
       });
       return response.data;
@@ -66,7 +66,7 @@ export const activatePurchaseGroupItem = createAsyncThunk<PurchaseGroupItem, str
   'purchaseGroupItems/activatePurchaseGroupItem',
   async (itemgroupId, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`https://yenerp.com/purchaseapi/itemgroups/${itemgroupId}`, {
+      const response = await axios.patch(`http://192.168.29.117:8000/purchaseapi/itemgroups/${itemgroupId}`, {
         status: 'active',
       });
       return response.data;
@@ -89,7 +89,7 @@ export const importCSV = createAsyncThunk<ImportResult, File>(
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post('https://yenerp.com/purchaseapi/itemgroups/import-csv', formData, {
+      const response = await axios.post('http://192.168.29.117:8000/purchaseapi/itemgroups/import-csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data as ImportResult;
@@ -102,7 +102,7 @@ export const importCSV = createAsyncThunk<ImportResult, File>(
 // Async thunk for exporting CSV
 export const exportCSV = createAsyncThunk('purchaseGroupItems/exportCSV', async (_, { rejectWithValue }) => {
   try {
-    const response = await axios.get('https://yenerp.com/purchaseapi/itemgroups/export-csv', {
+    const response = await axios.get('http://192.168.29.117:8000/purchaseapi/itemgroups/export-csv', {
       responseType: 'blob',
     });
     console.log('Export CSV response status:', response.status, 'headers:', response.headers);

@@ -8,7 +8,7 @@ import { OverallDiscountRequest, OverallDiscountResponse } from '@/app/yen-purch
 
 
 const LIMIT = 20;
-const API_BASE_URL = 'https://yenerp.com/purchaseapi';
+const API_BASE_URL = 'http://192.168.29.117:8000/purchaseapi';
 
 export const fetchPurchaseOrderRandomIds = createAsyncThunk(
   'purchaseOrder/fetchRandomIds',
@@ -125,7 +125,7 @@ export const fetchPurchaseOrders = createAsyncThunk(
     if (dateField) params.filterBy = dateField;
 
     try {
-      const response = await axios.get('https://yenerp.com/purchaseapi/purchaseorders/', {
+      const response = await axios.get('http://192.168.29.117:8000/purchaseapi/purchaseorders/', {
         params,
       });
 
@@ -146,7 +146,7 @@ export const fetchAllPurchaseOrders = createAsyncThunk(
   'purchaseOrder/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<PurchaseOrderData[]>('https://yenerp.com/purchaseapi/purchaseorders/getAll');
+      const response = await axios.get<PurchaseOrderData[]>('http://192.168.29.117:8000/purchaseapi/purchaseorders/getAll');
       return response.data;  // List of purchase orders
     } catch (error: any) {
       return rejectWithValue(error.response?.data || 'Failed to fetch purchase orders');
@@ -157,7 +157,7 @@ export const fetchInvoiceNumbers = createAsyncThunk(
   'invoiceNumbers/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<PurchaseInvoice[]>('https://yenerp.com/purchaseapi/purchaseorders/getByInvoiceNo');
+      const response = await axios.get<PurchaseInvoice[]>('http://192.168.29.117:8000/purchaseapi/purchaseorders/getByInvoiceNo');
       return response.data;  // List of invoice numbers
     } catch (error: any) {
       return rejectWithValue(error.response?.data || 'Failed to fetch invoice numbers');
@@ -174,7 +174,7 @@ export const deactivatePurchaseOrder = createAsyncThunk(
       if (!purchaseOrderId) throw new Error("Invalid purchase order ID");
 
       // Send a PATCH request to update the poStatus to "deactivated"
-      await axios.patch(`https://yenerp.com/purchaseapi/purchaseorders/${purchaseOrderId}`, {
+      await axios.patch(`http://192.168.29.117:8000/purchaseapi/purchaseorders/${purchaseOrderId}`, {
         poStatus: 'deactivated' // or any other status you use to mark it as deactivated
       });
     } catch (error: any) {
@@ -194,7 +194,7 @@ export const updatePurchaseOrder = createAsyncThunk(
         ...purchaseOrder,
 
       };
-      const response = await axios.patch<PurchaseOrderData>(`https://yenerp.com/purchaseapi/purchaseorders/${purchaseOrderId}`, purchaseOrderToUpdate);
+      const response = await axios.patch<PurchaseOrderData>(`http://192.168.29.117:8000/purchaseapi/purchaseorders/${purchaseOrderId}`, purchaseOrderToUpdate);
       return response.data;
     } catch (error: any) {
       return Promise.reject(`Failed to update purchase order: ${error.response?.data?.message || error.message}`);
@@ -207,7 +207,7 @@ export const updatePurchaseOrderStatusToPending = createAsyncThunk(
   async (purchaseOrderId: string, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        `https://yenerp.com/purchaseapi/purchaseorders/${purchaseOrderId}`, // Make sure the endpoint matches your backend structure
+        `http://192.168.29.117:8000/purchaseapi/purchaseorders/${purchaseOrderId}`, // Make sure the endpoint matches your backend structure
         {
           poStatus: 'Pending',
 
@@ -224,7 +224,7 @@ export const approvePurchaseOrder = createAsyncThunk(
   async (purchaseOrderId: string, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        `https://yenerp.com/purchaseapi/purchaseorders/approved/${purchaseOrderId}`
+        `http://192.168.29.117:8000/purchaseapi/purchaseorders/approved/${purchaseOrderId}`
       );
       return response.data;
     } catch (error: any) {
@@ -239,7 +239,7 @@ export const rejectPurchaseOrder = createAsyncThunk(
     try {
 
       const response = await axios.patch(
-        `https://yenerp.com/purchaseapi/purchaseorders/rejected/${purchaseOrderId}`
+        `http://192.168.29.117:8000/purchaseapi/purchaseorders/rejected/${purchaseOrderId}`
       );
 
       return response.data; // Return the updated purchase order data
@@ -261,7 +261,7 @@ export const updateMultipleItemQuantities = createAsyncThunk(
       }));
 
       const response = await axios.patch<PurchaseOrderData>(
-        `https://yenerp.com/purchaseapi/purchaseorders/${params.purchaseOrderId}/items`,
+        `http://192.168.29.117:8000/purchaseapi/purchaseorders/${params.purchaseOrderId}/items`,
         { items }
       );
       return response.data;
@@ -275,7 +275,7 @@ export const fetchPoById = createAsyncThunk(
   'po/fetchPoById',
   async (poId: string) => {
     try {
-      const response = await axios.get(`https://yenerp.com/purchaseapi/poimport/getOutgoing/${poId}`);
+      const response = await axios.get(`http://192.168.29.117:8000/purchaseapi/poimport/getOutgoing/${poId}`);
       const data = response.data;
       console.log('API response:', data); // Debug: Verify orderDate is a string
       return {
@@ -331,7 +331,7 @@ export const updateReceivedDamagedQuantities = createAsyncThunk(
       };
 
       const response = await axios.patch(
-        `https://yenerp.com/purchaseapi/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
+        `http://192.168.29.117:8000/purchaseapi/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
         requestData
       );
       return response.data;

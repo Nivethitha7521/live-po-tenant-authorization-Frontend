@@ -2,6 +2,14 @@
 import { List } from "postcss/lib/list";
 import { GrnData } from "./grnModel";
 
+export interface Freight {
+  fr_Id: string;
+  fr_Name: string;
+  fr_TCode: string;
+  fr_Amt: number;
+  fr_TAmt: number;
+  fr_TotalAmt: number;
+}
 export interface Item {
   itemId: string;
   itemCode: string;
@@ -17,14 +25,14 @@ export interface Item {
   purchasesubcategoryName: any;
   existingPrice: number;
   newPrice: number;
-  priceVariance:number;
+  priceVariance: number;
   hsnCode: string;
   discountAmount: number;
   taxAmount: number;
   totalDiscount?: number;
   uom: string;
   taxPercentage: number;
-  grnPrice:number;
+  grnPrice: number;
   totalPrice: number;
   finalPrice: number;
   befTaxDiscountAmount: number;
@@ -37,13 +45,13 @@ export interface Item {
   igst: number;
   pendingCount: number;
   pendingQuantity: number;
-  poQuantityTaxAmount:number;
-  poQuantityDiscountAmount:number;
-  poQuantitypendingTotalPrice:number;
-  poQuantitypendingFinalPrice:number;
-  poQuantitysgst:number;
-  poQuantitycgst:number;
-  poQuantityigst:number;
+  poQuantityTaxAmount: number;
+  poQuantityDiscountAmount: number;
+  poQuantitypendingTotalPrice: number;
+  poQuantitypendingFinalPrice: number;
+  poQuantitysgst: number;
+  poQuantitycgst: number;
+  poQuantityigst: number;
   pendingTotalQuantity: number;
   pendingTaxAmount?: number;
   pendingSgst?: number;
@@ -53,13 +61,13 @@ export interface Item {
   pendingFinalPrice: number;
   pendingBefTaxDiscountAmount?: number;
   pendingAfTaxDiscountAmount?: number;
-  befTaxDiscountType?:string;
-  afTaxDiscountType?:string;
+  befTaxDiscountType?: string;
+  afTaxDiscountType?: string;
   pendingDiscountAmount: number;
   taxType: 'cgst_sgst' | 'igst';
   additionalTaxes?: { [key: string]: number }; // Optional additional taxes
   status: string;
-  randomId:string;
+  randomId: string;
 }
 
 export interface PurchaseOrderData {
@@ -94,6 +102,7 @@ export interface PurchaseOrderData {
   contactpersonEmail: string;
   itemStatus: string;
   termsandConditions: string[];
+  freights: Freight[];
   pendingOrderAmount: number;
   pendingDiscountAmount: number;
   pendingTaxAmount: number;
@@ -101,9 +110,11 @@ export interface PurchaseOrderData {
   poApprovedPerson: string;
   poRejectedPerson: string;
   discountMode: 'percentage' | 'amount'; // Added to track discount type
-  roundOffValue:number;
-  overallDiscountValue:number;
-  locationName:string;
+  roundOffValue: number;
+  overallDiscountValue: number;
+  locationName: string;
+totalFreightAmount:number;
+totalFreightTaxAmount:number;
 }
 
 export type TaxDetails = Record<string, {
@@ -128,7 +139,7 @@ export interface Vendor {
 
 export interface PurchaseItemSearchAdd {
   purchaseitemId: string;
-  itemCode:string;
+  itemCode: string;
   itemName: string;
   purchasetaxName: number;
   purchasePrice: number;
@@ -136,9 +147,33 @@ export interface PurchaseItemSearchAdd {
   purchasesubcategoryName: any;
   uom: string;
   hsnCode: string;
-  randomId:string;
+  randomId: string;
 }
 
+// Add these interfaces to your purchaseModel.ts
+interface FreightCalculationResponse {
+  fr_Amt: number;
+  fr_TAmt: number;
+  fr_TotalAmt: number;
+  sgst: number;
+  cgst: number;
+  igst: number;
+  taxPercentage: number;
+}
+
+interface PurchaseOrderTotalsResponse {
+  subTotal: number;
+  totalDiscount: number;
+  totalTax: number;
+  totalFreightAmount: number;
+  totalFreightTaxAmount: number;
+  finalAmount: number;
+  itemTaxAmount: number;
+  freightTaxAmount: number;
+  amountAfterDiscount: number;
+}
+
+// Update your PurchaseOrderState interface
 export interface PurchaseOrderState {
   purchaseOrderData: PurchaseOrderData;
   newItem: Item;
@@ -151,20 +186,24 @@ export interface PurchaseOrderState {
   searchQuery: string;
   snackbarMessage: string;
   snackbarOpen: boolean;
-  // Add global total fields
   totalPrice: number;
   totalDiscount: number;
   totalTax: number;
-  total: number; // Add total count for pagination
-  skip: number; // Add skip for pagination
-  limit: number; // Add limit for pagination
+  total: number;
+  skip: number;
+  limit: number;
   importDialogOpen: boolean;
   importDuplicates: string[];
-  importWarnings:string[];
+  importWarnings: string[];
   importErrors: string[];
-  importSuccessMessages: string[]; // Added for success messages
-  importUpdatedItems: string[]; // Added for updated items
-  discountMode:string;
+  importSuccessMessages: string[];
+  importUpdatedItems: string[];
+  discountMode: string;
+  
+  // ADD THESE NEW PROPERTIES:
+  freightCalculationLoading: boolean;
+  poTotalsLoading: boolean;
+  calculatedTotals: PurchaseOrderTotalsResponse | null;
 }
 
 export interface PurchaseRandomId {
@@ -206,8 +245,8 @@ export interface ItemDetailResponsePO {
   newPrice?: number;
   totalPrice?: number;
   purchasetaxName?: number;
- receivedQuantity:number;
- taxPercentage:number;
+  receivedQuantity: number;
+  taxPercentage: number;
   taxAmount?: number;
   discountAmount?: number;
   finalPrice?: number;
@@ -251,11 +290,11 @@ export interface PurchaseListState {
   searchQuery: string;
   previousSearches: string[];
   importDuplicates: string[];
-  importWarnings:string[];
+  importWarnings: string[];
   importErrors: string[];
-   importSuccessMessages: string[]; // Added for success messages
+  importSuccessMessages: string[]; // Added for success messages
   importUpdatedItems: string[]; // Added for updated items
-   calculatedOverallDiscount: OverallDiscountResponse | null;
+  calculatedOverallDiscount: OverallDiscountResponse | null;
   isCalculatingDiscount: boolean;
 }
 export const initialState: PurchaseListState = {
@@ -290,10 +329,10 @@ export const initialState: PurchaseListState = {
   previousSearches: [],
   importDuplicates: [],
   importErrors: [],
-  importWarnings:[],
+  importWarnings: [],
   importSuccessMessages: [], // Initialize success messages
   importUpdatedItems: [], // Initialize updated items
-   calculatedOverallDiscount: null,
+  calculatedOverallDiscount: null,
   isCalculatingDiscount: false,
 };
 // Define the Item type for the payload
@@ -328,7 +367,7 @@ export interface OverallDiscountResponse {
     pendingFinalPrice: number;
     pendingOrderAmount: number;
     pendingTaxAmount: number;
-    pendingAfTaxDiscountAmount:number;
+    pendingAfTaxDiscountAmount: number;
     pendingDiscountAmount: number;
     pendingTotalPrice: number;
     pendingSgst: number;

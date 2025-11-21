@@ -1,11 +1,45 @@
 import { createSlice, PayloadAction, createAsyncThunk, createAction } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { RootState } from '@/redux/store'; // Adjust the import path accordingly
-import { CalculateOverallDiscountPayload, Item, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'
+import { RootState } from '@/redux/store';
+import { CalculateOverallDiscountPayload, Item, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor, Freight } from '../../../Models/purchaseModel'
 
 export interface PurchaseItemSearch {
   purchaseitemId: string;
   itemName: string;
+}
+
+// Types for freight calculation
+interface FreightCalculationRequest {
+  fr_Amt: number;
+  fr_TCode: string;
+  taxType: 'cgst_sgst' | 'igst';
+}
+
+interface FreightCalculationResponse {
+  fr_Amt: number;
+  fr_TAmt: number;
+  fr_TotalAmt: number;
+  sgst: number;
+  cgst: number;
+  igst: number;
+  taxPercentage: number;
+}
+
+interface PurchaseOrderTotalsRequest {
+  items: Item[];
+  freights: Freight[];
+}
+// In your purchaseModel.ts, update the PurchaseOrderTotalsResponse interface
+interface PurchaseOrderTotalsResponse {
+  subTotal: number;
+  totalDiscount: number;
+  totalTax: number;
+  totalFreightAmount: number;
+  totalFreightTaxAmount: number;
+  finalAmount: number;  // This should match your backend response
+  itemTaxAmount: number;
+  freightTaxAmount: number;
+  amountAfterDiscount: number;
 }
 
 export const initialState: PurchaseOrderState = {
@@ -49,7 +83,10 @@ export const initialState: PurchaseOrderState = {
     discountMode: 'percentage',
     roundOffValue: 0,
     overallDiscountValue: 0,
-    locationName: ''
+    locationName: '',
+    freights: [],
+    totalFreightAmount: 0,
+    totalFreightTaxAmount: 0
   },
   newItem: {
     itemId: '',
@@ -130,12 +167,57 @@ export const initialState: PurchaseOrderState = {
   importSuccessMessages: [],
   importUpdatedItems: [],
   discountMode: 'percentage',
+  // New states for freight calculation
+  freightCalculationLoading: false,
+  poTotalsLoading: false,
+  calculatedTotals: null as PurchaseOrderTotalsResponse | null,
 };
 
 let purchaseItemsCache: Map<string, { data: PurchaseItemSearchAdd[], timestamp: number }> = new Map();
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://192.168.29.117:8000/purchaseapi';
+
+// Async thunks for freight and PO calculations
+export const calculateFreightTotals = createAsyncThunk(
+  'purchaseOrder/calculateFreightTotals',
+  async (request: FreightCalculationRequest): Promise<FreightCalculationResponse> => {
+    const params = new URLSearchParams({
+      fr_Amt: request.fr_Amt.toString(),
+      fr_TCode: request.fr_TCode,
+      taxType: request.taxType,
+    });
+
+    const response = await fetch(`${BASE_URL}/purchaseorders/freight/totals?${params}`);
+    if (!response.ok) {
+      throw new Error('Failed to calculate freight totals');
+    }
+    return await response.json();
+  }
+);
+
+export const calculatePurchaseOrderTotals = createAsyncThunk(
+  'purchaseOrder/calculatePurchaseOrderTotals',
+  async (request: PurchaseOrderTotalsRequest): Promise<PurchaseOrderTotalsResponse> => {
+    const response = await fetch(`${BASE_URL}/purchaseorders/calculate-totals`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        items: request.items,
+        freights: request.freights,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to calculate purchase order totals');
+    }
+
+    const result = await response.json();
+    return result.totals;
+  }
+);
 
 export const fetchPurchaseOrders = createAsyncThunk(
   'purchaseOrder/fetchPurchaseOrders',
@@ -144,39 +226,37 @@ export const fetchPurchaseOrders = createAsyncThunk(
     return response.data;
   }
 );
+
 export const fetchVendorByName = createAsyncThunk<Vendor | undefined, string>(
   'vendors/fetchByName',
   async (vendorName: string) => {
     try {
-      const response = await axios.get<Vendor[]>('https://yenerp.com/purchaseapi/purchaseorders/vendors/');
+      const response = await axios.get<Vendor[]>(`${BASE_URL}/purchaseorders/vendors/`);
       const vendor = response.data.find(v => v.vendorName === vendorName);
-      return vendor; // Return the vendor if found, otherwise undefined
+      return vendor;
     } catch (error) {
       console.error('Failed to fetch vendor by name:', error);
-      return undefined; // Return undefined in case of an error
+      return undefined;
     }
   }
 );
+
 export const fetchAllVendors = createAsyncThunk(
   'vendors/fetch',
   async (_, { getState }) => {
     const localData = localStorage.getItem('vendors');
 
-    // If data exists in localStorage, return it
     if (localData) {
       const cachedVendors = JSON.parse(localData);
       return cachedVendors;
     }
 
-    // If not, make the API request to fetch vendors
-    const response = await axios.get<Vendor[]>(`https://yenerp.com/purchaseapi/vendors/`);
-
-    // Store the fetched vendors in localStorage for future use
+    const response = await axios.get<Vendor[]>(`${BASE_URL}/vendors/`);
     localStorage.setItem('vendors', JSON.stringify(response.data));
-
     return response.data;
   }
 );
+
 export const fetchPurchaseOrderById = createAsyncThunk(
   'purchaseOrder/fetchPurchaseOrderById',
   async (purchaseOrderId: string) => {
@@ -184,7 +264,7 @@ export const fetchPurchaseOrderById = createAsyncThunk(
     return response.data;
   }
 );
-// Add a new function to invalidate cache when there are updates
+
 export const invalidatePurchaseItemsCache = () => {
   purchaseItemsCache.clear();
   console.log('Purchase items cache invalidated');
@@ -197,6 +277,7 @@ export const updatePurchaseItem = createAsyncThunk<PurchaseItemSearchAdd, { id: 
     return response.data;
   }
 );
+
 export const calculateItemTotals = createAsyncThunk(
   'purchaseOrder/calculateItemTotals',
   async (
@@ -210,7 +291,6 @@ export const calculateItemTotals = createAsyncThunk(
       afTaxDiscountAmount,
       taxPercentage,
       taxType,
-    
     }: {
       pendingTotalQuantity: number;
       poQuantity: number;
@@ -221,9 +301,6 @@ export const calculateItemTotals = createAsyncThunk(
       afTaxDiscountAmount?: number;
       taxPercentage: number;
       taxType: 'cgst_sgst' | 'igst';
-      // Remove these from parameters
-      // befTaxDiscountType?: 'percentage' | 'amount';
-      // afTaxDiscountType?: 'percentage' | 'amount';
     },
     { getState, rejectWithValue }
   ) => {
@@ -237,18 +314,16 @@ export const calculateItemTotals = createAsyncThunk(
         newPrice,
         taxPercentage,
         taxType,
-        befTaxDiscountType: discountMode, // Use state discount mode
-        afTaxDiscountType: discountMode,  // Use state discount mode
+        befTaxDiscountType: discountMode,
+        afTaxDiscountType: discountMode,
       };
 
-      // Handle before-tax discount based on mode
       if (discountMode === 'percentage' && befTaxDiscount !== undefined && befTaxDiscount > 0) {
         params.befTaxDiscount = befTaxDiscount;
       } else if (discountMode === 'amount' && befTaxDiscountAmount !== undefined && befTaxDiscountAmount > 0) {
         params.befTaxDiscountAmount = befTaxDiscountAmount;
       }
 
-      // Handle after-tax discount based on mode
       if (discountMode === 'percentage' && afTaxDiscount !== undefined && afTaxDiscount > 0) {
         params.afTaxDiscount = afTaxDiscount;
       } else if (discountMode === 'amount' && afTaxDiscountAmount !== undefined && afTaxDiscountAmount > 0) {
@@ -291,7 +366,7 @@ export const calculateOverallDiscountForAllItems = createAsyncThunk<
   'purchaseOrder/calculateOverallDiscountForAllItems',
   async (payload: CalculateOverallDiscountPayload, { rejectWithValue }) => {
     try {
-      console.log('Sending to backend:', payload); // Debug log
+      console.log('Sending to backend:', payload);
 
       const response = await fetch(`${BASE_URL}/purchaseorders/items/calculate-overall-discount`, {
         method: 'POST',
@@ -306,7 +381,7 @@ export const calculateOverallDiscountForAllItems = createAsyncThunk<
       }
 
       const result: OverallDiscountResponse = await response.json();
-      console.log('Backend response:', result); // Debug log
+      console.log('Backend response:', result);
       return result;
     } catch (error) {
       console.error('Error calculating overall discount:', error);
@@ -327,6 +402,7 @@ export const calculateOverallDiscountForAllItems = createAsyncThunk<
     }
   }
 );
+
 export const downloadCsvTemplate = createAsyncThunk(
   'purchaseOrder/downloadCsvTemplate',
   async (_, { rejectWithValue }) => {
@@ -348,7 +424,7 @@ export const downloadCsvTemplate = createAsyncThunk(
     }
   }
 );
-// Updated importCsvItems thunk
+
 export const importCsvItems = createAsyncThunk(
   'purchaseOrder/importCsvItems',
   async (file: File, { dispatch, rejectWithValue, getState }) => {
@@ -358,7 +434,7 @@ export const importCsvItems = createAsyncThunk(
 
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post(`https://yenerp.com/purchaseapi/poimport/import-items-csv`, formData, {
+      const response = await axios.post(`${BASE_URL}/poimport/import-items-csv`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const { success, message, imported_items, duplicates_merged, errors, updated_items, warnings, success_messages } = response.data;
@@ -423,7 +499,7 @@ export const importCsvItems = createAsyncThunk(
         errors,
         updatedItems: updated_items,
         warnings,
-        successMessages: success_messages, // Added success_messages
+        successMessages: success_messages,
       };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to import CSV file');
@@ -457,15 +533,11 @@ export const updatePurchaseOrder = createAsyncThunk(
     return response.data;
   }
 );
+
 export const setDiscountMode = createAction<{
   mode: 'percentage' | 'amount';
-  recalculate?: boolean; // Optional flag to recalculate after mode change
+  recalculate?: boolean;
 }>('purchaseOrder/setDiscountMode');
-
-// export const setDiscountMode = createAction<{
-//   mode: 'percentage' | 'amount';
-//   recalculate?: boolean; // Optional flag to recalculate after mode change
-// }>('purchaseOrder/setDiscountMode');
 
 const purchaseOrderSlice = createSlice({
   name: 'purchaseOrder',
@@ -539,10 +611,14 @@ const purchaseOrderSlice = createSlice({
       pendingOrderAmount: number;
       pendingDiscountAmount: number;
       pendingTaxAmount: number;
+      totalFreightAmount?: number;
+      totalFreightTaxAmount?: number;
     }>) => {
       state.purchaseOrderData.pendingOrderAmount = action.payload.pendingOrderAmount;
       state.purchaseOrderData.pendingDiscountAmount = action.payload.pendingDiscountAmount;
       state.purchaseOrderData.pendingTaxAmount = action.payload.pendingTaxAmount;
+      state.purchaseOrderData.totalFreightAmount = action.payload.totalFreightAmount ?? 0;
+      state.purchaseOrderData.totalFreightTaxAmount = action.payload.totalFreightTaxAmount ?? 0;
       state.totalPrice = action.payload.pendingOrderAmount;
       state.totalDiscount = action.payload.pendingDiscountAmount;
       state.totalTax = action.payload.pendingTaxAmount;
@@ -555,7 +631,7 @@ const purchaseOrderSlice = createSlice({
     },
     clearSnackbarMessage(state) {
       state.snackbarMessage = '';
-      state.snackbarOpen = false; // Close the snackbar when clearing the message
+      state.snackbarOpen = false;
     },
     setSnackbarOpen(state, action: PayloadAction<boolean>) {
       state.snackbarOpen = action.payload;
@@ -576,9 +652,39 @@ const purchaseOrderSlice = createSlice({
       state.importWarnings = [];
       state.importDialogOpen = false;
     },
+    // New reducers for freight calculation
+    setCalculatedTotals: (state, action: PayloadAction<PurchaseOrderTotalsResponse | null>) => {
+      state.calculatedTotals = action.payload;
+    },
+    clearCalculatedTotals: (state) => {
+      state.calculatedTotals = null;
+    },
   },
   extraReducers: (builder) => {
     builder
+      // Freight calculation cases
+      .addCase(calculateFreightTotals.pending, (state) => {
+        state.freightCalculationLoading = true;
+      })
+      .addCase(calculateFreightTotals.fulfilled, (state, action) => {
+        state.freightCalculationLoading = false;
+        // You can store the result if needed for individual freight calculations
+      })
+      .addCase(calculateFreightTotals.rejected, (state) => {
+        state.freightCalculationLoading = false;
+      })
+      // PO totals calculation cases
+      .addCase(calculatePurchaseOrderTotals.pending, (state) => {
+        state.poTotalsLoading = true;
+      })
+      .addCase(calculatePurchaseOrderTotals.fulfilled, (state, action) => {
+        state.poTotalsLoading = false;
+        state.calculatedTotals = action.payload;
+      })
+      .addCase(calculatePurchaseOrderTotals.rejected, (state) => {
+        state.poTotalsLoading = false;
+      })
+      // Existing cases...
       .addCase(fetchPurchaseOrders.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -598,7 +704,6 @@ const purchaseOrderSlice = createSlice({
       .addCase(fetchAllVendors.fulfilled, (state, action: PayloadAction<Vendor[]>) => {
         state.loading = false;
         state.vendors = action.payload;
-        // Store vendors in localStorage
         localStorage.setItem('vendors', JSON.stringify(action.payload));
       })
       .addCase(fetchAllVendors.rejected, (state, action) => {
@@ -607,7 +712,7 @@ const purchaseOrderSlice = createSlice({
       })
       .addCase(calculateItemTotals.pending, (state) => {
         state.loading = true;
-        state.error = null; // Clear previous errors
+        state.error = null;
       })
       .addCase(calculateItemTotals.fulfilled, (state, action: PayloadAction<{
         pendingTotalPrice: number;
@@ -639,8 +744,8 @@ const purchaseOrderSlice = createSlice({
           sgst: action.payload.pendingSgst,
           cgst: action.payload.pendingCgst,
           igst: action.payload.pendingIgst,
-          befTaxDiscountType: state.discountMode, // Use state discount mode
-          afTaxDiscountType: state.discountMode,  // Use state discount mode
+          befTaxDiscountType: state.discountMode,
+          afTaxDiscountType: state.discountMode,
         };
         state.totalPrice = action.payload.pendingFinalPrice;
         state.totalDiscount = action.payload.pendingDiscountAmount;
@@ -666,9 +771,8 @@ const purchaseOrderSlice = createSlice({
       })
       .addCase(addPurchaseOrder.fulfilled, (state, action: PayloadAction<PurchaseOrderData>) => {
         state.loading = false;
-        // Optionally, add the new purchase order to the list
         state.purchaseorderitems.push(action.payload);
-        state.error = 'Purchase order added successfully'; // Or use a snackbar message
+        state.error = 'Purchase order added successfully';
       })
       .addCase(addPurchaseOrder.rejected, (state, action) => {
         state.loading = false;
@@ -680,12 +784,11 @@ const purchaseOrderSlice = createSlice({
       })
       .addCase(updatePurchaseOrder.fulfilled, (state, action: PayloadAction<PurchaseOrderData>) => {
         state.loading = false;
-        // Update the purchase order in the list
         const index = state.purchaseorderitems.findIndex(po => po.purchaseOrderId === action.payload.purchaseOrderId);
         if (index !== -1) {
           state.purchaseorderitems[index] = action.payload;
         }
-        state.purchaseOrderData = action.payload; // Also update the current editing data
+        state.purchaseOrderData = action.payload;
         state.error = null;
       })
       .addCase(updatePurchaseOrder.rejected, (state, action) => {
@@ -707,14 +810,13 @@ const purchaseOrderSlice = createSlice({
         state.snackbarMessage = state.error;
         state.snackbarOpen = true;
       })
-      // Updated Redux slice case for importCsvItems
       .addCase(importCsvItems.fulfilled, (state, action) => {
         state.loading = false;
         state.importDuplicates = action.payload.duplicates;
         state.importErrors = action.payload.errors;
         state.importWarnings = action.payload.warnings;
-        state.importSuccessMessages = action.payload.successMessages; // Added
-        state.importUpdatedItems = action.payload.updatedItems; // Added
+        state.importSuccessMessages = action.payload.successMessages;
+        state.importUpdatedItems = action.payload.updatedItems;
         state.snackbarMessage = action.payload.message;
         state.snackbarOpen = true;
         state.importDialogOpen = true;
@@ -732,7 +834,7 @@ const purchaseOrderSlice = createSlice({
       })
       .addCase(fetchPurchaseOrderById.fulfilled, (state, action: PayloadAction<PurchaseOrderData>) => {
         state.loading = false;
-        state.purchaseOrderData = { ...action.payload }; // Full PO object
+        state.purchaseOrderData = { ...action.payload };
         state.error = null;
       })
       .addCase(fetchPurchaseOrderById.rejected, (state, action) => {
@@ -742,16 +844,8 @@ const purchaseOrderSlice = createSlice({
       .addCase(setDiscountMode, (state, action) => { 
         const { mode, recalculate = true } = action.payload;
         state.discountMode = mode;
-
-        // Update both discount types in newItem
         state.newItem.befTaxDiscountType = mode;
         state.newItem.afTaxDiscountType = mode;
-
-        // Optionally trigger recalculation
-        if (recalculate) {
-          // You might want to dispatch calculateItemTotals here
-          // or handle it in the component
-        }
       });
   },
 });
@@ -768,7 +862,13 @@ export const {
   setItemForEditing,
   clearItemForEditing,
   setReduxTotals,
-  clearVendors, updateSkip, clearImportResults, setImportDialogOpen // Add this
+  clearVendors,
+  updateSkip,
+  clearImportResults,
+  setImportDialogOpen,
+  // New freight calculation actions
+  setCalculatedTotals,
+  clearCalculatedTotals,
 } = purchaseOrderSlice.actions;
 
 export const selectPurchaseOrderState = (state: RootState) => state.purchaseOrder;

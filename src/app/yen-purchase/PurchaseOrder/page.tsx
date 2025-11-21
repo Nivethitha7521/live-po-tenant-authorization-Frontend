@@ -17,7 +17,6 @@ import {
   selectCurrentPage,
   selectPageSize,
   selectTotalItems,
-  setRandomQueryItem,
   resetPurchaseOrderState,
   fetchPurchaseOrderRandomIds,
   fetchAllImages,
@@ -45,16 +44,15 @@ import EditIcon from '@mui/icons-material/Edit'; // Added Edit icon
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import '../../../components/common.css';
-import { Item, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseRandomId, TaxDetails, Vendor } from '@/Models/purchaseModel';
+import { Item,PurchaseRandomId, TaxDetails, Vendor } from '@/Models/purchaseModel';
 import { ChevronLeft, ChevronRight, PhotoCamera } from '@mui/icons-material';
 import YenPurchasePage from '../page';
 import jsPDF from "jspdf";
 import "jspdf-autotable"; // Ensure this is imported
-import { PurchaseItemSearch, selectPurchaseOrderState, setSnackbarMessage, setSnackbarOpen } from '@/features/yen-purchase/PurchaseOrder/purchaseOrderSlice';
+import { PurchaseItemSearch, setSnackbarMessage, setSnackbarOpen } from '@/features/yen-purchase/PurchaseOrder/purchaseOrderSlice';
 import { fetchBusinesses, fetchPhoto, selectBusinesses } from '@/features/account-setting/businessSlice';
-import { format, parse, toDate } from 'date-fns';
+import { format } from 'date-fns';
 import Papa from 'papaparse';
-import { id } from 'date-fns/locale';
 import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css'; // theme css file
 import DateRangeDialog from '@/components/dateRange';
@@ -111,10 +109,8 @@ const Polist: React.FC = () => {
   const [openImageDialog, setOpenImageDialog] = useState<boolean>(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
-const [selectedItem, setSelectedItem] = useState<PurchaseItemSearch | null>(null);
   const [statusFilter, setStatusFilter] = useState(['Pending for Approve', 'CreditLimit for Approve']);
-  const [filteredOrder, setFilteredOrders] = useState<PurchaseOrderData[]>([]); // Explicit type declaration
-  const [file, setFile] = useState<File | null>(null);
+  // const [file, setFile] = useState<File | null>(null);
   const [fetchedPurchaseOrderIds, setFetchedPurchaseOrderIds] = useState<Set<string>>(new Set());
   const [dialogDownloadOpen, setDialogDownloadOpen] = useState(false);
   const [dialogSummaryOpen, setDialogSummaryOpen] = useState(false);
