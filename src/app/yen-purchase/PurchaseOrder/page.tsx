@@ -44,7 +44,7 @@ import EditIcon from '@mui/icons-material/Edit'; // Added Edit icon
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import '../../../components/common.css';
-import { Item,PurchaseRandomId, TaxDetails, Vendor } from '@/Models/purchaseModel';
+import { Item, PurchaseRandomId, TaxDetails, Vendor } from '@/Models/purchaseModel';
 import { ChevronLeft, ChevronRight, PhotoCamera } from '@mui/icons-material';
 import YenPurchasePage from '../page';
 import jsPDF from "jspdf";
@@ -185,85 +185,101 @@ const Polist: React.FC = () => {
       setPendingDiscountAmount(selectedOrder.pendingDiscountAmount || '');
     }
   }, [selectedOrder]);
-  useEffect(() => {
-    if (updatedItems.length > 0) {
-      const taxDetails: Record<string, { amount: number; percentage: number; type: string }> = {};
-      let newTotalOrderAmount = 0;
-      let totalDiscountBeforeTax = 0;
-      let totalDiscountAfterTax = 0;
-      updatedItems.forEach(item => {
-        const totalPrice = (item.pendingTotalQuantity || 0) * (item.newPrice || 0);
-        const discountAmountBeforeTax = (totalPrice * ((item.befTaxDiscount || 0) / 100)) || 0;
-        const discountedPriceBeforeTax = totalPrice - discountAmountBeforeTax;
-        const taxPercentage = item.taxPercentage || 0;
-        const taxType = item.taxType || 'cgst_sgst';
-        let sgst = 0, cgst = 0, igst = 0;
-        if (taxType === 'igst') {
-          igst = (taxPercentage / 100) * discountedPriceBeforeTax; 
-          igst = customRounddigit(igst);
-          const igstKey = `igst-${taxPercentage}`;
-          if (taxDetails[igstKey]) {
-            taxDetails[igstKey].amount += igst;
-          } else {
-            taxDetails[igstKey] = {
-              amount: igst,
-              percentage: taxPercentage,
-              type: 'IGST'
-            };
-          }
-        } else if (taxType === 'cgst_sgst') {
-          const totalTaxAmount = (taxPercentage / 100) * discountedPriceBeforeTax;
-          sgst = totalTaxAmount / 2;
-          cgst = totalTaxAmount / 2;
-          sgst = customRounddigit(sgst);
-          cgst = customRounddigit(cgst);
-          const sgstKey = `sgst-${taxPercentage / 2}`;
-          if (taxDetails[sgstKey]) {
-            taxDetails[sgstKey].amount += sgst;
-          } else {
-            taxDetails[sgstKey] = {
-              amount: sgst,
-              percentage: taxPercentage / 2,
-              type: 'SGST'
-            };
-          }
-          const cgstKey = `cgst-${taxPercentage / 2}`;
-          if (taxDetails[cgstKey]) {
-            taxDetails[cgstKey].amount += cgst;
-          } else {
-            taxDetails[cgstKey] = {
-              amount: cgst,
-              percentage: taxPercentage / 2,
-              type: 'CGST'
-            };
-          }
+ useEffect(() => {
+  if (updatedItems.length > 0) {
+    const taxDetails: Record<string, { amount: number; percentage: number; type: string }> = {};
+    let newTotalOrderAmount = 0;
+    let totalDiscountBeforeTax = 0;
+    let totalDiscountAfterTax = 0;
+    
+    updatedItems.forEach(item => {
+      const totalPrice = (item.pendingTotalQuantity || 0) * (item.newPrice || 0);
+      const discountAmountBeforeTax = (totalPrice * ((item.befTaxDiscount || 0) / 100)) || 0;
+      const discountedPriceBeforeTax = totalPrice - discountAmountBeforeTax;
+      const taxPercentage = item.taxPercentage || 0;
+      const taxType = item.taxType || 'cgst_sgst';
+      
+      let sgst = 0, cgst = 0, igst = 0;
+      
+      if (taxType === 'igst') {
+        igst = (taxPercentage / 100) * discountedPriceBeforeTax; 
+        igst = customRounddigit(igst);
+        const igstKey = `igst-${taxPercentage}`;
+        if (taxDetails[igstKey]) {
+          taxDetails[igstKey].amount += igst;
+        } else {
+          taxDetails[igstKey] = {
+            amount: igst,
+            percentage: taxPercentage,
+            type: 'IGST'
+          };
         }
-        const finalPriceBeforeAfterTaxDiscount = discountedPriceBeforeTax + igst + sgst + cgst;
-        const discountAmountAfterTax = (finalPriceBeforeAfterTaxDiscount * ((item.afTaxDiscount || 0) / 100)) || 0;
-        const finalPriceAfterTaxDiscount = finalPriceBeforeAfterTaxDiscount - discountAmountAfterTax;
-        newTotalOrderAmount += finalPriceAfterTaxDiscount;
-        totalDiscountBeforeTax += discountAmountBeforeTax;
-        totalDiscountAfterTax += discountAmountAfterTax;
-        // Update item with calculated final price
-        item.pendingFinalPrice = finalPriceAfterTaxDiscount;
-      });
-      // Apply overall discount
-      const totalItemWiseDiscount = totalDiscountBeforeTax + totalDiscountAfterTax;
-      const totalDiscount = totalItemWiseDiscount + (overallDiscount || 0);
-      const finalOrderAmount = newTotalOrderAmount - (overallDiscount || 0);
-      setPendingOrderAmount(customRound(finalOrderAmount));
-      setPendingDiscountAmount(customRounddigit(totalDiscount));
-      setTaxDetails(taxDetails);
-      const totalTaxAmount = Object.values(taxDetails).reduce((acc, tax) => acc + (tax.amount || 0), 0);
-      setPendingTaxAmount(customRounddigit(totalTaxAmount));
-    } else {
-      setPendingOrderAmount(0);
-      setPendingDiscountAmount(0);
-      setPendingTaxAmount(0);
-      setOverallDiscount(0);
-      setTaxDetails({});
-    }
-  }, [updatedItems, overallDiscount]);
+      } else if (taxType === 'cgst_sgst') {
+        const totalTaxAmount = (taxPercentage / 100) * discountedPriceBeforeTax;
+        sgst = totalTaxAmount / 2;
+        cgst = totalTaxAmount / 2;
+        sgst = customRounddigit(sgst);
+        cgst = customRounddigit(cgst);
+        
+        const sgstKey = `sgst-${taxPercentage / 2}`;
+        if (taxDetails[sgstKey]) {
+          taxDetails[sgstKey].amount += sgst;
+        } else {
+          taxDetails[sgstKey] = {
+            amount: sgst,
+            percentage: taxPercentage / 2,
+            type: 'SGST'
+          };
+        }
+        
+        const cgstKey = `cgst-${taxPercentage / 2}`;
+        if (taxDetails[cgstKey]) {
+          taxDetails[cgstKey].amount += cgst;
+        } else {
+          taxDetails[cgstKey] = {
+            amount: cgst,
+            percentage: taxPercentage / 2,
+            type: 'CGST'
+          };
+        }
+      }
+
+      const finalPriceBeforeAfterTaxDiscount = discountedPriceBeforeTax + igst + sgst + cgst;
+      const discountAmountAfterTax = (finalPriceBeforeAfterTaxDiscount * ((item.afTaxDiscount || 0) / 100)) || 0;
+      const finalPriceAfterTaxDiscount = finalPriceBeforeAfterTaxDiscount - discountAmountAfterTax;
+      
+      newTotalOrderAmount += finalPriceAfterTaxDiscount;
+      totalDiscountBeforeTax += discountAmountBeforeTax;
+      totalDiscountAfterTax += discountAmountAfterTax;
+
+      // Update item with calculated final price
+      item.pendingFinalPrice = finalPriceAfterTaxDiscount;
+    });
+
+    // Apply overall discount
+    const totalItemWiseDiscount = totalDiscountBeforeTax + totalDiscountAfterTax;
+    const totalDiscount = totalItemWiseDiscount + (overallDiscount || 0);
+    
+    // ADD FREIGHT CHARGES AND TAX TO FINAL AMOUNT
+    const freightCharges = selectedOrder?.totalFreightAmount || 0;
+    const freightTax = selectedOrder?.totalFreightTaxAmount || 0;
+    
+    const finalOrderAmount = newTotalOrderAmount - (overallDiscount || 0) + freightCharges + freightTax;
+    
+    setPendingOrderAmount(customRound(finalOrderAmount));
+    setPendingDiscountAmount(customRounddigit(totalDiscount));
+    setTaxDetails(taxDetails);
+    
+    const totalTaxAmount = Object.values(taxDetails).reduce((acc, tax) => acc + (tax.amount || 0), 0);
+    setPendingTaxAmount(customRounddigit(totalTaxAmount));
+  } else {
+    setPendingOrderAmount(0);
+    setPendingDiscountAmount(0);
+    setPendingTaxAmount(0);
+    setOverallDiscount(0);
+    setTaxDetails({});
+  }
+}, [updatedItems, overallDiscount, selectedOrder]); // Added selectedOrder to dependencies
   const handleClose = () => {
     setDialogSummaryOpen(false);
   };
@@ -285,7 +301,7 @@ const Polist: React.FC = () => {
     setSelectedVendor(vendor);
     setSelectedVendorName(vendor ? vendor.vendorName : '');
   };
-  
+
   const handleRandomIdChange = (randomId: string) => {
     setSelectedRandomId(randomId);
   };
@@ -925,79 +941,88 @@ const Polist: React.FC = () => {
     handleClose();
   };
   const handleItemChange = (item: PurchaseItemSearch | null) => {
-  setNewItem(item);
-  setSearchQueryItem(item ? item.itemName : ''); // Update the search query with the item name
-};
-  const handleConfirmSave = () => {
-    if (updatedItems.length > 0) {
-      console.log('Updated Items:', updatedItems);
-      if (!selectedOrder?.purchaseOrderId) {
-        console.error('No purchase order selected.');
-        dispatch(setSnackbarMessage('No purchase order selected.'));
-        dispatch(setSnackbarOpen(true));
-        return;
-      }
-      // Check for validation errors
-      const hasErrors = updatedItems.some((item, index) =>
-        errors[index]?.pendingCount || errors[index]?.pendingQuantity || errors[index]?.newPrice
-      );
-      if (hasErrors) {
-        dispatch(setSnackbarMessage('Please fix all validation errors before saving.'));
-        dispatch(setSnackbarOpen(true));
-        return;
-      }
-      // Sanitize items by converting empty strings to 0
-      const items = updatedItems.map(item => ({
-        itemId: item.itemId,
-        updatedItem: {
-          newPrice: item.newPrice === '' ? 0 : Number(item.newPrice),
-          discount: item.discount ?? null,
-          pendingCount: item.pendingCount === '' ? 0 : Number(item.pendingCount),
-          pendingQuantity: item.pendingQuantity === '' ? 0 : Number(item.pendingQuantity),
-          pendingTotalQuantity: item.pendingTotalQuantity ?? null,
-          poQuantity: item.pendingTotalQuantity, // Use pendingTotalQuantity
-          taxPercentage: item.taxPercentage ?? null,
-          pendingSgst: item.pendingSgst ?? null,
-          pendingCgst: item.pendingCgst ?? null,
-          pendingIgst: item.pendingIgst ?? null,
-          befTaxDiscount: item.befTaxDiscount ?? null,
-          afTaxDiscount: item.afTaxDiscount ?? null,
-          pendingTotalPrice: item.pendingTotalPrice ?? null,
-          pendingFinalPrice: item.pendingFinalPrice ?? null,
-          pendingDiscountAmount: item.pendingDiscountAmount ?? null,
-          pendingTaxAmount: item.pendingTaxAmount ?? null,
-          taxType: item.taxType ?? null,
-          pendingBefTaxDiscountAmount: item.pendingBefTaxDiscountAmount ?? null,
-          pendingAfTaxDiscountAmount: item.pendingAfTaxDiscountAmount ?? null,
-
-
-        }
-      }));
-      console.log('Payload:', { items });
-      // Dispatch to update items
-      dispatch(updateMultipleItemQuantities({
-        purchaseOrderId: selectedOrder.purchaseOrderId,
-        updatedItems: items
-      }))
-        .then(response => {
-          console.log('Response:', response);
-          dispatch(setSnackbarMessage('Changes saved successfully!'));
-          dispatch(setSnackbarOpen(true));
-          // Re-fetch the updated purchase orders to refresh the UI
-          dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize, status }));
-        })
-        .catch(error => {
-          console.error('Failed to save changes:', error);
-          dispatch(setSnackbarMessage('Failed to save changes. Please try again.'));
-          dispatch(setSnackbarOpen(true));
-        });
-    } else {
-      dispatch(setSnackbarMessage('No items to save.'));
-      dispatch(setSnackbarOpen(true));
-    }
-    setConfirmDialogOpen(false);
-    setDialogOpen(false);
+    setNewItem(item);
+    setSearchQueryItem(item ? item.itemName : ''); // Update the search query with the item name
   };
+ const handleConfirmSave = () => {
+  if (updatedItems.length > 0) {
+    console.log('Updated Items:', updatedItems);
+    if (!selectedOrder?.purchaseOrderId) {
+      console.error('No purchase order selected.');
+      dispatch(setSnackbarMessage('No purchase order selected.'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    // Check for validation errors
+    const hasErrors = updatedItems.some((item, index) =>
+      errors[index]?.pendingCount || errors[index]?.pendingQuantity || errors[index]?.newPrice
+    );
+    if (hasErrors) {
+      dispatch(setSnackbarMessage('Please fix all validation errors before saving.'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    // Sanitize items by converting empty strings to 0
+    const items = updatedItems.map(item => ({
+      itemId: item.itemId,
+      updatedItem: {
+        newPrice: item.newPrice === '' ? 0 : Number(item.newPrice),
+        discount: item.discount ?? null,
+        pendingCount: item.pendingCount === '' ? 0 : Number(item.pendingCount),
+        pendingQuantity: item.pendingQuantity === '' ? 0 : Number(item.pendingQuantity),
+        pendingTotalQuantity: item.pendingTotalQuantity ?? null,
+        poQuantity: item.pendingTotalQuantity, // Use pendingTotalQuantity
+        taxPercentage: item.taxPercentage ?? null,
+        pendingSgst: item.pendingSgst ?? null,
+        pendingCgst: item.pendingCgst ?? null,
+        pendingIgst: item.pendingIgst ?? null,
+        befTaxDiscount: item.befTaxDiscount ?? null,
+        afTaxDiscount: item.afTaxDiscount ?? null,
+        pendingTotalPrice: item.pendingTotalPrice ?? null,
+        pendingFinalPrice: item.pendingFinalPrice ?? null,
+        pendingDiscountAmount: item.pendingDiscountAmount ?? null,
+        pendingTaxAmount: item.pendingTaxAmount ?? null,
+        taxType: item.taxType ?? null,
+        pendingBefTaxDiscountAmount: item.pendingBefTaxDiscountAmount ?? null,
+        pendingAfTaxDiscountAmount: item.pendingAfTaxDiscountAmount ?? null,
+      }
+    }));
+
+    console.log('Payload:', { items });
+    
+    // Include freight amounts in the payload if needed
+    const payload = {
+      items,
+      freightCharges: selectedOrder?.totalFreightAmount || 0,
+      freightTax: selectedOrder?.totalFreightTaxAmount || 0
+    };
+
+    // Dispatch to update items
+    dispatch(updateMultipleItemQuantities({
+      purchaseOrderId: selectedOrder.purchaseOrderId,
+      updatedItems: items
+    }))
+      .then(response => {
+        console.log('Response:', response);
+        dispatch(setSnackbarMessage('Changes saved successfully!'));
+        dispatch(setSnackbarOpen(true));
+        // Re-fetch the updated purchase orders to refresh the UI
+        dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize }));
+      })
+      .catch(error => {
+        console.error('Failed to save changes:', error);
+        dispatch(setSnackbarMessage('Failed to save changes. Please try again.'));
+        dispatch(setSnackbarOpen(true));
+      });
+  } else {
+    dispatch(setSnackbarMessage('No items to save.'));
+    dispatch(setSnackbarOpen(true));
+  }
+  setConfirmDialogOpen(false);
+  setDialogOpen(false);
+};
   const handleFilterClick = () => {
     // Prepare API parameters
     const apiParams: any = {
@@ -1555,6 +1580,22 @@ const Polist: React.FC = () => {
                       <strong>Item-wise Discount:</strong>
                     </TableCell>
                     <TableCell className="table-number-right">{(pendingDiscountAmount - overallDiscount || 0).toFixed(2)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={11} align="right">
+                      <strong>Freight Charges:</strong>
+                    </TableCell>
+                    <TableCell className="table-number-right">
+                      {(selectedOrder?.totalFreightAmount || 0).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={11} align="right">
+                      <strong>Freight Tax:</strong>
+                    </TableCell>
+                    <TableCell className="table-number-right">
+                      {(selectedOrder?.totalFreightTaxAmount || 0).toFixed(2)}
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell colSpan={11} align="right">

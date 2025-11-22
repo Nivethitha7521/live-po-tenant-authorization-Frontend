@@ -10,15 +10,15 @@ export interface PurchaseItemSearch {
 
 // Types for freight calculation
 interface FreightCalculationRequest {
-  fr_Amt: number;
-  fr_TCode: string;
+  Amt: number;
+  TCode: string;
   taxType: 'cgst_sgst' | 'igst';
 }
 
 interface FreightCalculationResponse {
-  fr_Amt: number;
-  fr_TAmt: number;
-  fr_TotalAmt: number;
+  Amt: number;
+  TAmt: number;
+  TotalAmt: number;
   sgst: number;
   cgst: number;
   igst: number;
@@ -183,8 +183,8 @@ export const calculateFreightTotals = createAsyncThunk(
   'purchaseOrder/calculateFreightTotals',
   async (request: FreightCalculationRequest): Promise<FreightCalculationResponse> => {
     const params = new URLSearchParams({
-      fr_Amt: request.fr_Amt.toString(),
-      fr_TCode: request.fr_TCode,
+      Amt: request.Amt.toString(),
+      TCode: request.TCode,
       taxType: request.taxType,
     });
 

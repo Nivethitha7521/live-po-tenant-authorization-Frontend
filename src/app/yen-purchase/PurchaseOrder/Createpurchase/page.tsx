@@ -317,8 +317,8 @@ useEffect(() => {
     let freightAmountTotal = 0;
     let freightTaxTotal = 0;
     freights.forEach((freight) => {
-      freightAmountTotal += freight.fr_Amt || 0;
-      freightTaxTotal += freight.fr_TAmt || 0;
+      freightAmountTotal += freight.Amt || 0;
+      freightTaxTotal += freight.TAmt || 0;
     });
 
     const overallDiscountAmount = overallDiscountMode === 'percentage'
@@ -365,15 +365,15 @@ const handleAddFreights = useCallback(async (newFreights: FreightData[]) => {
     newFreights.map(async (freight) => {
       try {
         const totals = await dispatch(calculateFreightTotals({
-          fr_Amt: freight.fr_Amt,
-          fr_TCode: freight.fr_TCode,
+          Amt: freight.Amt,
+          TCode: freight.TCode,
           taxType: freight.taxType,
         })).unwrap();
         
         return {
           ...freight,
-          fr_TAmt: totals.fr_TAmt,
-          fr_TotalAmt: totals.fr_TotalAmt,
+          TAmt: totals.TAmt,
+          TotalAmt: totals.TotalAmt,
           sgst: totals.sgst,
           cgst: totals.cgst,
           igst: totals.igst,
@@ -382,24 +382,24 @@ const handleAddFreights = useCallback(async (newFreights: FreightData[]) => {
       } catch (error) {
         console.error('Failed to calculate freight totals:', error);
         // Fallback to frontend calculation
-        const amount = freight.fr_Amt;
-        const taxPercentage = parseFloat(freight.fr_TCode.replace(/[^\d.]/g, '')) || 0;
-        let fr_TAmt = 0;
+        const amount = freight.Amt;
+        const taxPercentage = parseFloat(freight.TCode.replace(/[^\d.]/g, '')) || 0;
+        let TAmt = 0;
         let sgst = 0, cgst = 0, igst = 0;
         
         if (freight.taxType === 'cgst_sgst') {
           sgst = amount * (taxPercentage / 2 / 100);
           cgst = amount * (taxPercentage / 2 / 100);
-          fr_TAmt = sgst + cgst;
+          TAmt = sgst + cgst;
         } else {
           igst = amount * (taxPercentage / 100);
-          fr_TAmt = igst;
+          TAmt = igst;
         }
         
         return {
           ...freight,
-          fr_TAmt,
-          fr_TotalAmt: amount + fr_TAmt,
+          TAmt,
+          TotalAmt: amount + TAmt,
           sgst,
           cgst,
           igst,
@@ -2122,17 +2122,17 @@ const handleSubmit = async () => {
         <TableBody>
           {freights.map((freight: FreightData, index: number) => (
             <TableRow key={index}>
-              <TableCell>{freight.fr_Name}</TableCell>
-              <TableCell align="right">{freight.fr_Amt.toFixed(2)}</TableCell>
-              <TableCell align="center">{freight.fr_TCode}</TableCell>
+              <TableCell>{freight.Name}</TableCell>
+              <TableCell align="right">{freight.Amt.toFixed(2)}</TableCell>
+              <TableCell align="center">{freight.TCode}</TableCell>
               <TableCell align="center">
                 {freight.taxType === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}
               </TableCell>
               <TableCell align="right">{freight.sgst.toFixed(2)}</TableCell>
               <TableCell align="right">{freight.cgst.toFixed(2)}</TableCell>
               <TableCell align="right">{freight.igst.toFixed(2)}</TableCell>
-              <TableCell align="right">{freight.fr_TAmt.toFixed(2)}</TableCell>
-              <TableCell align="right">{freight.fr_TotalAmt.toFixed(2)}</TableCell>
+              <TableCell align="right">{freight.TAmt.toFixed(2)}</TableCell>
+              <TableCell align="right">{freight.TotalAmt.toFixed(2)}</TableCell>
               <TableCell align="right">
                 <IconButton 
                   onClick={() => handleDeleteFreight(index)} 

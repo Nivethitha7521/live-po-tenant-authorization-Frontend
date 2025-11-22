@@ -3,12 +3,12 @@ import { List } from "postcss/lib/list";
 import { GrnData } from "./grnModel";
 
 export interface Freight {
-  fr_Id: string;
-  fr_Name: string;
-  fr_TCode: string;
-  fr_Amt: number;
-  fr_TAmt: number;
-  fr_TotalAmt: number;
+  Id: string;
+  Name: string;
+  TCode: string;
+  Amt: number;
+  TAmt: number;
+  TotalAmt: number;
 }
 export interface Item {
   itemId: string;
@@ -152,9 +152,9 @@ export interface PurchaseItemSearchAdd {
 
 // Add these interfaces to your purchaseModel.ts
 interface FreightCalculationResponse {
-  fr_Amt: number;
-  fr_TAmt: number;
-  fr_TotalAmt: number;
+  Amt: number;
+  TAmt: number;
+  TotalAmt: number;
   sgst: number;
   cgst: number;
   igst: number;
