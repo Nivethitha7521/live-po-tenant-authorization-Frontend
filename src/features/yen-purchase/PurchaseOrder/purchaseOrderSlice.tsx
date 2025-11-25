@@ -10,15 +10,15 @@ export interface PurchaseItemSearch {
 
 // Types for freight calculation
 interface FreightCalculationRequest {
-  Amt: number;
-  TCode: string;
+  amt: number;
+  tCode: string;
   taxType: 'cgst_sgst' | 'igst';
 }
 
 interface FreightCalculationResponse {
-  Amt: number;
-  TAmt: number;
-  TotalAmt: number;
+  amt: number;
+  tAmt: number;
+  totalAmt: number;
   sgst: number;
   cgst: number;
   igst: number;
@@ -176,15 +176,15 @@ export const initialState: PurchaseOrderState = {
 let purchaseItemsCache: Map<string, { data: PurchaseItemSearchAdd[], timestamp: number }> = new Map();
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
-const BASE_URL = 'http://192.168.29.117:8000/purchaseapi';
+const BASE_URL = 'https://yenerp.com/purchaseapi';
 
 // Async thunks for freight and PO calculations
 export const calculateFreightTotals = createAsyncThunk(
   'purchaseOrder/calculateFreightTotals',
   async (request: FreightCalculationRequest): Promise<FreightCalculationResponse> => {
     const params = new URLSearchParams({
-      Amt: request.Amt.toString(),
-      TCode: request.TCode,
+      amt: request.amt.toString(),
+      tCode: request.tCode,
       taxType: request.taxType,
     });
 

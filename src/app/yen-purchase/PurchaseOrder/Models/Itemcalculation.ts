@@ -1,4 +1,4 @@
-import { PurchaseOrderData, Item, TaxDetails } from "@/Models/purchaseModel";
+import { PurchaseOrderData, Item, TaxDetails, Freight } from "@/Models/purchaseModel";
 
 export interface GRNItemPatch {
   itemId: string;
@@ -75,8 +75,8 @@ export interface PurchaseOrderWithItems {
   billingAddress?: string;
   termsandConditions?: string[];
   items: ItemWithCalculations[];
+  freights:Freight[];
 }
-// Existing imports/models... (keep as is)
 
 // NEW: Request types for overall discount API
 export interface OverallDiscountItemRequest {

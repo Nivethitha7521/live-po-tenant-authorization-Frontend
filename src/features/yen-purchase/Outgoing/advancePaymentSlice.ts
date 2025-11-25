@@ -37,7 +37,7 @@ export const fetchAdvances = createAsyncThunk<
         ...(vendorName && { vendorName }),
       });
 
-      const response = await axios.get(`http://192.168.29.117:8000/purchaseapi/advancevendor/vendorwise/advance?${params}`);
+      const response = await axios.get(`https://yenerp.com/purchaseapi/advancevendor/vendorwise/advance?${params}`);
       return {
         data: response.data.data || [],
         totalItems: response.data.totalItems || 0,
@@ -54,7 +54,7 @@ export const fetchVendorDetails = createAsyncThunk<VendorDetail[], { status?: st
     try {
       const params = new URLSearchParams();
       if (status) params.append('status', status);
-      const response = await axios.get(`http://192.168.29.117:8000/purchaseapi/advancevendor/vendors`, { params });
+      const response = await axios.get(`https://yenerp.com/purchaseapi/advancevendor/vendors`, { params });
       return response.data || [];
     } catch (error: any) {
       console.error('Error in fetchVendorDetails:', error);
@@ -71,7 +71,7 @@ export const createAdvancePayment = createAsyncThunk<
   'advances/createAdvancePayment',
   async (payment, { rejectWithValue }) => {
     try {
-      const response = await axios.post('http://192.168.29.117:8000/purchaseapi/advancevendor/advance', payment);
+      const response = await axios.post('https://yenerp.com/purchaseapi/advancevendor/advance', payment);
       return response.data;
     } catch (error: any) {
       console.error('Error in createAdvancePayment:', error);
@@ -84,7 +84,7 @@ export const fetchActiveAdvancesVendor = createAsyncThunk(
   async (vendorId: string, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        `http://192.168.29.117:8000/purchaseapi/advancevendor/vendor/${vendorId}/advance-payments`
+        `https://yenerp.com/purchaseapi/advancevendor/vendor/${vendorId}/advance-payments`
       );
       return response.data.data;
     } catch (error: any) {
@@ -101,7 +101,7 @@ export const fetchActiveAdvancesVendorByName = createAsyncThunk(
       }
       const encodedVendorName = encodeURIComponent(vendorName);
       const response = await axios.get(
-        `http://192.168.29.117:8000/purchaseapi/advancevendor/vendorname/${encodedVendorName}/advance-payments`
+        `https://yenerp.com/purchaseapi/advancevendor/vendorname/${encodedVendorName}/advance-payments`
       );
       return response.data.data;
     } catch (error: any) {
@@ -126,7 +126,7 @@ export const fetchActiveAdvancesMultipleVendor = createAsyncThunk<
 
       const vendorNamesStr = vendorNames.join(',');
       const response = await axios.get(
-        `http://192.168.29.117:8000/purchaseapi/advancevendor/vendors/active-advances?vendorNames=${encodeURIComponent(vendorNamesStr)}`
+        `https://yenerp.com/purchaseapi/advancevendor/vendors/active-advances?vendorNames=${encodeURIComponent(vendorNamesStr)}`
       );
       return response.data.advances || [];
     } catch (error: any) {

@@ -22,6 +22,7 @@ import {
   Alert,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/redux/store';
 import { fetchFreightItems } from '@/features/yen-purchase/PurchaseMaster/FreightMasterSlice';
@@ -36,12 +37,12 @@ interface FreightSelectionDialogProps {
 }
 
 export interface FreightData {
-  Id: string;
-  Name: string;
-  Amt: number;
-  TCode: string;
-  TAmt: number;
-  TotalAmt: number;
+  id: string;
+  name: string;
+  amt: number;
+  tCode: string;
+  tAmt: number;
+  totalAmt: number;
   sgst: number;
   cgst: number;
   igst: number;
@@ -66,6 +67,7 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
   const [taxType, setTaxType] = useState<'cgst_sgst' | 'igst'>('cgst_sgst');
   const [previewFreights, setPreviewFreights] = useState<FreightData[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -73,6 +75,7 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
       dispatch(fetchPurchaseTaxes());
       setPreviewFreights(existingFreights);
       setError(null);
+      setEditingIndex(null);
     }
   }, [open, dispatch, existingFreights]);
 
@@ -89,21 +92,19 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
     }
 
     try {
-      // CORRECTED: Dispatch and await the async thunk, then use the result
       const result = await dispatch(calculateFreightTotals({
-        Amt: amount,
-        TCode: selectedTax.purchasetaxName,
+        amt: amount,
+        tCode: selectedTax.purchasetaxName,
         taxType: taxType,
       })).unwrap();
       
-      // Create freight data with backend-calculated values
       const freightWithTotals: FreightData = {
-        Id: selectedFreight.freightId,
-        Name: selectedFreight.freightName,
-        Amt: amount,
-        TCode: selectedTax.purchasetaxName,
-        TAmt: result.TAmt,
-        TotalAmt: result.TotalAmt,
+        id: selectedFreight.freightId,
+        name: selectedFreight.freightName,
+        amt: amount,
+        tCode: selectedTax.purchasetaxName,
+        tAmt: result.tAmt,
+        totalAmt: result.totalAmt,
         sgst: result.sgst,
         cgst: result.cgst,
         igst: result.igst,
@@ -111,15 +112,21 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
         taxPercentage: result.taxPercentage,
       };
 
-      // CORRECTED: Add the actual FreightData object, not the async thunk
-      setPreviewFreights((prev) => [...prev, freightWithTotals]);
+      if (editingIndex !== null) {
+        // Update existing freight
+        setPreviewFreights((prev) => 
+          prev.map((item, index) => 
+            index === editingIndex ? freightWithTotals : item
+          )
+        );
+        setEditingIndex(null);
+      } else {
+        // Add new freight
+        setPreviewFreights((prev) => [...prev, freightWithTotals]);
+      }
       
       // Reset form
-      setSelectedFreight(null);
-      setFreightAmount('');
-      setSelectedTax(null);
-      setTaxType('cgst_sgst');
-      setError(null);
+      resetForm();
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to calculate freight totals';
@@ -128,8 +135,41 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
     }
   };
 
+  const handleEditPreview = (index: number) => {
+    const freight = previewFreights[index];
+    
+    // Find the freight item
+    const freightItem = freightItems.find(item => item.freightId === freight.id);
+    // Find the tax item
+    const taxItem = taxItems.find(item => item.purchasetaxName === freight.tCode);
+    
+    setSelectedFreight(freightItem || null);
+    setFreightAmount(freight.amt.toString());
+    setSelectedTax(taxItem || null);
+    setTaxType(freight.taxType);
+    setEditingIndex(index);
+    setError(null);
+  };
+
   const handleDeletePreview = (index: number) => {
     setPreviewFreights((prev) => prev.filter((_, i) => i !== index));
+    // If deleting the item being edited, reset form
+    if (editingIndex === index) {
+      resetForm();
+    }
+  };
+
+  const resetForm = () => {
+    setSelectedFreight(null);
+    setFreightAmount('');
+    setSelectedTax(null);
+    setTaxType('cgst_sgst');
+    setEditingIndex(null);
+    setError(null);
+  };
+
+  const handleCancelEdit = () => {
+    resetForm();
   };
 
   const handleSaveAll = () => {
@@ -139,18 +179,14 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
 
   const handleClose = () => {
     setPreviewFreights([]);
-    setSelectedFreight(null);
-    setFreightAmount('');
-    setSelectedTax(null);
-    setTaxType('cgst_sgst');
-    setError(null);
+    resetForm();
     onClose();
   };
 
-  // Calculate totals from preview freights (only display, no calculation)
-  const previewFreightTotal = previewFreights.reduce((sum, f) => sum + f.Amt, 0);
-  const previewFreightTaxTotal = previewFreights.reduce((sum, f) => sum + f.TAmt, 0);
-  const previewGrandTotal = previewFreights.reduce((sum, f) => sum + f.TotalAmt, 0);
+  // Calculate totals from preview freights
+  const previewFreightTotal = previewFreights.reduce((sum, f) => sum + f.amt, 0);
+  const previewFreightTaxTotal = previewFreights.reduce((sum, f) => sum + f.tAmt, 0);
+  const previewGrandTotal = previewFreights.reduce((sum, f) => sum + f.totalAmt, 0);
   const totalSgst = previewFreights.reduce((sum, f) => sum + f.sgst, 0);
   const totalCgst = previewFreights.reduce((sum, f) => sum + f.cgst, 0);
   const totalIgst = previewFreights.reduce((sum, f) => sum + f.igst, 0);
@@ -158,7 +194,7 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xl" fullWidth>
       <DialogTitle>
-        Add Freight Charges
+        {editingIndex !== null ? 'Edit Freight Charge' : 'Add Freight Charges'}
         {freightCalculationLoading && <CircularProgress size={20} sx={{ ml: 2 }} />}
       </DialogTitle>
       <DialogContent>
@@ -169,7 +205,7 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
           </Alert>
         )}
 
-        {/* Selection Form */}
+        {/* Selection/Edit Form */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={3}>
             <Autocomplete
@@ -252,15 +288,32 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
             />
           </Grid>
           <Grid item xs={12} sm={2}>
-            <Button
-              variant="contained"
-              onClick={handleAddToPreview}
-              disabled={!selectedFreight || !freightAmount || !selectedTax || freightCalculationLoading}
-              fullWidth
-              size="small"
-            >
-              {freightCalculationLoading ? <CircularProgress size={20} /> : 'Add to List'}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                onClick={handleAddToPreview}
+                disabled={!selectedFreight || !freightAmount || !selectedTax || freightCalculationLoading}
+                fullWidth
+                size="small"
+              >
+                {freightCalculationLoading ? (
+                  <CircularProgress size={20} />
+                ) : editingIndex !== null ? (
+                  'Update'
+                ) : (
+                  'Add to List'
+                )}
+              </Button>
+              {editingIndex !== null && (
+                <Button
+                  variant="outlined"
+                  onClick={handleCancelEdit}
+                  size="small"
+                >
+                  Cancel
+                </Button>
+              )}
+            </Box>
           </Grid>
         </Grid>
 
@@ -268,7 +321,7 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
         {previewFreights.length > 0 && (
           <>
             <Typography variant="h6" sx={{ mb: 1 }}>
-              Freight Charges Preview 
+              Freight Charges {editingIndex !== null ? '(Editing Mode)' : 'Preview'}
               <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
                 (All calculations done by backend API via Redux slice)
               </Typography>
@@ -278,40 +331,56 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ minWidth: 120 }}>Name</TableCell>
-                    <TableCell align="right" sx={{ minWidth: 100 }}>Amount ($)</TableCell>
+                    <TableCell align="right" sx={{ minWidth: 100 }}>Amount (₹)</TableCell>
                     <TableCell align="center" sx={{ minWidth: 100 }}>Tax Code</TableCell>
                     <TableCell align="center" sx={{ minWidth: 100 }}>Tax Type</TableCell>
-                    <TableCell align="right" sx={{ minWidth: 80 }}>SGST ($)</TableCell>
-                    <TableCell align="right" sx={{ minWidth: 80 }}>CGST ($)</TableCell>
-                    <TableCell align="right" sx={{ minWidth: 80 }}>IGST ($)</TableCell>
-                    <TableCell align="right" sx={{ minWidth: 100 }}>Total Tax ($)</TableCell>
-                    <TableCell align="right" sx={{ minWidth: 100 }}>Total ($)</TableCell>
-                    <TableCell align="center" sx={{ minWidth: 80, width: 80 }}>Action</TableCell>
+                    <TableCell align="right" sx={{ minWidth: 80 }}>SGST (₹)</TableCell>
+                    <TableCell align="right" sx={{ minWidth: 80 }}>CGST (₹)</TableCell>
+                    <TableCell align="right" sx={{ minWidth: 80 }}>IGST (₹)</TableCell>
+                    <TableCell align="right" sx={{ minWidth: 100 }}>Total Tax (₹)</TableCell>
+                    <TableCell align="right" sx={{ minWidth: 100 }}>Total (₹)</TableCell>
+                    <TableCell align="center" sx={{ minWidth: 120, width: 120 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {previewFreights.map((freight, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{freight.Name}</TableCell>
-                      <TableCell align="right">{freight.Amt.toFixed(2)}</TableCell>
-                      <TableCell align="center">{freight.TCode}</TableCell>
+                    <TableRow 
+                      key={index}
+                      sx={{ 
+                        backgroundColor: editingIndex === index ? 'action.selected' : 'inherit',
+                        '&:hover': { backgroundColor: 'action.hover' }
+                      }}
+                    >
+                      <TableCell>{freight.name}</TableCell>
+                      <TableCell align="right">{freight.amt.toFixed(2)}</TableCell>
+                      <TableCell align="center">{freight.tCode}</TableCell>
                       <TableCell align="center">
                         {freight.taxType === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}
                       </TableCell>
                       <TableCell align="right">{freight.sgst.toFixed(2)}</TableCell>
                       <TableCell align="right">{freight.cgst.toFixed(2)}</TableCell>
                       <TableCell align="right">{freight.igst.toFixed(2)}</TableCell>
-                      <TableCell align="right">{freight.TAmt.toFixed(2)}</TableCell>
-                      <TableCell align="right">{freight.TotalAmt.toFixed(2)}</TableCell>
+                      <TableCell align="right">{freight.tAmt.toFixed(2)}</TableCell>
+                      <TableCell align="right">{freight.totalAmt.toFixed(2)}</TableCell>
                       <TableCell align="center">
-                        <IconButton 
-                          onClick={() => handleDeletePreview(index)} 
-                          size="small" 
-                          color="error"
-                          sx={{ padding: '4px' }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                          <IconButton 
+                            onClick={() => handleEditPreview(index)} 
+                            size="small" 
+                            color="primary"
+                            sx={{ padding: '4px' }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton 
+                            onClick={() => handleDeletePreview(index)} 
+                            size="small" 
+                            color="error"
+                            sx={{ padding: '4px' }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -345,7 +414,7 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
               {existingFreights.map((freight: any, index: number) => (
                 <Chip
                   key={index}
-                  label={`${freight.Name}: ₹${(freight.TotalAmt || 0).toFixed(2)}`}
+                  label={`${freight.name}: ₹${(freight.totalAmt || 0).toFixed(2)}`}
                   variant="outlined"
                   color="primary"
                   size="small"
@@ -363,7 +432,11 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
           variant="contained" 
           disabled={previewFreights.length === 0 || freightCalculationLoading}
         >
-          {freightCalculationLoading ? <CircularProgress size={16} /> : `Save All Freights (${previewFreights.length})`}
+          {freightCalculationLoading ? (
+            <CircularProgress size={16} />
+          ) : (
+            `Save All Freights (${previewFreights.length})`
+          )}
         </Button>
       </DialogActions>
     </Dialog>

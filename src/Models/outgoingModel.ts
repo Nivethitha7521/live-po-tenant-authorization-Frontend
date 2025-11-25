@@ -30,6 +30,7 @@ export interface Outgoing {
   receivingLocation?: string;
   totalPayableAmount?: number;
   paidAmount?: number;
+  totalPaid:number;
   comments?: string;
   invoiceNo?: string;
   poCreatedPerson?: string;
@@ -154,6 +155,7 @@ export interface OutgoingState {
   dialogOpen: 'none' | 'edit';  // Modal state (edit or none)
   daysFilterDate: number | null;
   currentPage: number;
+  totalPayableAmount: number;
   pageSize: number;
   totalItems: number;
   intimationData: Outgoing[];     // Assuming it's an array of Outgoing items
@@ -218,13 +220,14 @@ export const initialState: OutgoingState = {
   error: null,
   daysFilterDate: null,
   banks: [],
-  currentPage: 1,    // Start from page 1
-  pageSize: 50,      // Default page size
-  totalItems: 0,     // Set totalItems to 0 initially  
+  currentPage: 1, // Start from page 1
+  pageSize: 50, // Default page size
+  totalItems: 0, // Set totalItems to 0 initially  
   intimationData: [],
   vendorPayments: {},
   vendorDebits: {},
-  advances: [], // NEW: Initialize advances array
+  advances: [],
+  totalPayableAmount: 0
 };
 // Updated outgoingModel.ts (interfaces with Date for paymentDate)
 export interface BulkPaymentResponse {

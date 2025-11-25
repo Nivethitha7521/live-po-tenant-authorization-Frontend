@@ -3,12 +3,12 @@ import { List } from "postcss/lib/list";
 import { GrnData } from "./grnModel";
 
 export interface Freight {
-  Id: string;
-  Name: string;
-  TCode: string;
-  Amt: number;
-  TAmt: number;
-  TotalAmt: number;
+  id: string;
+  name: string;
+  tCode: string;
+  amt: number;
+  tAmt: number;
+  totalAmt: number;
 }
 export interface Item {
   itemId: string;
@@ -392,4 +392,5 @@ export interface CalculateOverallDiscountPayload {
   overallDiscountAmount: number;
   overallDiscountType: 'percentage' | 'amount';
   applyOverallDiscount: boolean;
+  
 }

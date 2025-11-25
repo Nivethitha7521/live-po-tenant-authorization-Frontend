@@ -1,4 +1,4 @@
-import { PurchaseRandomId } from "./purchaseModel";
+import { Freight, PurchaseRandomId } from "./purchaseModel";
 
 export interface ItemDetail {
   itemId: string;
@@ -87,6 +87,9 @@ export interface GrnData {
   hasDebitCreditNotes: boolean; // Ensure this field is present
   apRoundOff:number;
   grnRoundOffAmount:number;
+  totalFreightAmount:number;
+totalFreightTaxAmount:number;
+freights:Freight[];
 }
 
 export interface TaxDetails {

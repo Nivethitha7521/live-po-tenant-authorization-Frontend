@@ -1,4 +1,5 @@
 import { List } from "postcss/lib/list";
+import { Freight } from "./purchaseModel";
 // Define the structure of an individual purchase item
 export interface Item {
   itemId: string;
@@ -167,6 +168,9 @@ export interface GrnData {
   grnPerson: string;
   grnVerifiedPerson: string;
   grnReturnedPerson: string;
+  freights:Freight[];
+  totalFreightAmount:number;
+totalFreightTaxAmount:number;
 }
 
 

@@ -140,7 +140,7 @@ const VerifiedApInvoicePage: React.FC = () => {
         page: newPage,
         size: pageSize,
         dateFilterField: dateField,
-  
+
       });
       dispatch(action);
       setShouldFetch(false);
@@ -154,7 +154,7 @@ const VerifiedApInvoicePage: React.FC = () => {
       }
     });
   }, [businesses, fetchedBusinessIds, dispatch]);
-  
+
   useEffect(() => {
     dispatch(fetchAllVendors());
     dispatch(fetchBusinesses());
@@ -164,15 +164,15 @@ const VerifiedApInvoicePage: React.FC = () => {
     setDetailsDialogOpen(true); // Open the details dialog
   };
   // Compute applied dates for consistent filtering across pages
-const appliedFromDate = useMemo(() => 
-  selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : undefined, 
-  [selectionRange]
-);
+  const appliedFromDate = useMemo(() =>
+    selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : undefined,
+    [selectionRange]
+  );
 
-const appliedToDate = useMemo(() => 
-  selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : undefined, 
-  [selectionRange]
-);
+  const appliedToDate = useMemo(() =>
+    selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : undefined,
+    [selectionRange]
+  );
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
       // Optionally handle out-of-bounds page number
@@ -180,9 +180,9 @@ const appliedToDate = useMemo(() =>
     }
     dispatch(setPagination({ page: newPage, size: pageSize }));
     dispatch(fetchApInvoices({
-      page: newPage, 
-      size: pageSize, 
-      dateFilterField: dateField, 
+      page: newPage,
+      size: pageSize,
+      dateFilterField: dateField,
       fromDate: appliedFromDate,
       toDate: appliedToDate,
       vendorName: selectedVendorName || '',
@@ -325,14 +325,14 @@ const appliedToDate = useMemo(() =>
         fillColor: [255, 255, 255], // White background for rows
         textColor: [0, 0, 0] // Black text color for rows
       },
-    columnStyles: {
-  0: { halign: 'center' }, // S.No: center
-  1: { halign: 'left' }, // AP.No: center
-  2: { halign: 'left' }, // Invoice Date: center
-  3: { halign: 'left' }, // InvoiceNo: center
-  4: { halign: 'left' },   // Vendor Name: left
-  5: { halign: 'right' },  // TotalItems: right
-}
+      columnStyles: {
+        0: { halign: 'center' }, // S.No: center
+        1: { halign: 'left' }, // AP.No: center
+        2: { halign: 'left' }, // Invoice Date: center
+        3: { halign: 'left' }, // InvoiceNo: center
+        4: { halign: 'left' },   // Vendor Name: left
+        5: { halign: 'right' },  // TotalItems: right
+      }
     });
     // Add page numbers to all pages and "This is computer generated" footer
     const totalPages = doc.getNumberOfPages();
@@ -504,17 +504,17 @@ const appliedToDate = useMemo(() =>
         fillColor: [255, 255, 255], // White background for rows
         textColor: [0, 0, 0], // Black text color for rows
       },
-     columnStyles: {
-  0: { halign: 'center' }, // S.No: center
-  1: { halign: 'center' }, // AP.No: center
-  2: { halign: 'left' },   // Vendor Name: left
-  3: { halign: 'left' },   // Item Name: left
-  4: { halign: 'right' },  // Quantity: right
-  5: { halign: 'right' },  // Price: right
-  6: { halign: 'right' },  // Tax: right
-  7: { halign: 'right' },  // Discount: right
-  8: { halign: 'right' },  // Total: right
-}
+      columnStyles: {
+        0: { halign: 'center' }, // S.No: center
+        1: { halign: 'center' }, // AP.No: center
+        2: { halign: 'left' },   // Vendor Name: left
+        3: { halign: 'left' },   // Item Name: left
+        4: { halign: 'right' },  // Quantity: right
+        5: { halign: 'right' },  // Price: right
+        6: { halign: 'right' },  // Tax: right
+        7: { halign: 'right' },  // Discount: right
+        8: { halign: 'right' },  // Total: right
+      }
     });
     // Add page numbers to all pages and "This is computer generated" footer
     const totalPages = doc.getNumberOfPages();
@@ -540,7 +540,7 @@ const appliedToDate = useMemo(() =>
     doc.save(pdfFilename);
     handleClose();
   };
-  
+
   const generatePendingInvoiceSummaryCSV = () => {
     // Define CSV headers
     const headers = ["S.No", "AP.No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Total"];
@@ -647,247 +647,247 @@ const appliedToDate = useMemo(() =>
       setLoading(false);
     }
   };
- 
-  const handleDownload = async (apinvoiceId: string) => {
-  const apinvoice = apInvoices.find((invoice: ApInvoice) => invoice.invoiceId === apinvoiceId);
-  if (!apinvoice) {
-    console.error('AP Invoice not found!');
-    return;
-  }
-  const business = businesses.length > 0 ? businesses[0] : null;
-  if (!business) {
-    console.error('Business info not found!');
-    return;
-  }
-  const doc = new jsPDF();
-  let yOffset = 10;
-  if (business.imageUrl) {
-    doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
-  }
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 128);
-  doc.text('AP Invoice', 90, yOffset + 5);
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0);
-  doc.text(business.companyName || '', 90, yOffset + 10);
-  doc.setFontSize(8);
-  doc.setTextColor(0, 0, 0);
-  doc.text(business.address1 || '', 90, yOffset + 15);
-  doc.text(`Tel.No: ${business.phoneNo || ''}`, 90, yOffset + 20);
-  doc.text(`E-Mail: ${business.emailId || ''}`, 90, yOffset + 25);
-  doc.text(`GSTIN: ${business.gstIn || ''}`, 90, yOffset + 30);
-  yOffset += 40;
-  const invoiceDate = apinvoice.invoiceDate ? new Date(apinvoice.invoiceDate) : new Date('2025-06-30');
-  const paymentTermsDays = apinvoice.paymentTerms ? parseInt(apinvoice.paymentTerms, 10) : 15;
-  const dueDate = addDays(invoiceDate, paymentTermsDays);
-  const columnWidth = 60.6;
-  const tableHeader = [
-    ['Vendor Details', 'Shipping Address', 'Invoice Details'],
-  ];
-  const vendorDetailsRows = [
-    [
-      `${apinvoice.vendorName || ''}\n` +
-      `GSTIN: ${apinvoice.gstNumber || ''}\n` +
-      `Address: ${apinvoice.address || ''}\n` +
-      `City: ${apinvoice.city || ''}\n` +
-      `State: ${apinvoice.state || ''}\n` +
-      `Country: ${apinvoice.country || ''}\n` +
-      `Email: ${apinvoice.contactpersonEmail || ''}`,
-      `Billing Address: ${apinvoice.shippingAddress }`,
-      `PO No: ${apinvoice.poRandomId }\n` +
-      `GRN No: ${apinvoice.grnRandomId }\n` +
-      `AP No: ${apinvoice.randomId }\n` +
-      `Invoice No: ${apinvoice.invoiceNo }\n` +
-      `Invoice Date: ${apinvoice.invoiceDate ? format(new Date(apinvoice.invoiceDate), 'dd-MM-yyyy') : ''}\n` +
-      `Payment Terms: ${apinvoice.paymentTerms || '15'} \n` +
-      `Due Date: ${format(dueDate, 'dd-MM-yyyy')}\n` +
-      `Currency: ${'INR'}`,
-    ]
-  ];
-  doc.autoTable({
-    head: tableHeader,
-    body: vendorDetailsRows,
-    startY: yOffset,
-    theme: 'grid',
-    styles: {
-      fontSize: 9,
-      cellPadding: 4,
-      halign: 'left',
-      valign: 'top',
-      overflow: 'linebreak',
-    },
-    columnStyles: {
-      0: { cellWidth: columnWidth, valign: 'top' },
-      1: { cellWidth: columnWidth, valign: 'top' },
-      2: { cellWidth: columnWidth, valign: 'top' },
-    },
-    headStyles: {
-      fillColor: [0, 0, 128],
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-    },
-    bodyStyles: {
-      lineColor: [0, 0, 0],   
-      minCellHeight: 15,
-    },
-    tableLineColor: [0, 0, 0],
-    lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
-  });
-  yOffset += 45;
-  const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count', 'Qty', 'Stock Qty', 'Unit Price', 'Tax', 'Amount'];
-  const tableRows = apinvoice.itemDetails.map((item, index) => {
-    const unitPrice = item.unitPrice || 0;
-    const quantity = item.quantity || 0;
-    const totalAmount = unitPrice * quantity;
-    return [
-      `${index + 1}`,
-      item.itemName || 'Item Description',
-      item.hsnCode,
-      item.nos,
-     `${item.eachQuantity || 0} ${item.uom || 'Kgs'}`,
-      `${item.stockQuantity} ${item.uom || 'Kgs'}`,
-      `${unitPrice.toFixed(2)}`,
-      `${item.purchasetaxName}%`,
-      `${totalAmount.toFixed(2)}`,
-    ];
-  });
- doc.autoTable({
-head: [itemHeader],
-body: tableRows,
-startY: yOffset,
-theme: 'grid',
-styles: {
-  fontSize: 8,
-  halign: 'center',
-  cellPadding: 2,
-},
-columnStyles: {
-0: { halign: 'center' }, // SI No: center
-1: { halign: 'left' },   // Description: left
-2: { halign: 'center' }, // HsnCode: center
-3: { halign: 'center' }, // Pkt Count: center
-4: { halign: 'left' },   // Qty: left (text with UOM)
-5: { halign: 'right' },  // Stock Qty: right
-6: { halign: 'right' },  // Unit Price: right
-7: { halign: 'center' }, // Tax: center
-8: { halign: 'right' },  // Amount: right
-},
-headStyles: {
-  fillColor: [0, 0, 128],
-  textColor: [255, 255, 255],
-},
-bodyStyles: {
-  lineColor: [0, 0, 0],
-  lineWidth: 0.1,
-},
 
-didDrawCell: (data: any) => {
-  // Remove bottom border for the last row
-  if (data.row.index === tableRows.length - 1 && data.section === 'body') {
-    doc.setDrawColor(255, 255, 255); // Set to white (background color)
-    doc.setLineWidth(0.2);
-    // Draw over the bottom border with white line
-    doc.line(
-      data.cell.x,
-      data.cell.y + data.cell.height,
-      data.cell.x + data.cell.width,
-      data.cell.y + data.cell.height
-    );
-  }
-},
-});
-  yOffset = doc.autoTable.previous.finalY;
-  const taxRates = {
-    CGST: new Map<number, number>(),
-    SGST: new Map<number, number>(),
-    IGST: new Map<number, number>(),
-  };
-  apinvoice.itemDetails.forEach((item) => {
-    const taxableAmount = item.unitPrice * item.stockQuantity;
-    if (item.taxType === 'cgst_sgst') {
-      const cgstRate = item.purchasetaxName / 2;
-      const sgstRate = item.purchasetaxName / 2;
-      const cgstAmount = (cgstRate / 100) * taxableAmount;
-      const sgstAmount = (sgstRate / 100) * taxableAmount;
-      taxRates.CGST.set(cgstRate, (taxRates.CGST.get(cgstRate) || 0) + cgstAmount);
-      taxRates.SGST.set(sgstRate, (taxRates.SGST.get(sgstRate) || 0) + sgstAmount);
-    } else if (item.taxType === 'igst') {
-      const igstAmount = (item.purchasetaxName / 100) * taxableAmount;
-      taxRates.IGST.set(item.purchasetaxName, (taxRates.IGST.get(item.purchasetaxName) || 0) + igstAmount);
+  const handleDownload = async (apinvoiceId: string) => {
+    const apinvoice = apInvoices.find((invoice: ApInvoice) => invoice.invoiceId === apinvoiceId);
+    if (!apinvoice) {
+      console.error('AP Invoice not found!');
+      return;
     }
-  });
-  const totalWithoutTax = apinvoice.itemDetails.reduce((sum, item) => {
-    return sum + item.unitPrice * item.stockQuantity;
-  }, 0);
-  const taxSummary: [string, string][] = [
-    [`Total Amount`, totalWithoutTax.toFixed(2) || '0'],
-    [`Total Discount`, apinvoice.discountDetails?.toFixed(2) || '0'],
-  ];
-  taxRates.CGST.forEach((amount, rate) => {
-    taxSummary.push([`CGST @${rate}%`, amount.toFixed(2)]);
-  });
-  taxRates.SGST.forEach((amount, rate) => {
-    taxSummary.push([`SGST @${rate}%`, amount.toFixed(2)]);
-  });
-  taxRates.IGST.forEach((amount, rate) => {
-    taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]);
-  });
-  // Add Round off Amount after taxes
-  taxSummary.push([`Round off Amount`, apinvoice.apRoundOff?.toFixed(2) || '0']);
-  // Final Total (including round off if applicable; assuming invoiceAmount already includes it)
-  taxSummary.push([`Total [Including Tax]`, apinvoice.invoiceAmount?.toFixed(2) || '0']);
-  doc.autoTable({
-    head: [['Description', 'Amount']],
-    body: taxSummary,
-    startY: yOffset,
-    theme: 'grid',
-    styles: {
-      fontSize: 8,
-      halign: 'right',
-      cellPadding: 2,
-      lineColor: [0, 0, 0],
-      lineWidth: 0.1,
-      fontStyle: 'bold',
-    },
-    columnStyles: {
-      0: { halign: 'left' }, // Description: left
-      1: { halign: 'right' }, // Amount: right
-    },
-    headStyles: {
-      fillColor: [255, 255, 255],
-      textColor: [0, 0, 0],
-      fontStyle: 'bold',
-    },
-  });
-  yOffset = doc.autoTable.previous.finalY; // Update yOffset after tax table
-  doc.text("Declaration:", 10, yOffset + 35);
-  doc.text("We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.", 10, yOffset + 40);
-  doc.text("Authorized Signatory:", 120, yOffset + 48);
-  doc.text("_____________________", 120, yOffset + 60);
-  // Add page numbers to all pages and "This is computer generated" footer
-  const totalPages = doc.getNumberOfPages();
-  const pageHeight = doc.internal.pageSize.height;
-  const pageWidth = doc.internal.pageSize.width;
-  const footerY = pageHeight - 20;
-  const computerGeneratedY = pageHeight - 10;
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
+    const business = businesses.length > 0 ? businesses[0] : null;
+    if (!business) {
+      console.error('Business info not found!');
+      return;
+    }
+    const doc = new jsPDF();
+    let yOffset = 10;
+    if (business.imageUrl) {
+      doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
+    }
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 128);
+    doc.text('AP Invoice', 90, yOffset + 5);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(business.companyName || '', 90, yOffset + 10);
     doc.setFontSize(8);
-    // Center page number
-    const pageText = `Page ${i} of ${totalPages}`;
-    const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
-    const pageX = (pageWidth - pageTextWidth) / 2;
-    doc.text(pageText, pageX, footerY, { align: 'center' });
-    // Center "This is computer generated"
-    const compText = "This is computer generated";
-    const compTextWidth = doc.getStringUnitWidth(compText) * doc.getFontSize() / doc.internal.scaleFactor;
-    const compX = (pageWidth - compTextWidth) / 2;
-    doc.text(compText, compX, computerGeneratedY);
-  }
-  doc.save(`${apinvoice.vendorName} ${apinvoice.randomId}.pdf`);
-};
+    doc.setTextColor(0, 0, 0);
+    doc.text(business.address1 || '', 90, yOffset + 15);
+    doc.text(`Tel.No: ${business.phoneNo || ''}`, 90, yOffset + 20);
+    doc.text(`E-Mail: ${business.emailId || ''}`, 90, yOffset + 25);
+    doc.text(`GSTIN: ${business.gstIn || ''}`, 90, yOffset + 30);
+    yOffset += 40;
+    const invoiceDate = apinvoice.invoiceDate ? new Date(apinvoice.invoiceDate) : new Date('2025-06-30');
+    const paymentTermsDays = apinvoice.paymentTerms ? parseInt(apinvoice.paymentTerms, 10) : 15;
+    const dueDate = addDays(invoiceDate, paymentTermsDays);
+    const columnWidth = 60.6;
+    const tableHeader = [
+      ['Vendor Details', 'Shipping Address', 'Invoice Details'],
+    ];
+    const vendorDetailsRows = [
+      [
+        `${apinvoice.vendorName || ''}\n` +
+        `GSTIN: ${apinvoice.gstNumber || ''}\n` +
+        `Address: ${apinvoice.address || ''}\n` +
+        `City: ${apinvoice.city || ''}\n` +
+        `State: ${apinvoice.state || ''}\n` +
+        `Country: ${apinvoice.country || ''}\n` +
+        `Email: ${apinvoice.contactpersonEmail || ''}`,
+        `Billing Address: ${apinvoice.shippingAddress}`,
+        `PO No: ${apinvoice.poRandomId}\n` +
+        `GRN No: ${apinvoice.grnRandomId}\n` +
+        `AP No: ${apinvoice.randomId}\n` +
+        `Invoice No: ${apinvoice.invoiceNo}\n` +
+        `Invoice Date: ${apinvoice.invoiceDate ? format(new Date(apinvoice.invoiceDate), 'dd-MM-yyyy') : ''}\n` +
+        `Payment Terms: ${apinvoice.paymentTerms || '15'} \n` +
+        `Due Date: ${format(dueDate, 'dd-MM-yyyy')}\n` +
+        `Currency: ${'INR'}`,
+      ]
+    ];
+    doc.autoTable({
+      head: tableHeader,
+      body: vendorDetailsRows,
+      startY: yOffset,
+      theme: 'grid',
+      styles: {
+        fontSize: 9,
+        cellPadding: 4,
+        halign: 'left',
+        valign: 'top',
+        overflow: 'linebreak',
+      },
+      columnStyles: {
+        0: { cellWidth: columnWidth, valign: 'top' },
+        1: { cellWidth: columnWidth, valign: 'top' },
+        2: { cellWidth: columnWidth, valign: 'top' },
+      },
+      headStyles: {
+        fillColor: [0, 0, 128],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        lineColor: [0, 0, 0],
+        minCellHeight: 15,
+      },
+      tableLineColor: [0, 0, 0],
+      lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
+    });
+    yOffset += 45;
+    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count', 'Qty', 'Stock Qty', 'Unit Price', 'Tax', 'Amount'];
+    const tableRows = apinvoice.itemDetails.map((item, index) => {
+      const unitPrice = item.unitPrice || 0;
+      const quantity = item.quantity || 0;
+      const totalAmount = unitPrice * quantity;
+      return [
+        `${index + 1}`,
+        item.itemName || 'Item Description',
+        item.hsnCode,
+        item.nos,
+        `${item.eachQuantity || 0} ${item.uom || 'Kgs'}`,
+        `${item.stockQuantity} ${item.uom || 'Kgs'}`,
+        `${unitPrice.toFixed(2)}`,
+        `${item.purchasetaxName}%`,
+        `${totalAmount.toFixed(2)}`,
+      ];
+    });
+    doc.autoTable({
+      head: [itemHeader],
+      body: tableRows,
+      startY: yOffset,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        halign: 'center',
+        cellPadding: 2,
+      },
+      columnStyles: {
+        0: { halign: 'center' }, // SI No: center
+        1: { halign: 'left' },   // Description: left
+        2: { halign: 'center' }, // HsnCode: center
+        3: { halign: 'center' }, // Pkt Count: center
+        4: { halign: 'left' },   // Qty: left (text with UOM)
+        5: { halign: 'right' },  // Stock Qty: right
+        6: { halign: 'right' },  // Unit Price: right
+        7: { halign: 'center' }, // Tax: center
+        8: { halign: 'right' },  // Amount: right
+      },
+      headStyles: {
+        fillColor: [0, 0, 128],
+        textColor: [255, 255, 255],
+      },
+      bodyStyles: {
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+      },
+
+      didDrawCell: (data: any) => {
+        // Remove bottom border for the last row
+        if (data.row.index === tableRows.length - 1 && data.section === 'body') {
+          doc.setDrawColor(255, 255, 255); // Set to white (background color)
+          doc.setLineWidth(0.2);
+          // Draw over the bottom border with white line
+          doc.line(
+            data.cell.x,
+            data.cell.y + data.cell.height,
+            data.cell.x + data.cell.width,
+            data.cell.y + data.cell.height
+          );
+        }
+      },
+    });
+    yOffset = doc.autoTable.previous.finalY;
+    const taxRates = {
+      CGST: new Map<number, number>(),
+      SGST: new Map<number, number>(),
+      IGST: new Map<number, number>(),
+    };
+    apinvoice.itemDetails.forEach((item) => {
+      const taxableAmount = item.unitPrice * item.stockQuantity;
+      if (item.taxType === 'cgst_sgst') {
+        const cgstRate = item.purchasetaxName / 2;
+        const sgstRate = item.purchasetaxName / 2;
+        const cgstAmount = (cgstRate / 100) * taxableAmount;
+        const sgstAmount = (sgstRate / 100) * taxableAmount;
+        taxRates.CGST.set(cgstRate, (taxRates.CGST.get(cgstRate) || 0) + cgstAmount);
+        taxRates.SGST.set(sgstRate, (taxRates.SGST.get(sgstRate) || 0) + sgstAmount);
+      } else if (item.taxType === 'igst') {
+        const igstAmount = (item.purchasetaxName / 100) * taxableAmount;
+        taxRates.IGST.set(item.purchasetaxName, (taxRates.IGST.get(item.purchasetaxName) || 0) + igstAmount);
+      }
+    });
+    const totalWithoutTax = apinvoice.itemDetails.reduce((sum, item) => {
+      return sum + item.unitPrice * item.stockQuantity;
+    }, 0);
+    const taxSummary: [string, string][] = [
+      [`Total Amount`, totalWithoutTax.toFixed(2) || '0'],
+      [`Total Discount`, apinvoice.discountDetails?.toFixed(2) || '0'],
+    ];
+    taxRates.CGST.forEach((amount, rate) => {
+      taxSummary.push([`CGST @${rate}%`, amount.toFixed(2)]);
+    });
+    taxRates.SGST.forEach((amount, rate) => {
+      taxSummary.push([`SGST @${rate}%`, amount.toFixed(2)]);
+    });
+    taxRates.IGST.forEach((amount, rate) => {
+      taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]);
+    });
+    // Add Round off Amount after taxes
+    taxSummary.push([`Round off Amount`, apinvoice.apRoundOff?.toFixed(2) || '0']);
+    // Final Total (including round off if applicable; assuming invoiceAmount already includes it)
+    taxSummary.push([`Total [Including Tax]`, apinvoice.invoiceAmount?.toFixed(2) || '0']);
+    doc.autoTable({
+      head: [['Description', 'Amount']],
+      body: taxSummary,
+      startY: yOffset,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        halign: 'right',
+        cellPadding: 2,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+        fontStyle: 'bold',
+      },
+      columnStyles: {
+        0: { halign: 'left' }, // Description: left
+        1: { halign: 'right' }, // Amount: right
+      },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+      },
+    });
+    yOffset = doc.autoTable.previous.finalY; // Update yOffset after tax table
+    doc.text("Declaration:", 10, yOffset + 35);
+    doc.text("We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.", 10, yOffset + 40);
+    doc.text("Authorized Signatory:", 120, yOffset + 48);
+    doc.text("_____________________", 120, yOffset + 60);
+    // Add page numbers to all pages and "This is computer generated" footer
+    const totalPages = doc.getNumberOfPages();
+    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    const footerY = pageHeight - 20;
+    const computerGeneratedY = pageHeight - 10;
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      // Center page number
+      const pageText = `Page ${i} of ${totalPages}`;
+      const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const pageX = (pageWidth - pageTextWidth) / 2;
+      doc.text(pageText, pageX, footerY, { align: 'center' });
+      // Center "This is computer generated"
+      const compText = "This is computer generated";
+      const compTextWidth = doc.getStringUnitWidth(compText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const compX = (pageWidth - compTextWidth) / 2;
+      doc.text(compText, compX, computerGeneratedY);
+    }
+    doc.save(`${apinvoice.vendorName} ${apinvoice.randomId}.pdf`);
+  };
   const handleStartDateChange = (value: Date | null) => {
     setStartDate(value); // Update the startDate state with Date or null
   };
@@ -924,7 +924,7 @@ didDrawCell: (data: any) => {
   ]);
   // Filter for Verified status only (non-returned)
   const verifiedApInvoices = useMemo(() => apInvoices.filter(invoice => invoice.status !== 'Returned'), [apInvoices]);
-  
+
   return (
     <Box>
       <YenPurchasePage />
@@ -1075,8 +1075,8 @@ didDrawCell: (data: any) => {
               <TableHead>
                 <TableRow>
                   <TableCell>S.No</TableCell>
-                      <TableCell>PO ID</TableCell>
-                    <TableCell>GRN ID</TableCell>
+                  <TableCell>PO ID</TableCell>
+                  <TableCell>GRN ID</TableCell>
                   <TableCell>AP ID</TableCell>
                   <TableCell>Invoice ID</TableCell>
                   <TableCell>Vendor Name</TableCell>
@@ -1281,84 +1281,84 @@ didDrawCell: (data: any) => {
                         <TableCell>Final Price</TableCell>
                       </TableRow>
                     </TableHead>
-                 <TableBody>
-  {selectedInvoice.itemDetails.map((item, index) => (
-    <TableRow key={item.itemId} sx={{ '&:not(:last-child)': { borderBottom: 'none' } }}>
-      <TableCell>{item.itemName}</TableCell>
-      <TableCell>{item.quantity}</TableCell>
-      <TableCell>{item.uom}</TableCell>
-      <TableCell>{item.returnedQuantity || 0}</TableCell>
-      <TableCell>{item.nos}</TableCell>
-      <TableCell>{item.eachQuantity}</TableCell>
-      <TableCell>{item.stockQuantity}</TableCell>
-      <TableCell>{item.befTaxDiscount}</TableCell>
-      <TableCell>{item.afTaxDiscount}</TableCell>
-      <TableCell>{item.purchasetaxName}</TableCell>
-      <TableCell>{item.unitPrice}</TableCell>
-      <TableCell>{item.totalPrice.toFixed(2)}</TableCell>
-      <TableCell>{item.finalPrice.toFixed(2)}</TableCell>
-    </TableRow>
-  ))}
-  
-  {/* Tax Breakdown */}
-  {Array.from(uniqueRates).map((rate) => (
-    <React.Fragment key={rate}>
-      {taxAmounts.sgst[rate] !== undefined && (
-        <TableRow>
-          <TableCell colSpan={11} />
-          <TableCell>
-            <strong>{`SGST (${Number(rate)}%):`}</strong>
-          </TableCell>
-          <TableCell>{taxAmounts.sgst[rate].toFixed(2)}</TableCell>
-        </TableRow>
-      )}
-      {taxAmounts.cgst[rate] !== undefined && (
-        <TableRow>
-          <TableCell colSpan={11} />
-          <TableCell>
-            <strong>{`CGST (${Number(rate)}%):`}</strong>
-          </TableCell>
-          <TableCell>{taxAmounts.cgst[rate].toFixed(2)}</TableCell>
-        </TableRow>
-      )}
-      {taxAmounts.igst[rate] !== undefined && (
-        <TableRow>
-          <TableCell colSpan={11} />
-          <TableCell>
-            <strong>{`IGST (${Number(rate)}%):`}</strong>
-          </TableCell>
-          <TableCell>{taxAmounts.igst[rate].toFixed(2)}</TableCell>
-        </TableRow>
-      )}
-    </React.Fragment>
-  ))}
-  
-  {/* Round off Amount */}
-  <TableRow>
-    <TableCell colSpan={12} align="right">
-      <strong>Round off Amount:</strong>
-    </TableCell>
-    <TableCell>{selectedInvoice.apRoundOff?.toFixed(2) ?? '0.00'}</TableCell>
-  </TableRow>
-  
-  {/* Total Debit Amount */}
-  <TableRow>
-    <TableCell colSpan={12} align="right">
-      <strong>Total Debit Amount:</strong>
-    </TableCell>
-    <TableCell>{selectedInvoice.debitAmount?.toFixed(2) ?? '0.00'}</TableCell>
-  </TableRow>
-  
-  {/* Total Invoice Amount After Discount */}
-  <TableRow>
-    <TableCell colSpan={12} align="right">
-      <strong>Total Invoice Amount:</strong>
-    </TableCell>
-    <TableCell>
-      {(selectedInvoice.invoiceAmount - (selectedInvoice.discountPrice || 0)).toFixed(2)}
-    </TableCell>
-  </TableRow>
-</TableBody>
+                    <TableBody>
+                      {selectedInvoice.itemDetails.map((item, index) => (
+                        <TableRow key={item.itemId} sx={{ '&:not(:last-child)': { borderBottom: 'none' } }}>
+                          <TableCell>{item.itemName}</TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>{item.uom}</TableCell>
+                          <TableCell>{item.returnedQuantity || 0}</TableCell>
+                          <TableCell>{item.nos}</TableCell>
+                          <TableCell>{item.eachQuantity}</TableCell>
+                          <TableCell>{item.stockQuantity}</TableCell>
+                          <TableCell>{item.befTaxDiscount}</TableCell>
+                          <TableCell>{item.afTaxDiscount}</TableCell>
+                          <TableCell>{item.purchasetaxName}</TableCell>
+                          <TableCell>{item.unitPrice}</TableCell>
+                          <TableCell>{item.totalPrice.toFixed(2)}</TableCell>
+                          <TableCell>{item.finalPrice.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+
+                      {/* Tax Breakdown */}
+                      {Array.from(uniqueRates).map((rate) => (
+                        <React.Fragment key={rate}>
+                          {taxAmounts.sgst[rate] !== undefined && (
+                            <TableRow>
+                              <TableCell colSpan={11} />
+                              <TableCell>
+                                <strong>{`SGST (${Number(rate)}%):`}</strong>
+                              </TableCell>
+                              <TableCell>{taxAmounts.sgst[rate].toFixed(2)}</TableCell>
+                            </TableRow>
+                          )}
+                          {taxAmounts.cgst[rate] !== undefined && (
+                            <TableRow>
+                              <TableCell colSpan={11} />
+                              <TableCell>
+                                <strong>{`CGST (${Number(rate)}%):`}</strong>
+                              </TableCell>
+                              <TableCell>{taxAmounts.cgst[rate].toFixed(2)}</TableCell>
+                            </TableRow>
+                          )}
+                          {taxAmounts.igst[rate] !== undefined && (
+                            <TableRow>
+                              <TableCell colSpan={11} />
+                              <TableCell>
+                                <strong>{`IGST (${Number(rate)}%):`}</strong>
+                              </TableCell>
+                              <TableCell>{taxAmounts.igst[rate].toFixed(2)}</TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      ))}
+
+                      {/* Round off Amount */}
+                      <TableRow>
+                        <TableCell colSpan={12} align="right">
+                          <strong>Round off Amount:</strong>
+                        </TableCell>
+                        <TableCell>{selectedInvoice.apRoundOff?.toFixed(2) ?? '0.00'}</TableCell>
+                      </TableRow>
+
+                      {/* Total Debit Amount */}
+                      <TableRow>
+                        <TableCell colSpan={12} align="right">
+                          <strong>Total Debit Amount:</strong>
+                        </TableCell>
+                        <TableCell>{selectedInvoice.debitAmount?.toFixed(2) ?? '0.00'}</TableCell>
+                      </TableRow>
+
+                      {/* Total Invoice Amount After Discount */}
+                      <TableRow>
+                        <TableCell colSpan={12} align="right">
+                          <strong>Total Invoice Amount:</strong>
+                        </TableCell>
+                        <TableCell>
+                          {(selectedInvoice.invoiceAmount - (selectedInvoice.discountPrice || 0)).toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
                   </Table>
                 </TableContainer>
               </Box>
@@ -1376,7 +1376,7 @@ didDrawCell: (data: any) => {
             >
               Post Outgoing Payment
             </Button> */}
-             <Button variant="contained" onClick={handleCloseDetailsDialog}>Close</Button>
+            <Button variant="contained" onClick={handleCloseDetailsDialog}>Close</Button>
           </DialogActions>
         </Dialog>
         {/* Snackbar for notifications */}

@@ -152,7 +152,7 @@ const GrnPage = () => {
   const handlePopoverOpen = (event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handlePopoverClose = () => setAnchorEl(null);
   const debitCreditNotes = useSelector((state: RootState) => selectDebitCreditNote(state).debitCreditNotes);
- // AP ROUND OFF STATE (REPLACED discountPrice)
+  // AP ROUND OFF STATE (REPLACED discountPrice)
   const [apRoundOff, setApRoundOff] = useState<number>(0);
   const [enteredApRoundOff, setEnteredApRoundOff] = useState<number>(0);
   const [apRoundOffError, setApRoundOffError] = useState<string>('');
@@ -185,22 +185,23 @@ const GrnPage = () => {
     }
   };
   useEffect(() => {
-  const loadBusinesses = async () => {
-    try {
-      const storedBusinesses = localStorage.getItem("businesses");
-      if (storedBusinesses && isValidJSON(storedBusinesses)) {
-        const parsedBusinesses = JSON.parse(storedBusinesses);
-        console.log("Loaded businesses from localStorage:", parsedBusinesses);
-      } else {
-        await dispatch(fetchBusinesses()).unwrap(); // Wait for the dispatch to complete
+    const loadBusinesses = async () => {
+      try {
+        const storedBusinesses = localStorage.getItem("businesses");
+        if (storedBusinesses && isValidJSON(storedBusinesses)) {
+          const parsedBusinesses = JSON.parse(storedBusinesses);
+          console.log("Loaded businesses from localStorage:", parsedBusinesses);
+        } else {
+          await dispatch(fetchBusinesses()).unwrap(); // Wait for the dispatch to complete
+        }
+      } catch (error) {
+        console.error("Error loading businesses:", error);
       }
-    } catch (error) {
-      console.error("Error loading businesses:", error);
-    }
-  };
+    };
 
-  loadBusinesses();
-}, [dispatch]);
+    loadBusinesses();
+  }, [dispatch]);
+
   useEffect(() => {
     dispatch(fetchAllVendors());
     dispatch(fetchRandomNumbers());
@@ -220,7 +221,7 @@ const GrnPage = () => {
       const action = fetchGrns({
         page: newPage,
         size: pageSize,
-     
+
       });
       console.log('Action payload:', action);
       dispatch(action);
@@ -233,95 +234,103 @@ const GrnPage = () => {
       return;
     }
     const appliedFromDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : fromDate;
-    const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;+-
-    
-    dispatch(setPagination({ page: newPage, size: pageSize }));
-    dispatch(fetchGrns({ page: newPage, size: pageSize, status,  vendorName: selectedVendorName || '' }));
-  };
- 
-const lenientRegex = /^-?\d*\.?\d{0,2}$/; // e.g., "2", "2.", "2.0", "2.01", "-1.99"
+    const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate; +-
 
-// handleApRoundOffInputChange (updated: allows 2 decimals during typing, live preview with warning if >2 abs)
+      dispatch(setPagination({ page: newPage, size: pageSize }));
+    dispatch(fetchGrns({ page: newPage, size: pageSize, status, vendorName: selectedVendorName || '' }));
+  };
+const lenientRegex = /^-?(?:\d*\.?\d{0,2})$/; // Allows: 0.30, -0.50, .50, -.30, 2, -2
+
+// FIXED: handleApRoundOffInputChange - allows 0.51 with leading zero
 const handleApRoundOffInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   const value = e.target.value;
-  if (value === '') {
-    setEnteredApRoundOff(0);
+  
+  console.log('Input value:', value); // Debug log
+  
+  // Allow empty, single minus, or single decimal
+  if (value === '' || value === '-' || value === '.' || value === '-.') {
+    setEnteredApRoundOff(value as any);
     setApRoundOff(0);
     setApRoundOffError('');
     return;
   }
-  if (lenientRegex.test(value)) {
-    const parsedValue = parseFloat(value) || 0;
-    // Round to nearest 0.01 for live preview (e.g., 0.001 → 0.00)
-    const previewValue = Math.round(parsedValue * 100) / 100;
-    if (Math.abs(parsedValue) > 2) {
-      setApRoundOffError("Heads up: Limited to ±2.00. Finish typing to validate & round.");
+
+  // Remove spaces from input for validation
+  const cleanValue = value.replace(/\s/g, '');
+  
+  console.log('Clean value:', cleanValue, 'Regex test:', lenientRegex.test(cleanValue)); // Debug log
+  
+  if (lenientRegex.test(cleanValue)) {
+    const parsedValue = parseFloat(cleanValue);
+    console.log('Parsed value:', parsedValue); // Debug log
+    
+    // STRICT LIMITS: Only allow between -2 and +2
+    if (parsedValue > 2) {
+      setApRoundOffError("Maximum allowed is +2.00");
+      setEnteredApRoundOff(2);
+      setApRoundOff(2);
+    } else if (parsedValue < -2) {
+      setApRoundOffError("Minimum allowed is -2.00");
+      setEnteredApRoundOff(-2);
+      setApRoundOff(-2);
     } else {
       setApRoundOffError("");
+      setEnteredApRoundOff(parsedValue);
+      setApRoundOff(parsedValue);
     }
-    setEnteredApRoundOff(parsedValue); // Use raw parsed for live input feel, round on blur
-    setApRoundOff(parsedValue);
   } else {
-    setApRoundOffError("Type numbers only (e.g., 2 for 2.00, 1.99, -1.50). Supports up to 2 decimals.");
+    setApRoundOffError("Type numbers only between -2.00 and +2.00 (e.g., 0.51, -0.50, .50, -.30)");
   }
 };
-// UPDATED: handleApRoundOffBlur (removes strict regex; always rounds to 0.01, caps at ±2.00, validates post-cap)
+// FIXED: handleApRoundOffBlur - handle partial inputs properly
 const handleApRoundOffBlur = () => {
   let currentValue = enteredApRoundOff;
-  // Snap to nearest 0.01 step (e.g., 0.001 → 0.00, 1.995 → 2.00, 2.005 → 2.01 then cap)
-  currentValue = Math.round(currentValue * 100) / 100;
- 
-  let errorMsg = "";
-  let capped = false;
- 
-  // Cap at ±2.00
-  if (currentValue > 2.00) {
-    currentValue = 2.00;
-    capped = true;
-    errorMsg = "Capped at +2.00 (rounded from your input).";
-  } else if (currentValue < -2.00) {
-    currentValue = -2.00;
-    capped = true;
-    errorMsg = "Capped at -2.00 (rounded from your input).";
-  } else {
-    // Ensure it's a valid 0.01 step (should always be after Math.round, but double-check)
-    const remainder = Math.abs(currentValue * 100) % 1;
-    if (remainder > 0.0001) { // Floating point tolerance
-      errorMsg = "Invalid step: Rounded to nearest 0.01 (e.g., 0.001 → 0.00).";
+  
+  // If it's still a string (like '.' or '-'), treat as 0
+  if (typeof currentValue === 'string') {
+    if (currentValue === '.' || currentValue === '-') {
+      currentValue = 0;
+    } else {
+      currentValue = parseFloat(currentValue) || 0;
     }
   }
- 
-  // Set error if capped or invalid step
-  if (capped || errorMsg) {
+
+  // Snap to nearest 0.01 step
+  currentValue = Math.round(currentValue * 100) / 100;
+
+  let errorMsg = "";
+  let capped = false;
+
+  // Update cap to reasonable amount (e.g., ±500)
+  if (currentValue > 500) {
+    currentValue = 500;
+    capped = true;
+    errorMsg = "Capped at +500 (rounded from your input).";
+  } else if (currentValue < -500) {
+    currentValue = -500;
+    capped = true;
+    errorMsg = "Capped at -500 (rounded from your input).";
+  }
+
+  // Set error if capped
+  if (capped) {
     setApRoundOffError(errorMsg);
   } else {
     setApRoundOffError("");
   }
- 
+
   const totalReceivedAmount = selectedGrn?.totalReceivedAmount || 0;
   const finalTotal = totalReceivedAmount + currentValue;
+
   if (finalTotal < 0) {
     setApRoundOffError(`Cannot make total negative (${finalTotal.toFixed(2)}). Reset to 0.`);
     setEnteredApRoundOff(0);
     setApRoundOff(0);
     return;
   }
- 
+
   setEnteredApRoundOff(currentValue);
   setApRoundOff(currentValue);
-};
-// handleApRoundOffChange (updated: allows 2 decimals, aligns with input change logic)
-const handleApRoundOffChange = (newRoundOff: number) => {
-  // Validate if the value is within allowed range (pre-blur, no strict rounding here)
-  if (Math.abs(newRoundOff) > 2) {
-    setApRoundOffError('AP Round Off must be between -2.00 and +2.00');
-    setSnackbarOpen(true);
-    return;
-  }
- 
-  setEnteredApRoundOff(newRoundOff);
-  setApRoundOff(newRoundOff);
-  setApRoundOffError('');
 };
   const handleNextPage = () => {
     if (currentPage * pageSize) {
@@ -406,11 +415,10 @@ const handleApRoundOffChange = (newRoundOff: number) => {
   const handleReturnCancel = () => {
     setReturnDialogOpen(false); // Close dialog without clearing selectedGrnId
   };
-  // Calculate AP amounts for display
   const calculateAPAmounts = () => {
     const grnTotal = selectedGrn?.totalReceivedAmount || 0;
-    const apTotal = grnTotal + apRoundOff;
-   
+    const apTotal = grnTotal + apRoundOff; // This should now work with actual amounts
+
     return {
       grnTotal: customRound(grnTotal),
       apTotal: customRound(apTotal),
@@ -497,7 +505,7 @@ const handleApRoundOffChange = (newRoundOff: number) => {
     setSelectedVendor(vendor);
     setSelectedVendorName(vendor ? vendor.vendorName : '');
   };
- const handleDownload = async (grnId: string) => {
+  const handleDownload = async (grnId: string) => {
     const grncheck = grns.find((grn) => grn.grnId === grnId);
     if (!grncheck) {
       console.error('GRN not found!');
@@ -679,12 +687,12 @@ const handleApRoundOffChange = (newRoundOff: number) => {
     taxRates.IGST.forEach((amount, rate) => {
       taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]);
     });
-    
+
     // Add grnRoundOffAmount above Total Including Tax
     if (grncheck.grnRoundOffAmount !== undefined && grncheck.grnRoundOffAmount !== 0) {
       taxSummary.push([`Round Off Amount`, grncheck.grnRoundOffAmount.toFixed(2)]);
     }
-    
+
     taxSummary.push([`Total [Including Tax]`, grncheck.totalReceivedAmount?.toFixed(2) || '0']);
     // Tax Summary Table
     doc.autoTable({
@@ -763,7 +771,7 @@ const handleApRoundOffChange = (newRoundOff: number) => {
       };
     });
   };
-   const handleSaveAll = async () => {
+  const handleSaveAll = async () => {
     if (!selectedGrnId) {
       setErrorMessage('No GRN selected to save.');
       setLoading(false);
@@ -1912,67 +1920,74 @@ const handleApRoundOffChange = (newRoundOff: number) => {
                           )}
                         </TableRow>
                       ))}
-                     <TableRow>
+                      {/* AP Round Off Input */}
+                      <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length} align="right">
                           <strong>AP Round Off:</strong>
                         </TableCell>
                         <TableCell>
                           <TextField
-                            autoComplete="false"
+                            autoComplete="off"
                             type="number"
-                            value={enteredApRoundOff === 0 ? '' :enteredApRoundOff}
+                            value={enteredApRoundOff === 0 ? '' : enteredApRoundOff}
                             onChange={handleApRoundOffInputChange}
                             onBlur={handleApRoundOffBlur}
                             placeholder="0"
                             style={{ width: '120px' }}
                             inputProps={{
                               step: 0.01,
-                              min: -2,
-                              max: 2
+                              min: -500,  // Updated limits
+                              max: 500    // Updated limits
                             }}
-                            helperText={apRoundOffError }
+                            helperText={apRoundOffError}
                             error={!!apRoundOffError}
                           />
                         </TableCell>
                       </TableRow>
-                      {/* Tax details rows */}
-                      {Object.entries(taxDetails).map(([rate, { sgstAmount, cgstAmount, igstAmount }]) => (
-                        <React.Fragment key={rate}>
-                          {(sgstAmount > 0 || cgstAmount > 0) && (
-                            <>
-                              <TableRow>
-                                <TableCell colSpan={sortedSelectedHeaders.length - 1} />
-                                <TableCell>
-                                  <strong>SGST ({(parseFloat(rate) / 2).toFixed(2)}%):</strong>
-                                </TableCell>
-                                <TableCell>{sgstAmount.toFixed(2)}</TableCell>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell colSpan={sortedSelectedHeaders.length - 1} />
-                                <TableCell>
-                                  <strong>CGST ({(parseFloat(rate) / 2).toFixed(2)}%):</strong>
-                                </TableCell>
-                                <TableCell>{cgstAmount.toFixed(2)}</TableCell>
-                              </TableRow>
-                            </>
-                          )}
-                          {igstAmount > 0 && (
-                            <TableRow>
-                              <TableCell colSpan={sortedSelectedHeaders.length - 1} />
-                              <TableCell>
-                                <strong>IGST ({parseFloat(rate)}%):</strong>
-                              </TableCell>
-                              <TableCell>{igstAmount.toFixed(2)}</TableCell>
-                            </TableRow>
-                          )}
-                        </React.Fragment>
-                      ))}
-                      {/* Summary rows */}
+
+                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                        <TableCell colSpan={sortedSelectedHeaders.length - 1} />
+                        <TableCell>
+                          <strong>AP Round Off Applied:</strong>
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            color: apRoundOff > 0 ? 'green' : apRoundOff < 0 ? 'red' : 'black',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {apRoundOff > 0 ? `+${apRoundOff.toFixed(2)}` : apRoundOff.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+
+                      <TableRow sx={{ backgroundColor: '#e8f5e8', borderTop: '2px solid #000' }}>
+                        <TableCell colSpan={sortedSelectedHeaders.length - 1} />
+                        <TableCell>
+                          <strong>New AP Total:</strong>
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '1.1em' }}>
+                          {((selectedGrn?.totalReceivedAmount || 0) + apRoundOff).toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                      {/* Rest of your existing tax and summary rows */}
                       <TableRow>
-                        <TableCell colSpan={sortedSelectedHeaders.length -1}></TableCell>
+                        <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>RoundOff Amount:</TableCell>
-                        <TableCell>{selectedGrn?.grnRoundOffAmount}</TableCell>
-                        </TableRow>
+                        <TableCell>{selectedGrn?.grnRoundOffAmount?.toFixed(2) || '0.00'}</TableCell>
+                      </TableRow>
+
+                      <TableRow>
+                        <TableCell colSpan={sortedSelectedHeaders.length - 1} />
+                        <TableCell>Freight Tax:</TableCell>
+                        <TableCell>{selectedGrn?.totalFreightTaxAmount?.toFixed(2) || '0.00'}</TableCell>
+                      </TableRow>
+
+                      <TableRow>
+                        <TableCell colSpan={sortedSelectedHeaders.length - 1} />
+                        <TableCell>Freight:</TableCell>
+                        <TableCell>{selectedGrn?.totalFreightAmount?.toFixed(2) || '0.00'}</TableCell>
+                      </TableRow>
+
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>
@@ -1980,19 +1995,21 @@ const handleApRoundOffChange = (newRoundOff: number) => {
                         </TableCell>
                         <TableCell>{totalDiscount.toFixed(2)}</TableCell>
                       </TableRow>
+
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>
                           <strong>Tax Amount:</strong>
                         </TableCell>
-                        <TableCell>{selectedGrn?.totalTax}</TableCell>
+                        <TableCell>{selectedGrn?.totalTax?.toFixed(2) || '0.00'}</TableCell>
                       </TableRow>
+
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>
                           <strong>Final Total Amount:</strong>
                         </TableCell>
-                        <TableCell>{selectedGrn?.totalReceivedAmount}</TableCell>
+                        <TableCell>{selectedGrn?.totalReceivedAmount?.toFixed(2) || '0.00'}</TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>

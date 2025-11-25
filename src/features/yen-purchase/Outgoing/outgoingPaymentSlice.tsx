@@ -22,25 +22,24 @@ export interface ProcessPaymentRequest {
   selectedDebitNotes?: string[];
   selectedAdvancePayments?: string[];
 }
-
-// Define the argument type for fetchOutgoings
+// Add to your types file
 interface FetchOutgoingsArgs {
   page: number;
   size: number;
   fromDate?: Date;
   toDate?: Date;
   vendorName?: string;
-  filterBy?: 'invoiceDate' | 'paymentDate' | 'outgoingDate';
+  filterBy?: string;
   status?: string;
   filterByAmount?: boolean;
   filterByStatus?: boolean;
-  sortOrder?: 'ascending' | 'descending';
+  sortOrder?: string;
   filterAll?: boolean;
+  sortBy?: string; // ADD THIS
 }
-
-// Async thunk for fetching outgoings
+// UPDATE: Extend the fulfilled payload type to include totalPayableAmount
 export const fetchOutgoings = createAsyncThunk<
-  { outgoings: Outgoing[]; totalItems: number },
+  { outgoings: Outgoing[]; totalItems: number; totalPayableAmount: number }, // ADD totalPayableAmount
   FetchOutgoingsArgs,
   { rejectValue: string }
 >(
@@ -58,11 +57,12 @@ export const fetchOutgoings = createAsyncThunk<
       filterByStatus,
       sortOrder = 'ascending',
       filterAll = true,
+      sortBy = 'createdDate',
     },
     { rejectWithValue }
   ) => {
     try {
-      const url = 'http://192.168.29.117:8000/purchaseapi/outgoingpayments/';
+      const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
       const params: any = {
         skip: (page - 1) * size,
         limit: size,
@@ -70,6 +70,7 @@ export const fetchOutgoings = createAsyncThunk<
         filterByStatus: filterByStatus ?? false,
         sortOrder,
         filterAll,
+        sortBy, // ADDED sortBy parameter
       };
 
       if (fromDate) params.fromDate = fromDate.toISOString();
@@ -78,7 +79,10 @@ export const fetchOutgoings = createAsyncThunk<
       if (filterBy) params.filterBy = filterBy;
       if (status) params.status = status;
 
-      const response = await axios.get<{ outgoings: Outgoing[]; totalItems: number }>(url, { params });
+      console.log('API Call Params with Sorting:', params); // For debugging
+
+      // UPDATE: Extend response type to include totalPayableAmount
+      const response = await axios.get<{ outgoings: Outgoing[]; totalItems: number; totalPayableAmount: number }>(url, { params });
       return response.data;
     } catch (error: any) {
       console.error('Failed to fetch outgoings:', error);
@@ -86,7 +90,6 @@ export const fetchOutgoings = createAsyncThunk<
     }
   }
 );
-
 export const fetchVendorDetails = createAsyncThunk(
   'outgoing/fetchVendorDetails',
   async (filters: {
@@ -112,7 +115,7 @@ export const fetchVendorDetails = createAsyncThunk(
       }
 
       const response = await axios.get<VendorDetail[]>(
-        `http://192.168.29.117:8000/purchaseapi/outgoingpayments/vendors/details?${params.toString()}`
+        `https://yenerp.com/purchaseapi/outgoingpayments/vendors/details?${params.toString()}`
       );
       return response.data;
     } catch (error) {
@@ -121,7 +124,7 @@ export const fetchVendorDetails = createAsyncThunk(
   }
 );
 export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
-  const response = await axios.get<GRN[]>(`http://192.168.29.117:8000/purchaseapi/grns/`);
+  const response = await axios.get<GRN[]>(`https://yenerp.com/purchaseapi/grns/`);
   const grnData = response.data.map(item => ({
     grnId: item.grnId,
     randomId: item.randomId,
@@ -131,13 +134,13 @@ export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
 
 // Async thunk to add a new Outgoing item
 export const addOutgoing = createAsyncThunk<Outgoing, Omit<Outgoing, 'outgoingId'>>('outgoings/addOutgoing', async (outgoingData) => {
-  const response = await axios.post('http://192.168.29.117:8000/purchaseapi/outgoingpayments/', outgoingData); // Adjust the API endpoint as needed
+  const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/', outgoingData); // Adjust the API endpoint as needed
   return response.data;
 });
 
 // Async thunk to update an existing Outgoing item
 export const updateOutgoing = createAsyncThunk<Outgoing, Outgoing>('outgoings/updateOutgoing', async (outgoingData) => {
-  const response = await axios.patch(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingData.outgoingId}`, outgoingData); // Adjust the API endpoint as needed
+  const response = await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingData.outgoingId}`, outgoingData); // Adjust the API endpoint as needed
   return response.data;
 });
 // Thunk
@@ -206,7 +209,7 @@ export const processPayment = createAsyncThunk<
         paymentDate: paymentDate.toISOString(),
       };
 
-      await axios.patch(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/payment`, payload);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.message || 'Payment processing failed');
     }
@@ -223,7 +226,7 @@ export const fetchActiveDebitsVendor = createAsyncThunk<
   'debitNotes/fetchActiveDebitsVendor', // Unique action type
   async (vendorName, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`http://192.168.29.117:8000/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
+      const response = await axios.get(`https://yenerp.com/purchaseapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
       if (!response.data.debits) {
         throw new Error('No debits found in response');
       }
@@ -250,7 +253,7 @@ export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
       // Use the multiple endpoint for efficiency
       const vendorNamesStr = vendorNames.join(',');
       const response = await axios.get(
-        `http://192.168.29.117:8000/purchaseapi/debitnote/multiplevendors/active-debits?vendor_names=${encodeURIComponent(vendorNamesStr)}`
+        `https://yenerp.com/purchaseapi/debitnote/multiplevendors/active-debits?vendor_names=${encodeURIComponent(vendorNamesStr)}`
       );
       
       return response.data.debits || [];
@@ -279,7 +282,7 @@ export const processBulkPayment = createAsyncThunk<
       };
 
       const response = await axios.patch(
-        'http://192.168.29.117:8000/purchaseapi/outgoingpayments/bulk/bulk-payment',
+        'https://yenerp.com/purchaseapi/outgoingpayments/bulk/bulk-payment',
         requestPayload
       );
 
@@ -326,7 +329,7 @@ export const addNewPayment = createAsyncThunk<Outgoing, PaymentDetails>(
         ...paymentData,
       };
 
-      const response = await axios.post('http://192.168.29.117:8000/purchaseapi/outgoingpayments/', outgoingWithDate);
+      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/', outgoingWithDate);
       console.log('Response from API:', response.data); // Log response from API
       return response.data;
     } catch (error: any) {
@@ -341,7 +344,7 @@ export const addNewVendorPayment = createAsyncThunk(
   async (paymentData: any, { rejectWithValue }) => {
     console.log('addNewPayment called with data:', paymentData);
     try {
-      const response = await axios.post('http://192.168.29.117:8000/purchaseapi/outgoingpayments/advance/', {
+      const response = await axios.post('https://yenerp.com/purchaseapi/outgoingpayments/advance/', {
         ...paymentData,
         isPreOutgoing: !paymentData.poId,
       });
@@ -358,7 +361,7 @@ export const addNewVendorPayment = createAsyncThunk(
 export const fetchTaxDetails = createAsyncThunk<TaxDetail[], string>(
   'outgoings/fetchTaxDetails',
   async (outgoingId) => {
-    const response = await axios.get<TaxDetail[]>(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingId}/tax-details`);
+    const response = await axios.get<TaxDetail[]>(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}/tax-details`);
     return response.data; // Assuming the response is directly an array of TaxDetail
   }
 );
@@ -384,7 +387,7 @@ export const selectOutgoingPayment = createAsyncThunk<
   ) => {
     try {
       // Fetch outgoing payment details
-      const response = await axios.get<Outgoing>(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingId}`);
+      const response = await axios.get<Outgoing>(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}`);
       const outgoingData = response.data;
 
       const totalPayableAmount = outgoingData.totalPayableAmount ?? 0;
@@ -447,7 +450,7 @@ export const selectOutgoingPayment = createAsyncThunk<
       }
 
       // Send updated data to the server
-      await axios.patch(`http://192.168.29.117:8000/purchaseapi/outgoingpayments/${outgoingId}`, updatedOutgoing);
+      await axios.patch(`https://yenerp.com/purchaseapi/outgoingpayments/${outgoingId}`, updatedOutgoing);
 
       return updatedOutgoing;
     } catch (error: any) {
@@ -522,31 +525,33 @@ const outgoingSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchOutgoings.pending, (state) => {
+    .addCase(fetchOutgoings.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(
-        fetchOutgoings.fulfilled,
-        (
-          state,
-          action: PayloadAction<
-            { outgoings: Outgoing[]; totalItems: number },
-            string,
-            { arg: FetchOutgoingsArgs }
-          >
-        ) => {
-          state.loading = false;
-          state.outgoings = action.payload.outgoings.map(outgoing => ({
-            ...outgoing,
-            paidAmount: (outgoing.advanceAmount || 0) + (outgoing.partialAmount || 0) + (outgoing.fullPaymentAmount || 0),
-            // No date conversion; keep as strings
-          }));
-          state.totalItems = action.payload.totalItems;
-          state.currentPage = action.meta.arg.page;
-          state.pageSize = action.meta.arg.size;
-        }
-      )
+  fetchOutgoings.fulfilled,
+  (
+    state,
+    action: PayloadAction<
+      { outgoings: Outgoing[]; totalItems: number; totalPayableAmount: number },
+      string,
+      { arg: FetchOutgoingsArgs }
+    >
+  ) => {
+    state.loading = false;
+    state.outgoings = action.payload.outgoings.map(outgoing => ({
+      ...outgoing,
+      paidAmount: (outgoing.advanceAmount || 0) + (outgoing.partialAmount || 0) + (outgoing.fullPaymentAmount || 0),
+      // Ensure intimationDays is parsed as number for sorting/comparisons
+      intimationDays: typeof outgoing.intimationDays === 'string' ? parseInt(outgoing.intimationDays, 10) : outgoing.intimationDays,
+    }));
+    state.totalItems = action.payload.totalItems;
+    state.totalPayableAmount = action.payload.totalPayableAmount || 0; // Keep overall for bulk ops/PDF
+    state.currentPage = action.meta.arg.page;
+    state.pageSize = action.meta.arg.size;
+  }
+)
       .addCase(fetchOutgoings.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
@@ -729,7 +734,7 @@ export const selectOutgoings = (state: RootState) => state.outgoingPayment;
 export const selectCurrentPage = (state: RootState) => state.outgoingPayment.currentPage;
 export const selectPageSize = (state: RootState) => state.outgoingPayment.pageSize;
 export const selectTotalItems = (state: RootState) => state.outgoingPayment.totalItems;
-
+export const selectTotalPayableAmount = (state: RootState) => state.outgoingPayment.totalPayableAmount;
 // Export reducer from slice
 export default outgoingSlice.reducer;
 

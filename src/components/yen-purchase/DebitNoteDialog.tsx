@@ -73,7 +73,7 @@ const DebitCreditNoteDialog: React.FC = () => {
     try {
       console.log('Downloading PDF for noteId:', noteId);
       await downloadPdf(
-        `http://192.168.29.117:8000/purchaseapi/debitnote/returnprocess/DebitCreditNote/pdf/${noteId}`,
+        `https://yenerp.com/purchaseapi/debitnote/returnprocess/DebitCreditNote/pdf/${noteId}`,
         `DebitCreditNote_${noteId}.pdf`
       );
     } catch (error) {

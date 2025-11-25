@@ -58,12 +58,12 @@ const CreatePurchasePage: React.FC = () => {
   const searchParams = useSearchParams();
   const editId = searchParams?.get('edit') ?? null;
   const isEditMode = !!editId;
- 
+
   const { purchaseOrderData, newItem, importDuplicates, importErrors, importDialogOpen, importWarnings, importSuccessMessages, importUpdatedItems, searchQuery, snackbarOpen, skip, limit, snackbarMessage } = useSelector(selectPurchaseOrderState);
   const { businesses, shippingaddress } = useSelector(selectBusinesses);
   const { location: locations, loading: locationsLoading } = useSelector(selectStorageLocations);
   const discountMode = useSelector((state: RootState) => state.purchaseOrder.discountMode ?? 'percentage') as 'percentage' | 'amount';
- 
+
   const [open, setDialogOpen] = useState(false);
   const [openShippingDialog, setOpenShippingDialog] = useState(false);
   const [updatedShippingRow, setUpdatedShippingRow] = useState<ShippingAddress | null>(null);
@@ -87,7 +87,7 @@ const CreatePurchasePage: React.FC = () => {
   const [newItemsearch, setNewItemsearch] = useState<PurchaseItemSearchAdd | null>(null);
   const [vendorSearch, setVendorSearch] = useState<VendorSummary | null>(null);
   const [locationSearch, setLocationSearch] = useState<Location | null>(null);
- 
+
   // Assuming this selector exists; add to purchaseOrderSlice if needed
   const { vendors } = useSelector(selectPurchaseOrderState); // ADD: vendors array from Redux
   const [showNavigationConfirm, setShowNavigationConfirm] = useState(false);
@@ -106,55 +106,55 @@ const CreatePurchasePage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [freights, setFreights] = useState<FreightData[]>([]); // Updated to FreightData type
   const [openFreightDialog, setOpenFreightDialog] = useState(false); // Added: Freight dialog state
-// Replace your problematic useEffect with this corrected version:
-useEffect(() => {
-  const calculateAndUpdateTotals = async () => {
-    if (purchaseOrderData.items.length > 0 || freights.length > 0) {
-      try {
-        const result = await dispatch(calculatePurchaseOrderTotals({
-          items: purchaseOrderData.items,
-          freights: freights,
-        })).unwrap();
-        
-        // Update local totals state with backend-calculated values
-        // Use proper property names that match your interface
-        setTotals({
-          subTotal: result.subTotal,
-          freightAmountTotal: result.totalFreightAmount,
-          freightTaxTotal: result.totalFreightTaxAmount,
-          roundedTotalOrderAmount: result.finalAmount, // This should work now
-          roundedTotalDiscount: result.totalDiscount,
-          roundedTotalTax: result.totalTax,
-          overallDiscountAmount: 0,
-          itemDiscountAmount: result.totalDiscount,
-          taxAmount: result.itemTaxAmount,
-          afterDiscount: result.amountAfterDiscount,
-        });
-        
-        // Update Redux state
-        dispatch(setReduxTotals({
-          pendingOrderAmount: result.finalAmount,
-          pendingDiscountAmount: result.totalDiscount,
-          pendingTaxAmount: result.totalTax,
-          totalFreightAmount: result.totalFreightAmount,
-          totalFreightTaxAmount: result.totalFreightTaxAmount,
-        }));
-        
-      } catch (error) {
-        console.error('Failed to calculate purchase order totals:', error);
-        // Fallback to frontend calculation if backend fails
+  // Replace your problematic useEffect with this corrected version:
+  useEffect(() => {
+    const calculateAndUpdateTotals = async () => {
+      if (purchaseOrderData.items.length > 0 || freights.length > 0) {
+        try {
+          const result = await dispatch(calculatePurchaseOrderTotals({
+            items: purchaseOrderData.items,
+            freights: freights,
+          })).unwrap();
+
+          // Update local totals state with backend-calculated values
+          // Use proper property names that match your interface
+          setTotals({
+            subTotal: result.subTotal,
+            freightAmountTotal: result.totalFreightAmount,
+            freightTaxTotal: result.totalFreightTaxAmount,
+            roundedTotalOrderAmount: result.finalAmount, // This should work now
+            roundedTotalDiscount: result.totalDiscount,
+            roundedTotalTax: result.totalTax,
+            overallDiscountAmount: 0,
+            itemDiscountAmount: result.totalDiscount,
+            taxAmount: result.itemTaxAmount,
+            afterDiscount: result.amountAfterDiscount,
+          });
+
+          // Update Redux state
+          dispatch(setReduxTotals({
+            pendingOrderAmount: result.finalAmount,
+            pendingDiscountAmount: result.totalDiscount,
+            pendingTaxAmount: result.totalTax,
+            totalFreightAmount: result.totalFreightAmount,
+            totalFreightTaxAmount: result.totalFreightTaxAmount,
+          }));
+
+        } catch (error) {
+          console.error('Failed to calculate purchase order totals:', error);
+          // Fallback to frontend calculation if backend fails
+          const newTotals = calculateTotals;
+          setTotals(newTotals);
+        }
+      } else {
+        // Reset totals if no items or freights
         const newTotals = calculateTotals;
         setTotals(newTotals);
       }
-    } else {
-      // Reset totals if no items or freights
-      const newTotals = calculateTotals;
-      setTotals(newTotals);
-    }
-  };
-  
-  calculateAndUpdateTotals();
-}, [purchaseOrderData.items, freights, dispatch]);
+    };
+
+    calculateAndUpdateTotals();
+  }, [purchaseOrderData.items, freights, dispatch]);
 
   useEffect(() => {
     if (isEditMode && purchaseOrderData.vendorName && vendors.length > 0) {
@@ -166,7 +166,7 @@ useEffect(() => {
       }
     }
   }, [isEditMode, purchaseOrderData.vendorName, vendors, vendorSearch]);
- 
+
   // NEW: Auto-select location in edit mode after data loads
   useEffect(() => {
     if (isEditMode && purchaseOrderData.locationName && locations.length > 0) {
@@ -176,7 +176,7 @@ useEffect(() => {
       }
     }
   }, [isEditMode, purchaseOrderData.locationName, locations, locationSearch]);
- 
+
   // Reset form when component mounts in create mode
   useEffect(() => {
     if (!isEditMode) {
@@ -210,7 +210,7 @@ useEffect(() => {
       setFreights([]); // Added
     }
   }, [isEditMode, dispatch]);
- 
+
   // Set default shipping address
   useEffect(() => {
     if (shippingaddress.length > 0 && !purchaseOrderData.shippingAddress) {
@@ -222,7 +222,7 @@ useEffect(() => {
       setFormErrors(prev => ({ ...prev, shippingAddress: false }));
     }
   }, [shippingaddress, purchaseOrderData.shippingAddress, dispatch]);
- 
+
   // Set default billing address
   useEffect(() => {
     if (businesses.length === 1 && !purchaseOrderData.billingAddress) {
@@ -230,7 +230,7 @@ useEffect(() => {
       dispatch(setPurchaseOrderData({ ...purchaseOrderData, billingAddress: defaultBillingAddress }));
     }
   }, [businesses, purchaseOrderData, dispatch]);
- 
+
   // Set default dates
   useEffect(() => {
     const currentDate = new Date().toISOString();
@@ -245,7 +245,7 @@ useEffect(() => {
       dispatch(setPurchaseOrderData(updatedData));
     }
   }, [dispatch, purchaseOrderData.orderDate, purchaseOrderData.expectedDeliveryDate]);
- 
+
   // Track form dirty state
   useEffect(() => {
     const hasChanges =
@@ -261,9 +261,9 @@ useEffect(() => {
       freights.length > 0; // Added
     setIsFormDirty(hasChanges);
   }, [purchaseOrderData, overallDiscountValue, roundOffValue, freights]);
- 
+
   useBeforeUnload(isFormDirty, 'You have unsaved changes. Are you sure you want to leave?');
- 
+
   // Sync input fields with Redux state
   useEffect(() => {
     setCountInput(newItem.pendingCount === 0 ? '' : newItem.pendingCount.toString());
@@ -274,7 +274,7 @@ useEffect(() => {
       setNewPriceTypeInput('');
     }
   }, [newItem.pendingCount, newItem.pendingQuantity, newItem.newPrice, newPriceInput]);
- 
+
   // Fetch initial data
   useEffect(() => {
     dispatch(fetchPurchaseOrders());
@@ -284,7 +284,7 @@ useEffect(() => {
     dispatch(fetchLocations());
     dispatch(fetchAllVendors());
   }, [dispatch, searchQuery, skip, limit]);
- 
+
   // Check if any item has item-wise discount
   useEffect(() => {
     const hasDiscount = purchaseOrderData.items.some(item =>
@@ -300,13 +300,13 @@ useEffect(() => {
       dispatch(setSnackbarOpen(true));
     }
   }, [purchaseOrderData.items, overallDiscountValue, dispatch]);
- 
+
   // Calculate totals
   const calculateTotals = useMemo(() => {
     let subTotal = 0;
     let itemDiscountAmount = 0;
     let taxAmount = 0;
-   
+
     purchaseOrderData.items.forEach((item) => {
       subTotal += item.pendingTotalPrice || 0;
       itemDiscountAmount += item.pendingDiscountAmount || 0;
@@ -317,8 +317,8 @@ useEffect(() => {
     let freightAmountTotal = 0;
     let freightTaxTotal = 0;
     freights.forEach((freight) => {
-      freightAmountTotal += freight.Amt || 0;
-      freightTaxTotal += freight.TAmt || 0;
+      freightAmountTotal += freight.amt || 0;
+      freightTaxTotal += freight.tAmt || 0;
     });
 
     const overallDiscountAmount = overallDiscountMode === 'percentage'
@@ -344,7 +344,7 @@ useEffect(() => {
       afterDiscount: roundPrice(afterDiscount),
     };
   }, [purchaseOrderData.items, freights, overallDiscountMode, overallDiscountValue, roundOffValue]);
- 
+
   // Update totals and Redux state
   useEffect(() => {
     const newTotals = calculateTotals;
@@ -357,72 +357,72 @@ useEffect(() => {
       totalFreightTaxAmount: newTotals.freightTaxTotal,
     }));
   }, [calculateTotals, dispatch]);
- 
- // Update your handleAddFreights function to use backend calculation
-const handleAddFreights = useCallback(async (newFreights: FreightData[]) => {
-  // Calculate freight totals for each new freight using backend API
-  const freightsWithTotals = await Promise.all(
-    newFreights.map(async (freight) => {
-      try {
-        const totals = await dispatch(calculateFreightTotals({
-          Amt: freight.Amt,
-          TCode: freight.TCode,
-          taxType: freight.taxType,
-        })).unwrap();
-        
-        return {
-          ...freight,
-          TAmt: totals.TAmt,
-          TotalAmt: totals.TotalAmt,
-          sgst: totals.sgst,
-          cgst: totals.cgst,
-          igst: totals.igst,
-          taxPercentage: totals.taxPercentage,
-        };
-      } catch (error) {
-        console.error('Failed to calculate freight totals:', error);
-        // Fallback to frontend calculation
-        const amount = freight.Amt;
-        const taxPercentage = parseFloat(freight.TCode.replace(/[^\d.]/g, '')) || 0;
-        let TAmt = 0;
-        let sgst = 0, cgst = 0, igst = 0;
-        
-        if (freight.taxType === 'cgst_sgst') {
-          sgst = amount * (taxPercentage / 2 / 100);
-          cgst = amount * (taxPercentage / 2 / 100);
-          TAmt = sgst + cgst;
-        } else {
-          igst = amount * (taxPercentage / 100);
-          TAmt = igst;
+
+  // Update your handleAddFreights function to use backend calculation
+  const handleAddFreights = useCallback(async (newFreights: FreightData[]) => {
+    // Calculate freight totals for each new freight using backend API
+    const freightsWithTotals = await Promise.all(
+      newFreights.map(async (freight) => {
+        try {
+          const totals = await dispatch(calculateFreightTotals({
+            amt: freight.amt,
+            tCode: freight.tCode,
+            taxType: freight.taxType,
+          })).unwrap();
+
+          return {
+            ...freight,
+            tAmt: totals.tAmt,
+            totalAmt: totals.totalAmt,
+            sgst: totals.sgst,
+            cgst: totals.cgst,
+            igst: totals.igst,
+            taxPercentage: totals.taxPercentage,
+          };
+        } catch (error) {
+          console.error('Failed to calculate freight totals:', error);
+          // Fallback to frontend calculation
+          const amount = freight.amt;
+          const taxPercentage = parseFloat(freight.tCode.replace(/[^\d.]/g, '')) || 0;
+          let TAmt = 0;
+          let sgst = 0, cgst = 0, igst = 0;
+
+          if (freight.taxType === 'cgst_sgst') {
+            sgst = amount * (taxPercentage / 2 / 100);
+            cgst = amount * (taxPercentage / 2 / 100);
+            TAmt = sgst + cgst;
+          } else {
+            igst = amount * (taxPercentage / 100);
+            TAmt = igst;
+          }
+
+          return {
+            ...freight,
+            TAmt,
+            TotalAmt: amount + TAmt,
+            sgst,
+            cgst,
+            igst,
+            taxPercentage,
+          };
         }
-        
-        return {
-          ...freight,
-          TAmt,
-          TotalAmt: amount + TAmt,
-          sgst,
-          cgst,
-          igst,
-          taxPercentage,
-        };
-      }
-    })
-  );
-  
-  setFreights((prev) => [...prev, ...freightsWithTotals]);
-  setOpenFreightDialog(false);
-}, [dispatch]);
+      })
+    );
 
-// Update your freight totals display in the UI
-const freightCalculationLoading = useSelector((state: RootState) => state.purchaseOrder.freightCalculationLoading);
-const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.poTotalsLoading);
+    setFreights((prev) => [...prev, ...freightsWithTotals]);
+    setOpenFreightDialog(false);
+  }, [dispatch]);
 
- 
+  // Update your freight totals display in the UI
+  const freightCalculationLoading = useSelector((state: RootState) => state.purchaseOrder.freightCalculationLoading);
+  const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.poTotalsLoading);
+
+
   // Updated: Handle deleting freight
   const handleDeleteFreight = useCallback((index: number) => {
     setFreights((prev) => prev.filter((_, i) => i !== index));
   }, []);
- 
+
   // Handler functions
   const handleOrderDateChange = (date: Date | null) => {
     const finalDate = date || new Date();
@@ -595,8 +595,8 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
       dispatch(setNewItemData({
         itemId: item.purchaseitemId,
         itemName: item.itemName,
-        itemCode:item.itemCode,
-        randomId:item.randomId,
+        itemCode: item.itemCode,
+        randomId: item.randomId,
         pendingCount: 1,
         pendingQuantity: 0,
         pendingTotalQuantity: 0,
@@ -697,7 +697,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
       gstNumber: '',
       freights: [], // Added
     }));
-   
+
     dispatch(setNewItemData({
       itemId: '',
       itemName: '',
@@ -714,7 +714,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
       afTaxDiscountAmount: 0,
       uom: '',
       pendingCount: 0,
-      itemCode:'',
+      itemCode: '',
       pendingQuantity: 0,
       pendingTotalQuantity: 0,
       purchasecategoryName: '',
@@ -734,7 +734,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
       poQuantitycgst: 0,
       poQuantityigst: 0,
     }));
-   
+
     setVendorSearch(null);
     setLocationSearch(null);
     setNewItemsearch(null);
@@ -747,7 +747,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
     setFreights([]); // Added
     setIsFormDirty(false);
     setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
-   
+
     // If in edit mode, go back to list
     if (isEditMode) {
       router.push('/yen-purchase/PurchaseOrder');
@@ -916,7 +916,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
   const handleEdit = (item: Item) => {
     const itemDiscountMode = (item.befTaxDiscountType || discountMode || 'percentage') as 'percentage' | 'amount';
     dispatch(setDiscountMode({ mode: itemDiscountMode }));
-   
+
     const befDiscount = item.befTaxDiscount || 0;
     const afDiscount = item.afTaxDiscount || 0;
     const befDiscountAmount = item.befTaxDiscountAmount || 0;
@@ -945,7 +945,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
       purchasesubcategoryName: item.purchasesubcategoryName,
       hsnCode: item.hsnCode,
       itemCode: item.itemCode,
-      randomId:item.randomId
+      randomId: item.randomId
     };
     setNewItemsearch(itemForSearch);
     setCountInput(item.pendingCount.toString());
@@ -1008,7 +1008,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
       }
       await dispatch(calculateItemTotals(params)).unwrap();
       dispatch(addItemToPurchaseOrder());
-     
+
       // Reset form fields after adding item
       setNewItemsearch(null);
       dispatch(setNewItemData({
@@ -1027,7 +1027,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
         afTaxDiscountAmount: 0,
         uom: '',
         pendingCount: 0,
-        itemCode:'',
+        itemCode: '',
         pendingQuantity: 0,
         pendingTotalQuantity: 0,
         purchasecategoryName: '',
@@ -1047,7 +1047,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
         poQuantitycgst: 0,
         poQuantityigst: 0,
       }));
-     
+
       setCountInput('');
       setQuantityInput('');
       setNewPriceTypeInput('');
@@ -1147,7 +1147,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
         applyOverallDiscount: true,
       };
       const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
-     
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to apply discount');
       }
@@ -1233,7 +1233,7 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
         applyOverallDiscount: false,
       };
       const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
-     
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to remove discount');
       }
@@ -1286,99 +1286,99 @@ const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.po
     }
   };
   // Get calculated totals from Redux state
-    const calculatedTotals = useSelector((state: RootState) => state.purchaseOrder.calculatedTotals);
-    
-const handleSubmit = async () => {
-  try {
-    await validationSchema.validate(purchaseOrderData, { abortEarly: false });
-    setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
-    
-    if (!purchaseOrderData.items.length) {
-      dispatch(setSnackbarMessage('At least one item is required.'));
+  const calculatedTotals = useSelector((state: RootState) => state.purchaseOrder.calculatedTotals);
+
+  const handleSubmit = async () => {
+    try {
+      await validationSchema.validate(purchaseOrderData, { abortEarly: false });
+      setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
+
+      if (!purchaseOrderData.items.length) {
+        dispatch(setSnackbarMessage('At least one item is required.'));
+        dispatch(setSnackbarOpen(true));
+        return;
+      }
+
+      const orderDate = purchaseOrderData.orderDate || new Date().toISOString();
+      const expectedDeliveryDate = purchaseOrderData.expectedDeliveryDate || new Date().toISOString();
+
+
+      // Use backend-calculated totals if available, otherwise use frontend
+      const finalAmount = calculatedTotals?.finalAmount || totals.roundedTotalOrderAmount;
+      const totalDiscount = calculatedTotals?.totalDiscount || totals.roundedTotalDiscount;
+      const totalTax = calculatedTotals?.totalTax || totals.roundedTotalTax;
+      const totalFreightAmount = calculatedTotals?.totalFreightAmount || totals.freightAmountTotal;
+      const totalFreightTaxAmount = calculatedTotals?.totalFreightTaxAmount || totals.freightTaxTotal;
+
+      const dataToSubmit = {
+        ...purchaseOrderData,
+        orderDate,
+        expectedDeliveryDate,
+        pendingOrderAmount: finalAmount,
+        pendingDiscountAmount: totalDiscount,
+        pendingTaxAmount: totalTax,
+        totalTax: totalTax,
+        totalFreightAmount: totalFreightAmount,
+        totalFreightTaxAmount: totalFreightTaxAmount,
+        freights: freights,
+        isHoldOrder: finalAmount > purchaseOrderData.creditLimit,
+        overallDiscountType: overallDiscountMode,
+        overallDiscountValue: overallDiscountValue,
+        discountPrice: totalDiscount,
+        totalDiscount: totalDiscount,
+        roundOffValue: roundOffValue,
+        items: purchaseOrderData.items.map(item => ({
+          ...item,
+          befTaxDiscountType: item.befTaxDiscountType || 'percentage',
+          afTaxDiscountType: item.afTaxDiscountType || 'percentage',
+          poQuantity: item.poQuantity || item.pendingTotalQuantity || 0,
+          poQuantitypendingTotalPrice: item.poQuantitypendingTotalPrice || item.pendingTotalPrice || 0,
+          poQuantitypendingFinalPrice: item.poQuantitypendingFinalPrice || item.pendingFinalPrice || 0,
+          poQuantityTaxAmount: item.poQuantityTaxAmount || item.pendingTaxAmount || 0,
+          poQuantityDiscountAmount: item.poQuantityDiscountAmount || item.pendingDiscountAmount || 0,
+          poQuantitysgst: item.poQuantitysgst || item.pendingSgst || 0,
+          poQuantitycgst: item.poQuantitycgst || item.pendingCgst || 0,
+          poQuantityigst: item.poQuantityigst || item.pendingIgst || 0,
+        })),
+      };
+
+      let result;
+      setSubmitLoading(true);
+
+      if (isEditMode && editId) {
+        result = await dispatch(updatePurchaseOrder({ purchaseOrderId: editId, purchaseOrder: dataToSubmit })).unwrap();
+        dispatch(setSnackbarMessage(`Purchase Order ${result.randomId || editId} successfully updated.`));
+      } else {
+        result = await dispatch(addPurchaseOrder(dataToSubmit)).unwrap();
+        dispatch(setSnackbarMessage(
+          dataToSubmit.isHoldOrder
+            ? `Purchase Order ${result.randomId || 'Unknown'} is on hold due to exceeding credit limit. Awaiting approval.`
+            : `Purchase Order ${result.randomId || 'Unknown'} successfully created.`
+        ));
+      }
+
       dispatch(setSnackbarOpen(true));
-      return;
-    }
+      await dispatch(fetchPurchaseOrders());
+      handleClear();
+      setDialogOpen(false);
+      router.push('/yen-purchase/PurchaseOrder');
 
-    const orderDate = purchaseOrderData.orderDate || new Date().toISOString();
-    const expectedDeliveryDate = purchaseOrderData.expectedDeliveryDate || new Date().toISOString();
-    
-    
-    // Use backend-calculated totals if available, otherwise use frontend
-    const finalAmount = calculatedTotals?.finalAmount || totals.roundedTotalOrderAmount;
-    const totalDiscount = calculatedTotals?.totalDiscount || totals.roundedTotalDiscount;
-    const totalTax = calculatedTotals?.totalTax || totals.roundedTotalTax;
-    const totalFreightAmount = calculatedTotals?.totalFreightAmount || totals.freightAmountTotal;
-    const totalFreightTaxAmount = calculatedTotals?.totalFreightTaxAmount || totals.freightTaxTotal;
-    
-    const dataToSubmit = {
-      ...purchaseOrderData,
-      orderDate,
-      expectedDeliveryDate,
-      pendingOrderAmount: finalAmount,
-      pendingDiscountAmount: totalDiscount,
-      pendingTaxAmount: totalTax,
-      totalTax: totalTax,
-      totalFreightAmount: totalFreightAmount,
-      totalFreightTaxAmount: totalFreightTaxAmount,
-      freights: freights,
-      isHoldOrder: finalAmount > purchaseOrderData.creditLimit,
-      overallDiscountType: overallDiscountMode,
-      overallDiscountValue: overallDiscountValue,
-      discountPrice: totalDiscount,
-      totalDiscount: totalDiscount,
-      roundOffValue: roundOffValue,
-      items: purchaseOrderData.items.map(item => ({
-        ...item,
-        befTaxDiscountType: item.befTaxDiscountType || 'percentage',
-        afTaxDiscountType: item.afTaxDiscountType || 'percentage',
-        poQuantity: item.poQuantity || item.pendingTotalQuantity || 0,
-        poQuantitypendingTotalPrice: item.poQuantitypendingTotalPrice || item.pendingTotalPrice || 0,
-        poQuantitypendingFinalPrice: item.poQuantitypendingFinalPrice || item.pendingFinalPrice || 0,
-        poQuantityTaxAmount: item.poQuantityTaxAmount || item.pendingTaxAmount || 0,
-        poQuantityDiscountAmount: item.poQuantityDiscountAmount || item.pendingDiscountAmount || 0,
-        poQuantitysgst: item.poQuantitysgst || item.pendingSgst || 0,
-        poQuantitycgst: item.poQuantitycgst || item.pendingCgst || 0,
-        poQuantityigst: item.poQuantityigst || item.pendingIgst || 0,
-      })),
-    };
-
-    let result;
-    setSubmitLoading(true);
-    
-    if (isEditMode && editId) {
-      result = await dispatch(updatePurchaseOrder({ purchaseOrderId: editId, purchaseOrder: dataToSubmit })).unwrap();
-      dispatch(setSnackbarMessage(`Purchase Order ${result.randomId || editId} successfully updated.`));
-    } else {
-      result = await dispatch(addPurchaseOrder(dataToSubmit)).unwrap();
-      dispatch(setSnackbarMessage(
-        dataToSubmit.isHoldOrder
-          ? `Purchase Order ${result.randomId || 'Unknown'} is on hold due to exceeding credit limit. Awaiting approval.`
-          : `Purchase Order ${result.randomId || 'Unknown'} successfully created.`
-      ));
+    } catch (error) {
+      if (error instanceof Yup.ValidationError) {
+        const newErrors = { vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false };
+        error.inner.forEach((err) => {
+          if (err.path) newErrors[err.path as keyof typeof newErrors] = true;
+        });
+        setFormErrors(newErrors);
+      } else {
+        dispatch(setSnackbarMessage(`Failed to ${isEditMode ? 'update' : 'create'} purchase order: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
+      dispatch(setSnackbarOpen(true));
+    } finally {
+      setSubmitLoading(false);
     }
-    
-    dispatch(setSnackbarOpen(true));
-    await dispatch(fetchPurchaseOrders());
-    handleClear();
-    setDialogOpen(false);
-    router.push('/yen-purchase/PurchaseOrder');
-    
-  } catch (error) {
-    if (error instanceof Yup.ValidationError) {
-      const newErrors = { vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false };
-      error.inner.forEach((err) => {
-        if (err.path) newErrors[err.path as keyof typeof newErrors] = true;
-      });
-      setFormErrors(newErrors);
-    } else {
-      dispatch(setSnackbarMessage(`Failed to ${isEditMode ? 'update' : 'create'} purchase order: ${error instanceof Error ? error.message : 'Unknown error'}`));
-    }
-    dispatch(setSnackbarOpen(true));
-  } finally {
-    setSubmitLoading(false);
-  }
-};
- const calculateTaxDetails = () => {
+  };
+  const calculateTaxDetails = () => {
     const taxDetails: { [key: string]: { pendingSgst: number; pendingCgst: number; pendingIgst: number; percentage: number } } = {};
     purchaseOrderData.items.forEach((item) => {
       const taxPercentage = item.taxPercentage || 0;
@@ -1399,7 +1399,7 @@ const handleSubmit = async () => {
     });
     return taxDetails;
   };
- 
+
   // Early return for loading (now after all handlers)
   if (orderLoading) {
     return (
@@ -1588,7 +1588,7 @@ const handleSubmit = async () => {
                   error={errors.itemName}
                   helperText={errors.itemName ? 'Item name is required' : ''}
                   inputRef={itemNameRef}
-                  // key={newItemsearch ? newItemsearch.purchaseitemId : 'empty'} // Force re-render when cleared
+                // key={newItemsearch ? newItemsearch.purchaseitemId : 'empty'} // Force re-render when cleared
                 />
               </Grid>
               <Grid item xs={12} sm={4} md={0.8}>
@@ -1871,7 +1871,7 @@ const handleSubmit = async () => {
                       </TableRow>
                     ))
                   )}
-                 
+
                   {/* Totals Section */}
                   <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
                     <TableCell className='table-number-right' colSpan={8} align="right">
@@ -2084,96 +2084,96 @@ const handleSubmit = async () => {
           </Box>
           {/* Added: Freight Section after Items Table */}
           <Box sx={{ mt: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-    <Typography variant="h6">
-      Freight Charges 
-      {(freightCalculationLoading || poTotalsLoading) && (
-        <CircularProgress size={16} sx={{ ml: 1 }} />
-      )}
-    </Typography>
-    <Button
-      variant="outlined"
-      color="primary"
-      onClick={() => setOpenFreightDialog(true)}
-      startIcon={<AddIcon />}
-      disabled={freightCalculationLoading}
-    >
-      Add Freight
-    </Button>
-  </Box>
-  
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6">
+                Freight Charges
+                {(freightCalculationLoading || poTotalsLoading) && (
+                  <CircularProgress size={16} sx={{ ml: 1 }} />
+                )}
+              </Typography>
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={() => setOpenFreightDialog(true)}
+                startIcon={<AddIcon />}
+                disabled={freightCalculationLoading}
+              >
+                Add Freight
+              </Button>
+            </Box>
+
             {freights.length > 0 ? (
-    <TableContainer sx={{ maxHeight: '200px', overflowY: 'auto' }}>
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Freight Name</TableCell>
-            <TableCell align="right">Amount (₹)</TableCell>
-            <TableCell align="center">Tax Code</TableCell>
-            <TableCell align="center">Tax Type</TableCell>
-            <TableCell align="right">SGST (₹)</TableCell>
-            <TableCell align="right">CGST (₹)</TableCell>
-            <TableCell align="right">IGST (₹)</TableCell>
-            <TableCell align="right">Total Tax (₹)</TableCell>
-            <TableCell align="right">Total (₹)</TableCell>
-            <TableCell align="right">Actions</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {freights.map((freight: FreightData, index: number) => (
-            <TableRow key={index}>
-              <TableCell>{freight.Name}</TableCell>
-              <TableCell align="right">{freight.Amt.toFixed(2)}</TableCell>
-              <TableCell align="center">{freight.TCode}</TableCell>
-              <TableCell align="center">
-                {freight.taxType === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}
-              </TableCell>
-              <TableCell align="right">{freight.sgst.toFixed(2)}</TableCell>
-              <TableCell align="right">{freight.cgst.toFixed(2)}</TableCell>
-              <TableCell align="right">{freight.igst.toFixed(2)}</TableCell>
-              <TableCell align="right">{freight.TAmt.toFixed(2)}</TableCell>
-              <TableCell align="right">{freight.TotalAmt.toFixed(2)}</TableCell>
-              <TableCell align="right">
-                <IconButton 
-                  onClick={() => handleDeleteFreight(index)} 
-                  size="small" 
-                  color="error"
-                  disabled={freightCalculationLoading}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </TableCell>
-            </TableRow>
-          ))}
-          
-          {/* Totals Row */}
-          <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
-            <TableCell>Freight Totals:</TableCell>
-            <TableCell align="right">{totals.freightAmountTotal.toFixed(2)}</TableCell>
-            <TableCell colSpan={3} />
-            <TableCell align="right">
-              {freights.reduce((sum, f) => sum + f.sgst, 0).toFixed(2)}
-            </TableCell>
-            <TableCell align="right">
-              {freights.reduce((sum, f) => sum + f.cgst, 0).toFixed(2)}
-            </TableCell>
-            <TableCell align="right">
-              {freights.reduce((sum, f) => sum + f.igst, 0).toFixed(2)}
-            </TableCell>
-            <TableCell align="right">{totals.freightTaxTotal.toFixed(2)}</TableCell>
-            <TableCell align="right">
-              {(totals.freightAmountTotal + totals.freightTaxTotal).toFixed(2)}
-            </TableCell>
-            <TableCell />
-          </TableRow>
-        </TableBody>
-      </Table>
-    </TableContainer>
-  ) : (
-    <Typography variant="body2" color="text.secondary">
-      No freights added. Click "Add Freight" to include charges.
-    </Typography>
-  )}
+              <TableContainer sx={{ maxHeight: '200px', overflowY: 'auto' }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Freight Name</TableCell>
+                      <TableCell align="right">Amount (₹)</TableCell>
+                      <TableCell align="center">Tax Code</TableCell>
+                      <TableCell align="center">Tax Type</TableCell>
+                      <TableCell align="right">SGST (₹)</TableCell>
+                      <TableCell align="right">CGST (₹)</TableCell>
+                      <TableCell align="right">IGST (₹)</TableCell>
+                      <TableCell align="right">Total Tax (₹)</TableCell>
+                      <TableCell align="right">Total (₹)</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {freights.map((freight: FreightData, index: number) => (
+                      <TableRow key={index}>
+                        <TableCell>{freight.name}</TableCell>
+                        <TableCell align="right">{freight.amt.toFixed(2)}</TableCell>
+                        <TableCell align="center">{freight.tCode}</TableCell>
+                        <TableCell align="center">
+                          {freight.taxType === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}
+                        </TableCell>
+                        <TableCell align="right">{freight.sgst.toFixed(2)}</TableCell>
+                        <TableCell align="right">{freight.cgst.toFixed(2)}</TableCell>
+                        <TableCell align="right">{freight.igst.toFixed(2)}</TableCell>
+                        <TableCell align="right">{freight.tAmt.toFixed(2)}</TableCell>
+                        <TableCell align="right">{freight.totalAmt.toFixed(2)}</TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            onClick={() => handleDeleteFreight(index)}
+                            size="small"
+                            color="error"
+                            disabled={freightCalculationLoading}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+
+                    {/* Totals Row */}
+                    <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
+                      <TableCell>Freight Totals:</TableCell>
+                      <TableCell align="right">{totals.freightAmountTotal.toFixed(2)}</TableCell>
+                      <TableCell colSpan={3} />
+                      <TableCell align="right">
+                        {freights.reduce((sum, f) => sum + f.sgst, 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="right">
+                        {freights.reduce((sum, f) => sum + f.cgst, 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="right">
+                        {freights.reduce((sum, f) => sum + f.igst, 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="right">{totals.freightTaxTotal.toFixed(2)}</TableCell>
+                      <TableCell align="right">
+                        {(totals.freightAmountTotal + totals.freightTaxTotal).toFixed(2)}
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No freights added. 
+              </Typography>
+            )}
 
           </Box>
           {/* Additional Form Fields */}
@@ -2336,8 +2336,9 @@ const handleSubmit = async () => {
         <DialogContent>
           <DialogContentText>
             {isHoldOrderDialog
-              ? `The purchase order amount (${totals.roundedTotalOrderAmount.toFixed(2)}) exceeds the vendor's credit limit (${purchaseOrderData.creditLimit.toFixed(2)}). This order will be placed on hold and sent for approval. Proceed?`
-              : (isEditMode ? 'Are you sure you want to update this purchase order?' : 'Are you sure you want to submit this purchase order?')}
+              ? `The purchase order amount (${totals.roundedTotalOrderAmount.toFixed(2)}) exceeds the vendor&apos;s credit limit (${purchaseOrderData.creditLimit.toFixed(2)}). This order will be placed on hold and sent for approval. Proceed?`
+              : (isEditMode ? 'Are you sure you want to update this purchase order?' : 'Are you sure you want to submit this purchase order?')
+            }
           </DialogContentText>
         </DialogContent>
         <DialogActions>

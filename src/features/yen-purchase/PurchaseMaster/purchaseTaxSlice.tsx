@@ -7,7 +7,7 @@ import { initialState, PurchaseTax } from '@/Models/purchasetax';
 
 export const fetchPurchaseTaxes = createAsyncThunk<PurchaseTax[]>('purchaseTaxes/fetch', async () => {
   try {
-    const response = await axios.get('http://192.168.29.117:8000/purchaseapi/purchasetaxes/');
+    const response = await axios.get('https://yenerp.com/purchaseapi/purchasetaxes/');
     return response.data;
   } catch (error: any) {
     throw Error(`Failed to fetch purchase taxes: ${error.message}`);
@@ -18,7 +18,7 @@ export const addPurchaseTax = createAsyncThunk<PurchaseTax, Omit<PurchaseTax, 'p
   'purchaseTaxes/add',
   async (tax) => {
     try {
-      const response = await axios.post('http://192.168.29.117:8000/purchaseapi/purchasetaxes', tax);
+      const response = await axios.post('https://yenerp.com/purchaseapi/purchasetaxes', tax);
       return response.data;
     } catch (error: any) {
       throw Error(`Failed to add purchase tax: ${error.message}`);
@@ -31,7 +31,7 @@ export const updatePurchaseTax = createAsyncThunk<PurchaseTax, PurchaseTax>(
   async (tax, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        `http://192.168.29.117:8000/purchaseapi/purchasetaxes/${tax.purchasetaxId}`,
+        `https://yenerp.com/purchaseapi/purchasetaxes/${tax.purchasetaxId}`,
         tax
       );
       if (!response.data) {
@@ -48,7 +48,7 @@ export const deactivatePurchaseTax = createAsyncThunk<PurchaseTax, string>(
   'purchaseTaxes/deactivate',
   async (id) => {
     try {
-      const response = await axios.patch(`http://192.168.29.117:8000/purchaseapi/purchasetaxes/${id}`, { status: 'deactivated' });
+      const response = await axios.patch(`https://yenerp.com/purchaseapi/purchasetaxes/${id}`, { status: 'deactivated' });
       return response.data;
     } catch (error: any) {
       throw Error(`Failed to deactivate purchase tax: ${error.message}`);
@@ -60,7 +60,7 @@ export const activatePurchaseTax = createAsyncThunk<PurchaseTax, string>(
   'purchaseTaxes/activate',
   async (id) => {
     try {
-      const response = await axios.patch(`http://192.168.29.117:8000/purchaseapi/purchasetaxes/${id}`, { status: 'active' });
+      const response = await axios.patch(`https://yenerp.com/purchaseapi/purchasetaxes/${id}`, { status: 'active' });
       return response.data;
     } catch (error: any) {
       throw Error(`Failed to activate purchase tax: ${error.message}`);
@@ -75,7 +75,7 @@ export const importPurchaseTaxes = createAsyncThunk(
       const formData = new FormData();
       formData.append('file', file);
       const response = await axios.post(
-        'http://192.168.29.117:8000/purchaseapi/purchasetaxes/import-csv',
+        'https://yenerp.com/purchaseapi/purchasetaxes/import-csv',
         formData,
         {
           headers: {
@@ -102,7 +102,7 @@ export const exportPurchaseTaxes = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        'http://192.168.29.117:8000/purchaseapi/purchasetaxes/export-tax/export-csv',
+        'https://yenerp.com/purchaseapi/purchasetaxes/export-tax/export-csv',
         {
           responseType: 'blob',
         }

@@ -12,7 +12,7 @@ export const fetchVendorTypeItems = createAsyncThunk<VendorTypeItem[], { signal?
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.get('http://192.168.29.117:8000/purchaseapi/vendortypes/', {
+      const response = await axios.get('https://yenerp.com/purchaseapi/vendortypes/', {
         cancelToken: source.token,
       });
       return response.data;
@@ -34,7 +34,7 @@ export const addVendorTypeItem = createAsyncThunk<VendorTypeItem, { data: Vendor
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.post('http://192.168.29.117:8000/purchaseapi/vendortypes', data, {
+      const response = await axios.post('https://yenerp.com/purchaseapi/vendortypes', data, {
         cancelToken: source.token,
       });
       return response.data;
@@ -59,7 +59,7 @@ export const updateVendorTypeItem = createAsyncThunk<
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.patch(`http://192.168.29.117:8000/purchaseapi/vendortypes/${vendortypeId}`, vendortype, {
+      const response = await axios.patch(`https://yenerp.com/purchaseapi/vendortypes/${vendortypeId}`, vendortype, {
         cancelToken: source.token,
       });
       return response.data;
@@ -82,7 +82,7 @@ export const deactivateVendorTypeItem = createAsyncThunk<VendorTypeItem, { vendo
         source.cancel('Request canceled');
       });
       const response = await axios.patch(
-        `http://192.168.29.117:8000/purchaseapi/vendortypes/${vendortypeId}`,
+        `https://yenerp.com/purchaseapi/vendortypes/${vendortypeId}`,
         { status: 'deactivated' },
         { cancelToken: source.token }
       );
@@ -106,7 +106,7 @@ export const activateVendorTypeItem = createAsyncThunk<VendorTypeItem, { vendort
         source.cancel('Request canceled');
       });
       const response = await axios.patch(
-        `http://192.168.29.117:8000/purchaseapi/vendortypes/${vendortypeId}`,
+        `https://yenerp.com/purchaseapi/vendortypes/${vendortypeId}`,
         { status: 'active' },
         { cancelToken: source.token }
       );
