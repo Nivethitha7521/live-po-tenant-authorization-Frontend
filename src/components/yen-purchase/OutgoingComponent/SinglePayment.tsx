@@ -24,10 +24,10 @@ import {
   setSnackbarMessage,
   setSnackbarOpen,
   fetchActiveDebitsVendor,
-  ProcessPaymentRequest,
   fetchBank
 } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import { fetchActiveAdvancesVendorByName } from '@/features/yen-purchase/Outgoing/advancePaymentSlice';
+import { ProcessPaymentRequest } from '@/Models/outgoingModel';
 
 interface SinglePaymentDialogProps {
   open: boolean;

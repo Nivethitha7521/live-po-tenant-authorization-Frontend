@@ -142,6 +142,72 @@ export const fetchPurchaseOrders = createAsyncThunk(
     }
   }
 );
+export const fetchPendingPurchaseOrders = createAsyncThunk(
+  'pendingPurchaseOrders/fetch',
+  async ({
+    page,
+    size,
+    fromDate,
+    toDate,
+    vendorName,
+    itemName,
+    randomId,
+  }: {
+    page: number;
+    size: number;
+    fromDate?: string | Date;  // Allow both string and Date
+    toDate?: string | Date;    // Allow both string and Date
+    vendorName?: string;
+    itemName?: string;
+    randomId?: string;
+  }) => {
+    const params: {
+      skip?: number;
+      limit?: number;
+      fromDate?: string;
+      toDate?: string;
+      vendorName?: string;
+      itemName?: string;
+      randomId?: string;
+    } = {};
+
+    // Pagination
+    params.skip = (page - 1) * size;
+    params.limit = size;
+
+    // Filters (no status or filterBy needed—backend handles pending and orderDate automatically)
+    if (vendorName) params.vendorName = vendorName;
+    if (itemName) params.itemName = itemName;
+    if (randomId) params.randomId = randomId;
+
+    // Handle date conversion - convert string dates to Date objects if needed
+    if (fromDate) {
+      const fromDateObj = typeof fromDate === 'string' ? new Date(fromDate) : fromDate;
+      params.fromDate = fromDateObj.toISOString();
+    }
+    
+    if (toDate) {
+      const toDateObj = typeof toDate === 'string' ? new Date(toDate) : toDate;
+      params.toDate = toDateObj.toISOString();
+    }
+
+    try {
+      const response = await axios.get('https://yenerp.com/purchaseapi/purchaseorders/pending/purchase', {
+        params,
+      });
+
+      if (response.data.purchaseOrders.length === 0) {  // Assuming response structure with purchaseOrders array
+        return [];  // Return empty array if no data
+      }
+
+      console.log('Fetched pending purchase orders:', response.data);
+      return response.data.purchaseOrders;  // Return the array directly for consistency
+    } catch (error: any) {
+      console.error('Error fetching pending purchase orders:', error);
+      return { errorMessage: 'Error fetching pending purchase orders. Please try again.' };
+    }
+  }
+);
 // Async thunk to fetch all purchase orders
 export const fetchAllPurchaseOrders = createAsyncThunk(
   'purchaseOrder/fetchAll',
@@ -770,6 +836,22 @@ const purchaseListSlice = createSlice({
         state.pageSize = action.meta.arg.size;
       })
       .addCase(fetchPurchaseOrders.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch purchase orders';
+      })
+        .addCase(fetchPendingPurchaseOrders.pending, (state) => {
+        console.log('Fetch pending purchase orders - PENDING');
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchPendingPurchaseOrders.fulfilled, (state, action) => {
+        console.log('Fetch pending purchase orders - FULFILLED', action.payload);
+        state.loading = false;
+        state.pendingPurchaseList = action.payload.data || action.payload; // Adjust based on your API response structure
+        state.totalItems = action.payload.totalCount || action.payload.length;
+      })
+      .addCase(fetchPendingPurchaseOrders.rejected, (state, action) => {
+        console.log('Fetch pending purchase orders - REJECTED', action.error);
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch purchase orders';
       })

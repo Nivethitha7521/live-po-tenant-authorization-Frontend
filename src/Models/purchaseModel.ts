@@ -262,6 +262,8 @@ export interface PoResponse {
 // Define the structure of the state for purchaseList
 export interface PurchaseListState {
   purchaseList: PurchaseOrderData[];
+  pendingPurchaseList:PurchaseOrderData[];
+  pendingTotalItems:number;
   purchaseOrders: PurchaseOrderData[];
   purchaseinvoice: PurchaseInvoice[];
   selectedPo: PoResponse | null;
@@ -334,6 +336,8 @@ export const initialState: PurchaseListState = {
   importUpdatedItems: [], // Initialize updated items
   calculatedOverallDiscount: null,
   isCalculatingDiscount: false,
+  pendingPurchaseList: [],
+  pendingTotalItems: 0
 };
 // Define the Item type for the payload
 export interface PurchaseOrderItem {

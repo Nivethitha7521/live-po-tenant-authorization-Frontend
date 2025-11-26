@@ -168,6 +168,16 @@ export interface GrnState {
   debitCreditNotes: DebitCreditNote[]; // Add this field
   hasDebitCreditNotes: { [grnId: string]: boolean }; //
   returnReasons: ReturnReason[];
+   // Revert-related state properties
+  revertLoading: boolean;
+  revertError: string | null;
+  revertedGrns: GrnData[]; // Store reverted GRNs separately if needed
+  revertHistory: Array<{
+    grnId: string;
+    purchaseOrderId: string;
+    revertedAt: string;
+    poAction: 'updated' | 'created';
+  }>;
 }
 
 export interface Vendor {
@@ -252,6 +262,23 @@ export interface ApInvoice {
   postalCode: number;
   gstNumber: string;
   contactpersonEmail: string;
+}
+export interface ItemUpdate {
+  itemId: string;
+  befTaxDiscount?: number;
+  afTaxDiscount?: number;
+  expiryDate?: Date | null;
+}
+export interface RevertGrnToPOResponse {
+  message: string;
+  purchaseOrderId: string;
+  grnId: string;
+  poStatus: string;  // Renamed from poAction (always 'updated' implicitly)
+  itemStatus: string;
+  revertedItemsCount: number;  // Backend returns count instead of array
+  pendingOrderAmount: number;
+  // Optional: Add totalOrderAmount if needed
+  totalOrderAmount?: number;
 }
 export interface FetchGrnsReturnPayload {
   grns: GrnData[];
@@ -368,5 +395,10 @@ export const initialState: GrnState = {
   totalItems: 0,
   debitCreditNotes: [],
   hasDebitCreditNotes: {},
-  returnReasons: []
+  returnReasons: [],
+    // Revert-related initial state
+  revertLoading: false,
+  revertError: null,
+  revertedGrns: [],
+  revertHistory: [],
 };

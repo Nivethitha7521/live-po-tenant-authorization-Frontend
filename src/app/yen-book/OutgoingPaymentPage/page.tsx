@@ -38,7 +38,10 @@ import {
   fetchOutgoings,
   selectOutgoings, fetchVendorDetails, fetchBank, selectTotalItems, setPagination,
   setSnackbarMessage, clearSnackbarMessage, setSnackbarOpen, selectCurrentPage, selectPageSize,
-  selectTotalPayableAmount, // ADD THIS SELECTOR FOR OVERALL TOTAL
+  selectTotalPayableAmount,
+  toggleOutgoingSelection,
+  syncSelectionsWithCurrentData, // ADD THIS SELECTOR FOR OVERALL TOTAL
+  clearSelection, // ADD THIS FOR CLEAR ALL
 } from '../../../features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import { fetchGrnById, fetchItemwiseGrns, selectGrn } from '@/features/yen-purchase/GRN/grnSlice';
 import { AppDispatch, RootState } from '@/redux/store';
@@ -68,7 +71,8 @@ import BulkPaymentDialog from '@/components/yen-purchase/OutgoingComponent/BulkP
 import SinglePaymentDialog from '@/components/yen-purchase/OutgoingComponent/SinglePayment';
 const OutgoingPaymentComponent = React.memo(() => {
   const dispatch = useDispatch<AppDispatch>();
-  const { outgoings, snackbarMessage, snackbarOpen, banks, outgoingvendor } = useSelector(selectOutgoings);
+  const { outgoings, snackbarMessage, snackbarOpen, selection, outgoingvendor, banks // ADD THIS IF MISSING
+  } = useSelector(selectOutgoings);
   const { itemwise } = useSelector(selectGrn);
   const { randomIdap, apDialogOpen, selectedinvoiceId, itemwiseap } = useSelector(selectApinvoice);
   const { businesses } = useSelector(selectBusinesses);
@@ -76,8 +80,8 @@ const OutgoingPaymentComponent = React.memo(() => {
   const [selectedOutgoing, setSelectedOutgoing] = useState<any>(null);
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
   const [selectedVendorName, setSelectedVendorName] = useState<VendorDetail | null>(null); // Default is null
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
-  const [selectedOutgoings, setSelectedOutgoings] = useState<Outgoing[]>([]);
+  // const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  // const [selectedOutgoings, setSelectedOutgoings] = useState<Outgoing[]>([]);
   const [viewItemsDialogOpen, setViewItemsDialogOpen] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState<GrnResponse | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -86,7 +90,8 @@ const OutgoingPaymentComponent = React.memo(() => {
   const [loadingState, setLoadingState] = useState<'idle' | 'loading' | 'succeeded' | 'failed'>('idle');
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
   const [status, setStatus] = useState(''); // Default status filter is "Pending"
-  const [filteredOutgoing, setFilteredOutgoing] = useState<Outgoing[]>([]); // Explicit type declaration
+  const selectedRows = selection.selectedOutgoingIds;
+  const selectedOutgoings = selection.selectedOutgoings;
   const [paymentTerms, setPaymentTerms] = useState("");
   const [openDialog, setOpenDialog] = useState(false); // Control dialog visibility
   // State for the selected filter (number or empty string for all data)
@@ -125,35 +130,34 @@ const OutgoingPaymentComponent = React.memo(() => {
     if (!selectedinvoiceId) return null;
     return itemwiseap.find(ap => ap.invoiceId === selectedinvoiceId) || null;
   }, [selectedinvoiceId, itemwiseap]);
- // Fix useEffect that fetches initial data to include default sorting
-useEffect(() => {
-  if (loadingState === 'idle') {
-    // Set default sorting if not set
-    const defaultSortBy = sortColumn ? sortColumn : 'createdDate';
-    const defaultSortOrder = sortOrder === 'asc' ? 'ascending' : 'descending';
-  
-    // Map frontend column to backend field
-    const sortFieldMap: { [key: string]: string } = {
-      dueDays: 'intimationDays',
-      paymentTerms: 'paymentTerms',
-      payableAmount: 'payableAmount',
-      totalPaid: 'totalPaid',
-      remainingAmount: 'totalPayableAmount',
-      totalPrice: 'totalPrice',
-      invoiceDate: 'invoiceDate',
-      vendorName: 'vendorName'
-    };
-    const backendSortField = sortFieldMap[defaultSortBy] || 'createdDate';
-    dispatch(fetchOutgoings({
-      page: newPage,
-      size: pageSize,
-      filterByAmount: true,
-      filterBy: 'invoiceDate',
-      sortBy: backendSortField, // INCLUDE SORTING
-      sortOrder: defaultSortOrder // INCLUDE SORTING
-    }));
-  }
-}, [dispatch, loadingState, dateField, newPage, pageSize, sortColumn, sortOrder]);
+  // Fix useEffect that fetches initial data to include default sorting
+  useEffect(() => {
+    if (loadingState === 'idle') {
+      // Set default sorting if not set
+      const defaultSortBy = sortColumn ? sortColumn : 'createdDate';
+      const defaultSortOrder = sortOrder === 'asc' ? 'ascending' : 'descending';
+      // Map frontend column to backend field
+      const sortFieldMap: { [key: string]: string } = {
+        dueDays: 'intimationDays',
+        paymentTerms: 'paymentTerms',
+        payableAmount: 'payableAmount',
+        totalPaid: 'totalPaid',
+        remainingAmount: 'totalPayableAmount',
+        totalPrice: 'totalPrice',
+        invoiceDate: 'invoiceDate',
+        vendorName: 'vendorName'
+      };
+      const backendSortField = sortFieldMap[defaultSortBy] || 'createdDate';
+      dispatch(fetchOutgoings({
+        page: newPage,
+        size: pageSize,
+        filterByAmount: true,
+        filterBy: 'invoiceDate',
+        sortBy: backendSortField, // INCLUDE SORTING
+        sortOrder: defaultSortOrder // INCLUDE SORTING
+      }));
+    }
+  }, [dispatch, loadingState, dateField, newPage, pageSize, sortColumn, sortOrder]);
   useEffect(() => {
     if (loadingState === 'idle') {
       dispatch(fetchItemwiseGrns());
@@ -163,27 +167,33 @@ useEffect(() => {
     }
   }, [loadingState, dispatch]);
   // REMOVE this client-side sorting completely - replace with simple mapping
-const filteredPayments = useMemo(() => {
-  return outgoings.map(payment => {
-    // Calculate totalPaid correctly
-    const totalPaid = (
-      (payment.advanceAmount || 0) +
-      (payment.partialAmount || 0) +
-      (payment.fullPaymentAmount || 0)
-    );
-    // Calculate remaining amount
-    const remainingAmount = Math.max(0, (payment.totalPayableAmount || 0) - totalPaid);
-    return {
-      ...payment,
-      totalPaid,
-      remainingAmount,
-      // Ensure other amounts have proper defaults
-      totalPrice: payment.totalPrice || 0,
-      payableAmount: payment.payableAmount || 0,
-      discountDetails: payment.discountDetails || 0,
-    };
-  });
-}, [outgoings]); // Only depend on outgoings - NO sorting logic here
+  const filteredPayments = useMemo(() => {
+    return outgoings.map(payment => {
+      // Calculate totalPaid correctly
+      const totalPaid = (
+        (payment.advanceAmount || 0) +
+        (payment.partialAmount || 0) +
+        (payment.fullPaymentAmount || 0)
+      );
+      // Calculate remaining amount
+      const remainingAmount = Math.max(0, (payment.totalPayableAmount || 0) - totalPaid);
+      return {
+        ...payment,
+        totalPaid,
+        remainingAmount,
+        // Ensure other amounts have proper defaults
+        totalPrice: payment.totalPrice || 0,
+        payableAmount: payment.payableAmount || 0,
+        discountDetails: payment.discountDetails || 0,
+      };
+    });
+  }, [outgoings]); // Only depend on outgoings - NO sorting logic here
+  useEffect(() => {
+    // This ensures that when pagination changes, we don't have stale selections
+    // that don't exist on the current page
+    // To persist across pages, do nothing here - selections stay in Redux
+    // Only sync objects if needed, but keep IDs
+  }, [outgoings, dispatch]);
   const handleApClick = (invoiceId: string | undefined) => {
     if (!invoiceId) {
       dispatch(setSnackbarMessage('Invalid AP Invoice ID'));
@@ -258,54 +268,54 @@ const filteredPayments = useMemo(() => {
     dispatch(fetchBank());
   }, [dispatch]);
   const handlePageChange = (newPage: number) => {
-  if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
-    return;
-  }
-  dispatch(setPagination({ page: newPage, size: pageSize }));
-  // Map current sort column to backend field
-  const sortFieldMap: { [key: string]: string } = {
-    dueDays: 'intimationDays',
-    paymentTerms: 'paymentTerms',
-    payableAmount: 'payableAmount',
-    totalPaid: 'totalPaid',
-    remainingAmount: 'totalPayableAmount',
-    totalPrice: 'totalPrice',
-    invoiceDate: 'invoiceDate',
-    vendorName: 'vendorName'
+    if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
+      return;
+    }
+    dispatch(setPagination({ page: newPage, size: pageSize }));
+    // Map current sort column to backend field
+    const sortFieldMap: { [key: string]: string } = {
+      dueDays: 'intimationDays',
+      paymentTerms: 'paymentTerms',
+      payableAmount: 'payableAmount',
+      totalPaid: 'totalPaid',
+      remainingAmount: 'totalPayableAmount',
+      totalPrice: 'totalPrice',
+      invoiceDate: 'invoiceDate',
+      vendorName: 'vendorName'
+    };
+    const backendSortField = sortColumn ? sortFieldMap[sortColumn] : 'createdDate';
+    const backendSortOrder = sortOrder === 'asc' ? 'ascending' : 'descending';
+    if (isFilterActive) {
+      const appliedFromDate = selectionRange?.startDate instanceof Date
+        ? moment(selectionRange.startDate).startOf('day').toDate()
+        : fromDate;
+      const appliedToDate = selectionRange?.endDate instanceof Date
+        ? moment(selectionRange.endDate).endOf('day').toDate()
+        : toDate;
+      dispatch(fetchOutgoings({
+        page: newPage,
+        size: pageSize,
+        filterBy: dateField,
+        fromDate: appliedFromDate,
+        toDate: appliedToDate,
+        filterByAmount: true,
+        vendorName: selectedVendorName?.vendorName,
+        sortBy: backendSortField, // PRESERVE SORTING
+        sortOrder: backendSortOrder // PRESERVE SORTING
+      }));
+    } else {
+      dispatch(fetchOutgoings({
+        page: newPage,
+        size: pageSize,
+        filterBy: dateField,
+        filterByAmount: true,
+        fromDate: fromDate,
+        toDate: toDate,
+        sortBy: backendSortField, // PRESERVE SORTING
+        sortOrder: backendSortOrder // PRESERVE SORTING
+      }));
+    }
   };
-  const backendSortField = sortColumn ? sortFieldMap[sortColumn] : 'createdDate';
-  const backendSortOrder = sortOrder === 'asc' ? 'ascending' : 'descending';
-  if (isFilterActive) {
-    const appliedFromDate = selectionRange?.startDate instanceof Date
-      ? moment(selectionRange.startDate).startOf('day').toDate()
-      : fromDate;
-    const appliedToDate = selectionRange?.endDate instanceof Date
-      ? moment(selectionRange.endDate).endOf('day').toDate()
-      : toDate;
-    dispatch(fetchOutgoings({
-      page: newPage,
-      size: pageSize,
-      filterBy: dateField,
-      fromDate: appliedFromDate,
-      toDate: appliedToDate,
-      filterByAmount: true,
-      vendorName: selectedVendorName?.vendorName,
-      sortBy: backendSortField, // PRESERVE SORTING
-      sortOrder: backendSortOrder // PRESERVE SORTING
-    }));
-  } else {
-    dispatch(fetchOutgoings({
-      page: newPage,
-      size: pageSize,
-      filterBy: dateField,
-      filterByAmount: true,
-      fromDate: fromDate,
-      toDate: toDate,
-      sortBy: backendSortField, // PRESERVE SORTING
-      sortOrder: backendSortOrder // PRESERVE SORTING
-    }));
-  }
-};
   const handleNextPage = () => {
     if (currentPage * pageSize) {
       handlePageChange(currentPage + 1);
@@ -334,99 +344,96 @@ const filteredPayments = useMemo(() => {
     setSelectedOutgoing(outgoing);
     setOpenDetailsDialog(true);
   };
- // Fix handleSort to work properly
-const handleSort = (column: 'dueDays' | 'paymentTerms' | 'payableAmount' | 'totalPaid' | 'remainingAmount' | 'totalPrice' | 'invoiceDate' | 'vendorName') => {
-  const newSortOrder = sortColumn === column && sortOrder === 'asc' ? 'desc' : 'asc';
-  setSortOrder(newSortOrder);
-  setSortColumn(column);
-  // Map frontend column names to backend field names
-  const sortFieldMap: { [key: string]: string } = {
-    dueDays: 'intimationDays',
-    paymentTerms: 'paymentTerms',
-    payableAmount: 'payableAmount',
-    totalPaid: 'totalPaid',
-    remainingAmount: 'totalPayableAmount',
-    totalPrice: 'totalPrice',
-    invoiceDate: 'invoiceDate',
-    vendorName: 'vendorName'
+  // Fix handleSort to work properly
+  const handleSort = (column: 'dueDays' | 'paymentTerms' | 'payableAmount' | 'totalPaid' | 'remainingAmount' | 'totalPrice' | 'invoiceDate' | 'vendorName') => {
+    const newSortOrder = sortColumn === column && sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortOrder(newSortOrder);
+    setSortColumn(column);
+    // Map frontend column names to backend field names
+    const sortFieldMap: { [key: string]: string } = {
+      dueDays: 'intimationDays',
+      paymentTerms: 'paymentTerms',
+      payableAmount: 'payableAmount',
+      totalPaid: 'totalPaid',
+      remainingAmount: 'totalPayableAmount',
+      totalPrice: 'totalPrice',
+      invoiceDate: 'invoiceDate',
+      vendorName: 'vendorName'
+    };
+    const backendSortField = sortFieldMap[column];
+    const backendSortOrder = newSortOrder === 'asc' ? 'ascending' : 'descending';
+    // Prepare filter parameters
+    const appliedFromDate = selectionRange?.startDate instanceof Date
+      ? moment(selectionRange.startDate).startOf('day').toDate()
+      : fromDate;
+    const appliedToDate = selectionRange?.endDate instanceof Date
+      ? moment(selectionRange.endDate).endOf('day').toDate()
+      : toDate;
+    dispatch(fetchOutgoings({
+      page: 1, // RESET TO PAGE 1 ON SORT TO AVOID INCONSISTENCIES
+      size: pageSize,
+      filterBy: dateField,
+      fromDate: appliedFromDate,
+      toDate: appliedToDate,
+      filterByAmount: true,
+      vendorName: selectedVendorName?.vendorName,
+      sortBy: backendSortField,
+      sortOrder: backendSortOrder
+    }));
   };
-  const backendSortField = sortFieldMap[column];
-  const backendSortOrder = newSortOrder === 'asc' ? 'ascending' : 'descending';
-  // Prepare filter parameters
-  const appliedFromDate = selectionRange?.startDate instanceof Date
-    ? moment(selectionRange.startDate).startOf('day').toDate()
-    : fromDate;
-  const appliedToDate = selectionRange?.endDate instanceof Date
-    ? moment(selectionRange.endDate).endOf('day').toDate()
-    : toDate;
-  dispatch(fetchOutgoings({
-    page: 1, // RESET TO PAGE 1 ON SORT TO AVOID INCONSISTENCIES
-    size: pageSize,
-    filterBy: dateField,
-    fromDate: appliedFromDate,
-    toDate: appliedToDate,
-    filterByAmount: true,
-    vendorName: selectedVendorName?.vendorName,
-    sortBy: backendSortField,
-    sortOrder: backendSortOrder
-  }));
-};
-  // Handle payment terms change
-  const handlePaymentTermsChange = (event: any) => {
-    setPaymentTerms(event.target.value);
+  useEffect(() => {
+    dispatch(syncSelectionsWithCurrentData());
+  }, [outgoings, dispatch]);
+  // Fix handleFilterClick to preserve current sorting
+  const handleFilterClick = () => {
+    setIsFilterActive(true);
+    const formattedStartDate = selectionRange?.startDate instanceof Date
+      ? moment(selectionRange.startDate).startOf('day').toISOString()
+      : fromDate?.toISOString();
+    const formattedEndDate = selectionRange?.endDate instanceof Date
+      ? moment(selectionRange.endDate).endOf('day').toISOString()
+      : toDate?.toISOString();
+    const newPage = 1;
+    dispatch(setPagination({ page: newPage, size: pageSize }));
+    // Map current sort column to backend field
+    const sortFieldMap: { [key: string]: string } = {
+      dueDays: 'intimationDays',
+      paymentTerms: 'paymentTerms',
+      payableAmount: 'payableAmount',
+      totalPaid: 'totalPaid',
+      remainingAmount: 'totalPayableAmount',
+      totalPrice: 'totalPrice',
+      invoiceDate: 'invoiceDate',
+      vendorName: 'vendorName'
+    };
+    const backendSortField = sortColumn ? sortFieldMap[sortColumn] : 'createdDate';
+    const backendSortOrder = sortOrder === 'asc' ? 'ascending' : 'descending';
+    const filterParams: any = {
+      page: newPage,
+      size: pageSize,
+      filterByAmount: true,
+      sortBy: backendSortField, // PRESERVE SORTING
+      sortOrder: backendSortOrder // PRESERVE SORTING
+    };
+    if (formattedStartDate) {
+      filterParams.fromDate = new Date(formattedStartDate);
+    }
+    if (formattedEndDate) {
+      filterParams.toDate = new Date(formattedEndDate);
+    }
+    if (selectedVendorName?.vendorName && selectedVendorName.vendorName.trim() !== '' && selectedVendorName.vendorName !== 'none') {
+      filterParams.vendorName = selectedVendorName.vendorName.trim();
+    }
+    if (dateField && dateField.trim() !== '') {
+      filterParams.filterBy = dateField.trim();
+    }
+    if (status && status.trim() !== '' && status !== 'none' && status !== 'all') {
+      filterParams.status = status.trim();
+    }
+    console.log('Applying filters with sorting:', filterParams);
+    dispatch(fetchOutgoings(filterParams));
   };
-  const handleDaysChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedDays(Number(event.target.value));
-  };
- // Fix handleFilterClick to preserve current sorting
-const handleFilterClick = () => {
-  setIsFilterActive(true);
-  const formattedStartDate = selectionRange?.startDate instanceof Date
-    ? moment(selectionRange.startDate).startOf('day').toISOString()
-    : fromDate?.toISOString();
-  const formattedEndDate = selectionRange?.endDate instanceof Date
-    ? moment(selectionRange.endDate).endOf('day').toISOString()
-    : toDate?.toISOString();
-  const newPage = 1;
-  dispatch(setPagination({ page: newPage, size: pageSize }));
-  // Map current sort column to backend field
-  const sortFieldMap: { [key: string]: string } = {
-    dueDays: 'intimationDays',
-    paymentTerms: 'paymentTerms',
-    payableAmount: 'payableAmount',
-    totalPaid: 'totalPaid',
-    remainingAmount: 'totalPayableAmount',
-    totalPrice: 'totalPrice',
-    invoiceDate: 'invoiceDate',
-    vendorName: 'vendorName'
-  };
-  const backendSortField = sortColumn ? sortFieldMap[sortColumn] : 'createdDate';
-  const backendSortOrder = sortOrder === 'asc' ? 'ascending' : 'descending';
-  const filterParams: any = {
-    page: newPage,
-    size: pageSize,
-    filterByAmount: true,
-    sortBy: backendSortField, // PRESERVE SORTING
-    sortOrder: backendSortOrder // PRESERVE SORTING
-  };
-  if (formattedStartDate) {
-    filterParams.fromDate = new Date(formattedStartDate);
-  }
-  if (formattedEndDate) {
-    filterParams.toDate = new Date(formattedEndDate);
-  }
-  if (selectedVendorName?.vendorName && selectedVendorName.vendorName.trim() !== '' && selectedVendorName.vendorName !== 'none') {
-    filterParams.vendorName = selectedVendorName.vendorName.trim();
-  }
-  if (dateField && dateField.trim() !== '') {
-    filterParams.filterBy = dateField.trim();
-  }
-  if (status && status.trim() !== '' && status !== 'none' && status !== 'all') {
-    filterParams.status = status.trim();
-  }
-  console.log('Applying filters with sorting:', filterParams);
-  dispatch(fetchOutgoings(filterParams));
-};
+  // Update handleFilterClose to clear selection if needed
   const handleFilterClose = () => {
     setIsFilterActive(false);
     setSelectionRange({
@@ -436,7 +443,8 @@ const handleFilterClick = () => {
     });
     setStatus('');
     setSelectedVendorName(null);
-    // Reset to default sorting but keep the current sort preferences
+    // Optionally clear selection when filters change
+    // dispatch(clearSelection());
     const sortFieldMap: { [key: string]: string } = {
       dueDays: 'intimationDays',
       paymentTerms: 'paymentTerms',
@@ -481,15 +489,26 @@ const handleFilterClick = () => {
     }, {});
   };
   console.log(filteredPayments);
-  // Handle the selection/deselection of rows
   const handleRowSelect = (outgoingId: string) => {
-    setSelectedRows((prevSelectedRows) => {
-      if (prevSelectedRows.includes(outgoingId)) {
-        // If already selected, deselect it
-        return prevSelectedRows.filter(id => id !== outgoingId);
-      } else {
-        // If not selected, add to the selected rows
-        return [...prevSelectedRows, outgoingId];
+    const outgoing = outgoings.find(o => o.outgoingId === outgoingId);
+    if (outgoing) {
+      dispatch(toggleOutgoingSelection({ outgoingId, outgoing }));
+    }
+  };
+  // NEW: Handle select all on current page (toggle)
+  const handleSelectAllCurrentPage = (checked: boolean) => {
+    // If unchecking (clear), deselect all on current page
+    // If checking, select all on current page
+    // Note: This does NOT affect other pages' selections
+    outgoings.forEach((outgoing) => {
+      const outgoingId = outgoing.outgoingId || '';
+      const currentlySelected = selectedRows.includes(outgoingId);
+      if (checked && !currentlySelected) {
+        // Select if not already
+        dispatch(toggleOutgoingSelection({ outgoingId, outgoing }));
+      } else if (!checked && currentlySelected) {
+        // Deselect if selected
+        dispatch(toggleOutgoingSelection({ outgoingId, outgoing }));
       }
     });
   };
@@ -721,19 +740,17 @@ const handleFilterClick = () => {
     setOpenDialog(false);
   };
   const handlePayClick = () => {
-    // Gather selected data and make sure outgoingId is defined
-    const selectedData = outgoings.filter(outgoing =>
-      outgoing.outgoingId !== undefined && selectedRows.includes(outgoing.outgoingId)
-    );
-    // Check if any outgoings are selected
-    if (selectedData.length === 0) {
+    if (selectedOutgoings.length === 0) {
       dispatch(setSnackbarMessage('Please select at least one outgoing payment to process'));
       dispatch(setSnackbarOpen(true));
       return;
     }
-    // Set the selected data and open the bulk payment dialog
-    setSelectedOutgoings(selectedData);
-    setIsBulkPaymentOpen(true); // Open the bulk payment dialog
+    console.log('Selected payments across all pages:', selectedOutgoings.length);
+    setIsBulkPaymentOpen(true);
+  };
+  // NEW: Clear all selections across pages
+  const handleClearAllSelections = () => {
+    dispatch(clearSelection());
   };
   const handleDownload = async (outgoingId: string) => {
     const outgoingdetail = outgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
@@ -959,13 +976,9 @@ const handleFilterClick = () => {
       return 'black'; // Safe zone (more than 10 days remaining)
     }
   };
-  // NEW: Compute per-page total payable amount (pagination-wise sum of current page's remaining)
-  const pageTotalPayableAmount = useMemo(() => {
-    return filteredPayments.reduce((total, outgoing) => {
-      // Use remainingAmount (which is totalPayableAmount - paid, already computed in filteredPayments)
-      return total + (outgoing.remainingAmount || 0);
-    }, 0);
-  }, [filteredPayments]);
+  const displayTotalPayableAmount = totalPayableAmount > 0
+    ? totalPayableAmount
+    : filteredPayments.reduce((total, outgoing) => total + (outgoing.totalPayableAmount || 0), 0);
   // UPDATED: Compute signed remaining for display/sorting (negative if overdue)
   const signedPayments = useMemo(() => {
     return filteredPayments.map(payment => {
@@ -980,10 +993,20 @@ const handleFilterClick = () => {
       };
     });
   }, [filteredPayments]);
-  // UPDATED: Enhanced filteredPayments to include signed values (but keep original for other calcs)
-  const enhancedFilteredPayments = useMemo(() => {
-    return signedPayments; // Use the signed version for rendering
-  }, [signedPayments]);
+  // FIX: Calculate selected total from ALL selected items, not current page
+  const selectedPaymentsTotal = useMemo(() => {
+    const total = selectedOutgoings.reduce((total, outgoing) => {
+      const amount = outgoing.totalPayableAmount || 0;
+      return total + amount;
+    }, 0);
+    return total;
+  }, [selectedOutgoings]); // Depend on selectedOutgoings, not filteredPayments
+  // NEW: Compute current page selection state for indeterminate/checked
+  const currentPageSelectedCount = useMemo(() => {
+    return filteredPayments.filter(payment => selectedRows.includes(payment.outgoingId || '')).length;
+  }, [filteredPayments, selectedRows]);
+  const isAllCurrentPageSelected = currentPageSelectedCount === filteredPayments.length && filteredPayments.length > 0;
+  const isIndeterminate = currentPageSelectedCount > 0 && !isAllCurrentPageSelected;
   const handleVendorChange = (
     event: React.SyntheticEvent,
     newValue: VendorDetail | null, // `newValue` is a VendorDetail or null
@@ -992,9 +1015,9 @@ const handleFilterClick = () => {
     setSelectedVendorName(newValue); // Set the selected vendor directly
   };
   const totalPages = Math.ceil(totalItems / pageSize);
-  const totalOverallAmount = selectedOutgoings.reduce(
-    (total, outgoing) => total + (outgoing.totalPayableAmount ?? 0),
-    0
+  // Update your Bulk Payment Dialog to show ALL selected payments, not just current page
+  const allSelectedOutgoings = useSelector((state: RootState) =>
+    state.outgoingPayment.selection.selectedOutgoings
   );
   return (
     <Box>
@@ -1029,13 +1052,6 @@ const handleFilterClick = () => {
                   </Button>
                 </Link>
               </Grid>
-              {/* <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>
-                  <Button variant="contained" color="primary" sx={{ mr: 1 }} >
-                    Advance Payment
-                  </Button>
-                </Link>
-              </Grid> */}
               <Grid item>
                 <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
                   <Button variant="contained" color="primary" sx={{ mr: 1 }}>
@@ -1251,10 +1267,27 @@ Description:<br />
           </Grid> */}
         <Grid container spacing={2} alignItems="center" justifyContent='end' sx={{ mb: 1 }}>
           <Grid item xs={6} display="flex" alignItems="center" justifyContent="flex-end">
-            {/* Display both text and the icon next to each other */}
             <Typography variant="h6" className='fs12' sx={{ fontWeight: 'bold', mr: 1 }}>
-              Total Payable Amount: {totalPayableAmount.toFixed(2)} {/* NOW USES OVERALL TOTAL */}
+              Total Payable Amount: {displayTotalPayableAmount.toFixed(2)}
+              {selectedRows.length > 0 && (
+                <span style={{ color: 'blue', marginLeft: '10px', fontSize: '14px' }}>
+                  Selected: {selectedPaymentsTotal.toFixed(2)} ({selectedOutgoings.length})
+                </span>
+              )}
             </Typography>
+            {/* NEW: Clear All Button near Multiple Pay */}
+            {selectedOutgoings.length > 0 && (
+              <Tooltip title="Clear All Selections">
+                <IconButton
+                  onClick={handleClearAllSelections}
+                  color="error"
+                  size="small"
+                  sx={{ mr: 1 }}
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <IconButton
                 color='primary'
@@ -1299,7 +1332,15 @@ Description:<br />
                 <TableHead>
                   <TableRow>
                     <TableCell>No</TableCell>
-                    <TableCell>MultiplePay</TableCell>
+                    {/* NEW: Select All Checkbox for Current Page */}
+                    <TableCell> Select
+                      <Checkbox
+                        indeterminate={isIndeterminate}
+                        checked={isAllCurrentPageSelected}
+                        onChange={(e) => handleSelectAllCurrentPage(e.target.checked)}
+                        title={isAllCurrentPageSelected ? "Deselect all on this page" : "Select all on this page"}
+                      />
+                    </TableCell>
                     <TableCell>PO No</TableCell>
                     <TableCell>GRN No</TableCell>
                     <TableCell>Ap No</TableCell>
@@ -1328,130 +1369,130 @@ Description:<br />
                     <TableCell>Action</TableCell>
                   </TableRow>
                 </TableHead>
-            <TableBody>
-  {filteredPayments.length === 0 ? (
-    <TableRow>
-      <TableCell colSpan={18} style={{ textAlign: 'center' }}> {/* Update colSpan */}
-        No data available
-      </TableCell>
-    </TableRow>
-  ) : (
-    filteredPayments.map((payment, index) => {
-      const { isDisabled, tooltipTitle } = outgoingCreditNoteStatus[payment.outgoingId] || {
-        isDisabled: true,
-        tooltipTitle: 'No Debit/Credit Notes Available',
-      };
-      return (
-        <TableRow key={payment.outgoingId || index}>
-          <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell> {/* Fix serial number */}
-          <TableCell>
-            <Checkbox
-              checked={selectedRows.includes(payment.outgoingId || '')}
-              onChange={() => handleRowSelect(payment.outgoingId || '')}
-            />
-          </TableCell>
-          <TableCell>
-            {payment.purchaseOrderId ? (
-              <span
-                style={{ color: 'purple', cursor: 'pointer' }}
-                onClick={() => handlePoClick(payment.purchaseOrderId ?? '')}
-              >
-                {payment.poRandomId || 'N/A'}
-              </span>
-            ) : (
-              'N/A'
-            )}
-          </TableCell>
-          <TableCell>
-            {payment.grnId ? (
-              <span
-                style={{ color: 'blue', cursor: 'pointer' }}
-                onClick={() => handleGrnClick(payment.grnId ?? '')}
-              >
-                {payment.grnRandomId}
-              </span>
-            ) : (
-              'N/A'
-            )}
-          </TableCell>
-          <TableCell>
-            {payment.invoiceId ? (
-              <span
-                style={{ color: 'green', cursor: 'pointer' }}
-                onClick={() => handleApClick(payment.invoiceId)}
-              >
-                {payment.apRandomId}
-              </span>
-            ) : (
-              'N/A'
-            )}
-          </TableCell>
-          <TableCell>{payment.randomId}</TableCell>
-          <TableCell>{payment.vendorName}</TableCell>
-          <TableCell>{payment.invoiceNo || 'N/A'}</TableCell>
-          <TableCell>
-            {payment.invoiceDate ? format(new Date(payment.invoiceDate), 'dd-MM-yyyy') : ''}
-          </TableCell>
-          <TableCell>{(payment.totalPrice || 0).toFixed(2)}</TableCell>
-          <TableCell>
-            <Tooltip title={payment.taxDetails || 'N/A'} placement="top" arrow>
-              <Typography variant="body2" sx={{ cursor: 'pointer', fontSize: '12px !important' }}>
-                {payment.taxDetails || 'N/A'}
-              </Typography>
-            </Tooltip>
-          </TableCell>
-          <TableCell>{(payment.discountDetails || 0).toFixed(2)}</TableCell>
-          <TableCell>{(payment.payableAmount || 0).toFixed(2)}</TableCell>
-          <TableCell>{(payment.totalPaid || 0).toFixed(2)}</TableCell>
-          <TableCell>{(payment.remainingAmount || 0).toFixed(2)}</TableCell>
-          <TableCell
-            sx={{
-              fontWeight: 'bold',
-              color: getColorByDueDays(payment.intimationDays?.toString() || '0'),
-            }}
-          >
-            {payment.intimationDays}
-          </TableCell>
-          <TableCell>{payment.paymentTerms}</TableCell>
-          <TableCell>
-            <Box display="flex" alignItems="center">
-              <Tooltip title="Pay">
-                <IconButton
-                  color="primary"
-                  onClick={() => handleViewDetails(payment)}
-                  disabled={selectedRows.length > 1}
-                >
-                  <PaymentIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Download PDF">
-                <IconButton
-                  color="primary"
-                  sx={{ ml: 0.1 }}
-                  onClick={() => handleDownload(payment.outgoingId ?? '')}
-                >
-                  <PictureAsPdfIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={tooltipTitle}>
-                <span>
-                  <IconButton
-                    color="primary"
-                    sx={{ ml: 0.1 }}
-                    onClick={() => handleViewCreditNotes(payment.outgoingId)}
-                    disabled={isDisabled}
-                  >
-                    <DescriptionIcon />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </Box>
-          </TableCell>
-        </TableRow>
-      );
-    })
-  )}
-</TableBody>
+                <TableBody>
+                  {filteredPayments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={18} style={{ textAlign: 'center' }}> {/* Update colSpan */}
+                        No data available
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredPayments.map((payment, index) => {
+                      const { isDisabled, tooltipTitle } = outgoingCreditNoteStatus[payment.outgoingId] || {
+                        isDisabled: true,
+                        tooltipTitle: 'No Debit/Credit Notes Available',
+                      };
+                      return (
+                        <TableRow key={payment.outgoingId || index}>
+                          <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell> {/* Fix serial number */}
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedRows.includes(payment.outgoingId || '')}
+                              onChange={() => handleRowSelect(payment.outgoingId || '')}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {payment.purchaseOrderId ? (
+                              <span
+                                style={{ color: 'purple', cursor: 'pointer' }}
+                                onClick={() => handlePoClick(payment.purchaseOrderId ?? '')}
+                              >
+                                {payment.poRandomId || 'N/A'}
+                              </span>
+                            ) : (
+                              'N/A'
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {payment.grnId ? (
+                              <span
+                                style={{ color: 'blue', cursor: 'pointer' }}
+                                onClick={() => handleGrnClick(payment.grnId ?? '')}
+                              >
+                                {payment.grnRandomId}
+                              </span>
+                            ) : (
+                              'N/A'
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {payment.invoiceId ? (
+                              <span
+                                style={{ color: 'green', cursor: 'pointer' }}
+                                onClick={() => handleApClick(payment.invoiceId)}
+                              >
+                                {payment.apRandomId}
+                              </span>
+                            ) : (
+                              'N/A'
+                            )}
+                          </TableCell>
+                          <TableCell>{payment.randomId}</TableCell>
+                          <TableCell>{payment.vendorName}</TableCell>
+                          <TableCell>{payment.invoiceNo || 'N/A'}</TableCell>
+                          <TableCell>
+                            {payment.invoiceDate ? format(new Date(payment.invoiceDate), 'dd-MM-yyyy') : ''}
+                          </TableCell>
+                          <TableCell>{(payment.totalPrice || 0).toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Tooltip title={payment.taxDetails || 'N/A'} placement="top" arrow>
+                              <Typography variant="body2" sx={{ cursor: 'pointer', fontSize: '12px !important' }}>
+                                {payment.taxDetails || 'N/A'}
+                              </Typography>
+                            </Tooltip>
+                          </TableCell>
+                          <TableCell>{(payment.discountDetails || 0).toFixed(2)}</TableCell>
+                          <TableCell>{(payment.payableAmount || 0).toFixed(2)}</TableCell>
+                          <TableCell>{(payment.totalPaid || 0).toFixed(2)}</TableCell>
+                          <TableCell>{(payment.remainingAmount || 0).toFixed(2)}</TableCell>
+                          <TableCell
+                            sx={{
+                              fontWeight: 'bold',
+                              color: getColorByDueDays(payment.intimationDays?.toString() || '0'),
+                            }}
+                          >
+                            {payment.intimationDays}
+                          </TableCell>
+                          <TableCell>{payment.paymentTerms}</TableCell>
+                          <TableCell>
+                            <Box display="flex" alignItems="center">
+                              <Tooltip title="Pay">
+                                <IconButton
+                                  color="primary"
+                                  onClick={() => handleViewDetails(payment)}
+                                  disabled={selectedRows.length > 1}
+                                >
+                                  <PaymentIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Download PDF">
+                                <IconButton
+                                  color="primary"
+                                  sx={{ ml: 0.1 }}
+                                  onClick={() => handleDownload(payment.outgoingId ?? '')}
+                                >
+                                  <PictureAsPdfIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title={tooltipTitle}>
+                                <span>
+                                  <IconButton
+                                    color="primary"
+                                    sx={{ ml: 0.1 }}
+                                    onClick={() => handleViewCreditNotes(payment.outgoingId)}
+                                    disabled={isDisabled}
+                                  >
+                                    <DescriptionIcon />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
               </Table>
             </TableContainer>
             <Grid item xs={12}>
@@ -1495,11 +1536,11 @@ Description:<br />
             onClose={handleCloseApDialog}
             apInvoice={selectedApInvoice}
           />
-          <BulkPaymentDialog
-            open={isBulkPaymentOpen}
-            onClose={() => setIsBulkPaymentOpen(false)}
-            selectedOutgoings={selectedOutgoings}
-          />
+           <BulkPaymentDialog
+    open={isBulkPaymentOpen}
+    onClose={() => setIsBulkPaymentOpen(false)}
+    selectedOutgoings={selectedOutgoings} // This now contains ALL selected across pages
+  />
           {/* Dialog for choosing PDF or CSV */}
           <Dialog open={openDialog} onClose={handleCloseDialog}>
             <DialogTitle>Choose a file format</DialogTitle>

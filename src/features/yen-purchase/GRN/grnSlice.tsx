@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { RootState } from '../../../redux/store';
-import { GrnData, GrnState, ItemDetail, ItemDetails, Vendor, PurchaseItem, PurchaseOrder, ApInvoice, ReturnGRNRequest, FetchGrnsPayload, FetchGrnsArgs, initialState, DebitCreditNote, FetchGrnsReturnPayload, ReturnReason } from '@/Models/grnModel';
+import { GrnData, GrnState, ItemDetail, ItemDetails, Vendor, PurchaseItem, PurchaseOrder, ApInvoice, ReturnGRNRequest, FetchGrnsPayload, FetchGrnsArgs, initialState, DebitCreditNote, FetchGrnsReturnPayload, ReturnReason, RevertGrnToPOResponse } from '@/Models/grnModel';
 import { PurchaseRandomId } from '@/Models/purchaseModel';
 
 // Define a specific interface for item updates
@@ -14,8 +14,31 @@ export interface ItemUpdate {
 }
 const BASE_URL = 'https://yenerp.com/purchaseapi';
 const customRoundOf = (value: number) => {
-  return Math.round(value * 100) / 100; // Round to two decimal placeshttp://10.112.139.136:8000
+  return Math.round(value * 100) / 100; // Round to two decimal placeshttp://192.168.29.117:8000
 };
+
+// Updated thunk - Fix URL to /grn/ (singular) and handle response
+export const revertGrnToPO = createAsyncThunk<
+  RevertGrnToPOResponse,
+  string, // grnId
+  { rejectValue: string }
+>(
+  'grn/revertGrnToPO',
+  async (grnId: string, { rejectWithValue }) => {
+    try {
+      // Fix: Use /grn/ (singular) to match backend prefix
+      const response = await axios.patch<RevertGrnToPOResponse>(
+        `${BASE_URL}/grns/${grnId}/cancel`  // Changed from /grns/ to /grn/
+      );
+      return response.data;
+    } catch (error: any) {
+      // Enhanced error handling: Log full error for debugging
+      console.error('GRN revert error:', error.response?.data || error.message);
+      return rejectWithValue(error.response?.data?.detail || 'Failed to revert GRN to PO');
+    }
+  }
+);
+
 
 export const fetchGrns = createAsyncThunk<FetchGrnsPayload, FetchGrnsArgs>(
   'grns/fetch',
@@ -97,6 +120,7 @@ export const fetchReturnedGrns = createAsyncThunk<
     }
   }
 );
+
 export const fetchItemwiseGrns = createAsyncThunk(
   'grn/fetchItemwiseGrns',
   async () => {
@@ -669,6 +693,31 @@ export const grnSlice = createSlice({
       .addCase(addReturnReason.rejected, (state, action) => {
         state.error = action.payload as string;
         state.snackbarMessageGRN = action.payload as string;
+        state.snackbarOpenGRN = true;
+      })
+        .addCase(revertGrnToPO.pending, (state) => {
+        state.revertLoading = true;
+        state.revertError = null;
+      })
+      .addCase(revertGrnToPO.fulfilled, (state, action: PayloadAction<RevertGrnToPOResponse>) => {
+        state.revertLoading = false;
+        state.revertError = null;
+        
+        // Update the GRN status in the local state
+        const grnIndex = state.grns.findIndex(grn => grn.grnId === action.payload.grnId);
+        if (grnIndex !== -1) {
+          state.grns[grnIndex].status = 'ReturnedPO';
+        }
+        
+        state.snackbarMessageGRN = action.payload.message;
+        state.snackbarOpenGRN = true;
+        
+        console.log('GRN reverted to PO:', action.payload);
+      })
+      .addCase(revertGrnToPO.rejected, (state, action) => {
+        state.revertLoading = false;
+        state.revertError = action.payload as string;
+        state.snackbarMessageGRN = action.payload as string || 'Failed to revert GRN to PO';
         state.snackbarOpenGRN = true;
       });
   },

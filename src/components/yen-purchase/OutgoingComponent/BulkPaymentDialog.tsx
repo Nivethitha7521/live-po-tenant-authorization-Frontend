@@ -16,6 +16,7 @@ import {
   fetchOutgoings,
   clearAdvances,
   fetchBank,
+  clearSelection,
 } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import { fetchActiveAdvancesMultipleVendor, selectAdvances } from '@/features/yen-purchase/Outgoing/advancePaymentSlice';
@@ -24,27 +25,6 @@ interface PaymentDialogProps {
   open: boolean;
   onClose: () => void;
   selectedOutgoings: Outgoing[];
-}
-
-interface DebitNote {
-  randomId: string;
-  noteId: string;
-  vendorName: string;
-  finalAmount: number;
-  status: string;
-  totalAmount: number;
-  pendingAmount?: number;
-}
-
-interface AdvancePayment {
-  advanceId?: string;
-  randomId?: string;
-  vendorName?: string;
-  amount?: number;
-  pendingAmount?: number;
-  status?: string;
-  paymentDate?: Date;
-  createdDate?: Date;
 }
 
 interface PaymentDetailsState {
@@ -57,10 +37,10 @@ interface PaymentDetailsState {
 }
 
 const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
-  open, onClose, selectedOutgoings
+  open, onClose, selectedOutgoings 
 }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { banks, debits, loading, error } = useSelector(selectOutgoings);
+  const { banks, debits, loading } = useSelector(selectOutgoings);
   const { activeAdvances } = useSelector(selectAdvances);
   
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetailsState>({
@@ -154,7 +134,7 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       }
     };
   }, [open, selectedOutgoings, dispatch, maxInvoiceDate]);
-
+  // This will now show ALL selected outgoings across all pages
   const groupedOutgoings = useMemo(() => {
     return selectedOutgoings.reduce((acc, outgoing) => {
       const vendorName = outgoing.vendorName || 'Unknown Vendor';
@@ -629,25 +609,32 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     setShowPaymentModeDialog(true);
   };
 
-  const handleClose = () => {
-    setPaymentDetails({
-      paymentMode: 'Bank',
-      paymentMethod: 'neft',
-      bankName: '',
-      cashAmount: 0,
-      referenceNumber: '',
-      paymentDate: new Date(),  // Reset to Date
-    });
-    setPaymentTypeMultiple({});
-    setPartialAmount({});
-    setSelectedDebitNotes({});
-    setSelectedAdvancePayments({});
-    setErrors({});
-    setShowPaymentModeDialog(false);
-    setShowConfirmationDialog(false);
-    setSuccessMessage(null);
-    onClose();
-  };
+  // In your BulkPaymentDialog component
+const handleClose = () => {
+  setPaymentDetails({
+    paymentMode: 'Bank',
+    paymentMethod: 'neft',
+    bankName: '',
+    cashAmount: 0,
+    referenceNumber: '',
+    paymentDate: new Date(),
+  });
+  setPaymentTypeMultiple({});
+  setPartialAmount({});
+  setSelectedDebitNotes({});
+  setSelectedAdvancePayments({});
+  setErrors({});
+  setShowPaymentModeDialog(false);
+  setShowConfirmationDialog(false);
+  setSuccessMessage(null);
+  
+  // CLEAR SELECTION AFTER SUCCESSFUL PAYMENT
+  if (successMessage && successMessage.includes('successfully')) {
+    dispatch(clearSelection());
+  }
+  
+  onClose();
+};
 
   return (
     <>

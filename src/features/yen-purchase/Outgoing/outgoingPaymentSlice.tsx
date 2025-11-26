@@ -1,88 +1,45 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
-import { Bank, BulkPaymentRequest, BulkPaymentResponse, DebitNote, GRN, initialState, Outgoing, PaymentDetails, PaymentDone, PaymentHistory, TaxDetail, VendorDetail, VendorPayment } from '@/Models/outgoingModel';
+import { Bank, BulkPaymentRequest, BulkPaymentResponse, DebitNote, FetchOutgoingsArgs, GRN, initialState, Outgoing, PaymentDetails, PaymentDone, PaymentHistory, ProcessPaymentRequest, TaxDetail, VendorDetail, VendorPayment } from '@/Models/outgoingModel';
 
-export interface ProcessPaymentRequest {
-  outgoingId: string;
-  paymentMode: 'Bank' | 'Cash';
-  paymentType: 'full' | 'partial';
-  totalPayableAmount: number;
-  fullPaymentAmount?: number;
-  partialAmount?: number;
-  paymentMethod?: string;
-  chequeNo?: string;
-  neftNo?: string;
-  rtgsNo?: string;
-  impsNo?: string;
-  upi?: string;
-  cashAmount: number;
-  bankName?: string;
-  paymentDate: Date;
-  selectedDebitNotes?: string[];
-  selectedAdvancePayments?: string[];
-}
-// Add to your types file
-interface FetchOutgoingsArgs {
-  page: number;
-  size: number;
-  fromDate?: Date;
-  toDate?: Date;
-  vendorName?: string;
-  filterBy?: string;
-  status?: string;
-  filterByAmount?: boolean;
-  filterByStatus?: boolean;
-  sortOrder?: string;
-  filterAll?: boolean;
-  sortBy?: string; // ADD THIS
-}
-// UPDATE: Extend the fulfilled payload type to include totalPayableAmount
 export const fetchOutgoings = createAsyncThunk<
-  { outgoings: Outgoing[]; totalItems: number; totalPayableAmount: number }, // ADD totalPayableAmount
+  { outgoings: Outgoing[]; totalItems: number; totalPayableAmount: number },
   FetchOutgoingsArgs,
   { rejectValue: string }
 >(
   'outgoings/fetchOutgoings',
-  async (
-    {
-      page,
-      size,
-      fromDate,
-      toDate,
-      vendorName,
-      filterBy,
-      status,
-      filterByAmount,
-      filterByStatus,
-      sortOrder = 'ascending',
-      filterAll = true,
-      sortBy = 'createdDate',
-    },
-    { rejectWithValue }
-  ) => {
+  async (args, { rejectWithValue }) => {
     try {
       const url = 'https://yenerp.com/purchaseapi/outgoingpayments/';
       const params: any = {
-        skip: (page - 1) * size,
-        limit: size,
-        filterByAmount: filterByAmount ?? false,
-        filterByStatus: filterByStatus ?? false,
-        sortOrder,
-        filterAll,
-        sortBy, // ADDED sortBy parameter
+        skip: (args.page - 1) * args.size,
+        limit: args.size,
+        filterByAmount: args.filterByAmount ?? false,
+        filterByStatus: args.filterByStatus ?? false,
+        sortOrder: args.sortOrder,
+        filterAll: args.filterAll,
+        sortBy: args.sortBy,
       };
 
-      if (fromDate) params.fromDate = fromDate.toISOString();
-      if (toDate) params.toDate = toDate.toISOString();
-      if (vendorName) params.vendorName = vendorName;
-      if (filterBy) params.filterBy = filterBy;
-      if (status) params.status = status;
+      if (args.fromDate) params.fromDate = args.fromDate.toISOString();
+      if (args.toDate) params.toDate = args.toDate.toISOString();
+      if (args.vendorName) params.vendorName = args.vendorName;
+      if (args.filterBy) params.filterBy = args.filterBy;
+      if (args.status) params.status = args.status;
 
-      console.log('API Call Params with Sorting:', params); // For debugging
+      console.log('🔍 API Call Params:', params);
 
-      // UPDATE: Extend response type to include totalPayableAmount
-      const response = await axios.get<{ outgoings: Outgoing[]; totalItems: number; totalPayableAmount: number }>(url, { params });
+      const response = await axios.get(url, { params });
+
+      // DEBUG: Log the actual API response
+      console.log('🔍 RAW API RESPONSE:', response.data);
+      console.log('🔍 Response keys:', Object.keys(response.data));
+      console.log('🔍 Has totalPayableAmount?', 'totalPayableAmount' in response.data);
+      console.log('🔍 totalPayableAmount value:', response.data.totalPayableAmount);
+      console.log('🔍 totalItems value:', response.data.totalItems);
+      console.log('🔍 outgoings count:', response.data.outgoings?.length);
+
       return response.data;
     } catch (error: any) {
       console.error('Failed to fetch outgoings:', error);
@@ -255,7 +212,7 @@ export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
       const response = await axios.get(
         `https://yenerp.com/purchaseapi/debitnote/multiplevendors/active-debits?vendor_names=${encodeURIComponent(vendorNamesStr)}`
       );
-      
+
       return response.data.debits || [];
     } catch (error: any) {
       console.error('Failed to fetch active debits:', error);
@@ -471,6 +428,49 @@ const outgoingSlice = createSlice({
     setDialogOpen(state, action: PayloadAction<'none' | 'edit'>) {
       state.dialogOpen = action.payload;
     },
+    // ADD THESE NEW REDUCERS FOR SELECTION
+    setSelectedOutgoingIds: (state, action: PayloadAction<string[]>) => {
+      state.selection.selectedOutgoingIds = action.payload;
+    },
+
+    setSelectedOutgoings: (state, action: PayloadAction<Outgoing[]>) => {
+      state.selection.selectedOutgoings = action.payload;
+    },
+
+        toggleOutgoingSelection: (state, action: PayloadAction<{ outgoingId: string; outgoing: Outgoing }>) => {
+      const { outgoingId, outgoing } = action.payload;
+      const existingIndex = state.selection.selectedOutgoingIds.indexOf(outgoingId);
+      
+      if (existingIndex >= 0) {
+        // Remove from selection
+        state.selection.selectedOutgoingIds.splice(existingIndex, 1);
+        state.selection.selectedOutgoings = state.selection.selectedOutgoings.filter(
+          item => item.outgoingId !== outgoingId
+        );
+      } else {
+        // Add to selection
+        state.selection.selectedOutgoingIds.push(outgoingId);
+        state.selection.selectedOutgoings.push(outgoing);
+      }
+    },
+
+    // Add this to sync selections when data changes
+    syncSelectionsWithCurrentData: (state) => {
+      const currentOutgoingIds = new Set(state.outgoings.map(o => o.outgoingId));
+      
+      // Remove selections that are no longer in current data
+      state.selection.selectedOutgoingIds = state.selection.selectedOutgoingIds.filter(
+        id => currentOutgoingIds.has(id)
+      );
+      state.selection.selectedOutgoings = state.selection.selectedOutgoings.filter(
+        outgoing => currentOutgoingIds.has(outgoing.outgoingId)
+      );
+    },
+    clearSelection: (state) => {
+      state.selection.selectedOutgoingIds = [];
+      state.selection.selectedOutgoings = [];
+    },
+
     setSnackbarOpen(state, action: PayloadAction<boolean>) {
       state.snackbarOpen = action.payload;
     },
@@ -525,33 +525,26 @@ const outgoingSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-    .addCase(fetchOutgoings.pending, (state) => {
+      .addCase(fetchOutgoings.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(
-  fetchOutgoings.fulfilled,
-  (
-    state,
-    action: PayloadAction<
-      { outgoings: Outgoing[]; totalItems: number; totalPayableAmount: number },
-      string,
-      { arg: FetchOutgoingsArgs }
-    >
-  ) => {
-    state.loading = false;
-    state.outgoings = action.payload.outgoings.map(outgoing => ({
-      ...outgoing,
-      paidAmount: (outgoing.advanceAmount || 0) + (outgoing.partialAmount || 0) + (outgoing.fullPaymentAmount || 0),
-      // Ensure intimationDays is parsed as number for sorting/comparisons
-      intimationDays: typeof outgoing.intimationDays === 'string' ? parseInt(outgoing.intimationDays, 10) : outgoing.intimationDays,
-    }));
-    state.totalItems = action.payload.totalItems;
-    state.totalPayableAmount = action.payload.totalPayableAmount || 0; // Keep overall for bulk ops/PDF
-    state.currentPage = action.meta.arg.page;
-    state.pageSize = action.meta.arg.size;
-  }
-)
+      .addCase(fetchOutgoings.fulfilled, (state, action) => {
+        state.loading = false;
+        state.outgoings = action.payload.outgoings.map(outgoing => ({
+          ...outgoing,
+          totalPaid: (outgoing.advanceAmount || 0) + (outgoing.partialAmount || 0) + (outgoing.fullPaymentAmount || 0),
+          remainingAmount: Math.max(0, (outgoing.totalPayableAmount || 0) -
+            ((outgoing.advanceAmount || 0) + (outgoing.partialAmount || 0) + (outgoing.fullPaymentAmount || 0))),
+        }));
+        state.totalItems = action.payload.totalItems;
+        state.totalPayableAmount = action.payload.totalPayableAmount || 0;
+
+        // UPDATE: Sync selected outgoings with fresh data when outgoings change
+        state.selection.selectedOutgoings = state.selection.selectedOutgoingIds.map(id =>
+          action.payload.outgoings.find(outgoing => outgoing.outgoingId === id)
+        ).filter(Boolean) as Outgoing[];
+      })
       .addCase(fetchOutgoings.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
@@ -633,7 +626,7 @@ const outgoingSlice = createSlice({
       .addCase(fetchGRN.rejected, (state, action) => {
         state.loading = false;
       })
-    .addCase(fetchBank.pending, (state) => {
+      .addCase(fetchBank.pending, (state) => {
         state.loading = true;
       })
       .addCase(fetchBank.fulfilled, (state, action: PayloadAction<Bank[]>) => {
@@ -725,7 +718,8 @@ export const {
   setSnackbarOpen,
   setSnackbarMessage,
   clearSnackbarMessage,
-  setEditIndex, setPagination, setVendorDebits, setVendorPayment, clearVendorDebits, clearAdvances,
+  setEditIndex, setPagination, setVendorDebits, setVendorPayment, clearVendorDebits, clearAdvances,  toggleOutgoingSelection,
+  clearSelection,syncSelectionsWithCurrentData,
   clearBulkPaymentState // ADDED: Export new actions
 } = outgoingSlice.actions;
 

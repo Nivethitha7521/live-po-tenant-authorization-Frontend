@@ -28,7 +28,7 @@ export interface Outgoing {
   paymentDate?:Date;
   apinvoiceDate?: string;
   receivingLocation?: string;
-  totalPayableAmount?: number;
+  totalPayableAmount: number;
   paidAmount?: number;
   totalPaid:number;
   comments?: string;
@@ -39,6 +39,7 @@ export interface Outgoing {
   grnVerifiedPerson?: string;
   apVerifiedPerson?: string;
   intimationDays?: number;
+  dueDays: number;  // Frontend name—mapped from backend 'intimationDays'
   paymentMethod?: string;
   paymentMode?: string;
   advanceAmount?: number;
@@ -100,8 +101,12 @@ export interface Bank {
   ifscCode: string;
   branchName: string;
   status:string;
-
 }
+interface SelectionState {
+  selectedOutgoingIds: string[];
+  selectedOutgoings: Outgoing[];
+}
+
 export interface DebitNote {
   randomId: string;
   noteId: string;
@@ -162,6 +167,7 @@ export interface OutgoingState {
   vendorPayments: { [vendorName: string]: VendorPayment }; // Added for multiple payments
   vendorDebits: { [vendorName: string]: any[] }; // Added for debit notes per vendor
   advances: AdvancePayment[]; // NEW: Add advances to state
+    selection: SelectionState;
 }
 
 
@@ -227,7 +233,11 @@ export const initialState: OutgoingState = {
   vendorPayments: {},
   vendorDebits: {},
   advances: [],
-  totalPayableAmount: 0
+  totalPayableAmount: 0,
+    selection: {
+      selectedOutgoingIds: [] as string[],
+      selectedOutgoings: [] as Outgoing[], // Store full objects
+    },
 };
 // Updated outgoingModel.ts (interfaces with Date for paymentDate)
 export interface BulkPaymentResponse {
@@ -291,4 +301,40 @@ export interface AdvancePayment {
   status: string;
   paymentDate?: string;
   createdDate?: string;
+}
+
+
+export interface ProcessPaymentRequest {
+  outgoingId: string;
+  paymentMode: 'Bank' | 'Cash';
+  paymentType: 'full' | 'partial';
+  totalPayableAmount: number;
+  fullPaymentAmount?: number;
+  partialAmount?: number;
+  paymentMethod?: string;
+  chequeNo?: string;
+  neftNo?: string;
+  rtgsNo?: string;
+  impsNo?: string;
+  upi?: string;
+  cashAmount: number;
+  bankName?: string;
+  paymentDate: Date;
+  selectedDebitNotes?: string[];
+  selectedAdvancePayments?: string[];
+}
+// Add to your types file
+export interface FetchOutgoingsArgs {
+  page: number;
+  size: number;
+  fromDate?: Date;
+  toDate?: Date;
+  vendorName?: string;
+  filterBy?: string;
+  status?: string;
+  filterByAmount?: boolean;
+  filterByStatus?: boolean;
+  sortOrder?: string;
+  filterAll?: boolean;
+  sortBy?: string; // ADD THIS
 }

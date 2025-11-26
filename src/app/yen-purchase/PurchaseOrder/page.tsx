@@ -13,7 +13,7 @@ import ClearIcon from "@mui/icons-material/Clear"; // Clear icon
 import {
   selectPurchaseListState, fetchImageByIndex,
   updateMultipleItemQuantities, approvePurchaseOrder, uploadPurchaseOrderPhotos, editPhotoByIndex,
-  rejectPurchaseOrder, fetchPurchaseOrders, clearSnackbarMessage, setPagination,
+  rejectPurchaseOrder, fetchPendingPurchaseOrders, clearSnackbarMessage, setPagination,
   selectCurrentPage,
   selectPageSize,
   selectTotalItems,
@@ -71,7 +71,6 @@ declare module 'jspdf' {
     autoTable: any;
   }
 }
-
 interface AutoTableHookData {
   cursor?: { x: number; y: number };
   settings?: any;
@@ -87,7 +86,7 @@ const customRounddigit = (value: number): number => {
 const Polist: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  const { purchaseList, loading, error, randomIds, poRandomIds, snackbarMessage, snackbarOpen } = useSelector(selectPurchaseListState);
+  const { pendingPurchaseList, loading, error, randomIds, poRandomIds, snackbarMessage, snackbarOpen } = useSelector(selectPurchaseListState);
   const { businesses } = useSelector(selectBusinesses);
   const [selectedOrder, setSelectedOrderState] = useState<any | null>(null);
   const [updatedItems, setUpdatedItems] = useState<any[]>([]);
@@ -145,16 +144,23 @@ const Polist: React.FC = () => {
   const [errors, setErrors] = useState<Record<number, Record<string, string>>>({}); // Tracks errors by item index and field name
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [overallDiscount, setOverallDiscount] = useState<number>(0); // New state for overall discount
-  useEffect(() => {
-    if (shouldFetch && !loading) {
-      const action = fetchPurchaseOrders({
-        page: newPage,
-        size: pageSize,
-      });
-      dispatch(action);
-      setShouldFetch(false);
-    }
-  }, [dispatch, newPage, pageSize, shouldFetch, loading]);
+  // Add this after your useSelector line
+console.log('Pending Purchase List:', pendingPurchaseList);
+console.log('Loading:', loading);
+console.log('Error:', error);
+
+// Also check if the API call is being made
+useEffect(() => {
+  console.log('Fetching purchase orders...');
+  if (shouldFetch && !loading) {
+    const action = fetchPendingPurchaseOrders({
+      page: newPage,
+      size: pageSize,
+    });
+    dispatch(action);
+    setShouldFetch(false);
+  }
+}, [dispatch, newPage, pageSize, shouldFetch, loading]);
   useEffect(() => {
     dispatch(fetchBusinesses());
   }, [dispatch]);
@@ -185,101 +191,88 @@ const Polist: React.FC = () => {
       setPendingDiscountAmount(selectedOrder.pendingDiscountAmount || '');
     }
   }, [selectedOrder]);
- useEffect(() => {
-  if (updatedItems.length > 0) {
-    const taxDetails: Record<string, { amount: number; percentage: number; type: string }> = {};
-    let newTotalOrderAmount = 0;
-    let totalDiscountBeforeTax = 0;
-    let totalDiscountAfterTax = 0;
-    
-    updatedItems.forEach(item => {
-      const totalPrice = (item.pendingTotalQuantity || 0) * (item.newPrice || 0);
-      const discountAmountBeforeTax = (totalPrice * ((item.befTaxDiscount || 0) / 100)) || 0;
-      const discountedPriceBeforeTax = totalPrice - discountAmountBeforeTax;
-      const taxPercentage = item.taxPercentage || 0;
-      const taxType = item.taxType || 'cgst_sgst';
-      
-      let sgst = 0, cgst = 0, igst = 0;
-      
-      if (taxType === 'igst') {
-        igst = (taxPercentage / 100) * discountedPriceBeforeTax; 
-        igst = customRounddigit(igst);
-        const igstKey = `igst-${taxPercentage}`;
-        if (taxDetails[igstKey]) {
-          taxDetails[igstKey].amount += igst;
-        } else {
-          taxDetails[igstKey] = {
-            amount: igst,
-            percentage: taxPercentage,
-            type: 'IGST'
-          };
+  useEffect(() => {
+    if (updatedItems.length > 0) {
+      const taxDetails: Record<string, { amount: number; percentage: number; type: string }> = {};
+      let newTotalOrderAmount = 0;
+      let totalDiscountBeforeTax = 0;
+      let totalDiscountAfterTax = 0;
+      updatedItems.forEach(item => {
+        const totalPrice = (item.pendingTotalQuantity || 0) * (item.newPrice || 0);
+        const discountAmountBeforeTax = (totalPrice * ((item.befTaxDiscount || 0) / 100)) || 0;
+        const discountedPriceBeforeTax = totalPrice - discountAmountBeforeTax;
+        const taxPercentage = item.taxPercentage || 0;
+        const taxType = item.taxType || 'cgst_sgst';
+        let sgst = 0, cgst = 0, igst = 0;
+        if (taxType === 'igst') {
+          igst = (taxPercentage / 100) * discountedPriceBeforeTax;
+          igst = customRounddigit(igst);
+          const igstKey = `igst-${taxPercentage}`;
+          if (taxDetails[igstKey]) {
+            taxDetails[igstKey].amount += igst;
+          } else {
+            taxDetails[igstKey] = {
+              amount: igst,
+              percentage: taxPercentage,
+              type: 'IGST'
+            };
+          }
+        } else if (taxType === 'cgst_sgst') {
+          const totalTaxAmount = (taxPercentage / 100) * discountedPriceBeforeTax;
+          sgst = totalTaxAmount / 2;
+          cgst = totalTaxAmount / 2;
+          sgst = customRounddigit(sgst);
+          cgst = customRounddigit(cgst);
+          const sgstKey = `sgst-${taxPercentage / 2}`;
+          if (taxDetails[sgstKey]) {
+            taxDetails[sgstKey].amount += sgst;
+          } else {
+            taxDetails[sgstKey] = {
+              amount: sgst,
+              percentage: taxPercentage / 2,
+              type: 'SGST'
+            };
+          }
+          const cgstKey = `cgst-${taxPercentage / 2}`;
+          if (taxDetails[cgstKey]) {
+            taxDetails[cgstKey].amount += cgst;
+          } else {
+            taxDetails[cgstKey] = {
+              amount: cgst,
+              percentage: taxPercentage / 2,
+              type: 'CGST'
+            };
+          }
         }
-      } else if (taxType === 'cgst_sgst') {
-        const totalTaxAmount = (taxPercentage / 100) * discountedPriceBeforeTax;
-        sgst = totalTaxAmount / 2;
-        cgst = totalTaxAmount / 2;
-        sgst = customRounddigit(sgst);
-        cgst = customRounddigit(cgst);
-        
-        const sgstKey = `sgst-${taxPercentage / 2}`;
-        if (taxDetails[sgstKey]) {
-          taxDetails[sgstKey].amount += sgst;
-        } else {
-          taxDetails[sgstKey] = {
-            amount: sgst,
-            percentage: taxPercentage / 2,
-            type: 'SGST'
-          };
-        }
-        
-        const cgstKey = `cgst-${taxPercentage / 2}`;
-        if (taxDetails[cgstKey]) {
-          taxDetails[cgstKey].amount += cgst;
-        } else {
-          taxDetails[cgstKey] = {
-            amount: cgst,
-            percentage: taxPercentage / 2,
-            type: 'CGST'
-          };
-        }
-      }
-
-      const finalPriceBeforeAfterTaxDiscount = discountedPriceBeforeTax + igst + sgst + cgst;
-      const discountAmountAfterTax = (finalPriceBeforeAfterTaxDiscount * ((item.afTaxDiscount || 0) / 100)) || 0;
-      const finalPriceAfterTaxDiscount = finalPriceBeforeAfterTaxDiscount - discountAmountAfterTax;
-      
-      newTotalOrderAmount += finalPriceAfterTaxDiscount;
-      totalDiscountBeforeTax += discountAmountBeforeTax;
-      totalDiscountAfterTax += discountAmountAfterTax;
-
-      // Update item with calculated final price
-      item.pendingFinalPrice = finalPriceAfterTaxDiscount;
-    });
-
-    // Apply overall discount
-    const totalItemWiseDiscount = totalDiscountBeforeTax + totalDiscountAfterTax;
-    const totalDiscount = totalItemWiseDiscount + (overallDiscount || 0);
-    
-    // ADD FREIGHT CHARGES AND TAX TO FINAL AMOUNT
-    const freightCharges = selectedOrder?.totalFreightAmount || 0;
-    const freightTax = selectedOrder?.totalFreightTaxAmount || 0;
-    
-    const finalOrderAmount = newTotalOrderAmount - (overallDiscount || 0) + freightCharges + freightTax;
-    
-    setPendingOrderAmount(customRound(finalOrderAmount));
-    setPendingDiscountAmount(customRounddigit(totalDiscount));
-    setTaxDetails(taxDetails);
-    
-    const totalTaxAmount = Object.values(taxDetails).reduce((acc, tax) => acc + (tax.amount || 0), 0);
-    setPendingTaxAmount(customRounddigit(totalTaxAmount));
-  } else {
-    setPendingOrderAmount(0);
-    setPendingDiscountAmount(0);
-    setPendingTaxAmount(0);
-    setOverallDiscount(0);
-    setTaxDetails({});
-  }
-}, [updatedItems, overallDiscount, selectedOrder]); // Added selectedOrder to dependencies
+        const finalPriceBeforeAfterTaxDiscount = discountedPriceBeforeTax + igst + sgst + cgst;
+        const discountAmountAfterTax = (finalPriceBeforeAfterTaxDiscount * ((item.afTaxDiscount || 0) / 100)) || 0;
+        const finalPriceAfterTaxDiscount = finalPriceBeforeAfterTaxDiscount - discountAmountAfterTax;
+        newTotalOrderAmount += finalPriceAfterTaxDiscount;
+        totalDiscountBeforeTax += discountAmountBeforeTax;
+        totalDiscountAfterTax += discountAmountAfterTax;
+        // Update item with calculated final price
+        item.pendingFinalPrice = finalPriceAfterTaxDiscount;
+      });
+      // Apply overall discount
+      const totalItemWiseDiscount = totalDiscountBeforeTax + totalDiscountAfterTax;
+      const totalDiscount = totalItemWiseDiscount + (overallDiscount || 0);
+      // ADD FREIGHT CHARGES AND TAX TO FINAL AMOUNT
+      const freightCharges = selectedOrder?.totalFreightAmount || 0;
+      const freightTax = selectedOrder?.totalFreightTaxAmount || 0;
+      const finalOrderAmount = newTotalOrderAmount - (overallDiscount || 0) + freightCharges + freightTax;
+      setPendingOrderAmount(customRound(finalOrderAmount));
+      setPendingDiscountAmount(customRounddigit(totalDiscount));
+      setTaxDetails(taxDetails);
+      const totalTaxAmount = Object.values(taxDetails).reduce((acc, tax) => acc + (tax.amount || 0), 0);
+      setPendingTaxAmount(customRounddigit(totalTaxAmount));
+    } else {
+      setPendingOrderAmount(0);
+      setPendingDiscountAmount(0);
+      setPendingTaxAmount(0);
+      setOverallDiscount(0);
+      setTaxDetails({});
+    }
+  }, [updatedItems, overallDiscount, selectedOrder]); // Added selectedOrder to dependencies
   const handleClose = () => {
     setDialogSummaryOpen(false);
   };
@@ -301,15 +294,10 @@ const Polist: React.FC = () => {
     setSelectedVendor(vendor);
     setSelectedVendorName(vendor ? vendor.vendorName : '');
   };
-
   const handleRandomIdChange = (randomId: string) => {
     setSelectedRandomId(randomId);
   };
-  const filteredOrders = purchaseList.filter(order =>
-    (order.poStatus === 'CreditLimit for Approve' || order.poStatus === 'Pending for Approve' ||
-      (order.poStatus !== 'Approved' && order.poStatus !== 'Rejected' && order.poStatus !== 'PartiallyReceived')) &&
-    order.items.some(item => item.pendingTotalQuantity > 0)
-  );
+  // Removed client-side filteredOrders since backend hardcodes pending
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
       return;
@@ -319,12 +307,11 @@ const Polist: React.FC = () => {
     const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate;
     // Dispatch pagination with the current filters or default date range
     dispatch(setPagination({ page: newPage, size: pageSize }));
-    // Fetch the purchase orders with correct date range and filters
-    dispatch(fetchPurchaseOrders({
+    // Fetch the purchase orders with correct date range and filters (no status or filterBy)
+    dispatch(fetchPendingPurchaseOrders({
       page: newPage,
       size: pageSize,
       vendorName: selectedVendorName || '',
-      status: status || '',
       itemName: searchQueryItem || '',
       randomId: randomIdFilter // This will now work correctly
     }));
@@ -343,7 +330,7 @@ const Polist: React.FC = () => {
     dispatch(setSnackbarOpen(false)); // Close snackbar when user dismisses
   };
   useEffect(() => {
-    filteredOrders.forEach(order => {
+    (pendingPurchaseList || []).forEach(order => {
       const orderId = order.purchaseOrderId;
       // Only fetch if we haven't already fetched images for this order
       if (!fetchedPurchaseOrderIds.has(orderId)) {
@@ -359,10 +346,10 @@ const Polist: React.FC = () => {
           });
       }
     });
-  }, [filteredOrders, dispatch, fetchedPurchaseOrderIds]);
+  }, [pendingPurchaseList, dispatch, fetchedPurchaseOrderIds]);
   // Alternative: If you want to fetch images one by one with indices
   useEffect(() => {
-    filteredOrders.forEach(order => {
+    (pendingPurchaseList || []).forEach(order => {
       const orderId = order.purchaseOrderId;
       // Check if we've already fetched images for this order
       if (!fetchedPurchaseOrderIds.has(orderId)) {
@@ -378,7 +365,7 @@ const Polist: React.FC = () => {
         setFetchedPurchaseOrderIds(prev => new Set(prev).add(orderId));
       }
     });
-  }, [filteredOrders, dispatch, fetchedPurchaseOrderIds]);
+  }, [pendingPurchaseList, dispatch, fetchedPurchaseOrderIds]);
   // In your file input change handler:
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, orderId: string, displayIndex: number) => {
     const file = e.target.files?.[0];
@@ -484,7 +471,7 @@ const Polist: React.FC = () => {
     setOpenPhotoDialog(false); // Close the dialog
   };
   const handleViewDetailsClick = (orderId: string) => {
-    const selectedOrder = purchaseList.find(order => order.purchaseOrderId === orderId);
+    const selectedOrder = (pendingPurchaseList || []).find(order => order.purchaseOrderId === orderId);
     if (selectedOrder) {
       const filteredItems = selectedOrder.items.filter(item => (item.pendingTotalQuantity || 0) > 0);
       setSelectedOrderState({ ...selectedOrder, items: filteredItems });
@@ -655,7 +642,7 @@ const Polist: React.FC = () => {
     doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2); // Draw the underline
     yOffset += 13; // Move yOffset down after the title
     // Calculate the total ordered amount
-    const totalOrderedAmount = (filteredOrders || []).reduce((sum, order) => {
+    const totalOrderedAmount = (pendingPurchaseList || []).reduce((sum, order) => {
       const pendingOrderAmount = order.pendingOrderAmount || 0;
       return sum + pendingOrderAmount;
     }, 0);
@@ -676,7 +663,7 @@ const Polist: React.FC = () => {
     // Table headers for summary data (added S.No)
     const headers = [["S.No", "PoId", "Vendor Name", "Total Items", "Ordered Date", "Total Order Amount"]];
     // Prepare rows for purchase order summary (filter only valid orders and add S.No)
-    const rows = (filteredOrders || []).map((order, index) => {
+    const rows = (pendingPurchaseList || []).map((order, index) => {
       const totalItemsQuantity = Array.isArray(order.items) && order.items.length > 0
         ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
         : 0;
@@ -751,7 +738,7 @@ const Polist: React.FC = () => {
     // Define the headers for the CSV
     const headers = 'SNO,PoId,Vendor Name,Total Items,Ordered Date,Total Order Amount\n';
     // Prepare the rows for purchase order summary (filter only valid orders)
-    const rows = (filteredOrders || []).map((order, index) => {
+    const rows = (pendingPurchaseList || []).map((order, index) => {
       const totalItemsQuantity = Array.isArray(order.items) && order.items.length > 0
         ? order.items.reduce((sum, item) => sum + (item.pendingTotalQuantity || 0), 0)
         : 0;
@@ -836,7 +823,7 @@ const Polist: React.FC = () => {
     doc.line(titleX, yOffset + 2, titleX + titleWidth, yOffset + 2); // Draw the underline
     yOffset += 15; // Move yOffset down after the title
     // Calculate the total ordered amount
-    const totalOrderedAmount = (filteredOrders || []).reduce((sum, order) => {
+    const totalOrderedAmount = (pendingPurchaseList || []).reduce((sum, order) => {
       const pendingOrderAmount = order.pendingOrderAmount || 0;
       return sum + pendingOrderAmount;
     }, 0);
@@ -856,8 +843,8 @@ const Polist: React.FC = () => {
     const headers = [
       ["S.No", "Purchase Order No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Final Price"],
     ];
-    // Safely handle purchaseList being null or undefined
-    const rows = (filteredOrders || []).map((order, index) => {
+    // Safely handle pendingPurchaseList being null or undefined
+    const rows = (pendingPurchaseList || []).map((order, index) => {
       return (order.items || []).map((item: Item) => [
         (index + 1).toString(), // S.No
         order.randomId, // Purchase order number
@@ -914,7 +901,7 @@ const Polist: React.FC = () => {
   };
   const generateSummaryCSV = () => {
     const headers = ["S.No", "Purchase Order No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Final Price"];
-    const rows = (filteredOrders || []).map((order, index) => {
+    const rows = (pendingPurchaseList || []).map((order, index) => {
       return (order.items || []).map((item) => [
         (index + 1),
         order.randomId,
@@ -944,112 +931,101 @@ const Polist: React.FC = () => {
     setNewItem(item);
     setSearchQueryItem(item ? item.itemName : ''); // Update the search query with the item name
   };
- const handleConfirmSave = () => {
-  if (updatedItems.length > 0) {
-    console.log('Updated Items:', updatedItems);
-    if (!selectedOrder?.purchaseOrderId) {
-      console.error('No purchase order selected.');
-      dispatch(setSnackbarMessage('No purchase order selected.'));
-      dispatch(setSnackbarOpen(true));
-      return;
-    }
-
-    // Check for validation errors
-    const hasErrors = updatedItems.some((item, index) =>
-      errors[index]?.pendingCount || errors[index]?.pendingQuantity || errors[index]?.newPrice
-    );
-    if (hasErrors) {
-      dispatch(setSnackbarMessage('Please fix all validation errors before saving.'));
-      dispatch(setSnackbarOpen(true));
-      return;
-    }
-
-    // Sanitize items by converting empty strings to 0
-    const items = updatedItems.map(item => ({
-      itemId: item.itemId,
-      updatedItem: {
-        newPrice: item.newPrice === '' ? 0 : Number(item.newPrice),
-        discount: item.discount ?? null,
-        pendingCount: item.pendingCount === '' ? 0 : Number(item.pendingCount),
-        pendingQuantity: item.pendingQuantity === '' ? 0 : Number(item.pendingQuantity),
-        pendingTotalQuantity: item.pendingTotalQuantity ?? null,
-        poQuantity: item.pendingTotalQuantity, // Use pendingTotalQuantity
-        taxPercentage: item.taxPercentage ?? null,
-        pendingSgst: item.pendingSgst ?? null,
-        pendingCgst: item.pendingCgst ?? null,
-        pendingIgst: item.pendingIgst ?? null,
-        befTaxDiscount: item.befTaxDiscount ?? null,
-        afTaxDiscount: item.afTaxDiscount ?? null,
-        pendingTotalPrice: item.pendingTotalPrice ?? null,
-        pendingFinalPrice: item.pendingFinalPrice ?? null,
-        pendingDiscountAmount: item.pendingDiscountAmount ?? null,
-        pendingTaxAmount: item.pendingTaxAmount ?? null,
-        taxType: item.taxType ?? null,
-        pendingBefTaxDiscountAmount: item.pendingBefTaxDiscountAmount ?? null,
-        pendingAfTaxDiscountAmount: item.pendingAfTaxDiscountAmount ?? null,
+  const handleConfirmSave = () => {
+    if (updatedItems.length > 0) {
+      console.log('Updated Items:', updatedItems);
+      if (!selectedOrder?.purchaseOrderId) {
+        console.error('No purchase order selected.');
+        dispatch(setSnackbarMessage('No purchase order selected.'));
+        dispatch(setSnackbarOpen(true));
+        return;
       }
-    }));
-
-    console.log('Payload:', { items });
-    
-    // Include freight amounts in the payload if needed
-    const payload = {
-      items,
-      freightCharges: selectedOrder?.totalFreightAmount || 0,
-      freightTax: selectedOrder?.totalFreightTaxAmount || 0
-    };
-
-    // Dispatch to update items
-    dispatch(updateMultipleItemQuantities({
-      purchaseOrderId: selectedOrder.purchaseOrderId,
-      updatedItems: items
-    }))
-      .then(response => {
-        console.log('Response:', response);
-        dispatch(setSnackbarMessage('Changes saved successfully!'));
+      // Check for validation errors
+      const hasErrors = updatedItems.some((item, index) =>
+        errors[index]?.pendingCount || errors[index]?.pendingQuantity || errors[index]?.newPrice
+      );
+      if (hasErrors) {
+        dispatch(setSnackbarMessage('Please fix all validation errors before saving.'));
         dispatch(setSnackbarOpen(true));
-        // Re-fetch the updated purchase orders to refresh the UI
-        dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize }));
-      })
-      .catch(error => {
-        console.error('Failed to save changes:', error);
-        dispatch(setSnackbarMessage('Failed to save changes. Please try again.'));
-        dispatch(setSnackbarOpen(true));
-      });
-  } else {
-    dispatch(setSnackbarMessage('No items to save.'));
-    dispatch(setSnackbarOpen(true));
-  }
-  setConfirmDialogOpen(false);
-  setDialogOpen(false);
-};
+        return;
+      }
+      // Sanitize items by converting empty strings to 0
+      const items = updatedItems.map(item => ({
+        itemId: item.itemId,
+        updatedItem: {
+          newPrice: item.newPrice === '' ? 0 : Number(item.newPrice),
+          discount: item.discount ?? null,
+          pendingCount: item.pendingCount === '' ? 0 : Number(item.pendingCount),
+          pendingQuantity: item.pendingQuantity === '' ? 0 : Number(item.pendingQuantity),
+          pendingTotalQuantity: item.pendingTotalQuantity ?? null,
+          poQuantity: item.pendingTotalQuantity, // Use pendingTotalQuantity
+          taxPercentage: item.taxPercentage ?? null,
+          pendingSgst: item.pendingSgst ?? null,
+          pendingCgst: item.pendingCgst ?? null,
+          pendingIgst: item.pendingIgst ?? null,
+          befTaxDiscount: item.befTaxDiscount ?? null,
+          afTaxDiscount: item.afTaxDiscount ?? null,
+          pendingTotalPrice: item.pendingTotalPrice ?? null,
+          pendingFinalPrice: item.pendingFinalPrice ?? null,
+          pendingDiscountAmount: item.pendingDiscountAmount ?? null,
+          pendingTaxAmount: item.pendingTaxAmount ?? null,
+          taxType: item.taxType ?? null,
+          pendingBefTaxDiscountAmount: item.pendingBefTaxDiscountAmount ?? null,
+          pendingAfTaxDiscountAmount: item.pendingAfTaxDiscountAmount ?? null,
+        }
+      }));
+      console.log('Payload:', { items });
+      // Include freight amounts in the payload if needed
+      const payload = {
+        items,
+        freightCharges: selectedOrder?.totalFreightAmount || 0,
+        freightTax: selectedOrder?.totalFreightTaxAmount || 0
+      };
+      // Dispatch to update items
+      dispatch(updateMultipleItemQuantities({
+        purchaseOrderId: selectedOrder.purchaseOrderId,
+        updatedItems: items
+      }))
+        .then(response => {
+          console.log('Response:', response);
+          dispatch(setSnackbarMessage('Changes saved successfully!'));
+          dispatch(setSnackbarOpen(true));
+          // Re-fetch the updated purchase orders to refresh the UI
+          dispatch(fetchPendingPurchaseOrders({ page: newPage, size: pageSize }));
+        })
+        .catch(error => {
+          console.error('Failed to save changes:', error);
+          dispatch(setSnackbarMessage('Failed to save changes. Please try again.'));
+          dispatch(setSnackbarOpen(true));
+        });
+    } else {
+      dispatch(setSnackbarMessage('No items to save.'));
+      dispatch(setSnackbarOpen(true));
+    }
+    setConfirmDialogOpen(false);
+    setDialogOpen(false);
+  };
   const handleFilterClick = () => {
     // Prepare API parameters
     const apiParams: any = {
       page: 1,
       size: pageSize,
       vendorName: selectedVendorName || '',
-      status: status || '',
       itemName: searchQueryItem || '',
       randomId: selectedRandomId || '',
-      filterBy: "orderDate"
     };
-
     // Send dates as ISO string (date portion only)
     if (selectionRange?.startDate) {
       const startDate = new Date(selectionRange.startDate);
       apiParams.fromDate = startDate.toISOString().split('T')[0]; // "2025-11-12"
     }
-
     if (selectionRange?.endDate) {
       const endDate = new Date(selectionRange.endDate);
       apiParams.toDate = endDate.toISOString().split('T')[0]; // "2025-11-15"
     }
-
     console.log('API Filter Parameters:', apiParams);
-
     // Make single API call with all filters
-    dispatch(fetchPurchaseOrders(apiParams))
+    dispatch(fetchPendingPurchaseOrders(apiParams))
       .then(response => {
         const data = response.payload || [];
         if (data.length === 0) {
@@ -1076,16 +1052,16 @@ const Polist: React.FC = () => {
     setNewItem(null); // Clear item search query
     setSelectedRandomId(''); // Clear randomId
     setStatusFilter([]); // Clear all selected statuses
-    dispatch(fetchPurchaseOrders({
+    dispatch(fetchPendingPurchaseOrders({
       page: 1, size: pageSize
     }));
   }
   const handleRejectOrder = async (orderId: string) => {
-    const selectedOrder = purchaseList.find(order => order.purchaseOrderId === orderId);
+    const selectedOrder = (pendingPurchaseList || []).find(order => order.purchaseOrderId === orderId);
     if (selectedOrder) {
       try {
         await dispatch(rejectPurchaseOrder(selectedOrder.purchaseOrderId));
-        dispatch(fetchPurchaseOrders({
+        dispatch(fetchPendingPurchaseOrders({
           page: newPage, size: pageSize
         }));
       } catch (error) {
@@ -1095,11 +1071,11 @@ const Polist: React.FC = () => {
     }
   };
   const handleApproveOrder = async (orderId: string) => {
-    const selectedOrder = purchaseList.find(order => order.purchaseOrderId === orderId);
+    const selectedOrder = (pendingPurchaseList || []).find(order => order.purchaseOrderId === orderId);
     if (selectedOrder) {
       try {
         await dispatch(approvePurchaseOrder(selectedOrder.purchaseOrderId));
-        dispatch(fetchPurchaseOrders({ page: newPage, size: pageSize, status }));
+        dispatch(fetchPendingPurchaseOrders({ page: newPage, size: pageSize }));
       } catch (error) {
         console.error('Failed to update order status:', error);
       }
@@ -1212,7 +1188,6 @@ const Polist: React.FC = () => {
               limit={50}
             />
           </Grid>
-
           {/* PO ID Search */}
           <Grid item xs={6} sm={4} md={1}>
             <PurchaseOrderRandomIdSearch
@@ -1325,7 +1300,7 @@ const Polist: React.FC = () => {
                 className="icon-button-outline"
                 size="small"
                 sx={{ p: 0.3 }}
-                disabled={!filteredOrders || Object.keys(filteredOrders).length === 0}
+                disabled={!(pendingPurchaseList || []).length}
               >
                 {loading ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
               </IconButton>
@@ -1686,7 +1661,7 @@ const Polist: React.FC = () => {
             <Button onClick={() => handleRejectOrder(selectedOrderId!)} color="primary">Reject</Button>
           </DialogActions>
         </Dialog>
-        {/* Display filtered orders */}
+        {/* Display orders (no client-side filter needed) */}
         <TableContainer
           component={Paper}
           sx={{
@@ -1714,7 +1689,7 @@ const Polist: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredOrders.length === 0 ? (
+              {(pendingPurchaseList || []).length === 0 ? (
                 // Display message when no data is found
                 <TableRow>
                   <TableCell colSpan={7} align="center">
@@ -1722,8 +1697,8 @@ const Polist: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                // Display filtered orders when data is available
-                filteredOrders.map((order, index) => {
+                // Display orders when data is available
+                (pendingPurchaseList || []).map((order, index) => {
                   const totalQuantity = Array.isArray(order.items)
                     ? order.items.reduce((acc, item) => acc + item.pendingTotalQuantity, 0)
                     : 0;

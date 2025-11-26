@@ -31,6 +31,7 @@ import {
   setLoading,
   setSelectedHeaders,
   ItemUpdate,
+  revertGrnToPO,
 } from '../../../features/yen-purchase/GRN/grnSlice';
 import { ArrowDownward, ArrowUpward, ChevronLeft, ChevronRight, FilterList as FilterListIcon } from '@mui/icons-material';
 import '../../../components/common.css';
@@ -54,6 +55,7 @@ import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import SmartDatePicker from '@/components/SmartDatePicker';
+import ConfirmationDialog from '@/components/confirmationDialog';
 const customRound = (amount: number) => {
   const roundedAmount = Math.round(amount);
   if (roundedAmount - amount < 0.03) {
@@ -145,8 +147,6 @@ const GrnPage = () => {
   const toDate = moment().utc().endOf('day').toDate(); // End of the day (in UTC)
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [selectedGrnItems, setSelectedGrnItems] = useState<ItemDetail[]>([]);
-  const memoizedFromDate = useMemo(() => fromDate, [fromDate]);
-  const memoizedToDate = useMemo(() => toDate, [toDate]);
   const [shouldFetch, setShouldFetch] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const handlePopoverOpen = (event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
@@ -156,6 +156,7 @@ const GrnPage = () => {
   const [apRoundOff, setApRoundOff] = useState<number>(0);
   const [enteredApRoundOff, setEnteredApRoundOff] = useState<number>(0);
   const [apRoundOffError, setApRoundOffError] = useState<string>('');
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false); // New: State for dialog
   // Sort selectedHeaders based on preferredHeaderOrder
   const sortedSelectedHeaders = useMemo(() => {
     // Create a copy of selectedHeaders to avoid mutating the original array
@@ -827,6 +828,56 @@ const handleApRoundOffBlur = () => {
     } finally {
       setLoading(false);
     }
+  };
+const handleRevertToPO = async (grnId: string) => {
+  if (!grnId) {
+    setSnackbarMessage('No GRN selected for reversion.');
+    setSnackbarOpen(true);
+    return;
+  }
+  try {
+    const result = await dispatch(revertGrnToPO(grnId)).unwrap();
+   
+    // Fixed: result is an object, not a string. Assume always 'updated' (or check result.poAction if backend adds it)
+    let message = `GRN successfully reverted to PO`;
+    // If backend adds poAction: if (result.poAction === 'created') { message = `... (New PO created: ${result.purchaseOrderId})`; }
+   
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
+   
+    // Refresh the GRN list
+    dispatch(fetchGrns({ page: currentPage, size: pageSize }));
+   
+    // ADD THESE LINES: Close the main view dialog ONLY on success
+    dispatch(setSelectedGrnId(null));
+    setDialogueViewOpen(false);   
+    console.log('Reversion successful:', result);
+  } catch (error: any) {
+    console.error('Reversion failed:', error);
+    setSnackbarMessage(error || 'Failed to revert GRN to PO');
+    setSnackbarOpen(true);
+    // NO CLOSING HERE: Keep the main dialog open on failure so user can retry
+  }
+};
+// New: Handler for button click - opens dialog
+  const handleOpenConfirmDialog = () => {
+    if (!selectedGrnId) {
+      setSnackbarMessage('No GRN selected.');
+      setSnackbarOpen(true);
+      return;
+    }
+    setConfirmDialogOpen(true);
+  };
+
+  // New: Handler for confirm - closes dialog and calls reversion
+  const handleConfirmRevert = () => {
+    setConfirmDialogOpen(false);
+    handleRevertToPO(selectedGrnId || '');
+  };
+
+  // New: Handler for cancel - just closes dialog
+  const handleCancelRevert = () => {
+    setConfirmDialogOpen(false);
   };
   const handleGrnSelect = (grnId: string) => {
     dispatch(setSelectedGrnId(grnId));
@@ -2026,6 +2077,15 @@ const handleApRoundOffBlur = () => {
             >
               Convert to AP
             </Button>
+<Button
+      variant="contained"
+      color="warning"
+      onClick={handleOpenConfirmDialog} // Changed: Open dialog instead of direct call
+      disabled={loading || !selectedGrnId}
+    >
+      Revert to PO
+    </Button>
+
             <Button onClick={handleDialogClose}>Close</Button>
           </DialogActions>
         </Dialog>
@@ -2163,6 +2223,15 @@ const handleApRoundOffBlur = () => {
           />
         )}
         <DebitCreditNoteDialog />
+        <ConfirmationDialog
+      open={confirmDialogOpen}
+      onClose={handleCancelRevert} // Closes dialog without action
+      onConfirm={handleConfirmRevert} // Closes and reverts
+      title="Confirm Revert to PO"
+      description="Are you sure you want to revert the selected GRN to PO?"
+      confirmText="Revert to PO" // Custom text
+      cancelText="Cancel"
+    />
       </Box>
     </Box>
   );
