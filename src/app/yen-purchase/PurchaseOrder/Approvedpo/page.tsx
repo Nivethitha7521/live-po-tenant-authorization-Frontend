@@ -25,10 +25,6 @@ import {
   Menu,
   MenuItem,
   Tooltip,
-  Autocomplete,
-  FormControl,
-  InputLabel,
-  Select,
   Switch,
   TableFooter,
   TablePagination,
@@ -85,7 +81,6 @@ import SaveIcon from '@mui/icons-material/Save';
 import { ExportProps, ItemWithCalculations, OverallDiscountResponse, OverallDiscountResponseItem, PurchaseOrderWithItems } from "../Models/Itemcalculation";
 import ItemSearchAutocomplete from "../Component/ItemSearch";
 import FreightSelectionDialog, { FreightData } from "../Component/freightSelectionDialog";
-
 // Add this import at the top with your other imports:
 const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
   if (!dateStr) return null;
@@ -94,7 +89,6 @@ const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
   return isNaN(date.getTime()) ? null : date;
 };
 const customRoundDigit = (value: number): number => Math.round(value * 100) / 100;
-
 const TableRowMemo = React.memo(
   ({
     item,
@@ -224,7 +218,6 @@ const TableRowMemo = React.memo(
   )
 );
 TableRowMemo.displayName = "TableRowMemo";
-
 interface OrderDetailsDialogProps {
   open: boolean;
   onClose: () => void;
@@ -271,7 +264,6 @@ interface OrderDetailsDialogProps {
   freights?: FreightData[];
   onEditFreights?: (freights: FreightData[]) => void;
 }
-
 const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   open,
   onClose,
@@ -475,6 +467,9 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
       setOverallDiscountAmount(0);
     }
   }, [overallDiscountAmount, totalOrderAmount, isReceivedQuantityValid, handleApplyDiscount, setOverallDiscountAmount]);
+  // Compute freight totals for display
+  const freightTotalAmount = useMemo(() => freights.reduce((sum, freight) => sum + freight.totalAmt, 0), [freights]);
+  const freightTaxTotal = useMemo(() => freights.reduce((sum, freight) => sum + freight.tAmt, 0), [freights]);
   return (
     <>
       <Dialog
@@ -628,7 +623,6 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                       />
                     ))
                 )}
-
                 {/* Subtotal */}
                 {calculatedItems.length > 0 && calculatedItems.some(item => item.status !== "Received" && (item.pendingTotalQuantity || 0) > 0) && (
                   <TableRow sx={{ fontWeight: 'bold', backgroundColor: '#e8f5e8' }}>
@@ -643,14 +637,12 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                     </TableCell>
                   </TableRow>
                 )}
-
                 {/* Empty row for spacing */}
                 {calculatedItems.length > 0 && calculatedItems.some(item => item.status !== "Received") && (
                   <TableRow>
                     <TableCell colSpan={13} />
                   </TableRow>
                 )}
-
                 {/* Tax Details */}
                 {Object.entries(taxDetails).map(([key, tax]: [string, { amount: number; percentage: number; type: string }]) => (
                   <TableRow key={key}>
@@ -661,46 +653,38 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                     <TableCell className='table-number-right'>{tax.amount.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
-
-                {/* FREIGHT CHARGES SECTION - CORRECTED POSITION */}
-                {freights && freights.length > 0 && (
-                  <>
-                    {freights.map((freight, index) => (
-                      <TableRow key={`freight-${index}`}>
-                        <TableCell colSpan={11} />
-                        <TableCell>
-                          <strong>Freight Amount:</strong>
-                        </TableCell>
-                        <TableCell className='table-number-right'>
-                          {freight.totalAmt.toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {/* Freight Total with Edit Button in same row */}
-                    <TableRow sx={{ fontWeight: 'bold', backgroundColor: '#f0f8ff' }}>
-                      <TableCell colSpan={11} />
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <strong>Freight Tax:</strong>
-                          <Button
-                            variant="outlined"
-                            color="primary"
-                            onClick={() => setOpenFreightDialog(true)}
-                            startIcon={<EditIcon />}
-                            size="small"
-                            sx={{ ml: 2 }}
-                          >
-                            Edit
-                          </Button>
-                        </Box>
-                      </TableCell>
-                      <TableCell className='table-number-right'>
-                        {freights.reduce((sum, freight) => sum + freight.tAmt, 0).toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  </>
-                )}
-
+                {/* FREIGHT CHARGES SECTION - UPDATED: Always show freight amount row and tax row near each other */}
+                {/* Freight Amount Row - Always shown */}
+                <TableRow>
+                  <TableCell colSpan={11} />
+                  <TableCell>
+                    <strong>Freight Amount:</strong>
+                  </TableCell>
+                  <TableCell className='table-number-right'>
+                    {freightTotalAmount.toFixed(2)}
+                  </TableCell>
+                </TableRow>
+                {/* Freight Tax Row - Always shown, with Add/Edit button */}
+                <TableRow sx={{ fontWeight: 'bold', backgroundColor: '#f0f8ff' }}>
+                  <TableCell colSpan={11} />
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <strong>Freight Tax:</strong>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={() => setOpenFreightDialog(true)}
+                        startIcon={freights.length > 0 ? <EditIcon /> : <AddIcon />}
+                        size="small"
+                        sx={{ ml: 2 }}
+                      >
+                      </Button>
+                    </Box>
+                  </TableCell>
+                  <TableCell className='table-number-right'>
+                    {freightTaxTotal.toFixed(2)}
+                  </TableCell>
+                </TableRow>
                 {/* Discount Section */}
                 <TableRow sx={{ fontWeight: 'bold' }}>
                   <TableCell colSpan={11} />
@@ -771,7 +755,6 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                     </Box>
                   </TableCell>
                 </TableRow>
-
                 {/* Before RoundOff */}
                 <TableRow>
                   <TableCell colSpan={11} />
@@ -780,7 +763,6 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                   </TableCell>
                   <TableCell className='table-number-right'>{totalOrderAmount.toFixed(2)}</TableCell>
                 </TableRow>
-
                 {/* Round Off */}
                 <TableRow sx={{ fontWeight: 'bold' }}>
                   <TableCell colSpan={11} />
@@ -810,7 +792,6 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                     </Box>
                   </TableCell>
                 </TableRow>
-
                 {/* Tax Amount */}
                 <TableRow sx={{
                   backgroundColor: '#f5f5f5',
@@ -827,7 +808,6 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                     {Object.values(taxDetails).reduce((sum, tax) => sum + tax.amount, 0).toFixed(2)}
                   </TableCell>
                 </TableRow>
-
                 {/* Final Total */}
                 <TableRow sx={{
                   backgroundColor: '#f5f5f5',
@@ -923,7 +903,6 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
     </>
   );
 };
-
 const ApprovedPurchase: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { purchaseList, purchaseinvoice, error, snackbarOpen, snackbarMessage, searchQueryItem, randomIdSearch } = useSelector(selectPurchaseListState);
@@ -974,7 +953,6 @@ const ApprovedPurchase: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<PurchaseItemSearch | null>(null);
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
   const [freights, setFreights] = useState<FreightData[]>([]);
-
   const handleCloseDialogs = useCallback(() => {
     setOpenDialog(false);
     setOpenEditDialog(false);
@@ -997,7 +975,6 @@ const ApprovedPurchase: React.FC = () => {
     setOriginalItemDiscounts({});
     console.log("Dialogs closed, states reset");
   }, []);
-
   const calculatedItems = useMemo(() => {
     if (!selectedOrder || updatedItems.length === 0) return [];
     return updatedItems.map((item) => {
@@ -1053,7 +1030,6 @@ const ApprovedPurchase: React.FC = () => {
       };
     });
   }, [updatedItems, selectedOrder]);
-
   const taxDetails = useMemo(() => {
     const details: Record<string, { amount: number; percentage: number; type: string }> = {};
     calculatedItems.forEach((item) => {
@@ -1086,18 +1062,15 @@ const ApprovedPurchase: React.FC = () => {
     });
     return details;
   }, [calculatedItems]);
-
   const totalOrderAmount = useMemo(() => {
     const itemsTotal = customRoundDigit(calculatedItems.reduce((sum, item) => sum + (item.calculatedFinalPrice || 0), 0));
     const freightTotal = customRoundDigit(freights.reduce((sum, freight) => sum + freight.totalAmt, 0));
     return itemsTotal + freightTotal;
   }, [calculatedItems, freights]);
-
   const totalTaxAmount = useMemo(
     () => customRoundDigit(Object.values(taxDetails).reduce((acc, tax) => acc + tax.amount, 0)),
     [taxDetails]
   );
-
   const totalDiscountAmount = useMemo(
     () =>
       customRoundDigit(
@@ -1114,7 +1087,6 @@ const ApprovedPurchase: React.FC = () => {
       ),
     [calculatedItems]
   );
-
   useEffect(() => {
     if (selectedOrder) {
       setInvoiceNumber(selectedOrder.invoiceNo || "");
@@ -1167,14 +1139,12 @@ const ApprovedPurchase: React.FC = () => {
       setDiscountType('after'); // Always default to 'after'
     }
   }, [selectedOrder]);
-
   useEffect(() => {
     if (businesses.length > 0 && businesses[0].businessId && !fetchedBusinessIds.has(businesses[0].businessId)) {
       dispatch(fetchPhoto(businesses[0].businessId));
       setFetchedBusinessIds((prev) => new Set(prev).add(businesses[0].businessId));
     }
   }, [businesses, dispatch, fetchedBusinessIds]);
-
   useEffect(() => {
     dispatch(fetchBusinesses());
     dispatch(fetchInvoiceNumbers());
@@ -1186,7 +1156,6 @@ const ApprovedPurchase: React.FC = () => {
       })
     );
   }, [dispatch, currentPage, pageSize]);
-
   useEffect(() => {
     if (invoiceNumber && selectedOrder?.vendorName) {
       const isDuplicate = purchaseinvoice.some(
@@ -1200,7 +1169,6 @@ const ApprovedPurchase: React.FC = () => {
       setIsInvoiceDuplicate(false);
     }
   }, [invoiceNumber, purchaseinvoice, selectedOrder]);
-
   const handleQuantityChange = useCallback(
     (itemId: string, field: "receivedQuantity", value: string | number) => {
       console.log("Quantity Change:", { itemId, field, value });
@@ -1260,7 +1228,6 @@ const ApprovedPurchase: React.FC = () => {
     },
     [updatedItems, selectedOrder, setExcessDialogMessage, setExcessDialogOpen]
   );
-
   const handlePriceChange = useCallback(
     (itemId: string, value: string) => {
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
@@ -1288,7 +1255,6 @@ const ApprovedPurchase: React.FC = () => {
     },
     [updatedItems]
   );
-
   const handleDiscountChange = useCallback(
     (itemId: string, field: "befTaxDiscount" | "afTaxDiscount", value: string) => {
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
@@ -1315,7 +1281,6 @@ const ApprovedPurchase: React.FC = () => {
     },
     [updatedItems]
   );
-
   const handleExpiryDateChange = useCallback(
     (itemId: string, value: Date | null) => {
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
@@ -1351,7 +1316,6 @@ const ApprovedPurchase: React.FC = () => {
     },
     [updatedItems]
   );
-
   // FULL: Updated handleSaveChanges function (with freights passed)
   const handleSaveChanges = useCallback(async () => {
     console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate, roundOffAmount, freights });
@@ -1625,7 +1589,6 @@ const ApprovedPurchase: React.FC = () => {
     setIsTouched,
     freights, // NEW: Add freights dependency
   ]);
-
   // FIXED: Added null-check for order.items to prevent runtime error in some()
   const filteredOrders = useMemo(() =>
     purchaseList.filter((order) =>
@@ -1633,7 +1596,6 @@ const ApprovedPurchase: React.FC = () => {
       // Only show orders that have at least one item with pending quantity
       (order.items && order.items.some(item => (item.pendingTotalQuantity || 0) > 0))
     ), [purchaseList]);
-
   // FULL: Updated handleViewDetailsClick function
   const handleViewDetailsClick = (orderId: string) => {
     const rawOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
@@ -1730,7 +1692,6 @@ const ApprovedPurchase: React.FC = () => {
       setOpenDialog(true);
     }
   };
-
   // ... rest of the code remains the same for handleDownload, handleExportAllVendorsPDF, handleExportAllVendorsCSV, etc.
   const handleDownload = useCallback(
     async (poid: string) => {
@@ -2032,7 +1993,6 @@ const ApprovedPurchase: React.FC = () => {
     },
     [purchaseList, businesses]
   );
-
   const handleExportAllVendorsPDF = useCallback(
     ({ filteredOrders, businesses, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen }: ExportProps) => {
       const doc = new jsPDF();
@@ -2170,14 +2130,12 @@ const ApprovedPurchase: React.FC = () => {
     },
     [filteredOrders, businesses, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen]
   );
-
   // ADD THIS FUNCTION
   const handleEditFreights = (updatedFreights: FreightData[]) => {
     setFreights(updatedFreights);
     // TODO: Add API call to update freights in backend
     console.log('Updated freights:', updatedFreights);
   };
-
   const handleExportAllVendorsCSV = useCallback(
     ({ filteredOrders, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen }: ExportProps) => {
       // UPDATED: Filter for both statuses
@@ -2226,7 +2184,6 @@ const ApprovedPurchase: React.FC = () => {
     },
     [filteredOrders, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen]
   );
-
   const handleExportItemwisePDF = useCallback(() => {
     const doc = new jsPDF();
     let yOffset = 5;
@@ -2321,7 +2278,6 @@ const ApprovedPurchase: React.FC = () => {
     doc.save("ApprovedAndPartiallyReceivedPOItemwise.pdf");
     setDialogSummaryOpen(false);
   }, [businesses, filteredOrders]);
-
   const handleExportItemwiseCSV = useCallback(() => {
     // UPDATED: Filter for both statuses
     const filtered = filteredOrders.filter(order =>
@@ -2376,7 +2332,6 @@ const ApprovedPurchase: React.FC = () => {
     document.body.removeChild(link);
     setDialogSummaryOpen(false);
   }, [filteredOrders]);
-
   const handleVendorChange = useCallback((vendor: VendorSearch | null) => {
     setSelectedVendor(vendor);
     dispatch(fetchPurchaseOrders({
@@ -2389,7 +2344,6 @@ const ApprovedPurchase: React.FC = () => {
       randomId: selectedRandomId,
     }));
   }, [dispatch, pageSize, selectionRange, searchQueryItem, selectedRandomId]);
-
   const handleRandomIdChange = useCallback((randomId: string) => {
     setSelectedRandomId(randomId);
     dispatch(fetchPurchaseOrders({
@@ -2402,14 +2356,12 @@ const ApprovedPurchase: React.FC = () => {
       randomId,
     }));
   }, [dispatch, pageSize, selectionRange, selectedVendor, searchQueryItem]);
-
   const handleInvoiceNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInvoiceNumber(e.target.value);
     if (setIsTouched) {
       setIsTouched(true);
     }
   };
-
   const handleItemSelect = useCallback((item: PurchaseItemSearch | null) => {
     setNewItem(item);
     dispatch(fetchPurchaseOrders({
@@ -2422,7 +2374,6 @@ const ApprovedPurchase: React.FC = () => {
       randomId: selectedRandomId,
     }));
   }, [dispatch, pageSize, selectionRange, selectedVendor, selectedRandomId]);
-
   const handleFilterClick = useCallback(() => {
     dispatch(setPagination({ page: 1, size: pageSize }));
     // UPDATED: Pass status as comma-separated string
@@ -2438,7 +2389,6 @@ const ApprovedPurchase: React.FC = () => {
       randomId: selectedRandomId,
     }));
   }, [dispatch, pageSize, selectionRange, selectedVendor, newItem, selectedRandomId]);
-
   const handleFilterClose = useCallback(() => {
     setSelectionRange({ startDate: new Date(), endDate: new Date(), key: "selection" });
     setSelectedVendor(null);
@@ -2452,7 +2402,6 @@ const ApprovedPurchase: React.FC = () => {
       status: "Approved,PartiallyReceived", // Pass as comma-separated string
     }));
   }, [dispatch, pageSize]);
-
   const isReceivedQuantityValid = useCallback(() => {
     const hasPendingItems = updatedItems.some((item) => {
       const originalItem = selectedOrder?.items.find((orig) => orig.itemId === item.itemId);
@@ -2469,7 +2418,6 @@ const ApprovedPurchase: React.FC = () => {
       return receivedQuantity > 0 && pendingTotalQuantity > 0;
     });
   }, [updatedItems, selectedOrder]);
-
   const handleApplyDiscount = useCallback(async () => {
     if (overallDiscountAmount <= 0 || !isReceivedQuantityValid()) {
       setSnackbarInvoiceMessage('Invalid discount amount or no valid items.');
@@ -2542,12 +2490,10 @@ const ApprovedPurchase: React.FC = () => {
     setSnackbarInvoiceMessage,
     setSnackbarInvoiceOpen,
   ]);
-
   const handleItemChange = (item: PurchaseItemSearch | null) => {
     setNewItem(item);
     setSearchQueryItem(item ? item.itemName : ''); // Update the search query with the item name
   };
-
   const removeOverallDiscount = useCallback(() => {
     setUpdatedItems((prev) =>
       prev.map((item) => ({
@@ -2562,7 +2508,6 @@ const ApprovedPurchase: React.FC = () => {
     setSnackbarInvoiceMessage("Overall discount removed.");
     setSnackbarInvoiceOpen(true);
   }, [originalItemDiscounts]);
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -2654,7 +2599,7 @@ const ApprovedPurchase: React.FC = () => {
             </Grid>
           </Grid>
         </Box>
-        <TableContainer component={Paper} sx={{ maxHeight: "calc(100vh - 250px)", overflowY: "auto", width: "100%", marginLeft: 2 }}>
+        <TableContainer component={Paper} sx={{ maxHeight: "calc(100vh - 230px)", overflowY: "auto", width: "100%", marginLeft: 2 }}>
           <Table stickyHeader>
             <TableHead>
               <TableRow>
@@ -2908,5 +2853,4 @@ const ApprovedPurchase: React.FC = () => {
     </Box>
   );
 };
-
 export default ApprovedPurchase;

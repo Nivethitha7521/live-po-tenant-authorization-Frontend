@@ -1475,9 +1475,14 @@ const RejectedPo: React.FC = () => {
             </Grid>
           </Box>
         </Box>
-        <TableContainer component={Paper} sx={{ maxHeight: '400px', overflowY: 'auto' }}>
+        <TableContainer component={Paper}  sx={{
+            maxHeight: 'calc(100vh - 230px)', // Dynamic height based on viewport
+            overflowY: 'auto',
+            width: '100%',
+            mt: 0.7
+          }}>
           <Table stickyHeader>
-            <TableHead>
+            <TableHead> 
               <TableRow>
                 <TableCell className='table-number-right'>S.No</TableCell>
                 <TableCell>Order ID</TableCell>
@@ -1624,7 +1629,7 @@ const RejectedPo: React.FC = () => {
           <TableContainer
             component={Paper}
             sx={{
-              maxHeight: 'calc(100vh - 250px)', // Dynamic height based on viewport
+              maxHeight: 'calc(100vh - 230px)', // Dynamic height based on viewport
               overflowY: 'auto',
               width: '100%',
             }}

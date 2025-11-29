@@ -1,7 +1,5 @@
-// Models/purchaseModel.ts (Updated with string | null for dates)
 import { List } from "postcss/lib/list";
 import { GrnData } from "./grnModel";
-
 export interface Freight {
   id: string;
   name: string;
@@ -9,6 +7,11 @@ export interface Freight {
   amt: number;
   tAmt: number;
   totalAmt: number;
+  taxType: 'cgst_sgst' | 'igst';
+  sgst: number;
+  cgst: number;
+  igst: number;
+  taxPercentage: number;
 }
 export interface Item {
   itemId: string;

@@ -49,6 +49,7 @@ import purchaselistReducer from '../features/yen-purchase/PurchaseOrder/purchase
 import businessReducer from '@/features/account-setting/businessSlice';
 import personalReducer from '@/features/account-setting/personalSlice';
 import freightReducer from '@/features/yen-purchase/PurchaseMaster/FreightMasterSlice';
+import serviceReducer from '../app/yen-purchase/PurchaseMaster/Service/Features/ServiceSlice'; 
 // import locationReducer from '../features/masterAdminSlice/locationSlice';
 // import subcategoryReducer from '../features/masterAdminSlice/subcategorySlice';
 // import inventoryTypeReducer from '../features/masterAdminSlice/inventoryTypeSlice';
@@ -160,6 +161,7 @@ const store = configureStore({
     outgoingLedger:outgoingLedgerReducer,
     advances: advancePaymentReducer, // Make sure this is correctly named
     freightItems:freightReducer,
+    serviceItems:serviceReducer,
     payments:paymentHistoryReducer,
     // addOns: addOnReducer,    
     // variants: variantReducer,

@@ -28,7 +28,7 @@ interface Category {
 }
 
 interface WarehouseState {
-  warehouses: Warehouse[];
+  warehouses: Warehouse[]; 
   countries: Category[];
   states: Category[];
   cities: Category[];

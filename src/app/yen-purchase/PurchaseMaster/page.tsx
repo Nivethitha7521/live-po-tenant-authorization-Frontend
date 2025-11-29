@@ -12,6 +12,7 @@ import StorageLocationPage from './StorageLocation/page';
 import ItemTypePage from './ItemType/page';
 import YenPurchasePage from '../page';
 import FreightPage from './Freight/page';
+import ServicePage from './Service/page';
 
 const PurchaseMasterItemPage: React.FC = () => {
   const dispatch = useDispatch();
@@ -40,6 +41,8 @@ const PurchaseMasterItemPage: React.FC = () => {
         return <ItemTypePage />;
       case 'freight':
         return <FreightPage />;
+      case 'service':
+        return <ServicePage />;
       default:
         return null;
     }
@@ -173,9 +176,24 @@ const PurchaseMasterItemPage: React.FC = () => {
               '&:hover': {
                 backgroundColor: activeSection === 'freight' ? 'white' : 'primary.dark',
               },
+                mr:1
             }}
           >
             Freight
+          </Button>
+          <Button
+            onClick={() => handleSectionClick('service')}
+            variant="contained"
+            sx={{
+              color: activeSection === 'service' ? 'black' : 'white',
+              backgroundColor: activeSection === 'service' ? 'white' : 'primary.main',
+              textTransform: 'capitalize',
+              '&:hover': {
+                backgroundColor: activeSection === 'service' ? 'white' : 'primary.dark',
+              },
+            }}
+          >
+            Service
           </Button>
 
         </Box>

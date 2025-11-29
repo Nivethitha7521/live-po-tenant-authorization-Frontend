@@ -148,7 +148,6 @@ const Polist: React.FC = () => {
 console.log('Pending Purchase List:', pendingPurchaseList);
 console.log('Loading:', loading);
 console.log('Error:', error);
-
 // Also check if the API call is being made
 useEffect(() => {
   console.log('Fetching purchase orders...');
@@ -473,7 +472,10 @@ useEffect(() => {
   const handleViewDetailsClick = (orderId: string) => {
     const selectedOrder = (pendingPurchaseList || []).find(order => order.purchaseOrderId === orderId);
     if (selectedOrder) {
-      const filteredItems = selectedOrder.items.filter(item => (item.pendingTotalQuantity || 0) > 0);
+      // FIXED: Removed the filter to show ALL items, even if pendingTotalQuantity <= 0
+      // This ensures items appear in the UI regardless of quantity
+      const filteredItems = selectedOrder.items || []; // No filtering by quantity > 0
+      console.log('Filtered Items (All):', filteredItems); // Debug log to verify items are loaded
       setSelectedOrderState({ ...selectedOrder, items: filteredItems });
       setUpdatedItems(filteredItems.map(item => ({
         ...item,
@@ -493,6 +495,7 @@ useEffect(() => {
         pendingAfTaxDiscountAmount: item.pendingAfTaxDiscountAmount || 0,
         pendingTaxAmount: item.pendingTaxAmount || 0,
       })));
+      console.log('Updated Items:', filteredItems.map(item => ({ ...item, pendingTotalQuantity: item.pendingTotalQuantity }))); // Debug log
       setOverallDiscount(selectedOrder.discountPrice || 0); // Initialize overall discount
       const initialTouched = filteredItems.reduce((acc, _, index) => ({
         ...acc,
@@ -505,6 +508,8 @@ useEffect(() => {
       setTouched(initialTouched);
       setErrors(initialErrors);
       setDialogOpen(true);
+    } else {
+      console.error('Selected order not found:', orderId); // Debug if order is missing
     }
   };
   const handleEditClick = (orderId: string) => {
@@ -1412,144 +1417,152 @@ useEffect(() => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {updatedItems.map((item, index) => (
-                    <TableRow key={item.itemId}>
-                      <TableCell className="table-number-right">{index + 1}</TableCell>
-                      <TableCell className="table-number-left">{item.itemName}</TableCell>
-                      <TableCell className="table-number-left">{item.uom}</TableCell>
-                      <TableCell>
-                        <TextField
-                          type="text"
-                          value={item.pendingCount === 0 ? '' : item.pendingCount}
-                          onChange={e => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              handleInputChange(index, 'pendingCount', value);
-                            }
-                          }}
-                          onBlur={() => {
-                            setTouched(prev => ({
-                              ...prev,
-                              [index]: { ...prev[index], pendingCount: true }
-                            }));
-                            if (item.pendingCount === '') {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingCount: 'required' }
-                              }));
-                            } else if (!/^\d*\.?\d*$/.test(String(item.pendingCount))) {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingCount: 'Invalid number' }
-                              }));
-                            } else {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingCount: '' }
-                              }));
-                            }
-                          }}
-                          error={touched[index]?.pendingCount && !!errors[index]?.pendingCount}
-                          helperText={touched[index]?.pendingCount && errors[index]?.pendingCount ? errors[index].pendingCount : ''}
-                          inputProps={{ step: '0.01' }}
-                          sx={{ width: '100px' }}
-                        />
+                  {updatedItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={12} align="center">
+                        No items found for this order. Check backend data or remove quantity filter if needed.
                       </TableCell>
-                      <TableCell className="table-number-right">
-                        <TextField
-                          type="text"
-                          value={item.pendingQuantity === 0 ? '' : item.pendingQuantity}
-                          onChange={e => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              handleInputChange(index, 'pendingQuantity', value);
-                            }
-                          }}
-                          onBlur={() => {
-                            setTouched(prev => ({
-                              ...prev,
-                              [index]: { ...prev[index], pendingQuantity: true }
-                            }));
-                            if (item.pendingQuantity === '') {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingQuantity: 'required' }
-                              }));
-                            } else if (!/^\d*\.?\d*$/.test(String(item.pendingQuantity))) {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingQuantity: 'Invalid number' }
-                              }));
-                            } else {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], pendingQuantity: '' }
-                              }));
-                            }
-                          }}
-                          error={touched[index]?.pendingQuantity && !!errors[index]?.pendingQuantity}
-                          helperText={touched[index]?.pendingQuantity && errors[index]?.pendingQuantity ? errors[index].pendingQuantity : ''}
-                          inputProps={{ step: '0.01' }}
-                          sx={{ width: '100px' }}
-                        />
-                      </TableCell>
-                      <TableCell className="table-number-right">
-                        <TextField
-                          type="number"
-                          value={item.pendingTotalQuantity || 0}
-                          InputProps={{
-                            readOnly: true,
-                          }}
-                          inputProps={{ min: 0 }}
-                          disabled
-                          sx={{ width: '100px' }}
-                        />
-                      </TableCell>
-                      <TableCell className="table-number-right">
-                        <TextField
-                          type="text"
-                          value={item.newPrice === 0 ? '' : item.newPrice}
-                          onChange={e => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              handleInputChange(index, 'newPrice', value);
-                            }
-                          }}
-                          onBlur={() => {
-                            setTouched(prev => ({
-                              ...prev,
-                              [index]: { ...prev[index], newPrice: true }
-                            }));
-                            if (item.newPrice === '') {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], newPrice: 'required' }
-                              }));
-                            } else if (!/^\d*\.?\d*$/.test(String(item.newPrice))) {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], newPrice: 'Invalid number' }
-                              }));
-                            } else {
-                              setErrors(prev => ({
-                                ...prev,
-                                [index]: { ...prev[index], newPrice: '' }
-                              }));
-                            }
-                          }}
-                          error={touched[index]?.newPrice && !!errors[index]?.newPrice}
-                          helperText={touched[index]?.newPrice && errors[index]?.newPrice ? errors[index].newPrice : ''}
-                          inputProps={{ step: '0.01' }}
-                          sx={{ width: '100px' }}
-                        />
-                      </TableCell>
-                      <TableCell className="table-number-right">{item.befTaxDiscount || 0}</TableCell>
-                      <TableCell className="table-number-right">{item.afTaxDiscount || 0}</TableCell>
-                      <TableCell className="table-number-right">{item.taxPercentage || 0}</TableCell>
-                      <TableCell className="table-number-right">{(item.pendingTotalPrice || 0).toFixed(2)}</TableCell>
-                      <TableCell className="table-number-right">{(item.pendingFinalPrice || 0).toFixed(2)}</TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    updatedItems.map((item, index) => (
+                      <TableRow key={item.itemId}>
+                        <TableCell className="table-number-right">{index + 1}</TableCell>
+                        <TableCell className="table-number-left">{item.itemName}</TableCell>
+                        <TableCell className="table-number-left">{item.uom}</TableCell>
+                        <TableCell>
+                          <TextField
+                            type="text"
+                            value={item.pendingCount === 0 ? '' : item.pendingCount}
+                            onChange={e => {
+                              const value = e.target.value;
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                handleInputChange(index, 'pendingCount', value);
+                              }
+                            }}
+                            onBlur={() => {
+                              setTouched(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], pendingCount: true }
+                              }));
+                              if (item.pendingCount === '') {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  [index]: { ...prev[index], pendingCount: 'required' }
+                                }));
+                              } else if (!/^\d*\.?\d*$/.test(String(item.pendingCount))) {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  [index]: { ...prev[index], pendingCount: 'Invalid number' }
+                                }));
+                              } else {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  [index]: { ...prev[index], pendingCount: '' }
+                                }));
+                              }
+                            }}
+                            error={touched[index]?.pendingCount && !!errors[index]?.pendingCount}
+                            helperText={touched[index]?.pendingCount && errors[index]?.pendingCount ? errors[index].pendingCount : ''}
+                            inputProps={{ step: '0.01' }}
+                            sx={{ width: '100px' }}
+                          />
+                        </TableCell>
+                        <TableCell className="table-number-right">
+                          <TextField
+                            type="text"
+                            value={item.pendingQuantity === 0 ? '' : item.pendingQuantity}
+                            onChange={e => {
+                              const value = e.target.value;
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                handleInputChange(index, 'pendingQuantity', value);
+                              }
+                            }}
+                            onBlur={() => {
+                              setTouched(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], pendingQuantity: true }
+                              }));
+                              if (item.pendingQuantity === '') {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  [index]: { ...prev[index], pendingQuantity: 'required' }
+                                }));
+                              } else if (!/^\d*\.?\d*$/.test(String(item.pendingQuantity))) {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  [index]: { ...prev[index], pendingQuantity: 'Invalid number' }
+                                }));
+                              } else {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  [index]: { ...prev[index], pendingQuantity: '' }
+                                }));
+                              }
+                            }}
+                            error={touched[index]?.pendingQuantity && !!errors[index]?.pendingQuantity}
+                            helperText={touched[index]?.pendingQuantity && errors[index]?.pendingQuantity ? errors[index].pendingQuantity : ''}
+                            inputProps={{ step: '0.01' }}
+                            sx={{ width: '100px' }}
+                          />
+                        </TableCell>
+                        <TableCell className="table-number-right">
+                          <TextField
+                            type="number"
+                            value={item.pendingTotalQuantity || 0}
+                            InputProps={{
+                              readOnly: true,
+                            }}
+                            inputProps={{ min: 0 }}
+                            disabled
+                            sx={{ width: '100px' }}
+                          />
+                        </TableCell>
+                        <TableCell className="table-number-right">
+                          <TextField
+                            type="text"
+                            value={item.newPrice === 0 ? '' : item.newPrice}
+                            onChange={e => {
+                              const value = e.target.value;
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                handleInputChange(index, 'newPrice', value);
+                              }
+                            }}
+                            onBlur={() => {
+                              setTouched(prev => ({
+                                ...prev,
+                                [index]: { ...prev[index], newPrice: true }
+                              }));
+                              if (item.newPrice === '') {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  [index]: { ...prev[index], newPrice: 'required' }
+                                }));
+                              } else if (!/^\d*\.?\d*$/.test(String(item.newPrice))) {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  [index]: { ...prev[index], newPrice: 'Invalid number' }
+                                }));
+                              } else {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  [index]: { ...prev[index], newPrice: '' }
+                                }));
+                              }
+                            }}
+                            error={touched[index]?.newPrice && !!errors[index]?.newPrice}
+                            helperText={touched[index]?.newPrice && errors[index]?.newPrice ? errors[index].newPrice : ''}
+                            inputProps={{ step: '0.01' }}
+                            sx={{ width: '100px' }}
+                          />
+                        </TableCell>
+                        <TableCell className="table-number-right">{item.befTaxDiscount || 0}</TableCell>
+                        <TableCell className="table-number-right">{item.afTaxDiscount || 0}</TableCell>
+                        <TableCell className="table-number-right">{item.taxPercentage || 0}</TableCell>
+                        <TableCell className="table-number-right">{(item.pendingTotalPrice || 0).toFixed(2)}</TableCell>
+                        <TableCell className="table-number-right">{(item.pendingFinalPrice || 0).toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                   <TableRow>
                     <TableCell colSpan={11} align="right">
                       <strong>Item-wise Discount:</strong>
@@ -1595,7 +1608,7 @@ useEffect(() => {
                   ))}
                   <TableRow>
                     <TableCell colSpan={10}></TableCell>
-                    <TableCell><strong>Payable Amount:</strong></TableCell>
+                    <TableCell><strong>Order Amount:</strong></TableCell>
                     <TableCell className="table-number-right">{(pendingOrderAmount || 0).toFixed(2)}</TableCell>
                   </TableRow>
                 </TableBody>
@@ -1700,7 +1713,7 @@ useEffect(() => {
                 // Display orders when data is available
                 (pendingPurchaseList || []).map((order, index) => {
                   const totalQuantity = Array.isArray(order.items)
-                    ? order.items.reduce((acc, item) => acc + item.pendingTotalQuantity, 0)
+                    ? order.items.reduce((acc, item) => acc + (item.pendingTotalQuantity || 0), 0)
                     : 0;
                   return (
                     <TableRow key={order.purchaseOrderId}>

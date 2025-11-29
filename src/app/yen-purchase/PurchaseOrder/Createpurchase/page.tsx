@@ -37,8 +37,7 @@ import * as Yup from 'yup';
 import { useBeforeUnload } from 'react-use';
 import { VendorSummary } from '@/Models/vendor';
 import SmartDatePicker from '@/components/SmartDatePicker';
-import FreightSelectionDialog, { FreightData } from '../Component/freightSelectionDialog';  // Updated import
-
+import FreightSelectionDialog, { FreightData } from '../Component/freightSelectionDialog'; // Updated import
 // Validation schema
 const validationSchema = Yup.object({
   vendorName: Yup.string().required('Vendor name is required'),
@@ -48,22 +47,18 @@ const validationSchema = Yup.object({
   paymentTerms: Yup.string().required('Payment terms are required'),
   creditLimit: Yup.number().required('Credit limit is required').min(0, 'Credit limit must be non-negative'),
 });
-
 // Rounding functions
 const roundPrice = (price: number): number => Math.round(price * 100) / 100;
-
 const CreatePurchasePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams?.get('edit') ?? null;
   const isEditMode = !!editId;
-
   const { purchaseOrderData, newItem, importDuplicates, importErrors, importDialogOpen, importWarnings, importSuccessMessages, importUpdatedItems, searchQuery, snackbarOpen, skip, limit, snackbarMessage } = useSelector(selectPurchaseOrderState);
   const { businesses, shippingaddress } = useSelector(selectBusinesses);
   const { location: locations, loading: locationsLoading } = useSelector(selectStorageLocations);
   const discountMode = useSelector((state: RootState) => state.purchaseOrder.discountMode ?? 'percentage') as 'percentage' | 'amount';
-
   const [open, setDialogOpen] = useState(false);
   const [openShippingDialog, setOpenShippingDialog] = useState(false);
   const [updatedShippingRow, setUpdatedShippingRow] = useState<ShippingAddress | null>(null);
@@ -87,7 +82,6 @@ const CreatePurchasePage: React.FC = () => {
   const [newItemsearch, setNewItemsearch] = useState<PurchaseItemSearchAdd | null>(null);
   const [vendorSearch, setVendorSearch] = useState<VendorSummary | null>(null);
   const [locationSearch, setLocationSearch] = useState<Location | null>(null);
-
   // Assuming this selector exists; add to purchaseOrderSlice if needed
   const { vendors } = useSelector(selectPurchaseOrderState); // ADD: vendors array from Redux
   const [showNavigationConfirm, setShowNavigationConfirm] = useState(false);
@@ -106,6 +100,35 @@ const CreatePurchasePage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [freights, setFreights] = useState<FreightData[]>([]); // Updated to FreightData type
   const [openFreightDialog, setOpenFreightDialog] = useState(false); // Added: Freight dialog state
+  // NEW: Load specific PO data in edit mode
+  useEffect(() => {
+    if (isEditMode && editId) {
+      setOrderLoading(true);
+      dispatch(fetchPurchaseOrderById(editId))
+        .unwrap()
+        .then((data) => {
+          // Set the fetched data to Redux
+          dispatch(setPurchaseOrderData(data));
+          // Set freights from fetched data
+          setFreights(data.freights || []);
+          // Set overall discount if available in data (assuming data has these fields)
+          if (data.overallDiscountValue !== undefined) {
+            setOverallDiscountValue(data.overallDiscountValue);
+          }
+          if (data.roundOffValue !== undefined) {
+            setRoundOffValue(data.roundOffValue);
+          }
+          setOrderLoading(false);
+        })
+        .catch((error) => {
+          console.error('Failed to load purchase order for edit:', error);
+          dispatch(setSnackbarMessage('Failed to load purchase order data.'));
+          dispatch(setSnackbarOpen(true));
+          setOrderLoading(false);
+          router.push('/yen-purchase/PurchaseOrder'); // Redirect back if load fails
+        });
+    }
+  }, [isEditMode, editId, dispatch, router]);
   // Replace your problematic useEffect with this corrected version:
   useEffect(() => {
     const calculateAndUpdateTotals = async () => {
@@ -115,7 +138,6 @@ const CreatePurchasePage: React.FC = () => {
             items: purchaseOrderData.items,
             freights: freights,
           })).unwrap();
-
           // Update local totals state with backend-calculated values
           // Use proper property names that match your interface
           setTotals({
@@ -130,7 +152,6 @@ const CreatePurchasePage: React.FC = () => {
             taxAmount: result.itemTaxAmount,
             afterDiscount: result.amountAfterDiscount,
           });
-
           // Update Redux state
           dispatch(setReduxTotals({
             pendingOrderAmount: result.finalAmount,
@@ -139,7 +160,6 @@ const CreatePurchasePage: React.FC = () => {
             totalFreightAmount: result.totalFreightAmount,
             totalFreightTaxAmount: result.totalFreightTaxAmount,
           }));
-
         } catch (error) {
           console.error('Failed to calculate purchase order totals:', error);
           // Fallback to frontend calculation if backend fails
@@ -152,10 +172,8 @@ const CreatePurchasePage: React.FC = () => {
         setTotals(newTotals);
       }
     };
-
     calculateAndUpdateTotals();
   }, [purchaseOrderData.items, freights, dispatch]);
-
   useEffect(() => {
     if (isEditMode && purchaseOrderData.vendorName && vendors.length > 0) {
       const matchedVendor = vendors.find((vendor: VendorSummary) =>
@@ -166,7 +184,6 @@ const CreatePurchasePage: React.FC = () => {
       }
     }
   }, [isEditMode, purchaseOrderData.vendorName, vendors, vendorSearch]);
-
   // NEW: Auto-select location in edit mode after data loads
   useEffect(() => {
     if (isEditMode && purchaseOrderData.locationName && locations.length > 0) {
@@ -176,7 +193,12 @@ const CreatePurchasePage: React.FC = () => {
       }
     }
   }, [isEditMode, purchaseOrderData.locationName, locations, locationSearch]);
-
+  // NEW: Set freights in edit mode after data loads
+  useEffect(() => {
+    if (isEditMode && purchaseOrderData.freights && purchaseOrderData.freights.length > 0) {
+      setFreights(purchaseOrderData.freights);
+    }
+  }, [isEditMode, purchaseOrderData.freights]);
   // Reset form when component mounts in create mode
   useEffect(() => {
     if (!isEditMode) {
@@ -210,7 +232,6 @@ const CreatePurchasePage: React.FC = () => {
       setFreights([]); // Added
     }
   }, [isEditMode, dispatch]);
-
   // Set default shipping address
   useEffect(() => {
     if (shippingaddress.length > 0 && !purchaseOrderData.shippingAddress) {
@@ -222,7 +243,6 @@ const CreatePurchasePage: React.FC = () => {
       setFormErrors(prev => ({ ...prev, shippingAddress: false }));
     }
   }, [shippingaddress, purchaseOrderData.shippingAddress, dispatch]);
-
   // Set default billing address
   useEffect(() => {
     if (businesses.length === 1 && !purchaseOrderData.billingAddress) {
@@ -230,7 +250,6 @@ const CreatePurchasePage: React.FC = () => {
       dispatch(setPurchaseOrderData({ ...purchaseOrderData, billingAddress: defaultBillingAddress }));
     }
   }, [businesses, purchaseOrderData, dispatch]);
-
   // Set default dates
   useEffect(() => {
     const currentDate = new Date().toISOString();
@@ -245,7 +264,6 @@ const CreatePurchasePage: React.FC = () => {
       dispatch(setPurchaseOrderData(updatedData));
     }
   }, [dispatch, purchaseOrderData.orderDate, purchaseOrderData.expectedDeliveryDate]);
-
   // Track form dirty state
   useEffect(() => {
     const hasChanges =
@@ -261,9 +279,7 @@ const CreatePurchasePage: React.FC = () => {
       freights.length > 0; // Added
     setIsFormDirty(hasChanges);
   }, [purchaseOrderData, overallDiscountValue, roundOffValue, freights]);
-
   useBeforeUnload(isFormDirty, 'You have unsaved changes. Are you sure you want to leave?');
-
   // Sync input fields with Redux state
   useEffect(() => {
     setCountInput(newItem.pendingCount === 0 ? '' : newItem.pendingCount.toString());
@@ -274,7 +290,6 @@ const CreatePurchasePage: React.FC = () => {
       setNewPriceTypeInput('');
     }
   }, [newItem.pendingCount, newItem.pendingQuantity, newItem.newPrice, newPriceInput]);
-
   // Fetch initial data
   useEffect(() => {
     dispatch(fetchPurchaseOrders());
@@ -284,7 +299,6 @@ const CreatePurchasePage: React.FC = () => {
     dispatch(fetchLocations());
     dispatch(fetchAllVendors());
   }, [dispatch, searchQuery, skip, limit]);
-
   // Check if any item has item-wise discount
   useEffect(() => {
     const hasDiscount = purchaseOrderData.items.some(item =>
@@ -300,19 +314,16 @@ const CreatePurchasePage: React.FC = () => {
       dispatch(setSnackbarOpen(true));
     }
   }, [purchaseOrderData.items, overallDiscountValue, dispatch]);
-
   // Calculate totals
   const calculateTotals = useMemo(() => {
     let subTotal = 0;
     let itemDiscountAmount = 0;
     let taxAmount = 0;
-
     purchaseOrderData.items.forEach((item) => {
       subTotal += item.pendingTotalPrice || 0;
       itemDiscountAmount += item.pendingDiscountAmount || 0;
       taxAmount += item.pendingTaxAmount || 0;
     });
-
     // Updated: Freight calculations (use preview values; backend recomputes on submit)
     let freightAmountTotal = 0;
     let freightTaxTotal = 0;
@@ -320,7 +331,6 @@ const CreatePurchasePage: React.FC = () => {
       freightAmountTotal += freight.amt || 0;
       freightTaxTotal += freight.tAmt || 0;
     });
-
     const overallDiscountAmount = overallDiscountMode === 'percentage'
       ? subTotal * (overallDiscountValue / 100)
       : overallDiscountValue;
@@ -330,21 +340,19 @@ const CreatePurchasePage: React.FC = () => {
     const finalAmount = afterDiscount + taxAmount + freightAmountTotal + freightTaxTotal + roundOffValue;
     // Updated: Total tax includes freight tax
     const totalTax = taxAmount + freightTaxTotal;
-
     return {
       subTotal: roundPrice(subTotal),
       freightAmountTotal: roundPrice(freightAmountTotal),
       freightTaxTotal: roundPrice(freightTaxTotal),
       roundedTotalOrderAmount: roundPrice(finalAmount),
       roundedTotalDiscount: roundPrice(totalDiscount),
-      roundedTotalTax: roundPrice(totalTax),  // Includes freight tax
+      roundedTotalTax: roundPrice(totalTax), // Includes freight tax
       overallDiscountAmount: roundPrice(overallDiscountAmount),
       itemDiscountAmount: roundPrice(itemDiscountAmount),
-      taxAmount: roundPrice(taxAmount),  // Item tax only
+      taxAmount: roundPrice(taxAmount), // Item tax only
       afterDiscount: roundPrice(afterDiscount),
     };
   }, [purchaseOrderData.items, freights, overallDiscountMode, overallDiscountValue, roundOffValue]);
-
   // Update totals and Redux state
   useEffect(() => {
     const newTotals = calculateTotals;
@@ -352,12 +360,11 @@ const CreatePurchasePage: React.FC = () => {
     dispatch(setReduxTotals({
       pendingOrderAmount: newTotals.roundedTotalOrderAmount,
       pendingDiscountAmount: newTotals.roundedTotalDiscount,
-      pendingTaxAmount: newTotals.roundedTotalTax,  // Includes freight tax
+      pendingTaxAmount: newTotals.roundedTotalTax, // Includes freight tax
       totalFreightAmount: newTotals.freightAmountTotal,
       totalFreightTaxAmount: newTotals.freightTaxTotal,
     }));
   }, [calculateTotals, dispatch]);
-
   // Update your handleAddFreights function to use backend calculation
   const handleAddFreights = useCallback(async (newFreights: FreightData[]) => {
     // Calculate freight totals for each new freight using backend API
@@ -369,7 +376,6 @@ const CreatePurchasePage: React.FC = () => {
             tCode: freight.tCode,
             taxType: freight.taxType,
           })).unwrap();
-
           return {
             ...freight,
             tAmt: totals.tAmt,
@@ -386,7 +392,6 @@ const CreatePurchasePage: React.FC = () => {
           const taxPercentage = parseFloat(freight.tCode.replace(/[^\d.]/g, '')) || 0;
           let TAmt = 0;
           let sgst = 0, cgst = 0, igst = 0;
-
           if (freight.taxType === 'cgst_sgst') {
             sgst = amount * (taxPercentage / 2 / 100);
             cgst = amount * (taxPercentage / 2 / 100);
@@ -395,7 +400,6 @@ const CreatePurchasePage: React.FC = () => {
             igst = amount * (taxPercentage / 100);
             TAmt = igst;
           }
-
           return {
             ...freight,
             TAmt,
@@ -408,21 +412,16 @@ const CreatePurchasePage: React.FC = () => {
         }
       })
     );
-
     setFreights((prev) => [...prev, ...freightsWithTotals]);
     setOpenFreightDialog(false);
   }, [dispatch]);
-
   // Update your freight totals display in the UI
   const freightCalculationLoading = useSelector((state: RootState) => state.purchaseOrder.freightCalculationLoading);
   const poTotalsLoading = useSelector((state: RootState) => state.purchaseOrder.poTotalsLoading);
-
-
   // Updated: Handle deleting freight
   const handleDeleteFreight = useCallback((index: number) => {
     setFreights((prev) => prev.filter((_, i) => i !== index));
   }, []);
-
   // Handler functions
   const handleOrderDateChange = (date: Date | null) => {
     const finalDate = date || new Date();
@@ -697,7 +696,6 @@ const CreatePurchasePage: React.FC = () => {
       gstNumber: '',
       freights: [], // Added
     }));
-
     dispatch(setNewItemData({
       itemId: '',
       itemName: '',
@@ -734,7 +732,6 @@ const CreatePurchasePage: React.FC = () => {
       poQuantitycgst: 0,
       poQuantityigst: 0,
     }));
-
     setVendorSearch(null);
     setLocationSearch(null);
     setNewItemsearch(null);
@@ -747,7 +744,6 @@ const CreatePurchasePage: React.FC = () => {
     setFreights([]); // Added
     setIsFormDirty(false);
     setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
-
     // If in edit mode, go back to list
     if (isEditMode) {
       router.push('/yen-purchase/PurchaseOrder');
@@ -916,7 +912,6 @@ const CreatePurchasePage: React.FC = () => {
   const handleEdit = (item: Item) => {
     const itemDiscountMode = (item.befTaxDiscountType || discountMode || 'percentage') as 'percentage' | 'amount';
     dispatch(setDiscountMode({ mode: itemDiscountMode }));
-
     const befDiscount = item.befTaxDiscount || 0;
     const afDiscount = item.afTaxDiscount || 0;
     const befDiscountAmount = item.befTaxDiscountAmount || 0;
@@ -1008,7 +1003,6 @@ const CreatePurchasePage: React.FC = () => {
       }
       await dispatch(calculateItemTotals(params)).unwrap();
       dispatch(addItemToPurchaseOrder());
-
       // Reset form fields after adding item
       setNewItemsearch(null);
       dispatch(setNewItemData({
@@ -1047,7 +1041,6 @@ const CreatePurchasePage: React.FC = () => {
         poQuantitycgst: 0,
         poQuantityigst: 0,
       }));
-
       setCountInput('');
       setQuantityInput('');
       setNewPriceTypeInput('');
@@ -1147,7 +1140,6 @@ const CreatePurchasePage: React.FC = () => {
         applyOverallDiscount: true,
       };
       const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
-
       if (!result.success) {
         throw new Error(result.error || 'Failed to apply discount');
       }
@@ -1233,7 +1225,6 @@ const CreatePurchasePage: React.FC = () => {
         applyOverallDiscount: false,
       };
       const result = await dispatch(calculateOverallDiscountForAllItems(payload)).unwrap();
-
       if (!result.success) {
         throw new Error(result.error || 'Failed to remove discount');
       }
@@ -1287,29 +1278,23 @@ const CreatePurchasePage: React.FC = () => {
   };
   // Get calculated totals from Redux state
   const calculatedTotals = useSelector((state: RootState) => state.purchaseOrder.calculatedTotals);
-
   const handleSubmit = async () => {
     try {
       await validationSchema.validate(purchaseOrderData, { abortEarly: false });
       setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
-
       if (!purchaseOrderData.items.length) {
         dispatch(setSnackbarMessage('At least one item is required.'));
         dispatch(setSnackbarOpen(true));
         return;
       }
-
       const orderDate = purchaseOrderData.orderDate || new Date().toISOString();
       const expectedDeliveryDate = purchaseOrderData.expectedDeliveryDate || new Date().toISOString();
-
-
       // Use backend-calculated totals if available, otherwise use frontend
       const finalAmount = calculatedTotals?.finalAmount || totals.roundedTotalOrderAmount;
       const totalDiscount = calculatedTotals?.totalDiscount || totals.roundedTotalDiscount;
       const totalTax = calculatedTotals?.totalTax || totals.roundedTotalTax;
       const totalFreightAmount = calculatedTotals?.totalFreightAmount || totals.freightAmountTotal;
       const totalFreightTaxAmount = calculatedTotals?.totalFreightTaxAmount || totals.freightTaxTotal;
-
       const dataToSubmit = {
         ...purchaseOrderData,
         orderDate,
@@ -1341,10 +1326,8 @@ const CreatePurchasePage: React.FC = () => {
           poQuantityigst: item.poQuantityigst || item.pendingIgst || 0,
         })),
       };
-
       let result;
       setSubmitLoading(true);
-
       if (isEditMode && editId) {
         result = await dispatch(updatePurchaseOrder({ purchaseOrderId: editId, purchaseOrder: dataToSubmit })).unwrap();
         dispatch(setSnackbarMessage(`Purchase Order ${result.randomId || editId} successfully updated.`));
@@ -1356,13 +1339,11 @@ const CreatePurchasePage: React.FC = () => {
             : `Purchase Order ${result.randomId || 'Unknown'} successfully created.`
         ));
       }
-
       dispatch(setSnackbarOpen(true));
       await dispatch(fetchPurchaseOrders());
       handleClear();
       setDialogOpen(false);
       router.push('/yen-purchase/PurchaseOrder');
-
     } catch (error) {
       if (error instanceof Yup.ValidationError) {
         const newErrors = { vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false };
@@ -1399,7 +1380,6 @@ const CreatePurchasePage: React.FC = () => {
     });
     return taxDetails;
   };
-
   // Early return for loading (now after all handlers)
   if (orderLoading) {
     return (
@@ -1871,7 +1851,6 @@ const CreatePurchasePage: React.FC = () => {
                       </TableRow>
                     ))
                   )}
-
                   {/* Totals Section */}
                   <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
                     <TableCell className='table-number-right' colSpan={8} align="right">
@@ -2101,7 +2080,6 @@ const CreatePurchasePage: React.FC = () => {
                 Add Freight
               </Button>
             </Box>
-
             {freights.length > 0 ? (
               <TableContainer sx={{ maxHeight: '200px', overflowY: 'auto' }}>
                 <Table>
@@ -2145,7 +2123,6 @@ const CreatePurchasePage: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ))}
-
                     {/* Totals Row */}
                     <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
                       <TableCell>Freight Totals:</TableCell>
@@ -2171,10 +2148,9 @@ const CreatePurchasePage: React.FC = () => {
               </TableContainer>
             ) : (
               <Typography variant="body2" color="text.secondary">
-                No freights added. 
+                No freights added.
               </Typography>
             )}
-
           </Box>
           {/* Additional Form Fields */}
           <Grid container spacing={2}>
@@ -2189,7 +2165,7 @@ const CreatePurchasePage: React.FC = () => {
                 InputProps={{ readOnly: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={2} md={2}> 
+            <Grid item xs={12} sm={2} md={2}>
               <TextField
                 fullWidth
                 label="Total Order Amount"
@@ -2519,8 +2495,8 @@ const CreatePurchasePage: React.FC = () => {
       <FreightSelectionDialog
         open={openFreightDialog}
         onClose={() => setOpenFreightDialog(false)}
-        onAddFreights={handleAddFreights}  // Updated
-        existingFreights={freights}  // Pass for preview in edit
+        onAddFreights={handleAddFreights} // Updated
+        existingFreights={freights} // Pass for preview in edit
       />
       <Snackbar
         open={snackbarOpen}
