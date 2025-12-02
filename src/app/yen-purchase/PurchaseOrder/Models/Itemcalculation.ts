@@ -140,3 +140,45 @@ export interface OverallDiscountResponse {
   summary: OverallDiscountResponseSummary;
   error?: string;
 }
+
+// Service-specific overall discount types (adapted from purchase for descriptions)
+export interface OverallDiscountDescriptionRequest {
+  id: string;
+  fee: number;
+  taxPer: number;
+  taxType: string;  // e.g., 'igst', 'cgst_sgst'
+}
+export interface OverallDiscountServiceRequest {
+  descriptions: OverallDiscountDescriptionRequest[];  // Array of descriptions to discount
+  applyOverallDiscount: boolean;        // Flag to apply
+  overallDiscount: number;              // Percentage if mode is percentage
+  overallDiscountAmount: number;        // Amount if mode is amount
+  overallDiscountType: 'percentage' | 'amount';  // Type of overall discount
+}
+
+export interface OverallDiscountServiceResponseDescription {
+  id: string;
+  fee: number;
+  discountAmount: number;
+  sgst: number;
+  cgst: number;
+  igst: number;
+  total: number;
+  // Add other calculated fields as needed
+}
+
+export interface OverallDiscountServiceResponseSummary {
+  totalSubtotal: number;
+  overallDiscountTotalAmount: number;
+  totalFinalAmount: number;
+  totalTaxAmount: number;
+  totalDiscountAmount: number;
+  totalDescriptions: number;
+}
+
+export interface OverallDiscountServiceResponse {
+  success: boolean;
+  descriptions: OverallDiscountServiceResponseDescription[];
+  summary: OverallDiscountServiceResponseSummary;
+  error?: string;
+}

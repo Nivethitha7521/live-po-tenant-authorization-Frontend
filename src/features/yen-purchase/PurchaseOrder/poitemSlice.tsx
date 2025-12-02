@@ -3,7 +3,7 @@ import axios from 'axios';
 import { RootState } from '@/redux/store';
 import { PurchaseOrderData, Item } from '@/Models/purchaseModel';
 
-const API_BASE_URL = 'https://yenerp.com/purchaseapi';
+const API_BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
 
 // Interface for item update payload
 interface ItemUpdate {

@@ -62,6 +62,8 @@ const CreatePurchasePage: React.FC = () => {
   const [open, setDialogOpen] = useState(false);
   const [openShippingDialog, setOpenShippingDialog] = useState(false);
   const [updatedShippingRow, setUpdatedShippingRow] = useState<ShippingAddress | null>(null);
+    const typeParam = searchParams?.get('type') ?? 'purchase'; // Default to 'purchase'
+  const [orderType, setOrderType] = useState<'purchase' | 'service'>('purchase'); // Default to 'purchase'
   const [totals, setTotals] = useState({
     subTotal: 0,
     freightAmountTotal: 0,
@@ -129,6 +131,14 @@ const CreatePurchasePage: React.FC = () => {
         });
     }
   }, [isEditMode, editId, dispatch, router]);
+    useEffect(() => {
+    const type = typeParam as 'purchase' | 'service';
+    setOrderType(type);
+    if (type === 'service') {
+      // Redirect to service page if type is service
+      router.push('yen-purchase/PurchaseOrder/CreateService');
+    }
+  }, [typeParam, router]);
   // Replace your problematic useEffect with this corrected version:
   useEffect(() => {
     const calculateAndUpdateTotals = async () => {
@@ -1276,6 +1286,14 @@ const CreatePurchasePage: React.FC = () => {
       setLoading(false);
     }
   };
+   const handleOrderTypeChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const newType = event.target.value as 'purchase' | 'service';
+    setOrderType(newType);
+    if (newType === 'service') {
+      // Redirect to service page with default type 'workorder'
+      router.push('/yen-purchase/PurchaseOrder/CreateService');
+    }
+  };
   // Get calculated totals from Redux state
   const calculatedTotals = useSelector((state: RootState) => state.purchaseOrder.calculatedTotals);
   const handleSubmit = async () => {
@@ -1405,6 +1423,18 @@ const CreatePurchasePage: React.FC = () => {
               {isEditMode ? `Edit Purchase Order - ${purchaseOrderData.randomId || editId}` : 'Create New Purchase Order'}
             </Typography>
             <Button variant="contained" color="primary" onClick={handleBackToPO}>Back to PO</Button>
+          </Box>
+             <Box sx={{ mb: 2 }}>
+            <FormControl component="fieldset">
+              <RadioGroup
+                row
+                value={orderType}
+                onChange={handleOrderTypeChange}
+              >
+                <FormControlLabel value="purchase" control={<Radio />} label="Purchase Order" />
+                <FormControlLabel value="service" control={<Radio />} label="Service Order" />
+              </RadioGroup>
+            </FormControl>
           </Box>
           <Grid container spacing={2}>
             {/* Form Fields */}

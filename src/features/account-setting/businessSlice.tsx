@@ -3,7 +3,7 @@ import axios from 'axios';
 import { RootState } from '../../redux/store';
 import { Business, initialState, Photo, ShippingAddress } from '@/Models/businessModel';
 
-const API_BASE = 'https://yenerp.com/purchaseapi';
+const API_BASE = 'http://192.168.29.116:8000/purchaseapi';
 
 export const fetchBusinesses = createAsyncThunk('businesses/fetchBusinesses', async () => {
   const response = await axios.get(`${API_BASE}/pobusiness/`);
@@ -64,19 +64,19 @@ export const fetchPhoto = createAsyncThunk(
 );
 // Async thunk to fetch all Business items
 export const fetchShipping = createAsyncThunk('shipping/fetchShipping', async () => {
-  const response = await axios.get('https://yenerp.com/purchaseapi/poshippingaddress/'); // Adjust API endpoint as needed
+  const response = await axios.get('http://192.168.29.116:8000/purchaseapi/poshippingaddress/'); // Adjust API endpoint as needed
   return response.data;
 });
 
 // Async thunk to add a new Business item
 export const addShipping = createAsyncThunk<ShippingAddress, ShippingAddress>('shipping/addShipping', async (shippingaddress) => {
-  const response = await axios.post('https://yenerp.com/purchaseapi/poshippingaddress/', shippingaddress); // Adjust API endpoint as needed
+  const response = await axios.post('http://192.168.29.116:8000/purchaseapi/poshippingaddress/', shippingaddress); // Adjust API endpoint as needed
   return response.data;
 });
 
 // Async thunk to update an existing Business item
 export const updateShipping = createAsyncThunk<ShippingAddress, ShippingAddress>('shipping/updateBusiness', async (shippingaddress) => {
-  const response = await axios.patch(`https://yenerp.com/purchaseapi/poshippingaddress/${shippingaddress.shippingId}`, shippingaddress); // Adjust API endpoint as needed
+  const response = await axios.patch(`http://192.168.29.116:8000/purchaseapi/poshippingaddress/${shippingaddress.shippingId}`, shippingaddress); // Adjust API endpoint as needed
   return response.data;
 });
 

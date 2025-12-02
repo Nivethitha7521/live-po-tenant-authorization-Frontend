@@ -89,7 +89,7 @@ import assetReducer from '../features/assetSlice';
 import debitCreditNoteReducer from '../features/yen-purchase/DebitNoteSlice'
 import outgoingLedgerReducer from '../features/yen-purchase/Outgoing/ledgerData'
 import paymentHistoryReducer from '../features/yen-purchase/Outgoing/paymentHistory'
-
+import serviceOrderReducer from '../app/yen-purchase/PurchaseOrder/Features/servicepo'
 const store = configureStore({
   reducer: {
     // locations: locationAreaReducer,
@@ -163,6 +163,7 @@ const store = configureStore({
     freightItems:freightReducer,
     serviceItems:serviceReducer,
     payments:paymentHistoryReducer,
+    serviceOrder:serviceOrderReducer
     // addOns: addOnReducer,    
     // variants: variantReducer,
 

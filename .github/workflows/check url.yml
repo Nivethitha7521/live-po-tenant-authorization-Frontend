@@ -12,13 +12,13 @@ jobs:
 
       - name: Search for restricted test URL
         run: |
-          echo "🔍 Checking for forbidden URL 'https://yenerp.com/purchaseapi'..."
+          echo "🔍 Checking for forbidden URL 'http://192.168.29.116:8000/purchaseapi'..."
           matches=$(grep -R -n \
             --exclude-dir=".git" \
             --exclude-dir="node_modules" \
             --exclude-dir=".github/workflows" \
             --exclude="check url.yml" \
-            'https://yenerp.com/purchaseapi' . || true)
+            'http://192.168.29.116:8000/purchaseapi' . || true)
 
           if [ -n "$matches" ]; then
             echo "❌ Restricted test test URL found in the following places:"
