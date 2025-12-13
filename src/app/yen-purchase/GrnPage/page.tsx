@@ -154,8 +154,9 @@ const GrnPage = () => {
   const debitCreditNotes = useSelector((state: RootState) => selectDebitCreditNote(state).debitCreditNotes);
   // AP ROUND OFF STATE (REPLACED discountPrice)
   const [apRoundOff, setApRoundOff] = useState<number>(0);
-  const [enteredApRoundOff, setEnteredApRoundOff] = useState<number>(0);
+  const [enteredApRoundOff, setEnteredApRoundOff] = useState<string | number>(0);
   const [apRoundOffError, setApRoundOffError] = useState<string>('');
+  const [apRoundOffInput, setApRoundOffInput] = useState<string>(""); // Raw input string
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false); // New: State for dialog
   // Sort selectedHeaders based on preferredHeaderOrder
   const sortedSelectedHeaders = useMemo(() => {
@@ -199,10 +200,8 @@ const GrnPage = () => {
         console.error("Error loading businesses:", error);
       }
     };
-
     loadBusinesses();
   }, [dispatch]);
-
   useEffect(() => {
     dispatch(fetchAllVendors());
     dispatch(fetchRandomNumbers());
@@ -222,7 +221,6 @@ const GrnPage = () => {
       const action = fetchGrns({
         page: newPage,
         size: pageSize,
-
       });
       console.log('Action payload:', action);
       dispatch(action);
@@ -236,101 +234,103 @@ const GrnPage = () => {
     }
     const appliedFromDate = selectionRange?.startDate instanceof Date ? moment(selectionRange.startDate).startOf('day').toDate() : fromDate;
     const appliedToDate = selectionRange?.endDate instanceof Date ? moment(selectionRange.endDate).endOf('day').toDate() : toDate; +-
-
       dispatch(setPagination({ page: newPage, size: pageSize }));
     dispatch(fetchGrns({ page: newPage, size: pageSize, status, vendorName: selectedVendorName || '' }));
   };
-const lenientRegex = /^-?(?:\d*\.?\d{0,2})$/; // Allows: 0.30, -0.50, .50, -.30, 2, -2
-
-// FIXED: handleApRoundOffInputChange - allows 0.51 with leading zero
 const handleApRoundOffInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   const value = e.target.value;
-  
-  console.log('Input value:', value); // Debug log
-  
-  // Allow empty, single minus, or single decimal
-  if (value === '' || value === '-' || value === '.' || value === '-.') {
-    setEnteredApRoundOff(value as any);
+  // Update the input string
+  setApRoundOffInput(value);
+  // If empty, clear errors and reset value
+  if (value === '') {
     setApRoundOff(0);
     setApRoundOffError('');
     return;
   }
-
+  // Allow single minus, decimal, or minus with decimal
+  if (value === '-' || value === '.' || value === '-.') {
+    setApRoundOff(0);
+    setApRoundOffError('');
+    return;
+  }
   // Remove spaces from input for validation
   const cleanValue = value.replace(/\s/g, '');
-  
-  console.log('Clean value:', cleanValue, 'Regex test:', lenientRegex.test(cleanValue)); // Debug log
-  
-  if (lenientRegex.test(cleanValue)) {
+  // Allow decimal numbers with up to 2 decimal places
+  const decimalRegex = /^-?\d*\.?\d{0,2}$/;
+  // Check for proper format
+  if (decimalRegex.test(cleanValue)) {
     const parsedValue = parseFloat(cleanValue);
-    console.log('Parsed value:', parsedValue); // Debug log
-    
+    // Check if it's a valid number
+    if (isNaN(parsedValue)) {
+      setApRoundOffError("Please enter a valid number");
+      setApRoundOff(0);
+      return;
+    }
     // STRICT LIMITS: Only allow between -2 and +2
     if (parsedValue > 2) {
       setApRoundOffError("Maximum allowed is +2.00");
-      setEnteredApRoundOff(2);
       setApRoundOff(2);
+      setApRoundOffInput('2.00');
     } else if (parsedValue < -2) {
       setApRoundOffError("Minimum allowed is -2.00");
-      setEnteredApRoundOff(-2);
       setApRoundOff(-2);
+      setApRoundOffInput('-2.00');
     } else {
       setApRoundOffError("");
-      setEnteredApRoundOff(parsedValue);
       setApRoundOff(parsedValue);
     }
+    // Keep the input as typed (no auto-appending)
+    setApRoundOffInput(value);
   } else {
-    setApRoundOffError("Type numbers only between -2.00 and +2.00 (e.g., 0.51, -0.50, .50, -.30)");
+    setApRoundOffError("Enter numbers only between -2.00 and +2.00");
+    setApRoundOff(0);
   }
-};
-// FIXED: handleApRoundOffBlur - handle partial inputs properly
+}; // FIXED: handleApRoundOffBlur - properly handle and format on blur
 const handleApRoundOffBlur = () => {
-  let currentValue = enteredApRoundOff;
-  
-  // If it's still a string (like '.' or '-'), treat as 0
-  if (typeof currentValue === 'string') {
-    if (currentValue === '.' || currentValue === '-') {
-      currentValue = 0;
-    } else {
-      currentValue = parseFloat(currentValue) || 0;
-    }
+  // If input is empty or just special characters, set to 0
+  if (apRoundOffInput === '' || apRoundOffInput === '-' || apRoundOffInput === '.' || apRoundOffInput === '-.') {
+    setApRoundOffInput('0');
+    setApRoundOff(0);
+    setApRoundOffError('');
+    return;
   }
-
-  // Snap to nearest 0.01 step
-  currentValue = Math.round(currentValue * 100) / 100;
-
-  let errorMsg = "";
-  let capped = false;
-
-  // Update cap to reasonable amount (e.g., ±500)
-  if (currentValue > 500) {
-    currentValue = 500;
-    capped = true;
-    errorMsg = "Capped at +500 (rounded from your input).";
-  } else if (currentValue < -500) {
-    currentValue = -500;
-    capped = true;
-    errorMsg = "Capped at -500 (rounded from your input).";
+  const parsedValue = parseFloat(apRoundOffInput);
+  // If not a valid number, reset
+  if (isNaN(parsedValue)) {
+    setApRoundOffInput('0');
+    setApRoundOff(0);
+    setApRoundOffError('Invalid number');
+    return;
   }
-
-  // Set error if capped
-  if (capped) {
-    setApRoundOffError(errorMsg);
+  // Validate within range
+  let currentValue = parsedValue;
+  if (currentValue > 2) {
+    currentValue = 2;
+    setApRoundOffError("Capped at +2.00");
+  } else if (currentValue < -2) {
+    currentValue = -2;
+    setApRoundOffError("Capped at -2.00");
   } else {
     setApRoundOffError("");
   }
-
-  const totalReceivedAmount = selectedGrn?.totalReceivedAmount || 0;
-  const finalTotal = totalReceivedAmount + currentValue;
-
+  // Calculate the total with freight (if freight is applied in GRN)
+  const totalReceivedAmount = selectedGrn?.grnAmount || 0;
+  const totalFreight = selectedGrn?.totalFreightAmount || 0;
+  const totalFreightTax = selectedGrn?.totalFreightTaxAmount || 0;
+  // Total before AP round off (GRN amount + freight + freight tax)
+  const totalBeforeRoundOff = totalReceivedAmount + totalFreight + totalFreightTax;
+  // Calculate final total with AP round off
+  const finalTotal = totalBeforeRoundOff + currentValue;
+  // Check if final total would be negative
   if (finalTotal < 0) {
-    setApRoundOffError(`Cannot make total negative (${finalTotal.toFixed(2)}). Reset to 0.`);
-    setEnteredApRoundOff(0);
-    setApRoundOff(0);
+    setApRoundOffError(`Cannot make total negative. Maximum allowed: -${Math.min(totalBeforeRoundOff, 2).toFixed(2)}`);
+    const maxNegativeAllowed = -Math.min(totalBeforeRoundOff, 2);
+    setApRoundOffInput(maxNegativeAllowed.toString());
+    setApRoundOff(maxNegativeAllowed);
     return;
   }
-
-  setEnteredApRoundOff(currentValue);
+  // Keep the input as typed (no formatting to 2 decimals)
+  setApRoundOffInput(apRoundOffInput);
   setApRoundOff(currentValue);
 };
   const handleNextPage = () => {
@@ -374,7 +374,7 @@ const handleApRoundOffBlur = () => {
     if (selectedGrn) {
       setDiscountPrice(selectedGrn.discountPrice || 0);
       setTotalDiscount(selectedGrn.totalDiscount || 0);
-      setTotalReceivedAmount(selectedGrn.totalReceivedAmount);
+      setTotalReceivedAmount(selectedGrn.grnAmount);
       // Set default dates to current date if not set
       if (!apInvoiceDate) {
         setApInvoiceDate(new Date());
@@ -417,9 +417,8 @@ const handleApRoundOffBlur = () => {
     setReturnDialogOpen(false); // Close dialog without clearing selectedGrnId
   };
   const calculateAPAmounts = () => {
-    const grnTotal = selectedGrn?.totalReceivedAmount || 0;
+    const grnTotal = selectedGrn?.grnAmount || 0;
     const apTotal = grnTotal + apRoundOff; // This should now work with actual amounts
-
     return {
       grnTotal: customRound(grnTotal),
       apTotal: customRound(apTotal),
@@ -469,7 +468,7 @@ const handleApRoundOffBlur = () => {
     const newTotalDiscountAmount = (selectedGrn?.totalDiscount || 0) + newDiscount;
     setTotalDiscount(newTotalDiscountAmount);
     // Calculate the adjusted total received amount
-    const updatedTotalReceivedAmount = (selectedGrn?.totalReceivedAmount || 0) - newTotalDiscount;
+    const updatedTotalReceivedAmount = (selectedGrn?.grnAmount || 0) - newTotalDiscount;
     setTotalReceivedAmount(updatedTotalReceivedAmount);
   };
   const handleHeaderSelectChange = (header: string) => {
@@ -688,13 +687,11 @@ const handleApRoundOffBlur = () => {
     taxRates.IGST.forEach((amount, rate) => {
       taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]);
     });
-
     // Add grnRoundOffAmount above Total Including Tax
     if (grncheck.grnRoundOffAmount !== undefined && grncheck.grnRoundOffAmount !== 0) {
       taxSummary.push([`Round Off Amount`, grncheck.grnRoundOffAmount.toFixed(2)]);
     }
-
-    taxSummary.push([`Total [Including Tax]`, grncheck.totalReceivedAmount?.toFixed(2) || '0']);
+    taxSummary.push([`Total [Including Tax]`, grncheck.grnAmount?.toFixed(2) || '0']);
     // Tax Summary Table
     doc.autoTable({
       body: taxSummary,
@@ -773,93 +770,99 @@ const handleApRoundOffBlur = () => {
     });
   };
   const handleSaveAll = async () => {
-    if (!selectedGrnId) {
-      setErrorMessage('No GRN selected to save.');
-      setLoading(false);
-      return;
-    }
-    // Validate AP Round Off before saving
-    if (apRoundOffError) {
-      setSnackbarMessage('Please fix AP Round Off errors before saving.');
-      setSnackbarOpen(true);
-      return;
-    }
-    const finalApRoundOff = enteredApRoundOff; // This is the AP round-off adjustment
-    const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
-      itemId,
-      befTaxDiscount: itemData.befTaxDiscount,
-      afTaxDiscount: itemData.afTaxDiscount,
-      expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
-    }));
-    const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
-    const outgoingDateValue = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
-    const payload = {
-      grnId: selectedGrnId,
-      apRoundOff: finalApRoundOff, // AP round off (REMOVED discountPrice)
-      itemUpdates,
-      apInvoiceDate: apInvoiceDateValue,
-      outgoingDate: outgoingDateValue,
-    };
-    try {
-      setLoading(true);
-      const resultAction = await dispatch(updateItemDetails(payload));
-      if (updateItemDetails.fulfilled.match(resultAction)) {
-        setErrorMessage(null);
-        setDialogueViewOpen(false);
-        setIsConvertedToAP(true);
-        setSnackbarMessage('GRN successfully converted to AP and Outgoing.');
-        setSnackbarOpen(true);
-        dispatch(
-          fetchGrns({
-            page: newPage,
-            size: pageSize,
-          })
-        );
-      } else {
-        const errorMessage = resultAction.payload || 'Please try again.';
-        setErrorMessage('Error converting GRN: ' + errorMessage);
-        setSnackbarMessage('Failed to convert GRN: ' + errorMessage);
-        setSnackbarOpen(true);
-      }
-    } catch (error) {
-      setErrorMessage('Error converting GRN. Please try again.');
-      setSnackbarMessage('Failed to convert GRN. Please try again.');
-      setSnackbarOpen(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-const handleRevertToPO = async (grnId: string) => {
-  if (!grnId) {
-    setSnackbarMessage('No GRN selected for reversion.');
+  if (!selectedGrnId) {
+    setErrorMessage('No GRN selected to save.');
+    setLoading(false);
+    return;
+  }
+  // Validate AP Round Off before saving
+  if (apRoundOffError) {
+    setSnackbarMessage('Please fix AP Round Off errors before saving.');
     setSnackbarOpen(true);
     return;
   }
+  // Additional validation
+  if (apRoundOff < -2 || apRoundOff > 2) {
+    setSnackbarMessage('AP Round Off must be between -2.00 and +2.00');
+    setSnackbarOpen(true);
+    return;
+  }
+  const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
+    itemId,
+    befTaxDiscount: itemData.befTaxDiscount,
+    afTaxDiscount: itemData.afTaxDiscount,
+    expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
+  }));
+  const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
+  const outgoingDateValue = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
+  // Use the parsed number directly without toFixed (passes exact value as typed, parsed to float)
+  const payload = {
+    grnId: selectedGrnId,
+    apRoundOff: apRoundOff, // Exact parsed value (e.g., 0.3 if typed 0.3)
+    itemUpdates,
+    apInvoiceDate: apInvoiceDateValue,
+    outgoingDate: outgoingDateValue,
+  };
+  console.log('Payload for save (AP Round Off):', payload.apRoundOff);
   try {
-    const result = await dispatch(revertGrnToPO(grnId)).unwrap();
-   
-    // Fixed: result is an object, not a string. Assume always 'updated' (or check result.poAction if backend adds it)
-    let message = `GRN successfully reverted to PO`;
-    // If backend adds poAction: if (result.poAction === 'created') { message = `... (New PO created: ${result.purchaseOrderId})`; }
-   
-    setSnackbarMessage(message);
+    setLoading(true);
+    const resultAction = await dispatch(updateItemDetails(payload));
+    if (updateItemDetails.fulfilled.match(resultAction)) {
+      setErrorMessage(null);
+      setDialogueViewOpen(false);
+      setIsConvertedToAP(true);
+      setSnackbarMessage('GRN successfully converted to AP and Outgoing.');
+      setSnackbarOpen(true);
+      dispatch(
+        fetchGrns({
+          page: newPage,
+          size: pageSize,
+        })
+      );
+      // Reset AP round off input after successful save
+      setApRoundOffInput('');
+      setApRoundOff(0);
+    } else {
+      const errorMessage = resultAction.payload || 'Please try again.';
+      setErrorMessage('Error converting GRN: ' + errorMessage);
+      setSnackbarMessage('Failed to convert GRN: ' + errorMessage);
+      setSnackbarOpen(true);
+    }
+  } catch (error) {
+    setErrorMessage('Error converting GRN. Please try again.');
+    setSnackbarMessage('Failed to convert GRN. Please try again.');
     setSnackbarOpen(true);
-   
-    // Refresh the GRN list
-    dispatch(fetchGrns({ page: currentPage, size: pageSize }));
-   
-    // ADD THESE LINES: Close the main view dialog ONLY on success
-    dispatch(setSelectedGrnId(null));
-    setDialogueViewOpen(false);   
-    console.log('Reversion successful:', result);
-  } catch (error: any) {
-    console.error('Reversion failed:', error);
-    setSnackbarMessage(error || 'Failed to revert GRN to PO');
-    setSnackbarOpen(true);
-    // NO CLOSING HERE: Keep the main dialog open on failure so user can retry
+  } finally {
+    setLoading(false);
   }
 };
-// New: Handler for button click - opens dialog
+  const handleRevertToPO = async (grnId: string) => {
+    if (!grnId) {
+      setSnackbarMessage('No GRN selected for reversion.');
+      setSnackbarOpen(true);
+      return;
+    }
+    try {
+      const result = await dispatch(revertGrnToPO(grnId)).unwrap();
+      // Fixed: result is an object, not a string. Assume always 'updated' (or check result.poAction if backend adds it)
+      let message = `GRN successfully reverted to PO`;
+      // If backend adds poAction: if (result.poAction === 'created') { message = `... (New PO created: ${result.purchaseOrderId})`; }
+      setSnackbarMessage(message);
+      setSnackbarOpen(true);
+      // Refresh the GRN list
+      dispatch(fetchGrns({ page: currentPage, size: pageSize }));
+      // ADD THESE LINES: Close the main view dialog ONLY on success
+      dispatch(setSelectedGrnId(null));
+      setDialogueViewOpen(false);
+      console.log('Reversion successful:', result);
+    } catch (error: any) {
+      console.error('Reversion failed:', error);
+      setSnackbarMessage(error || 'Failed to revert GRN to PO');
+      setSnackbarOpen(true);
+      // NO CLOSING HERE: Keep the main dialog open on failure so user can retry
+    }
+  };
+  // New: Handler for button click - opens dialog
   const handleOpenConfirmDialog = () => {
     if (!selectedGrnId) {
       setSnackbarMessage('No GRN selected.');
@@ -868,13 +871,11 @@ const handleRevertToPO = async (grnId: string) => {
     }
     setConfirmDialogOpen(true);
   };
-
   // New: Handler for confirm - closes dialog and calls reversion
   const handleConfirmRevert = () => {
     setConfirmDialogOpen(false);
     handleRevertToPO(selectedGrnId || '');
   };
-
   // New: Handler for cancel - just closes dialog
   const handleCancelRevert = () => {
     setConfirmDialogOpen(false);
@@ -983,7 +984,7 @@ const handleRevertToPO = async (grnId: string) => {
     const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
     // Calculate the total ordered amount before generating the table
     const totalReceivedAmount = (filteredGrns || []).reduce((sum, order) => {
-      const totalOrderAmount = order.totalReceivedAmount || 0; // Ensure it's a number
+      const totalOrderAmount = order.grnAmount || 0; // Ensure it's a number
       return sum + totalOrderAmount;
     }, 0);
     doc.setFontSize(10); // Smaller font size for these details
@@ -1002,7 +1003,7 @@ const handleRevertToPO = async (grnId: string) => {
       const totalItemsQuantity = Array.isArray(grn.itemDetails) && grn.itemDetails.length > 0
         ? grn.itemDetails.reduce((sum, item) => sum + (item.quantity || 0), 0)
         : 0;
-      const totalOrderAmount = grn.totalReceivedAmount || 0;
+      const totalOrderAmount = grn.grnAmount || 0;
       const totalDiscount = grn.totalDiscount || 0;
       const finalAmount = totalOrderAmount - totalDiscount;
       if (!grn.randomId || !grn.vendorName || !grn.grnDate || totalOrderAmount <= 0) {
@@ -1088,7 +1089,7 @@ const handleRevertToPO = async (grnId: string) => {
       .padStart(2, '0')}/${today.getFullYear()}`;
     // Calculate the total ordered amount before generating the table
     const totalReceivedAmount = (filteredGrns || []).reduce((sum, order) => {
-      const totalOrderAmount = order.totalReceivedAmount || 0; // Ensure it's a number
+      const totalOrderAmount = order.grnAmount || 0; // Ensure it's a number
       return sum + totalOrderAmount;
     }, 0);
     doc.setFontSize(10); // Smaller font size for these details
@@ -1216,7 +1217,7 @@ const handleRevertToPO = async (grnId: string) => {
       const totalItemsQuantity = Array.isArray(grn.itemDetails) && grn.itemDetails.length > 0
         ? grn.itemDetails.reduce((sum, item) => sum + (item.quantity || 0), 0)
         : 0;
-      const totalOrderAmount = grn.totalReceivedAmount || 0;
+      const totalOrderAmount = grn.grnAmount || 0;
       const totalDiscount = grn.totalDiscount || 0;
       const finalAmount = totalOrderAmount - totalDiscount;
       if (!grn.randomId || !grn.vendorName || !grn.grnDate || totalOrderAmount <= 0) {
@@ -1658,7 +1659,7 @@ const handleRevertToPO = async (grnId: string) => {
                       <TableCell>{grn.invoiceDate ? format(grn.invoiceDate, 'dd-MM-yyyy') : ''}</TableCell>
                       <TableCell>{grn.grnDate ? format(grn.grnDate, 'dd-MM-yyyy') : ''}</TableCell>
                       <TableCell className='table-number-right'>{grn.agingDay}</TableCell>
-                      <TableCell className='table-number-right'>{customRound(grn.totalReceivedAmount)}</TableCell>
+                      <TableCell className='table-number-right'>{customRound(grn.grnAmount)}</TableCell>
                       <TableCell>
                         <Box display="flex" alignItems="center">
                           {/* View Button with Eye Icon */}
@@ -1979,23 +1980,22 @@ const handleRevertToPO = async (grnId: string) => {
                         <TableCell>
                           <TextField
                             autoComplete="off"
-                            type="number"
-                            value={enteredApRoundOff === 0 ? '' : enteredApRoundOff}
+                            type="text"
+                            value={apRoundOffInput}
                             onChange={handleApRoundOffInputChange}
                             onBlur={handleApRoundOffBlur}
-                            placeholder="0"
+                            placeholder="0.00"
                             style={{ width: '120px' }}
                             inputProps={{
                               step: 0.01,
-                              min: -500,  // Updated limits
-                              max: 500    // Updated limits
+                              min: -2,
+                              max: 2
                             }}
-                            helperText={apRoundOffError}
                             error={!!apRoundOffError}
+                            helperText={apRoundOffError || ''} // NEW: Shows error message below (red text)
                           />
                         </TableCell>
                       </TableRow>
-
                       <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>
@@ -2007,17 +2007,16 @@ const handleRevertToPO = async (grnId: string) => {
                             fontWeight: 'bold'
                           }}
                         >
-                          {apRoundOff > 0 ? `+${apRoundOff.toFixed(2)}` : apRoundOff.toFixed(2)}
+                          {apRoundOff > 0 ? `+${apRoundOff}` : apRoundOff.toString()}
                         </TableCell>
                       </TableRow>
-
                       <TableRow sx={{ backgroundColor: '#e8f5e8', borderTop: '2px solid #000' }}>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>
                           <strong>New AP Total:</strong>
                         </TableCell>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '1.1em' }}>
-                          {((selectedGrn?.totalReceivedAmount || 0) + apRoundOff).toFixed(2)}
+                          {((selectedGrn?.grnAmount || 0) + apRoundOff).toFixed(2)}
                         </TableCell>
                       </TableRow>
                       {/* Rest of your existing tax and summary rows */}
@@ -2026,19 +2025,16 @@ const handleRevertToPO = async (grnId: string) => {
                         <TableCell>RoundOff Amount:</TableCell>
                         <TableCell>{selectedGrn?.grnRoundOffAmount?.toFixed(2) || '0.00'}</TableCell>
                       </TableRow>
-
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>Freight Tax:</TableCell>
                         <TableCell>{selectedGrn?.totalFreightTaxAmount?.toFixed(2) || '0.00'}</TableCell>
                       </TableRow>
-
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>Freight:</TableCell>
                         <TableCell>{selectedGrn?.totalFreightAmount?.toFixed(2) || '0.00'}</TableCell>
                       </TableRow>
-
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>
@@ -2046,7 +2042,6 @@ const handleRevertToPO = async (grnId: string) => {
                         </TableCell>
                         <TableCell>{totalDiscount.toFixed(2)}</TableCell>
                       </TableRow>
-
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>
@@ -2054,13 +2049,12 @@ const handleRevertToPO = async (grnId: string) => {
                         </TableCell>
                         <TableCell>{selectedGrn?.totalTax?.toFixed(2) || '0.00'}</TableCell>
                       </TableRow>
-
                       <TableRow>
                         <TableCell colSpan={sortedSelectedHeaders.length - 1} />
                         <TableCell>
                           <strong>Final Total Amount:</strong>
                         </TableCell>
-                        <TableCell>{selectedGrn?.totalReceivedAmount?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell>{selectedGrn?.grnAmount?.toFixed(2) || '0.00'}</TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -2077,15 +2071,14 @@ const handleRevertToPO = async (grnId: string) => {
             >
               Convert to AP
             </Button>
-<Button
-      variant="contained"
-      color="warning"
-      onClick={handleOpenConfirmDialog} // Changed: Open dialog instead of direct call
-      disabled={loading || !selectedGrnId}
-    >
-      Revert to PO
-    </Button>
-
+            <Button
+              variant="contained"
+              color="warning"
+              onClick={handleOpenConfirmDialog} // Changed: Open dialog instead of direct call
+              disabled={loading || !selectedGrnId}
+            >
+              Revert to PO
+            </Button>
             <Button onClick={handleDialogClose}>Close</Button>
           </DialogActions>
         </Dialog>
@@ -2224,14 +2217,14 @@ const handleRevertToPO = async (grnId: string) => {
         )}
         <DebitCreditNoteDialog />
         <ConfirmationDialog
-      open={confirmDialogOpen}
-      onClose={handleCancelRevert} // Closes dialog without action
-      onConfirm={handleConfirmRevert} // Closes and reverts
-      title="Confirm Revert to PO"
-      description="Are you sure you want to revert the selected GRN to PO?"
-      confirmText="Revert to PO" // Custom text
-      cancelText="Cancel"
-    />
+          open={confirmDialogOpen}
+          onClose={handleCancelRevert} // Closes dialog without action
+          onConfirm={handleConfirmRevert} // Closes and reverts
+          title="Confirm Revert to PO"
+          description="Are you sure you want to revert the selected GRN to PO?"
+          confirmText="Revert to PO" // Custom text
+          cancelText="Cancel"
+        />
       </Box>
     </Box>
   );

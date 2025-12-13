@@ -39,7 +39,7 @@ export const fetchPhotosByOrderId = createAsyncThunk(
     try {
       const response = await axios.get(`http://192.168.29.116:8000/purchaseapi/photos/${orderId}`);
       return { orderId, photos: response.data.photos };
-    } catch (error: any) {
+    } catch (error: any) {   
       return rejectWithValue(error.response?.data || 'Failed to fetch photos');
     }
   }

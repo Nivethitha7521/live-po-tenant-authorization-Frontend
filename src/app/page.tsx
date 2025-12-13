@@ -86,14 +86,12 @@ const Login: React.FC = () => {
 
       if (login.fulfilled.match(result)) {
         toast.success('Login successful!');
-        sessionStorage.setItem('lastActivity', Date.now().toString());
         router.push('/yen-purchase');
       } else {
         const errorMsg = result.payload as string;
         toast.error(errorMsg);
         
         if (errorMsg.includes('already have an active session')) {
-          // User has active session in another browser
           toast.info('Please logout from your other browser first, or use the same browser for multiple tabs.');
         }
       }
@@ -114,6 +112,12 @@ const Login: React.FC = () => {
     handleLogin();
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !isLoggingIn) {
+      handleLogin();
+    }
+  };
+
   if (isCheckingSession) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
@@ -126,7 +130,7 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex" onKeyPress={handleKeyPress}>
       {/* Left Side - Image */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-500 to-blue-600 relative overflow-hidden">
         <div className="absolute inset-0 bg-black bg-opacity-20"></div>
@@ -141,7 +145,7 @@ const Login: React.FC = () => {
                 width={500}
                 height={400}
                 src="/images/purchaseimage.jpg"
-                priority // This ensures the image loads first
+                priority
               />
             ) : (
               <div className="max-w-md w-full h-80 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">

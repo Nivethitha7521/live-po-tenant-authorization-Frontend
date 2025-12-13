@@ -77,6 +77,7 @@ export interface PurchaseOrderData {
   purchaseOrderId: string;
   vendorName: string;
   vendorContact: string;
+  vendorCode:string;
   orderDate: string | null;  // FIXED: Changed from Date | null to string | null (ISO format)
   approvedDate: string | null;  // FIXED: Changed from Date | null
   rejectedDate: string | null;  // FIXED: Changed from Date | null
@@ -128,6 +129,7 @@ export type TaxDetails = Record<string, {
 
 export interface Vendor {
   vendorId: string;
+  randomId:string;
   vendorName: string;
   contactpersonPhone: string;
   paymentTerms: string;
@@ -138,6 +140,7 @@ export interface Vendor {
   postalCode: number;
   gstNumber: string;
   contactpersonEmail: string;
+  creditLimit:number;
 }
 
 export interface PurchaseItemSearchAdd {

@@ -89,7 +89,7 @@ import assetReducer from '../features/assetSlice';
 import debitCreditNoteReducer from '../features/yen-purchase/DebitNoteSlice'
 import outgoingLedgerReducer from '../features/yen-purchase/Outgoing/ledgerData'
 import paymentHistoryReducer from '../features/yen-purchase/Outgoing/paymentHistory'
-import serviceOrderReducer from '../app/yen-purchase/PurchaseOrder/Features/servicepo'
+import serviceOrderReducer from '../app/yen-purchase/ServiceOrder/Features/servicepo'
 const store = configureStore({
   reducer: {
     // locations: locationAreaReducer,
@@ -187,6 +187,7 @@ const store = configureStore({
     // locations: locationReducer,
     // posDevice: posDeviceReducer,
   },
+  
 });
 
 // Define the RootState type based on the store's state

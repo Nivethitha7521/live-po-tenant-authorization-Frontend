@@ -2,6 +2,7 @@ import { list } from "postcss";
 
 export interface VendorSummary {
   vendorId: string;
+  randomId:string;
   vendorName?: string;
   contactpersonPhone?: string;
   contactpersonEmail?: string;

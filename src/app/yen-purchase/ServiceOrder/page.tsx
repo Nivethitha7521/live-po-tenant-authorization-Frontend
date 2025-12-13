@@ -23,15 +23,17 @@ import {
   Autocomplete
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
+import EditIcon from '@mui/icons-material/Edit'; // Added Edit icon
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ServiceData, ServiceDescription } from '../Models/servicepo';
+import { ServiceData, ServiceDescription } from '../ServiceOrder/Models/servicepo';
 import { VendorSearch } from '@/Models/vendor';
-import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import YenPurchasePage from '../page';
 import jsPDF from "jspdf";
 import "jspdf-autotable"; // Ensure this is imported
-import { fetchServices, selectServiceState, setSnackbarMessage, setSnackbarOpen } from '../Features/servicepo';
+import { fetchServices, selectServiceState, setSnackbarMessage, setSnackbarOpen, approveServiceOrder, rejectServiceOrder } from '../ServiceOrder/Features/servicepo';
 import { fetchBusinesses, selectBusinesses } from '@/features/account-setting/businessSlice';
 import Papa from 'papaparse';
 import 'react-date-range/dist/styles.css'; // main style file
@@ -54,6 +56,36 @@ interface AutoTableHookData {
   doc: jsPDF;
 }
 
+// Helper function to get description objects from flat arrays
+const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription[] => {
+  const descriptions: ServiceDescription[] = [];
+  
+  for (let i = 0; i < service.desc_descriptions.length; i++) {
+    descriptions.push({
+      id: service.desc_ids[i] || '',
+      sacCode: service.sacCode[i] || '',
+      description: service.desc_descriptions[i],
+      from_date: service.from_dates[i],
+      to_date: service.to_dates[i],
+      fee: service.fees[i] || 0,
+      tax_type: service.desc_tax_types[i] as 'cgst_sgst' | 'igst',
+      tax_per: service.desc_tax_pers[i] || 0,
+      sgst: service.desc_sgst[i] || 0,
+      cgst: service.desc_cgst[i] || 0,
+      igst: service.desc_igst[i] || 0,
+      total: service.desc_totals[i] || 0,
+      taxAmount: service.desc_tax_amounts[i] || 0,
+      totalFee: service.desc_total_fees[i] || 0,
+      finalFee: service.desc_total_fees[i] || 0,
+      discountAmount: service.desc_discount_amounts[i] || 0,
+      remarks:service.remarks[i] || '',
+      quantity:service.quantity[i] || 0
+    });
+  }
+  
+  return descriptions;
+};
+
 const ServiceList: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
@@ -61,7 +93,11 @@ const ServiceList: React.FC = () => {
   const { services, loading, error, vendors, snackbarMessage, snackbarOpen } = serviceOrder;
   const { businesses } = useSelector(selectBusinesses);
   const [selectedOrder, setSelectedOrder] = useState<ServiceData | null>(null);
+  const [selectedDescriptions, setSelectedDescriptions] = useState<ServiceDescription[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectionRange, setSelectionRange] = useState({
     startDate: new Date(),
@@ -101,17 +137,13 @@ const ServiceList: React.FC = () => {
       filtered = filtered.filter((service: ServiceData) => service.vendorName.toLowerCase().includes(selectedVendorName.toLowerCase()));
     }
 
-    // Filter by randomId
-    if (selectedRandomId) {
-      filtered = filtered.filter((service: ServiceData) => service.randomId === selectedRandomId);
-    }
-
+ 
     // Filter by date range
     if (selectionRange.startDate && selectionRange.endDate) {
       const start = moment(selectionRange.startDate).startOf('day').toDate();
       const end = moment(selectionRange.endDate).endOf('day').toDate();
       filtered = filtered.filter((service: ServiceData) => {
-        const orderDate = new Date(service.orderDate || '');
+        const orderDate = new Date(service.workOrderDate || '');
         return orderDate >= start && orderDate <= end;
       });
     }
@@ -153,13 +185,20 @@ const ServiceList: React.FC = () => {
     const selected = services.find((s: ServiceData) => s.serviceId === serviceId);
     if (selected) {
       setSelectedOrder(selected);
+      // Convert flat arrays to descriptions array for display
+      setSelectedDescriptions(getDescriptionsFromFlatArrays(selected));
       setDialogOpen(true);
     }
+  };
+
+  const handleEditClick = (serviceId: string) => {
+    router.push(`/yen-purchase/ServiceOrder/CreateService?edit=${serviceId}`);
   };
 
   const handleDialogClose = () => {
     setDialogOpen(false);
     setSelectedOrder(null);
+    setSelectedDescriptions([]);
   };
 
   const handleClose = () => {
@@ -174,13 +213,17 @@ const ServiceList: React.FC = () => {
     dispatch(setSnackbarOpen(false));
   };
 
+  const handleCreateService = () => {
+    router.push('/yen-purchase/ServiceOrder/CreateService');
+  };
+
   // Compute tax details for display
   const [taxDetails, setTaxDetails] = useState<Record<string, { amount: number; percentage: number; type: string }>>({});
 
   useEffect(() => {
-    if (selectedOrder) {
+    if (selectedDescriptions.length > 0) {
       const details: Record<string, { amount: number; percentage: number; type: string }> = {};
-      selectedOrder.descriptions.forEach((desc: ServiceDescription) => {
+      selectedDescriptions.forEach((desc: ServiceDescription) => {
         const taxType = desc.tax_type;
         const taxPer = desc.tax_per;
         let sgst = 0, cgst = 0, igst = 0;
@@ -203,7 +246,59 @@ const ServiceList: React.FC = () => {
       });
       setTaxDetails(details);
     }
-  }, [selectedOrder]);
+  }, [selectedDescriptions]);
+
+  const handleApproveDialogOpen = () => {
+    setApproveOpen(true);
+  };
+
+  const handleApproveDialogClose = () => {
+    setApproveOpen(false);
+    setSelectedOrderId(null);
+  };
+
+  const handleRejectDialogOpen = () => {
+    setRejectOpen(true);
+  };
+
+  const handleRejectDialogClose = () => {
+    setRejectOpen(false);
+    setSelectedOrderId(null);
+  };
+
+  const handleApproveService = async (mongoId: string) => {
+    const selectedService = services.find((s: ServiceData) => s.mongoId === mongoId);
+    if (selectedService) {
+      try {
+        setApproveOpen(false);
+        const result = await dispatch(approveServiceOrder(mongoId)).unwrap();
+        if (result.whatsapp_sent) {
+          alert(`✅ Service Order Approved!\n📧 WhatsApp sent to vendor\n📎 PDF: ${result.pdf_url}`);
+        } else if (result.pdf_url) {
+          alert(`✅ Service Order Approved!\n📎 PDF generated: ${result.pdf_url}\n⚠️ WhatsApp not sent (check vendor phone)`);
+        } else {
+          alert('✅ Service Order Approved!');
+        }
+        dispatch(fetchServices());
+      } catch (error: any) {
+        console.error('Failed to approve:', error);
+        alert(`Error: ${error.message || 'Failed to approve service order'}`);
+      }
+    }
+  };
+
+  const handleRejectService = async (serviceId: string) => {
+    const selectedService = services.find((s: ServiceData) => s.serviceId === serviceId);
+    if (selectedService) {
+      try {
+        await dispatch(rejectServiceOrder(serviceId));
+        dispatch(fetchServices());
+      } catch (error) {
+        console.error('Failed to reject service order:', error);
+      }
+      setRejectOpen(false);
+    }
+  };
 
   const generatePDF = () => {
     const doc = new jsPDF();
@@ -257,15 +352,15 @@ const ServiceList: React.FC = () => {
 
     const headers = [["S.No", "Service ID", "Vendor Name", "Total Descriptions", "Order Date", "Total Amount"]];
     const rows = filteredServices.map((service: ServiceData, index: number) => {
-      const totalDescs = service.descriptions.length;
-      const orderDate = service.orderDate ? format(new Date(service.orderDate), 'dd-MM-yyyy') : '';
+      const totalDescs = service.desc_descriptions.length; // Use desc_descriptions instead of descriptions
+      const orderDate = service.workOrderDate ? format(new Date(service.workOrderDate), 'dd-MM-yyyy') : '';
       return [
         (index + 1).toString(),
-        service.randomId,
+        service.serviceId,
         service.vendorName,
         totalDescs.toString(),
         orderDate,
-        service.totalAmount.toFixed(2),
+        (service.totalAmount || 0).toFixed(2),
       ];
     });
 
@@ -304,15 +399,15 @@ const ServiceList: React.FC = () => {
   const handleExportCSV = () => {
     const headers = 'SNO,Service ID,Vendor Name,Total Descriptions,Order Date,Total Amount\n';
     const rows = filteredServices.map((service: ServiceData, index: number) => {
-      const totalDescs = service.descriptions.length;
-      const orderDate = service.orderDate ? format(new Date(service.orderDate), 'dd-MM-yyyy') : '';
+      const totalDescs = service.desc_descriptions.length; // Use desc_descriptions
+      const orderDate = service.workOrderDate ? format(new Date(service.workOrderDate), 'dd-MM-yyyy') : '';
       return [
         (index + 1),
-        service.randomId,
+        service.serviceId,
         service.vendorName,
         totalDescs,
         orderDate,
-        service.totalAmount.toFixed(2),
+        (service.totalAmount || 0).toFixed(2),
       ].join(',');
     }).join('\n');
     const csvContent = `${headers}${rows}`;
@@ -379,14 +474,15 @@ const ServiceList: React.FC = () => {
     yOffset += 5;
 
     const headers = [["S.No", "Service No", "Vendor Name", "Description", "From Date", "To Date", "Fee", "Tax %", "Total"]];
-    const rows = filteredServices.map((service: ServiceData, sIndex: number) => 
-      service.descriptions.map((desc: ServiceDescription, dIndex: number) => {
-        const globalIndex = sIndex * service.descriptions.length + dIndex + 1;
+    const rows = filteredServices.map((service: ServiceData, sIndex: number) => {
+      const descriptions = getDescriptionsFromFlatArrays(service);
+      return descriptions.map((desc: ServiceDescription, dIndex: number) => {
+        const globalIndex = sIndex * descriptions.length + dIndex + 1;
         const fromDate = desc.from_date ? format(new Date(desc.from_date), 'dd-MM-yyyy') : '';
         const toDate = desc.to_date ? format(new Date(desc.to_date), 'dd-MM-yyyy') : '';
         return [
           globalIndex.toString(),
-          service.randomId,
+          service.serviceId,
           service.vendorName,
           desc.description,
           fromDate,
@@ -395,8 +491,8 @@ const ServiceList: React.FC = () => {
           `${desc.tax_per}%`,
           desc.total.toFixed(2),
         ];
-      })
-    ).flat();
+      });
+    }).flat();
 
     doc.autoTable({
       head: headers,
@@ -427,14 +523,15 @@ const ServiceList: React.FC = () => {
 
   const generateSummaryCSV = () => {
     const headers = ["S.No", "Service No", "Vendor Name", "Description", "From Date", "To Date", "Fee", "Tax %", "Total"];
-    const rows = filteredServices.map((service: ServiceData, sIndex: number) => 
-      service.descriptions.map((desc: ServiceDescription, dIndex: number) => {
-        const globalIndex = sIndex * service.descriptions.length + dIndex + 1;
+    const rows = filteredServices.map((service: ServiceData, sIndex: number) => {
+      const descriptions = getDescriptionsFromFlatArrays(service);
+      return descriptions.map((desc: ServiceDescription, dIndex: number) => {
+        const globalIndex = sIndex * descriptions.length + dIndex + 1;
         const fromDate = desc.from_date ? format(new Date(desc.from_date), 'dd-MM-yyyy') : '';
         const toDate = desc.to_date ? format(new Date(desc.to_date), 'dd-MM-yyyy') : '';
         return [
           globalIndex,
-          service.randomId,
+          service.serviceId,
           service.vendorName,
           desc.description,
           fromDate,
@@ -443,8 +540,8 @@ const ServiceList: React.FC = () => {
           `${desc.tax_per}%`,
           desc.total.toFixed(2),
         ];
-      })
-    ).flat();
+      });
+    }).flat();
     const csvData = [headers, ...rows];
     const csv = Papa.unparse(csvData);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -475,8 +572,34 @@ const ServiceList: React.FC = () => {
       <YenPurchasePage />
       <Box sx={{ px: 2, py: 1 }}>
         <Grid container spacing={2} sx={{ mb: 1 }}>
-          <Grid item xs={12}>
-            <Typography variant="h6">Service Orders List</Typography>
+          <Grid item xs={12} display="flex" alignItems="center">
+            <Link href="/yen-purchase/ServiceOrder" passHref>
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: 'white',
+                  color: 'black',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  },
+                }}
+              >
+                Pending
+              </Button>
+            </Link>
+            <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
+              <Button variant="contained" sx={{ marginLeft: '10px' }} color="primary">
+                Approved
+              </Button>
+            </Link>
+            <Button
+              variant="contained"
+              color="primary"
+              sx={{ marginLeft: '10px', marginRight: '10px' }}
+              onClick={() => router.push('/yen-purchase/ServiceOrder/RejectedService')}
+            >
+              Rejected
+            </Button>
           </Grid>
         </Grid>
         <Grid
@@ -548,6 +671,20 @@ const ServiceList: React.FC = () => {
           <Grid item xs sx={{ flexGrow: 1 }} />
           <Grid item xs="auto">
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={handleCreateService}
+                size="small"
+                sx={{ minHeight: 40 }}
+              >
+                Create Service
+              </Button>
+            </Box>
+          </Grid>
+          <Grid item xs="auto">
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <IconButton
                 onClick={handleClick}
                 color="primary"
@@ -576,65 +713,24 @@ const ServiceList: React.FC = () => {
         </Grid>
         <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth={false} fullWidth={true}>
           <DialogTitle sx={{ fontWeight: 'bold' }}>
-            Service Order Details {selectedOrder?.randomId ? `${selectedOrder.randomId}` : ''}
+            Service Order Details {selectedOrder?.mongoId ? `${selectedOrder.mongoId}` : ''}
           </DialogTitle>
           <DialogContent>
             <TableContainer component={Paper}>
               <Table stickyHeader sx={{ minWidth: 500, fontSize: '0.875rem' }}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>S.No</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell>From Date</TableCell>
-                    <TableCell>To Date</TableCell>
-                    <TableCell>Fee</TableCell>
-                    <TableCell>Tax (%)</TableCell>
-                    <TableCell>Tax Amount</TableCell>
-                    <TableCell>Total</TableCell>
-                  </TableRow>
+                  <TableRow>{[<TableCell>S.No</TableCell>,<TableCell>Description</TableCell>,<TableCell>From Date</TableCell>,<TableCell>To Date</TableCell>,<TableCell>Fee</TableCell>,<TableCell>Tax (%)</TableCell>,<TableCell>Tax Amount</TableCell>,<TableCell>Total</TableCell>]}</TableRow>
                 </TableHead>
                 <TableBody>
-                  {selectedOrder?.descriptions.map((desc: ServiceDescription, index: number) => (
-                    <TableRow key={desc.id || index}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell>{desc.description}</TableCell>
-                      <TableCell>{desc.from_date ? format(new Date(desc.from_date), 'dd-MM-yyyy') : ''}</TableCell>
-                      <TableCell>{desc.to_date ? format(new Date(desc.to_date), 'dd-MM-yyyy') : ''}</TableCell>
-                      <TableCell align="right">{desc.fee.toFixed(2)}</TableCell>
-                      <TableCell align="center">{desc.tax_per}%</TableCell>
-                      <TableCell align="right">{(desc.sgst + desc.cgst + desc.igst).toFixed(2)}</TableCell>
-                      <TableCell align="right">{desc.total.toFixed(2)}</TableCell>
-                    </TableRow>
+                  {selectedDescriptions.map((desc: ServiceDescription, index: number) => (
+                    <TableRow key={desc.id || index}>{[<TableCell>{index + 1}</TableCell>,<TableCell>{desc.description}</TableCell>,<TableCell>{desc.from_date ? format(new Date(desc.from_date), 'dd-MM-yyyy') : ''}</TableCell>,<TableCell>{desc.to_date ? format(new Date(desc.to_date), 'dd-MM-yyyy') : ''}</TableCell>,<TableCell align="right">{desc.fee.toFixed(2)}</TableCell>,<TableCell align="center">{desc.tax_per}%</TableCell>,<TableCell align="right">{(desc.sgst + desc.cgst + desc.igst).toFixed(2)}</TableCell>,<TableCell align="right">{desc.total.toFixed(2)}</TableCell>]}</TableRow>
                   ))}
-                  <TableRow>
-                    <TableCell colSpan={4} align="right">
-                      <strong>Freight Charges:</strong>
-                    </TableCell>
-                    <TableCell align="right">{(selectedOrder?.totalFreightAmount || 0).toFixed(2)}</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell align="right">{(selectedOrder?.totalFreightTaxAmount || 0).toFixed(2)}</TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell colSpan={4} align="right">
-                      <strong>Overall Discount:</strong>
-                    </TableCell>
-                    <TableCell align="right" colSpan={4}>-{(selectedOrder?.overallDiscountValue || 0).toFixed(2)}</TableCell>
-                  </TableRow>
+                  <TableRow>{[<TableCell colSpan={4} align="right"><strong>Freight Charges:</strong></TableCell>,<TableCell align="right">{(selectedOrder?.totalFreightAmount || 0).toFixed(2)}</TableCell>,<TableCell></TableCell>,<TableCell align="right">{(selectedOrder?.totalFreightTaxAmount || 0).toFixed(2)}</TableCell>,<TableCell></TableCell>]}</TableRow>
+                  <TableRow>{[<TableCell colSpan={4} align="right"><strong>Overall Discount:</strong></TableCell>,<TableCell align="right" colSpan={4}>-{(selectedOrder?.overallDiscountValue || 0).toFixed(2)}</TableCell>]}</TableRow>
                   {Object.entries(taxDetails).map(([key, tax]) => (
-                    <TableRow key={key}>
-                      <TableCell colSpan={6}></TableCell>
-                      <TableCell>
-                        <strong>{tax.type} ({tax.percentage}%):</strong>
-                      </TableCell>
-                      <TableCell align="right">{tax.amount.toFixed(2)}</TableCell>
-                    </TableRow>
+                    <TableRow key={key}>{[<TableCell colSpan={6}></TableCell>,<TableCell><strong>{tax.type} ({tax.percentage}%):</strong></TableCell>,<TableCell align="right">{tax.amount.toFixed(2)}</TableCell>]}</TableRow>
                   ))}
-                  <TableRow>
-                    <TableCell colSpan={7}></TableCell>
-                    <TableCell align="right"><strong>Total Amount:</strong></TableCell>
-                    <TableCell align="right">{(selectedOrder?.totalAmount || 0).toFixed(2)}</TableCell>
-                  </TableRow>
+                  <TableRow>{[<TableCell colSpan={6}></TableCell>,<TableCell align="right"><strong>Total Amount:</strong></TableCell>,<TableCell align="right">{(selectedOrder?.totalAmount || 0).toFixed(2)}</TableCell>]}</TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
@@ -673,39 +769,94 @@ const ServiceList: React.FC = () => {
             <Button variant="outlined" onClick={handleClose}>Cancel</Button>
           </DialogActions>
         </Dialog>
+        {/* Approve Service Dialog */}
+        <Dialog open={approveOpen} onClose={handleApproveDialogClose}>
+          <DialogTitle>Approve Service Order</DialogTitle>
+          <DialogContent>
+            <Typography>Are you sure you want to approve this order?</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleApproveDialogClose} color="primary">Cancel</Button>
+            <Button onClick={() => handleApproveService(selectedOrderId!)} color="primary">Approve</Button>
+          </DialogActions>
+        </Dialog>
+        {/* Reject Service Dialog */}
+        <Dialog open={rejectOpen} onClose={handleRejectDialogClose}>
+          <DialogTitle>Reject Service Order</DialogTitle>
+          <DialogContent>
+            <Typography>Are you sure you want to reject this order?</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleRejectDialogClose} color="primary">Cancel</Button>
+            <Button onClick={() => handleRejectService(selectedOrderId!)} color="primary">Reject</Button>
+          </DialogActions>
+        </Dialog>
         <TableContainer component={Paper} sx={{ maxHeight: 'calc(100vh - 245px)', overflowY: 'auto', width: '100%', mt: 0.7 }}>
           <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%' }}>
             <TableHead>
-              <TableRow>
-                <TableCell>S.No</TableCell>
-                <TableCell>Service ID</TableCell>
-                <TableCell>Vendor Name</TableCell>
-                <TableCell>Total Descriptions</TableCell>
-                <TableCell>Total Amount</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
+              <TableRow>{[<TableCell>S.No</TableCell>,<TableCell>Service ID</TableCell>,<TableCell>Vendor Name</TableCell>,<TableCell>Total Descriptions</TableCell>,<TableCell>Total Amount</TableCell>,<TableCell>Status</TableCell>,<TableCell>Actions</TableCell>]}</TableRow>
             </TableHead>
             <TableBody>
               {filteredServices.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center">No services found.</TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={7} align="center">No services found.</TableCell></TableRow>
               ) : (
                 filteredServices.map((service: ServiceData, index: number) => (
                   <TableRow key={service.serviceId}>
                     <TableCell>{index + 1}</TableCell>
-                    <TableCell>{service.randomId}</TableCell>
+                    <TableCell>{service.serviceId}</TableCell>
                     <TableCell>{service.vendorName}</TableCell>
-                    <TableCell>{service.descriptions.length}</TableCell>
-                    <TableCell align="right">{service.totalAmount.toFixed(2)}</TableCell>
+                    <TableCell>{service.desc_descriptions.length}</TableCell>
+                    <TableCell align="right">{(service.totalAmount || 0).toFixed(2)}</TableCell>
                     <TableCell>{service.status}</TableCell>
                     <TableCell>
-                      <Tooltip title="View Details">
-                        <IconButton onClick={() => handleViewDetailsClick(service.serviceId)} color="primary">
-                          <VisibilityIcon />
-                        </IconButton>
-                      </Tooltip>
+                      <Box display="flex" alignItems="center">
+                        {/* View Button with Eye Icon */}
+                        <Tooltip title="View Details">
+                          <IconButton
+                            onClick={() => handleViewDetailsClick(service.serviceId)}
+                            color='primary'
+                            sx={{ mr: 1 }}
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
+                        {/* Edit Button with Edit Icon */}
+                        <Tooltip title="Edit Order">
+                          <IconButton
+                            onClick={() => handleEditClick(service.serviceId)}
+                            color='primary'
+                            sx={{ mr: 1 }}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        {/* Approve Button with Check Icon */}
+                        <Tooltip title="Approve Order">
+                          <IconButton
+                            onClick={() => {
+                              setSelectedOrderId(service.serviceId);
+                              handleApproveDialogOpen();
+                            }}
+                            sx={{ mr: 1 }}
+                            color='primary'
+                          >
+                            <CheckIcon />
+                          </IconButton>
+                        </Tooltip>
+                        {/* Reject Button with Close (X) Icon */}
+                        <Tooltip title="Reject Order">
+                          <IconButton
+                            onClick={() => {
+                              setSelectedOrderId(service.serviceId);
+                              handleRejectDialogOpen();
+                            }}
+                            sx={{ mr: 1 }}
+                            color='primary'
+                          >
+                            <CloseIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))

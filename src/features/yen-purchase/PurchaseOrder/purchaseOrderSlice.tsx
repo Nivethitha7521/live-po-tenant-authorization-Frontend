@@ -86,7 +86,8 @@ export const initialState: PurchaseOrderState = {
     locationName: '',
     freights: [],
     totalFreightAmount: 0,
-    totalFreightTaxAmount: 0
+    totalFreightTaxAmount: 0,
+    vendorCode: ''
   },
   newItem: {
     itemId: '',

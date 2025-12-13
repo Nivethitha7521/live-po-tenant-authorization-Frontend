@@ -3,9 +3,20 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../redux/store';
-import { initializeAuth, logout, validateToken, checkExistingSession, addNewTab, setTabSession } from '../features/authSlice';
+import { 
+  initializeAuth, 
+  logout, 
+  validateToken, 
+  checkExistingSession, 
+  addNewTab, 
+  setTabSession,
+  checkActivityStatus,
+  updateLastActivity 
+} from '../features/authSlice';
 import SideMenu from '@/components/SideMenu';
 import Navbar from '@/components/Navbar';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const PROTECTED_ROUTES = [
   '/yen-purchase',
@@ -29,10 +40,12 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const router = useRouter();
   const pathname = usePathname();
   const dispatch = useDispatch<AppDispatch>();
-  const { isLoggedIn, isInitialized, username } = useSelector((state: RootState) => state.auth);
+  const { isLoggedIn, isInitialized, username, sessionInfo } = useSelector((state: RootState) => state.auth);
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [selectedModule, setSelectedModule] = useState('');
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
+  const [timeoutMinutesLeft, setTimeoutMinutesLeft] = useState(60);
 
   const isLoginRoute = useMemo(() => pathname === '/', [pathname]);
   const isProtectedRoute = useMemo(() =>
@@ -46,8 +59,6 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       const storedUsername = sessionStorage.getItem('username');
       const existingToken = sessionStorage.getItem('accessToken');
       
-      // No need for reload flag since we're removing beforeunload logout logic
-      
       if (existingToken && storedUsername) {
         try {
           await dispatch(validateToken()).unwrap();
@@ -56,7 +67,6 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
           return;
         } catch (error) {
           console.error('Token validation failed:', error);
-          // Clear invalid session
           sessionStorage.removeItem('accessToken');
           sessionStorage.removeItem('username');
           sessionStorage.removeItem('tabId');
@@ -99,9 +109,31 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     initializeSession();
   }, [dispatch]);
 
-  // Removed handleBeforeUnload useEffect to prevent logout on reload/refresh
-  // Sessions will be handled server-side with timeouts instead
-  // This fixes automatic logout on navigation (like edit click) and reloads
+  // Periodic activity check for logged-in users
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const activityCheckInterval = setInterval(async () => {
+      try {
+        await dispatch(checkActivityStatus()).unwrap();
+      } catch (error) {
+        console.error('Activity check failed:', error);
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => clearInterval(activityCheckInterval);
+  }, [isLoggedIn, dispatch]);
+
+  // Update session info display
+  useEffect(() => {
+    if (sessionInfo) {
+      const minutesLeft = Math.floor(sessionInfo.willTimeoutIn);
+      setTimeoutMinutesLeft(minutesLeft);
+      
+      // Show warning when less than 10 minutes left
+      setShowTimeoutWarning(minutesLeft < 10 && minutesLeft > 0);
+    }
+  }, [sessionInfo]);
 
   // Handle redirects for protected routes
   useEffect(() => {
@@ -114,6 +146,17 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   }, [isLoggedIn, isInitialized, isProtectedRoute, isLoginRoute, router, isCheckingSession]);
 
+  const handleExtendSession = async () => {
+    try {
+      await dispatch(updateLastActivity()).unwrap();
+      setShowTimeoutWarning(false);
+      toast.success('Session extended!');
+    } catch (error) {
+      console.error('Failed to extend session:', error);
+      toast.error('Failed to extend session');
+    }
+  };
+
   if (!isInitialized || isCheckingSession) {
     return <LoadingSpinner />;
   }
@@ -121,32 +164,80 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   // Show layout with Navbar and SideMenu for logged-in users
   if (isLoggedIn) {
     return (
-      <div className="flex h-screen overflow-hidden">
-        {isMenuOpen && (
-          <SideMenu
-            onMenuClick={(menuItem) => {
-              setSelectedModule(menuItem.text);
-              router.push(menuItem.path);
-            }}
-            activePath={pathname || '/yen-purchase'}
-          />
+      <>
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
+        
+        {showTimeoutWarning && (
+          <div className="fixed top-4 right-4 z-50 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold">Session about to expire!</p>
+                <p>Your session will expire in {timeoutMinutesLeft} minutes due to inactivity.</p>
+              </div>
+              <button
+                onClick={handleExtendSession}
+                className="ml-4 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded"
+              >
+                Stay Logged In
+              </button>
+            </div>
+          </div>
         )}
-        <div className={`flex flex-col flex-1 overflow-hidden ${isMenuOpen ? 'pl-12' : 'pl-0'}`}>
-          <Navbar
-            moduleName={selectedModule}
-            username={username || 'User'}
-            onToggleMenu={() => setIsMenuOpen(!isMenuOpen)}
-          />
-          <main className="flex-1 overflow-hidden px-2 py-0.5">
-            {children}
-          </main>
+        
+        <div className="flex h-screen overflow-hidden">
+          {isMenuOpen && (
+            <SideMenu
+              onMenuClick={(menuItem) => {
+                setSelectedModule(menuItem.text);
+                router.push(menuItem.path);
+              }}
+              activePath={pathname || '/yen-purchase'}
+            />
+          )}
+          <div className={`flex flex-col flex-1 overflow-hidden ${isMenuOpen ? 'pl-12' : 'pl-0'}`}>
+            <Navbar
+              moduleName={selectedModule}
+              username={username || 'User'}
+              onToggleMenu={() => setIsMenuOpen(!isMenuOpen)}
+            />
+            <main className="flex-1 overflow-hidden px-2 py-0.5">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   // Show login page for non-logged-in users
-  return <>{children}</>;
+  return (
+    <>
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+      {children}
+    </>
+  );
 };
 
 export default ClientLayout;

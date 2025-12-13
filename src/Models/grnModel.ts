@@ -48,6 +48,7 @@ export interface GrnData {
   poRandomID: string;
   vendorName: string;
   grnDate: Date;
+  grnAmount:number;
   grnVerifiedDate: Date;
   grnReturnedDate: Date;
   agingDay: number;

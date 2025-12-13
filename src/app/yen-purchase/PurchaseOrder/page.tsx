@@ -1076,17 +1076,35 @@ useEffect(() => {
     }
   };
   const handleApproveOrder = async (orderId: string) => {
-    const selectedOrder = (pendingPurchaseList || []).find(order => order.purchaseOrderId === orderId);
-    if (selectedOrder) {
-      try {
-        await dispatch(approvePurchaseOrder(selectedOrder.purchaseOrderId));
-        dispatch(fetchPendingPurchaseOrders({ page: newPage, size: pageSize }));
-      } catch (error) {
-        console.error('Failed to update order status:', error);
-      }
+  const selectedOrder = (pendingPurchaseList || []).find(order => order.purchaseOrderId === orderId);
+  if (selectedOrder) {
+    try {
+      console.log(`Approving PO: ${selectedOrder.randomId || orderId}`);
+      
+      // Show loading
       setApproveOpen(false);
+      
+      // Call approve API
+      const result = await dispatch(approvePurchaseOrder(orderId)).unwrap();
+      
+      // Show result message (same as ecommerce)
+      if (result.whatsapp_sent) {
+        setSnackbarMessage(`✅ Purchase Order Approved!\n📧 WhatsApp sent to vendor\n📎 PDF: ${result.pdf_url}`);
+      } else if (result.pdf_url) {
+        setSnackbarMessage(`✅ Purchase Order Approved!\n📎 PDF generated: ${result.pdf_url}\n⚠️ WhatsApp not sent (check vendor phone)`);
+      } else {
+        setSnackbarMessage('✅ Purchase Order Approved!');
+      }
+      
+      // Refresh list
+      dispatch(fetchPendingPurchaseOrders({ page: newPage, size: pageSize }));
+      
+    } catch (error: any) {
+      console.error('Failed to approve:', error);
+      setSnackbarMessage(`Error: ${error.message || 'Failed to approve purchase order'}`);
     }
-  };
+  }
+};
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">

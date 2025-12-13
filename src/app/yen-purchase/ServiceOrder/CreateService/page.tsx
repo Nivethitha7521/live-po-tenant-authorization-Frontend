@@ -16,25 +16,40 @@ import ClearIcon from '@mui/icons-material/Clear';
 import {
   addService, fetchServices, selectServiceState, setServiceData,
   setNewDescriptionData, addDescriptionToService, setSnackbarMessage, clearSnackbarMessage, setSnackbarOpen,
-  setDescriptionForEditing, clearDescriptionForEditing, deleteDescriptionFromService, calculateDescriptionTotals, setReduxTotals,
-  setDiscountMode, calculateOverallDiscountForAllDescriptions, fetchServiceById, updateService,
-  calculateServiceTotals,
-} from '../Features/servicepo'; // Assumed Redux slice path; adapt as needed
+  setDescriptionForEditing, clearDescriptionForEditing, deleteDescriptionFromService, calculateDescriptionTotals,
+  setReduxTotals, setDiscountMode, fetchServiceById, updateService, calculateServiceTotals,
+} from '../Features/servicepo';
 import { fetchBusinesses, fetchShipping, selectBusinesses } from '@/features/account-setting/businessSlice';
 import { AppDispatch, RootState } from '@/redux/store';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ServiceData, ServiceDescription } from '../Models/servicepo'; // Updated import to match nested models
+import { ServiceData, ServiceDescription } from '../Models/servicepo';
 import { ShippingAddress } from '@/Models/businessModel';
-import VendorAutocomplete from '../../../../components/yen-purchase/pocreationcomponent/vendorautocomplete'; // Reuse or adapt
+import VendorAutocomplete from '../../../../components/yen-purchase/pocreationcomponent/vendorautocomplete';
 import * as Yup from 'yup';
 import { useBeforeUnload } from 'react-use';
 import SmartDatePicker from '@/components/SmartDatePicker';
-import LocationAutocomplete from '../../../../components/yen-purchase/pocreationcomponent/locationautocomplete'; // Assumed reuse
+import LocationAutocomplete from '../../../../components/yen-purchase/pocreationcomponent/locationautocomplete';
 import { Location } from '@/Models/storagelocation';
 import { fetchLocations, selectStorageLocations } from '../../../../features/yen-purchase/PurchaseMaster/StorageLocationSlice';
-import { OverallDiscountServiceRequest, OverallDiscountServiceResponse } from '../Models/Itemcalculation'; // Use service-specific types
 import { VendorSummary } from '@/Models/vendor';
-// Validation schema (adapted for service)
+import { selectPurchaseOrderState } from '@/features/yen-purchase/PurchaseOrder/purchaseOrderSlice';
+import { ServiceSummary } from '../../PurchaseMaster/Service/Models/Service';
+import ServiceAutocomplete from '../../PurchaseMaster/Service/Components/ServiceAutocomplete';
+import { fetchPurchaseTaxes } from '@/features/yen-purchase/PurchaseMaster/purchaseTaxSlice';
+// Helper functions for date handling
+const formatDate = (date: Date | null): string => {
+  if (!date) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const parseDate = (dateStr: string | null): Date | null => {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  return isNaN(date.getTime()) ? null : date;
+};
+// Validation schema (date-only)
 const validationSchema = Yup.object({
   vendorName: Yup.string().required('Vendor name is required'),
   billingAddress: Yup.string().required('Billing address is required'),
@@ -42,21 +57,69 @@ const validationSchema = Yup.object({
   locationName: Yup.string().required('Location is required'),
   paymentTerms: Yup.string().required('Payment terms are required'),
   creditLimit: Yup.number().required('Credit limit is required').min(0, 'Credit limit must be non-negative'),
+  workOrderDate: Yup.string().required('Work order date is required'),
 });
-// Rounding functions
-const roundPrice = (price: number): number => Math.round(price * 100) / 100;
+// Helper to get description objects from flat arrays
+const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescription[] => {
+  const descriptions: ServiceDescription[] = [];
+  const maxLen = Math.max(
+    serviceData.sacCode.length,
+    serviceData.desc_ids.length,
+    serviceData.desc_descriptions.length,
+    serviceData.from_dates.length,
+    serviceData.to_dates.length,
+    serviceData.fees.length,
+    serviceData.quantity?.length || 0,
+    serviceData.remarks?.length || 0, // ADDED: Include remarks
+    serviceData.desc_tax_types.length,
+    serviceData.desc_tax_pers.length,
+    serviceData.desc_sgst.length,
+    serviceData.desc_cgst.length,
+    serviceData.desc_igst.length,
+    serviceData.desc_tax_amounts.length,
+    serviceData.desc_totals.length,
+    serviceData.desc_total_fees.length,
+    serviceData.desc_discount_amounts.length
+  );
+  for (let i = 0; i < maxLen; i++) {
+    descriptions.push({
+      id: serviceData.desc_ids[i] || '',
+      sacCode: serviceData.sacCode[i] || '',
+      description: serviceData.desc_descriptions[i] || '',
+      from_date: serviceData.from_dates[i] || null,
+      to_date: serviceData.to_dates[i] || null,
+      fee: serviceData.fees[i] || 0,
+      quantity: serviceData.quantity?.[i] || 1,
+      tax_type: serviceData.desc_tax_types[i] as 'cgst_sgst' | 'igst' || 'cgst_sgst',
+      tax_per: serviceData.desc_tax_pers[i] || 0,
+      sgst: serviceData.desc_sgst[i] || 0,
+      cgst: serviceData.desc_cgst[i] || 0,
+      igst: serviceData.desc_igst[i] || 0,
+      total: serviceData.desc_totals[i] || 0,
+      taxAmount: serviceData.desc_tax_amounts[i] || 0,
+      totalFee: serviceData.desc_total_fees[i] || 0,
+      finalFee: serviceData.desc_total_fees[i] || 0,
+      discountAmount: serviceData.desc_discount_amounts[i] || 0,
+      remarks: serviceData.remarks?.[i] || '', // FIXED: Pull from flat array, default empty
+    });
+  }
+  return descriptions;
+};
+// Simple unique ID generator
+const generateUniqueId = (): string => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
 const CreateServicePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams?.get('edit') ?? null;
   const isEditMode = !!editId;
-  const serviceTypeParam = searchParams?.get('type') || 'workorder';
-  const serviceType = serviceTypeParam as 'workorder' | 'ap'; // Cast to union type
-  const { serviceData, newDescription, snackbarOpen, snackbarMessage, vendors } = useSelector(selectServiceState); // Updated selector
+  const { serviceData, newDescription, snackbarOpen, snackbarMessage, serviceTotalsLoading: totalsLoading } = useSelector(selectServiceState);
   const { businesses, shippingaddress } = useSelector(selectBusinesses);
   const { location: locations, loading: locationsLoading } = useSelector(selectStorageLocations);
-  const discountMode = useSelector((state: RootState) => state.serviceOrder.discountMode ?? 'percentage') as 'percentage' | 'amount'; // Assumed
+  const { items: taxItems } = useSelector((state: RootState) => state.purchaseTax);
+  const { vendors } = useSelector(selectPurchaseOrderState); // ADD: vendors array from Redux
   const [open, setDialogOpen] = useState(false);
   const [openShippingDialog, setOpenShippingDialog] = useState(false);
   const [updatedShippingRow, setUpdatedShippingRow] = useState<ShippingAddress | null>(null);
@@ -73,8 +136,16 @@ const CreateServicePage: React.FC = () => {
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [errors, setErrors] = useState({ description: false, fromDate: false, toDate: false, fee: false, taxPer: false });
-  const [formErrors, setFormErrors] = useState({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
+  const [errors, setErrors] = useState({ description: false, fromDate: false, toDate: false, fee: false, taxPer: false, quantity: false, remarks: false });
+  const [formErrors, setFormErrors] = useState({
+    vendorName: false,
+    billingAddress: false,
+    shippingAddress: false,
+    locationName: false,
+    paymentTerms: false,
+    creditLimit: false
+  });
+  const [selectedService, setSelectedService] = useState<ServiceSummary | null>(null);
   const [vendorSearch, setVendorSearch] = useState<VendorSummary | null>(null);
   const [locationSearch, setLocationSearch] = useState<Location | null>(null);
   const [showNavigationConfirm, setShowNavigationConfirm] = useState(false);
@@ -87,14 +158,39 @@ const CreateServicePage: React.FC = () => {
   const [orderLoading, setOrderLoading] = useState(false);
   const descriptionRef = useRef<HTMLInputElement | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  // Load specific service data in edit mode
+  // FIXED: Load specific service data in edit mode (proper date parsing without time)
   useEffect(() => {
     if (isEditMode && editId) {
       setOrderLoading(true);
       dispatch(fetchServiceById(editId))
         .unwrap()
         .then((data) => {
-          dispatch(setServiceData(data));
+          // FIXED: Parse dates to date-only strings if they include time
+          const parsedData = { ...data };
+          if (parsedData.workOrderDate) {
+            const dateOnly = formatDate(new Date(parsedData.workOrderDate));
+            parsedData.workOrderDate = dateOnly;
+          }
+          // FIXED: Parse description dates to date-only, handle null
+          if (parsedData.from_dates && parsedData.from_dates.length > 0) {
+            parsedData.from_dates = parsedData.from_dates.map((dt: string | null) => dt ? formatDate(new Date(dt)) : null);
+          }
+          if (parsedData.to_dates && parsedData.to_dates.length > 0) {
+            parsedData.to_dates = parsedData.to_dates.map((dt: string | null) => dt ? formatDate(new Date(dt)) : null);
+          }
+          // ADDED: Handle quantities array from backend (assume backend returns it as flat array)
+          if (parsedData.quantity) {
+            parsedData.quantity = parsedData.quantity.map((q: string | number) => parseInt(String(q)) || 1);
+          } else {
+            parsedData.quantity = []; // Ensure it exists
+          }
+          // ADDED: Handle remarks array from backend
+          if (parsedData.remarks) {
+            parsedData.remarks = parsedData.remarks.map((r: string) => r || '');
+          } else {
+            parsedData.remarks = []; // Ensure it exists
+          }
+          dispatch(setServiceData(parsedData));
           if (data.overallDiscountValue !== undefined) {
             setOverallDiscountValue(data.overallDiscountValue);
           }
@@ -112,60 +208,98 @@ const CreateServicePage: React.FC = () => {
         });
     }
   }, [isEditMode, editId, dispatch, router]);
-  // Calculate totals (adapted for services, no freight)
-  useEffect(() => {
-    const calculateAndUpdateTotals = async () => {
-      if (serviceData.descriptions.length > 0) {
-        try {
-          const result = await dispatch(calculateServiceTotals({
-            descriptions: serviceData.descriptions,
-          })).unwrap();
-          setTotals({
-            subTotal: result.totalFees,
-            roundedTotalOrderAmount: result.totalAmount,
-            roundedTotalDiscount: result.totalDiscount || 0, // Assumed
-            roundedTotalTax: result.totalTax,
-            overallDiscountAmount: 0,
-            descriptionDiscountAmount: result.totalDiscount || 0,
-            taxAmount: result.totalTax,
-            afterDiscount: result.amountAfterDiscount || 0,
-          });
-          dispatch(setReduxTotals({
-            totalFees: result.totalFees,
-            totalAmount: result.totalAmount,
-            totalDiscount: result.totalDiscount || 0,
-            totalTax: result.totalTax,
-          }));
-        } catch (error) {
-          console.error('Failed to calculate service totals:', error);
-          const newTotals = calculateTotals;
-          setTotals(newTotals);
-          dispatch(setReduxTotals({
-            totalFees: newTotals.subTotal,
-            totalAmount: newTotals.roundedTotalOrderAmount,
-            totalDiscount: newTotals.roundedTotalDiscount,
-            totalTax: newTotals.roundedTotalTax,
-          }));
-        }
-      } else {
-        const newTotals = calculateTotals;
-        setTotals(newTotals);
-        dispatch(setReduxTotals({
-          totalFees: newTotals.subTotal,
-          totalAmount: newTotals.roundedTotalOrderAmount,
-          totalDiscount: newTotals.roundedTotalDiscount,
-          totalTax: newTotals.roundedTotalTax,
-        }));
+  // UPDATED: Fetch totals from backend after description changes or discount updates
+  const refreshTotals = useCallback(async () => {
+    if (serviceData.desc_descriptions.length === 0) {
+      setTotals({
+        subTotal: 0, roundedTotalOrderAmount: 0, roundedTotalDiscount: 0, roundedTotalTax: 0,
+        overallDiscountAmount: 0, descriptionDiscountAmount: 0, taxAmount: 0, afterDiscount: 0,
+      });
+      return;
+    }
+    try {
+      const descriptions = getDescriptionsFromFlatArrays(serviceData).map(desc => ({
+        ...desc,
+        from_date: desc.from_date || null,
+        to_date: desc.to_date || null,
+        remarks: desc.remarks || '', // FIXED: Use actual remarks, not description
+        quantity: desc.quantity || 1, // Ensure quantity is sent
+        discountAmount: desc.discountAmount || 0,
+      }));
+      const request = {
+        descriptions,
+        overall_discount_value: overallDiscountValue,
+        overall_discount_type: overallDiscountMode,
+        round_off: roundOffValue,
+      };
+      const result = await dispatch(calculateServiceTotals(request)).unwrap();
+      // UPDATED: Update flat arrays with backend-calculated values (including proportional overall discounts)
+      const updatedServiceData = { ...serviceData };
+      if (result.desc_sgst && result.desc_sgst.length > 0) {
+        updatedServiceData.desc_sgst = result.desc_sgst;
+        updatedServiceData.desc_cgst = result.desc_cgst;
+        updatedServiceData.desc_igst = result.desc_igst;
+        updatedServiceData.desc_tax_amounts = result.desc_tax_amounts || descriptions.map(d => (d.sgst || 0) + (d.cgst || 0) + (d.igst || 0));
+        updatedServiceData.desc_totals = result.desc_totals || descriptions.map((d, i) => descriptions[i].fee + (result.desc_tax_amounts?.[i] || 0) - (result.desc_overall_discounts?.[i] || 0));
+        updatedServiceData.desc_total_fees = result.desc_total_fees || descriptions.map(d => d.fee);
+        updatedServiceData.desc_discount_amounts = result.desc_discount_amounts || descriptions.map(d => d.discountAmount || 0); // Individual
+        updatedServiceData.desc_overall_discounts = result.desc_overall_discounts || []; // NEW: Store per-desc overall discounts
+        // ADDED: Preserve quantity (not calculated by backend)
+        updatedServiceData.quantity = serviceData.quantity || descriptions.map(() => 1);
+        // ADDED: Preserve remarks (not calculated by backend)
+        updatedServiceData.remarks = serviceData.remarks || descriptions.map(() => '');
       }
-    };
-    calculateAndUpdateTotals();
-  }, [serviceData.descriptions, dispatch]);
+      dispatch(setServiceData(updatedServiceData));
+      // Set totals from backend response
+      setTotals({
+        subTotal: result.totalFees || 0,
+        roundedTotalOrderAmount: result.totalAmount || 0,
+        roundedTotalDiscount: result.totalDiscount || 0,
+        roundedTotalTax: result.totalTax || 0,
+        overallDiscountAmount: result.totalOverallDiscount || 0,
+        descriptionDiscountAmount: result.totalIndividualDiscount || 0,
+        taxAmount: result.totalTax || 0,
+        afterDiscount: result.amountAfterDiscount || 0,
+      });
+      dispatch(setReduxTotals({
+        totalFees: result.totalFees || 0,
+        totalAmount: result.totalAmount || 0,
+        totalDiscount: result.totalDiscount || 0,
+        totalTax: result.totalTax || 0,
+      }));
+    } catch (error) {
+      console.error('Error refreshing totals:', error);
+      dispatch(setSnackbarMessage('Failed to calculate totals.'));
+      dispatch(setSnackbarOpen(true));
+    }
+  }, [serviceData, overallDiscountValue, overallDiscountMode, roundOffValue, dispatch]);
+  // FIXED: Removed refreshTotals from deps to prevent infinite loop; effect now runs only on primitive dep changes
+  // Call refreshTotals after adding/deleting descriptions or changing discounts/roundoff
+  useEffect(() => {
+  if (open) {
+    dispatch(fetchPurchaseTaxes());
+  }
+}, [open, dispatch]);
+
+  useEffect(() => {
+    refreshTotals();
+  }, [serviceData.desc_descriptions.length, overallDiscountValue, overallDiscountMode, roundOffValue]); // REMOVED: refreshTotals from deps
   // Auto-select vendor and location in edit mode
   useEffect(() => {
     if (isEditMode && serviceData.vendorName && vendors.length > 0) {
       const matchedVendor = vendors.find((vendor: VendorSummary) => vendor.vendorName === serviceData.vendorName);
       if (matchedVendor && !vendorSearch) {
-        setVendorSearch({ vendorName: matchedVendor.vendorName, contactpersonPhone: matchedVendor.contactpersonPhone, contactpersonEmail: matchedVendor.contactpersonEmail, address: matchedVendor.address, country: matchedVendor.country, paymentTerms: matchedVendor.paymentTerms, creditLimit: matchedVendor.creditLimit, state: matchedVendor.state, city: matchedVendor.city } as VendorSummary);
+        setVendorSearch({
+          vendorName: matchedVendor.vendorName,
+          contactpersonPhone: matchedVendor.contactpersonPhone,
+          contactpersonEmail: matchedVendor.contactpersonEmail,
+          address: matchedVendor.address,
+          country: matchedVendor.country,
+          paymentTerms: matchedVendor.paymentTerms,
+          creditLimit: matchedVendor.creditLimit,
+          state: matchedVendor.state,
+          city: matchedVendor.city
+        } as VendorSummary);
       }
     }
   }, [isEditMode, serviceData.vendorName, vendors, vendorSearch]);
@@ -180,15 +314,34 @@ const CreateServicePage: React.FC = () => {
   // Reset form for create mode
   useEffect(() => {
     if (!isEditMode) {
-      const currentDate = new Date().toISOString();
+      const currentDate = new Date();
+      currentDate.setHours(0, 0, 0, 0);
       dispatch(setServiceData({
         serviceId: '',
         vendorName: '',
         vendorContact: '',
-        orderDate: currentDate,
-        expectedDeliveryDate: currentDate,
+        workOrderDate: formatDate(currentDate), // Date-only
         status: 'Pending',
-        descriptions: [],
+        // Flat arrays initialization
+        sacCode: [],
+        desc_ids: [],
+        desc_descriptions: [],
+        from_dates: [],
+        to_dates: [],
+        quantity: [], // ADDED: Initialize quantity array
+        remarks: [], // ADDED: Initialize remarks array
+        fees: [],
+        desc_tax_types: [],
+        desc_tax_pers: [],
+        desc_sgst: [],
+        desc_cgst: [],
+        desc_igst: [],
+        desc_tax_amounts: [],
+        desc_totals: [],
+        desc_total_fees: [],
+        desc_discount_amounts: [],
+        desc_overall_discounts: [], // NEW
+        // Other fields
         totalAmount: 0,
         paymentTerms: '',
         shippingAddress: '',
@@ -202,19 +355,17 @@ const CreateServicePage: React.FC = () => {
         state: '',
         city: '',
         creditLimit: 0,
-        serviceType,
-        workOrderNumber: '',
         overallDiscountValue: 0,
         roundOffValue: 0,
         totalTax: 0,
-        randomId: '',
+        vendorId: '',
       }));
     }
-  }, [isEditMode, dispatch, serviceType]);
-  // Set default addresses and dates (similar to PO)
+  }, [isEditMode, dispatch]);
+  // Set default addresses and dates
   useEffect(() => {
     if (shippingaddress.length > 0 && !serviceData.shippingAddress) {
-      const defaultShippingAddress = shippingaddress[2].address ?? '';
+      const defaultShippingAddress = shippingaddress[2]?.address ?? '';
       dispatch(setServiceData({
         ...serviceData,
         shippingAddress: defaultShippingAddress
@@ -228,24 +379,23 @@ const CreateServicePage: React.FC = () => {
       dispatch(setServiceData({ ...serviceData, billingAddress: defaultBillingAddress }));
     }
   }, [businesses, serviceData, dispatch]);
+  // FIXED: workOrderDate handling - always default to today in create mode if missing
   useEffect(() => {
-    const currentDate = new Date().toISOString();
-    const updatedData = { ...serviceData };
-    if (!serviceData.orderDate) {
-      updatedData.orderDate = currentDate;
+    if (!isEditMode && (!serviceData.workOrderDate || serviceData.workOrderDate === '')) {
+      const currentDate = new Date();
+      currentDate.setHours(0, 0, 0, 0);
+      dispatch(setServiceData({
+        ...serviceData,
+        workOrderDate: formatDate(currentDate) // Date-only
+      }));
     }
-    if (!serviceData.expectedDeliveryDate) {
-      updatedData.expectedDeliveryDate = currentDate;
-    }
-    if (!serviceData.orderDate || !serviceData.expectedDeliveryDate) {
-      dispatch(setServiceData(updatedData));
-    }
-  }, [dispatch, serviceData.orderDate, serviceData.expectedDeliveryDate]);
+  }, [dispatch, serviceData.workOrderDate, isEditMode]);
   // Track dirty state
   useEffect(() => {
+    const descriptions = getDescriptionsFromFlatArrays(serviceData);
     const hasChanges =
       serviceData.vendorName !== '' ||
-      serviceData.descriptions.length > 0 ||
+      descriptions.length > 0 ||
       serviceData.billingAddress !== '' ||
       serviceData.shippingAddress !== '' ||
       serviceData.locationName !== '' ||
@@ -263,58 +413,23 @@ const CreateServicePage: React.FC = () => {
     dispatch(fetchShipping());
     dispatch(fetchLocations());
   }, [dispatch]);
-  
-  // Calculate totals memo (adapted, no freight)
-  const calculateTotals = useMemo(() => {
-    let subTotal = 0;
-    let descriptionDiscountAmount = 0;
-    let taxAmount = 0;
-    serviceData.descriptions.forEach((desc) => {
-      subTotal += desc.fee || 0;
-      descriptionDiscountAmount += desc.discountAmount || 0;
-      taxAmount += (desc.sgst || 0) + (desc.cgst || 0) + (desc.igst || 0);
-    });
-    const overallDiscountAmount = overallDiscountMode === 'percentage'
-      ? subTotal * (overallDiscountValue / 100)
-      : overallDiscountValue;
-    const totalDiscount = descriptionDiscountAmount + overallDiscountAmount;
-    const afterDiscount = Math.max(0, subTotal - totalDiscount);
-    const finalAmount = afterDiscount + taxAmount + roundOffValue;
-    const totalTax = taxAmount;
-    return {
-      subTotal: roundPrice(subTotal),
-      roundedTotalOrderAmount: roundPrice(finalAmount),
-      roundedTotalDiscount: roundPrice(totalDiscount),
-      roundedTotalTax: roundPrice(totalTax),
-      overallDiscountAmount: roundPrice(overallDiscountAmount),
-      descriptionDiscountAmount: roundPrice(descriptionDiscountAmount),
-      taxAmount: roundPrice(taxAmount),
-      afterDiscount: roundPrice(afterDiscount),
-    };
-  }, [serviceData.descriptions, overallDiscountMode, overallDiscountValue, roundOffValue]);
+  // Check for description-wise discounts
   useEffect(() => {
-    const newTotals = calculateTotals;
-    setTotals(newTotals);
-    dispatch(setReduxTotals({
-      totalFees: newTotals.subTotal,
-      totalAmount: newTotals.roundedTotalOrderAmount,
-      totalDiscount: newTotals.roundedTotalDiscount,
-      totalTax: newTotals.roundedTotalTax,
-    }));
-  }, [calculateTotals, dispatch]);
-  // Service-specific handlers
-  const handleOrderDateChange = (date: Date | null) => {
-    const finalDate = date || new Date();
+    const descriptions = getDescriptionsFromFlatArrays(serviceData);
+    const hasDiscount = descriptions.some(desc => (desc.discountAmount || 0) > 0);
+    setHasDescriptionWiseDiscount(hasDiscount);
+    if (hasDiscount && overallDiscountValue > 0) {
+      setOverallDiscountValue(0);
+      dispatch(setSnackbarMessage('Overall discount disabled due to existing description-wise discounts'));
+      dispatch(setSnackbarOpen(true));
+    }
+  }, [serviceData, overallDiscountValue, dispatch]);
+  // FIXED: Service-specific handlers with date-only
+  const handleWorkOrderDateChange = (date: Date | null) => {
+    const finalDateStr = formatDate(date);
     dispatch(setServiceData({
       ...serviceData,
-      orderDate: finalDate.toISOString()
-    }));
-  };
-  const handleExpectedDeliveryDateChange = (date: Date | null) => {
-    const finalDate = date || new Date();
-    dispatch(setServiceData({
-      ...serviceData,
-      expectedDeliveryDate: finalDate.toISOString()
+      workOrderDate: finalDateStr
     }));
   };
   const handleSelectAddressChange = useCallback(
@@ -381,14 +496,34 @@ const CreateServicePage: React.FC = () => {
       setRoundOffValue(parsedValue);
     }
   };
-  // Description addition handlers (updated field names)
   const handleDescriptionChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    if (name === 'description') {
-      if (value === '' || value.length <= 500) { // Reasonable limit
+    if (name === 'sacCode') {
+      dispatch(setNewDescriptionData({ ...newDescription, sacCode: value }));
+    } else if (name === 'description') {
+      if (value === '' || value.length <= 500) {
         dispatch(setNewDescriptionData({ ...newDescription, description: value }));
         setErrors({ ...errors, description: false });
       }
+    } else if (name === 'quantity') {
+      // FIXED: Handle quantity input - allow clear (sets to 1) and type new value
+      if (value === '' || /^\d+$/.test(value)) {
+        const parsedValue = value === '' ? 1 : parseInt(value) || 1;
+        if (parsedValue < 1) {
+          dispatch(setSnackbarMessage('Quantity must be at least 1'));
+          dispatch(setSnackbarOpen(true));
+          return;
+        }
+        dispatch(setNewDescriptionData({
+          ...newDescription,
+          quantity: parsedValue,
+        }));
+        setErrors({ ...errors, quantity: false });
+      }
+    } else if (name === 'remarks') {
+      // FIXED: Handle remarks input
+      dispatch(setNewDescriptionData({ ...newDescription, remarks: value }));
+      setErrors({ ...errors, remarks: false });
     } else if (name === 'fee') {
       if (value === '' || /^\d{0,8}(\.\d{0,2})?$/.test(value)) {
         const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
@@ -415,87 +550,143 @@ const CreateServicePage: React.FC = () => {
     }
   };
   const handleDescriptionDateChange = (name: 'from_date' | 'to_date', date: Date | null) => {
-    const finalDate = date || new Date();
+    const finalDateStr = formatDate(date);
     dispatch(setNewDescriptionData({
       ...newDescription,
-      [name]: finalDate.toISOString(),
+      [name]: finalDateStr,
     }));
-    setErrors({ ...errors, [name]: false });
+    setErrors({ ...errors, [name === 'from_date' ? 'fromDate' : 'toDate']: false });
   };
   const handleDescriptionTaxTypeChange = (event: ChangeEvent<HTMLInputElement>) => {
     dispatch(setNewDescriptionData({ ...newDescription, tax_type: event.target.value as 'cgst_sgst' | 'igst' }));
   };
-  const handleAddDescription = useCallback(async () => {
-    setErrors({
-      description: !newDescription.description,
-      fromDate: !newDescription.from_date,
-      toDate: !newDescription.to_date,
-      fee: !newDescription.fee || newDescription.fee <= 0,
-      taxPer: false,
-    });
-    if (!newDescription.description || !newDescription.from_date || !newDescription.to_date || !newDescription.fee || newDescription.fee <= 0) {
-      dispatch(setSnackbarMessage('Description, dates, and fee are required. Fee must be greater than zero.'));
-      dispatch(setSnackbarOpen(true));
-      return;
+const handleAddDescription = useCallback(async () => {
+  // Validation
+  setErrors({
+    description: !newDescription.description?.trim(),
+    fromDate: false,
+    toDate: false,
+    fee: !newDescription.fee || newDescription.fee <= 0,
+    taxPer: false,
+    quantity: !newDescription.quantity || newDescription.quantity < 1,
+    remarks: false, // Remarks is optional
+  });
+ 
+  // Description, fee, and quantity are required
+  if (!newDescription.description?.trim() ||
+      !newDescription.fee ||
+      newDescription.fee <= 0 ||
+      !newDescription.quantity ||
+      newDescription.quantity < 1) {
+    dispatch(setSnackbarMessage('Description, fee (>0), and quantity (≥1) are required.'));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+ 
+  setLoading(true);
+  try {
+    const params = {
+      description: newDescription.description.trim(),
+      fromDate: newDescription.from_date || null,
+      toDate: newDescription.to_date || null,
+      fee: newDescription.fee,
+      taxType: newDescription.tax_type,
+      taxPer: newDescription.tax_per || 0,
+      sacCode: newDescription.sacCode || '',
+      discount: 0,
+      quantity: newDescription.quantity || 1,
+      remarks: newDescription.remarks || '', // FIXED: Include remarks in params
+    };
+   
+    const calcResult = await dispatch(calculateDescriptionTotals(params)).unwrap();
+   
+    // DEBUG: Log the calculation result
+    console.log('Calculation Result:', calcResult);
+   
+    // Create the new description with calculated values
+    const newDescWithId: ServiceDescription = {
+      id: generateUniqueId(),
+      sacCode: newDescription.sacCode || '',
+      description: newDescription.description.trim(),
+      from_date: newDescription.from_date || null,
+      to_date: newDescription.to_date || null,
+      fee: newDescription.fee,
+      quantity: newDescription.quantity || 1,
+      tax_type: newDescription.tax_type,
+      tax_per: newDescription.tax_per || 0,
+      sgst: calcResult.sgst || 0,
+      cgst: calcResult.cgst || 0,
+      igst: calcResult.igst || 0,
+      total: calcResult.total || 0,
+      taxAmount: calcResult.totalTax || 0,
+      totalFee: calcResult.totalFee || 0,
+      finalFee: calcResult.totalFee || 0,
+      discountAmount: 0,
+      remarks: newDescription.remarks || '',
+    };
+   
+    // DEBUG: Log the created description
+    console.log('New Description to Add:', newDescWithId);
+   
+    dispatch(addDescriptionToService(newDescWithId));
+   
+    // FIXED: Removed manual quantity update (handled in reducer)
+   
+    // Reset form
+    dispatch(setNewDescriptionData({
+      id: '',
+      sacCode: '',
+      description: '',
+      from_date: null,
+      to_date: null,
+      fee: 0,
+      tax_type: 'cgst_sgst',
+      tax_per: 0,
+      sgst: 0,
+      cgst: 0,
+      igst: 0,
+      total: 0,
+      taxAmount: 0,
+      totalFee: 0,
+      finalFee: 0,
+      discountAmount: 0,
+      quantity: 1,
+      remarks: '',
+    }));
+   
+    // Clear the selected service from autocomplete
+    setSelectedService(null);
+   
+    setErrors({ description: false, fromDate: false, toDate: false, fee: false, taxPer: false, quantity: false, remarks: false });
+   
+    // Show success message
+    dispatch(setSnackbarMessage('Description added successfully'));
+    dispatch(setSnackbarOpen(true));
+   
+    setTimeout(() => descriptionRef.current?.focus(), 100);
+   
+  } catch (error) {
+    console.error('Add desc error:', error);
+    dispatch(setSnackbarMessage(`Failed to add: ${error instanceof Error ? error.message : 'Try again'}`));
+    dispatch(setSnackbarOpen(true));
+  } finally {
+    setLoading(false);
+  }
+}, [dispatch, newDescription, serviceData]);
+  // FIXED: Handle edit description (load dates as Date objects for picker)
+  const handleEditDescription = (index: number) => {
+    const descriptions = getDescriptionsFromFlatArrays(serviceData);
+    const desc = descriptions[index];
+    if (desc) {
+      // FIXED: Set dates as strings, but picker will parse to Date; include quantity and remarks
+      dispatch(setDescriptionForEditing({ ...desc, index }));
     }
-    // Handle null dates - convert to current date if null
-    const fromDate = newDescription.from_date || new Date();
-    const toDate = newDescription.to_date || new Date();
-    if (new Date(fromDate) > new Date(toDate)) {
-      dispatch(setSnackbarMessage('From date cannot be after to date.'));
-      dispatch(setSnackbarOpen(true));
-      return;
-    }
-    setLoading(true);
-    try {
-      const params = {
-        description: newDescription.description,
-        fromDate: typeof fromDate === 'string' ? fromDate : fromDate.toISOString(),
-        toDate: typeof toDate === 'string' ? toDate : toDate.toISOString(),
-        fee: newDescription.fee,
-        taxType: newDescription.tax_type,
-        taxPer: newDescription.tax_per || 0,
-      };
-      await dispatch(calculateDescriptionTotals(params)).unwrap();
-      dispatch(addDescriptionToService());
-      // Reset form
-      dispatch(setNewDescriptionData({
-        id: '',
-        description: '',
-        from_date: undefined,
-        to_date: undefined,
-        fee: 0,
-        tax_type: 'cgst_sgst',
-        tax_per: 0,
-        sgst: 0,
-        cgst: 0,
-        igst: 0,
-        total: 0,
-        taxAmount: 0,
-        totalFee: 0,
-        finalFee: 0,
-      }));
-      setTimeout(() => {
-        if (descriptionRef.current) {
-          descriptionRef.current.focus();
-        }
-      }, 0);
-    } catch (error) {
-      console.error('Failed to add description:', error);
-      dispatch(setSnackbarMessage(`Failed to add description: ${error instanceof Error ? error.message : 'Please try again.'}`));
-      dispatch(setSnackbarOpen(true));
-    } finally {
-      setLoading(false);
-    }
-  }, [dispatch, newDescription]);
-  const handleEditDescription = (desc: ServiceDescription) => {
-    dispatch(setDescriptionForEditing(desc));
   };
-  const handleDeleteDescription = (descId: string) => {
-    dispatch(deleteDescriptionFromService(descId));
+  const handleDeleteDescription = (index: number) => {
+    dispatch(deleteDescriptionFromService(index));
     dispatch(clearDescriptionForEditing());
   };
-  // Overall discount handlers (adapted)
+  // UPDATED: Overall discount handlers (use backend calculateServiceTotals)
   const handleOverallDiscountChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {
@@ -525,11 +716,12 @@ const CreateServicePage: React.FC = () => {
       newValue = overallDiscountMode === 'percentage'
         ? (overallDiscountValue / 100) * totals.subTotal
         : (overallDiscountValue / totals.subTotal) * 100;
-      newValue = roundPrice(newValue);
+      newValue = Math.round(newValue * 100) / 100;
     }
     setOverallDiscountMode(newMode);
     setOverallDiscountValue(newValue);
   };
+  // UPDATED: Apply overall discount via backend calculateServiceTotals
   const handleApplyDiscount = async () => {
     if (hasDescriptionWiseDiscount) {
       dispatch(setSnackbarMessage('Cannot apply overall discount when description-wise discounts exist'));
@@ -541,59 +733,19 @@ const CreateServicePage: React.FC = () => {
       dispatch(setSnackbarOpen(true));
       return;
     }
-    if (serviceData.descriptions.length === 0) {
+    if (serviceData.desc_descriptions.length === 0) {
       dispatch(setSnackbarMessage('Add descriptions before applying discount'));
       dispatch(setSnackbarOpen(true));
       return;
     }
     setLoading(true);
     try {
-      const allDescriptions = serviceData.descriptions.map((desc) => ({
-        id: desc.id || '',
-        description: desc.description,
-        from_date: desc.from_date || '',
-        to_date: desc.to_date || '',
-        fee: desc.fee || 0,
-        taxType: desc.tax_type || 'cgst_sgst',
-        taxPer: desc.tax_per || 0,
-      }));
-      const payload: OverallDiscountServiceRequest = {
-        descriptions: allDescriptions,
-        overallDiscount: overallDiscountMode === 'percentage' ? overallDiscountValue : 0,
-        overallDiscountAmount: overallDiscountMode === 'amount' ? overallDiscountValue : 0,
-        overallDiscountType: overallDiscountMode,
-        applyOverallDiscount: true,
-      };
-      const result = await dispatch(calculateOverallDiscountForAllDescriptions(payload)).unwrap();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to apply discount');
-      }
-      // Update descriptions with calculated values (similar to items in PO)
-      const updatedDescriptions = serviceData.descriptions.map(desc => {
-        const calculatedDesc = result.descriptions.find(calc => calc.id === (desc.id || ''));
-        if (calculatedDesc) {
-          return {
-            ...desc,
-            // Update with calculated discount, tax, total fields
-            discountAmount: calculatedDesc.discountAmount,
-            sgst: calculatedDesc.sgst,
-            cgst: calculatedDesc.cgst,
-            igst: calculatedDesc.igst,
-            total: calculatedDesc.total,
-          };
-        }
-        return desc;
-      });
-      dispatch(setServiceData({
-        ...serviceData,
-        descriptions: updatedDescriptions,
-        totalAmount: result.summary.totalFinalAmount,
-      }));
+      await refreshTotals(); // This will apply the discount via backend and update flat arrays
       dispatch(setSnackbarMessage(
         `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} discount across all descriptions`
       ));
       dispatch(setSnackbarOpen(true));
-      setOverallDiscountValue(0);
+      setOverallDiscountValue(0); // Reset input
     } catch (error) {
       console.error('Error applying overall discount:', error);
       dispatch(setSnackbarMessage(
@@ -641,15 +793,34 @@ const CreateServicePage: React.FC = () => {
     }
   };
   const handleClear = () => {
-    const currentDate = new Date().toISOString();
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
     dispatch(setServiceData({
       serviceId: '',
       vendorName: '',
       vendorContact: '',
-      orderDate: currentDate,
-      expectedDeliveryDate: currentDate,
+      workOrderDate: formatDate(currentDate), // Date-only
       status: 'Pending',
-      descriptions: [],
+      // Flat arrays
+      sacCode: [],
+      desc_ids: [],
+      desc_descriptions: [],
+      from_dates: [],
+      to_dates: [],
+      quantity: [], // ADDED
+      remarks: [], // ADDED
+      fees: [],
+      desc_tax_types: [],
+      desc_tax_pers: [],
+      desc_sgst: [],
+      desc_cgst: [],
+      desc_igst: [],
+      desc_tax_amounts: [],
+      desc_totals: [],
+      desc_total_fees: [],
+      desc_discount_amounts: [],
+      desc_overall_discounts: [], // NEW
+      // Other fields
       totalAmount: 0,
       paymentTerms: '',
       shippingAddress: '',
@@ -663,18 +834,17 @@ const CreateServicePage: React.FC = () => {
       state: '',
       city: '',
       creditLimit: 0,
-      serviceType,
-      workOrderNumber: '',
       overallDiscountValue: 0,
       roundOffValue: 0,
       totalTax: 0,
-      randomId: '',
+      vendorId: '',
     }));
     dispatch(setNewDescriptionData({
       id: '',
+      sacCode: '',
       description: '',
-      from_date: undefined,
-      to_date: undefined,
+      from_date: '',
+      to_date: '',
       fee: 0,
       tax_type: 'cgst_sgst',
       tax_per: 0,
@@ -685,6 +855,9 @@ const CreateServicePage: React.FC = () => {
       taxAmount: 0,
       totalFee: 0,
       finalFee: 0,
+      discountAmount: 0,
+      quantity: 1,
+      remarks: '',
     }));
     setVendorSearch(null);
     setLocationSearch(null);
@@ -692,73 +865,91 @@ const CreateServicePage: React.FC = () => {
     setOverallDiscountMode('percentage');
     setRoundOffValue(0);
     setIsFormDirty(false);
-    setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
+    setFormErrors({
+      vendorName: false,
+      billingAddress: false,
+      shippingAddress: false,
+      locationName: false,
+      paymentTerms: false,
+      creditLimit: false
+    });
     if (isEditMode) {
-      router.push('/yen-purchase/PurchaseOrder/ServiceList');
+      router.push('/yen-purchase/ServiceOrder');
     }
   };
   const handleBackToService = () => {
     if (isFormDirty) {
       setPendingNavigation(() => () => {
         handleClear();
-        router.push('/yen-purchase/PurchaseOrder/ServiceList');
+        router.push('/yen-purchase/ServiceOrder');
       });
       setShowNavigationConfirm(true);
     } else {
       handleClear();
-      router.push('/yen-purchase/PurchaseOrder/ServiceList');
+      router.push('/yen-purchase/ServiceOrder');
     }
   };
-  // Submit handler (adapted, no freight)
   const handleSubmit = async () => {
     try {
       await validationSchema.validate(serviceData, { abortEarly: false });
-      setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
-      if (!serviceData.descriptions.length) {
+      setFormErrors({
+        vendorName: false,
+        billingAddress: false,
+        shippingAddress: false,
+        locationName: false,
+        paymentTerms: false,
+        creditLimit: false
+      });
+      if (serviceData.desc_descriptions.length === 0) {
         dispatch(setSnackbarMessage('At least one description is required.'));
         dispatch(setSnackbarOpen(true));
         return;
       }
-      const orderDate = serviceData.orderDate || new Date().toISOString();
-      const expectedDeliveryDate = serviceData.expectedDeliveryDate || new Date().toISOString();
+      // UPDATED: Final totals refresh before submit
+      await refreshTotals();
+      const workOrderDate = serviceData.workOrderDate || formatDate(new Date()); // Date-only
       const finalAmount = totals.roundedTotalOrderAmount;
       const totalDiscount = totals.roundedTotalDiscount;
       const totalTax = totals.roundedTotalTax;
+      // CRITICAL: Include all required fields (flat arrays)
       const dataToSubmit = {
         ...serviceData,
-        serviceType,
-        orderDate,
-        expectedDeliveryDate,
+        workOrderDate,
         totalAmount: finalAmount,
         totalTax: totalTax,
-        overallDiscountType: overallDiscountMode,
+        overallDiscountType: overallDiscountMode, // Send discount mode
         overallDiscountValue,
         totalDiscount,
         roundOffValue,
-        descriptions: serviceData.descriptions.map(desc => ({
-          id: desc.id,
-          description: desc.description,
-          from_date: desc.from_date || '',
-          to_date: desc.to_date || '',
-          fee: desc.fee,
-          tax_type: desc.tax_type,
-          tax_per: desc.tax_per,
-          sgst: desc.sgst,
-          cgst: desc.cgst,
-          igst: desc.igst,
-          total: desc.total,
-          taxAmount: desc.taxAmount || 0,
-          totalFee: desc.totalFee || 0,
-          finalFee: desc.finalFee || 0,
-        })),
-      } as Omit<ServiceData, "serviceId"> & { serviceType: "workorder" | "ap" };
+        quantity: serviceData.quantity || [], // ADDED: Ensure quantities sent
+        remarks: serviceData.remarks || [], // ADDED: Ensure remarks sent
+        // Ensure all array fields exist
+        sacCode: serviceData.sacCode || [],
+        desc_ids: serviceData.desc_ids || [],
+        desc_descriptions: serviceData.desc_descriptions || [],
+        from_dates: serviceData.from_dates || [],
+        to_dates: serviceData.to_dates || [],
+        fees: serviceData.fees || [],
+        desc_tax_types: serviceData.desc_tax_types || [],
+        desc_tax_pers: serviceData.desc_tax_pers || [],
+        desc_sgst: serviceData.desc_sgst || [],
+        desc_cgst: serviceData.desc_cgst || [],
+        desc_igst: serviceData.desc_igst || [],
+        desc_tax_amounts: serviceData.desc_tax_amounts || [],
+        desc_totals: serviceData.desc_totals || [],
+        desc_total_fees: serviceData.desc_total_fees || [],
+        desc_discount_amounts: serviceData.desc_discount_amounts || [],
+        desc_overall_discounts: serviceData.desc_overall_discounts || [], // NEW
+        // Other required fields
+        termsandConditions: serviceData.termsandConditions || [''],
+      } as ServiceData;
       let result;
       setSubmitLoading(true);
       if (isEditMode && editId) {
         result = await dispatch(updateService({ serviceId: editId, service: dataToSubmit })).unwrap();
         dispatch(setSnackbarMessage(`Service Order ${result.serviceId || editId} successfully updated.`));
       } else {
-        result = await dispatch(addService(dataToSubmit)).unwrap(); // Pass typed data
+        result = await dispatch(addService(dataToSubmit)).unwrap();
         dispatch(setSnackbarMessage(
           `Service Order ${result.serviceId || 'Unknown'} successfully created.`
         ));
@@ -769,15 +960,8 @@ const CreateServicePage: React.FC = () => {
       setDialogOpen(false);
       router.push('/yen-purchase/ServiceOrder');
     } catch (error) {
-      if (error instanceof Yup.ValidationError) {
-        const newErrors = { vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false };
-        error.inner.forEach((err) => {
-          if (err.path) newErrors[err.path as keyof typeof newErrors] = true;
-        });
-        setFormErrors(newErrors);
-      } else {
-        dispatch(setSnackbarMessage(`Failed to ${isEditMode ? 'update' : 'create'} service order: ${error instanceof Error ? error.message : 'Unknown error'}`));
-      }
+      console.error('Submit error:', error);
+      dispatch(setSnackbarMessage('Failed to submit service order. Please check the data.'));
       dispatch(setSnackbarOpen(true));
     } finally {
       setSubmitLoading(false);
@@ -786,32 +970,36 @@ const CreateServicePage: React.FC = () => {
   const handleOpenDialog = () => {
     validationSchema.validate(serviceData, { abortEarly: false })
       .then(() => {
-        setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
+        setFormErrors({
+          vendorName: false,
+          billingAddress: false,
+          shippingAddress: false,
+          locationName: false,
+          paymentTerms: false,
+          creditLimit: false
+        });
         setIsHoldOrderDialog(totals.roundedTotalOrderAmount > serviceData.creditLimit);
         setDialogOpen(true);
       })
       .catch((err: Yup.ValidationError) => {
-        const newErrors = { vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false };
+        const newErrors = {
+          vendorName: false,
+          billingAddress: false,
+          shippingAddress: false,
+          locationName: false,
+          paymentTerms: false,
+          creditLimit: false
+        };
         err.inner.forEach((error) => {
-          if (error.path) newErrors[error.path as keyof typeof newErrors] = true;
+          if (error.path && error.path in newErrors) {
+            newErrors[error.path as keyof typeof newErrors] = true;
+          }
         });
         setFormErrors(newErrors);
         dispatch(setSnackbarMessage('Please fill all required fields.'));
         dispatch(setSnackbarOpen(true));
       });
   };
-  // Check for description-wise discounts
-  useEffect(() => {
-    const hasDiscount = serviceData.descriptions.some(desc =>
-      (desc.discountAmount || 0) > 0 // Assumed field
-    );
-    setHasDescriptionWiseDiscount(hasDiscount);
-    if (hasDiscount && overallDiscountValue > 0) {
-      setOverallDiscountValue(0);
-      dispatch(setSnackbarMessage('Overall discount disabled due to existing description-wise discounts'));
-      dispatch(setSnackbarOpen(true));
-    }
-  }, [serviceData.descriptions, overallDiscountValue, dispatch]);
   if (orderLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh" flexDirection="column">
@@ -822,15 +1010,18 @@ const CreateServicePage: React.FC = () => {
       </Box>
     );
   }
+  const descriptions = getDescriptionsFromFlatArrays(serviceData);
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
       <Box sx={{ flex: 1, p: 3, overflowY: 'auto', maxHeight: 'calc(100vh - 64px)' }}>
         <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography fontWeight={'bold'} sx={{ textDecoration: 'underline' }}>
-              {isEditMode ? `Edit ${serviceType} Service Order - ${serviceData.serviceId || editId}` : `Create New ${serviceType} Service Order`}
+              {isEditMode ? `Edit Workorder Service Order - ${serviceData.serviceId || editId}` : `Create New Workorder Service Order`}
             </Typography>
-            <Button variant="contained" color="primary" onClick={handleBackToService}>Back to Service Orders</Button>
+            <Button variant="contained" color="primary" onClick={handleBackToService}>
+              Back to Service Orders
+            </Button>
           </Box>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={3} md={2}>
@@ -896,23 +1087,19 @@ const CreateServicePage: React.FC = () => {
               />
             </Grid>
             <Grid item xs={12} sm={3} md={2}>
-              <SmartDatePicker
-                label="Order Date"
-                value={serviceData.orderDate ? new Date(serviceData.orderDate) : null}
-                onChange={handleOrderDateChange}
-                maxDate={new Date()}
-              />
-            </Grid>
-            <Grid item xs={12} sm={3} md={2}>
-              <SmartDatePicker
-                label="Expected Delivery Date"
-                value={serviceData.expectedDeliveryDate ? new Date(serviceData.expectedDeliveryDate) : null}
-                onChange={handleExpectedDeliveryDateChange}
-                minDate={new Date()}
-              />
+              <Grid container spacing={1}>
+                <Grid item xs={8}>
+                  <SmartDatePicker
+                    label="Order Date"
+                    value={serviceData.workOrderDate ? parseDate(serviceData.workOrderDate) : null}
+                    onChange={handleWorkOrderDateChange}
+                    maxDate={new Date()}
+                  />
+                </Grid>
+              </Grid>
             </Grid>
           </Grid>
-          {/* Add Description Section (adapted from Add Item) */}
+          {/* Add Description Section with Quantity and Remarks */}
           <Box sx={{
             p: 1,
             mb: 3,
@@ -947,7 +1134,39 @@ const CreateServicePage: React.FC = () => {
               </IconButton>
             </Box>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              {/* SAC Code - Service Autocomplete Dropdown */}
+         {/* SAC Code - Service Autocomplete Dropdown (SAC Code only) */}
+<Grid item xs={12} sm={2}>
+  <ServiceAutocomplete
+    value={selectedService}
+    onChange={(service: ServiceSummary | null) => {
+      setSelectedService(service);
+      if (service) {
+        // Only fill SAC code, NOT the description
+        dispatch(setNewDescriptionData({
+          ...newDescription,
+          sacCode: service.saccode.toString(), // Only set SAC code
+          // DO NOT set description here - let user type it separately
+        }));
+        // Auto-focus to description field after selecting SAC code
+        setTimeout(() => {
+          descriptionRef.current?.focus();
+        }, 100);
+      } else {
+        // Clear SAC code when service is cleared
+        dispatch(setNewDescriptionData({
+          ...newDescription,
+          sacCode: '',
+        }));
+      }
+    }}
+    label="SAC Code"
+    status="active"
+    required={false}
+  />
+</Grid>
+              {/* Description */}
+              <Grid item xs={12} sm={3}>
                 <TextField
                   inputRef={descriptionRef}
                   fullWidth
@@ -961,22 +1180,66 @@ const CreateServicePage: React.FC = () => {
                   autoComplete="off"
                 />
               </Grid>
+              {/* Remarks - Placed near Description */}
+              <Grid item xs={12} sm={2.5}>
+                <TextField
+                  fullWidth
+                  label="Remarks"
+                  name="remarks"
+                  value={newDescription.remarks || ''}
+                  onChange={handleDescriptionChange}
+                  size="small"
+                  autoComplete="off"
+                  placeholder="Optional"
+                  error={errors.remarks}
+                  helperText={errors.remarks ? 'Remarks is required' : ''}
+                />
+              </Grid>
+              {/* Quantity - FIXED: Always show value (even if 1), allow clear/type */}
+              <Grid item xs={12} sm={1.5}>
+                <TextField
+                  fullWidth
+                  label="Quantity"
+                  name="quantity"
+                  type="number"
+                  value={newDescription.quantity} // FIXED: Always show the value (e.g., "1" instead of empty)
+                  onChange={handleDescriptionChange}
+                  size="small"
+                  error={errors.quantity}
+                  helperText={errors.quantity ? 'Quantity is required (≥1)' : ''}
+                  inputProps={{
+                    min: 1,
+                    step: 1,
+                    onKeyDown: (e) => {
+                      // Prevent negative sign and decimal
+                      if (e.key === '-' || e.key === '.') {
+                        e.preventDefault();
+                      }
+                    }
+                  }}
+                  autoComplete="off"
+                />
+              </Grid>
+              {/* From Date */}
               <Grid item xs={12} sm={2}>
                 <SmartDatePicker
                   label="From Date"
-                  value={newDescription.from_date ? new Date(newDescription.from_date) : null}
+                  value={newDescription.from_date ? parseDate(newDescription.from_date) : null}
                   onChange={(date) => handleDescriptionDateChange('from_date', date)}
+                  minDate={serviceData.workOrderDate ? parseDate(serviceData.workOrderDate) : null}
                 />
               </Grid>
+              {/* To Date */}
               <Grid item xs={12} sm={2}>
                 <SmartDatePicker
                   label="To Date"
-                  value={newDescription.to_date ? new Date(newDescription.to_date) : null}
+                  value={newDescription.to_date ? parseDate(newDescription.to_date) : null}
                   onChange={(date) => handleDescriptionDateChange('to_date', date)}
-                  minDate={newDescription.from_date ? new Date(newDescription.from_date) : undefined}
+                  minDate={newDescription.from_date ? parseDate(newDescription.from_date) : null}
                 />
               </Grid>
-              <Grid item xs={12} sm={2}>
+              {/* Fee */}
+              <Grid item xs={12} sm={1.5}>
                 <TextField
                   fullWidth
                   label="Fee (₹)"
@@ -991,7 +1254,8 @@ const CreateServicePage: React.FC = () => {
                   autoComplete="off"
                 />
               </Grid>
-              <Grid item xs={12} sm={2}>
+              {/* Tax % */}
+              <Grid item xs={12} sm={1.5}>
                 <TextField
                   fullWidth
                   label="Tax %"
@@ -1004,6 +1268,7 @@ const CreateServicePage: React.FC = () => {
                   autoComplete="off"
                 />
               </Grid>
+              {/* Tax Type */}
               <Grid item xs={12} sm={2}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <RadioGroup
@@ -1017,6 +1282,7 @@ const CreateServicePage: React.FC = () => {
                   </RadioGroup>
                 </Box>
               </Grid>
+              {/* Add Button */}
               <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <Button
                   variant="contained"
@@ -1030,13 +1296,25 @@ const CreateServicePage: React.FC = () => {
                 </Button>
               </Grid>
             </Grid>
-            {/* Descriptions Table (adapted from Items Table, no freight) */}
+            {/* Descriptions Table - UPDATED with Quantity and Remarks */}
             <TableContainer sx={{ maxHeight: '500px', overflowY: 'auto', marginBottom: '10px' }}>
               <Table stickyHeader>
-                <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'white', '& th': { fontWeight: 'bold', borderBottom: '2px solid rgba(0,0,0,0.12)' } }}>
+                <TableHead sx={{
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 1,
+                  backgroundColor: 'white',
+                  '& th': {
+                    fontWeight: 'bold',
+                    borderBottom: '2px solid rgba(0,0,0,0.12)'
+                  }
+                }}>
                   <TableRow>
                     <TableCell>S.No</TableCell>
+                    <TableCell>SAC Code</TableCell>
                     <TableCell>Description</TableCell>
+                    <TableCell>Remarks</TableCell>
+                    <TableCell>Quantity</TableCell>
                     <TableCell>From Date</TableCell>
                     <TableCell>To Date</TableCell>
                     <TableCell align="right">Fee (₹)</TableCell>
@@ -1045,20 +1323,28 @@ const CreateServicePage: React.FC = () => {
                     <TableCell align="right">SGST (₹)</TableCell>
                     <TableCell align="right">CGST (₹)</TableCell>
                     <TableCell align="right">IGST (₹)</TableCell>
+                    <TableCell align="right">Overall Disc (₹)</TableCell>
                     <TableCell align="right">Total (₹)</TableCell>
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {serviceData.descriptions.length === 0 ? (
+                  {descriptions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={12} align="center">No descriptions added</TableCell>
+                      <TableCell colSpan={17} align="center">No descriptions added</TableCell>
                     </TableRow>
                   ) : (
-                    serviceData.descriptions.map((desc, index) => (
+                    descriptions.map((desc, index) => (
                       <TableRow key={desc.id || index}>
                         <TableCell>{index + 1}</TableCell>
-                        <TableCell sx={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{desc.description}</TableCell>
+                        <TableCell>{desc.sacCode || 'N/A'}</TableCell>
+                        <TableCell sx={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {desc.description}
+                        </TableCell>
+                        <TableCell sx={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {desc.remarks || 'N/A'}
+                        </TableCell>
+                        <TableCell>{desc.quantity || 1}</TableCell> {/* FIXED: Now pulls from flat array */}
                         <TableCell>{desc.from_date ? new Date(desc.from_date).toLocaleDateString() : 'N/A'}</TableCell>
                         <TableCell>{desc.to_date ? new Date(desc.to_date).toLocaleDateString() : 'N/A'}</TableCell>
                         <TableCell align="right">{desc.fee?.toFixed(2)}</TableCell>
@@ -1067,57 +1353,61 @@ const CreateServicePage: React.FC = () => {
                         <TableCell align="right">{desc.sgst?.toFixed(2)}</TableCell>
                         <TableCell align="right">{desc.cgst?.toFixed(2)}</TableCell>
                         <TableCell align="right">{desc.igst?.toFixed(2)}</TableCell>
+                        <TableCell align="right">{(serviceData.desc_overall_discounts?.[index] || 0)?.toFixed(2)}</TableCell>
                         <TableCell align="right">{desc.total?.toFixed(2)}</TableCell>
                         <TableCell align="right">
-                          <IconButton onClick={() => handleEditDescription(desc)} size="small"><EditIcon /></IconButton>
-                          <IconButton onClick={() => handleDeleteDescription(desc.id || '')} size="small"><DeleteIcon /></IconButton>
+                          <IconButton onClick={() => handleEditDescription(index)} size="small">
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton onClick={() => handleDeleteDescription(index)} size="small">
+                            <DeleteIcon />
+                          </IconButton>
                         </TableCell>
                       </TableRow>
                     ))
                   )}
-                  {/* Totals rows (similar to PO, but for descriptions only) */}
+                  {/* Totals rows - FIXED colspan to 17 columns (label colSpan=15, value=1, empty=1) */}
                   <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
-                    <TableCell colSpan={4} align="right">
+                    <TableCell colSpan={15} align="right">
                       <strong>Sub Total:</strong>
                     </TableCell>
                     <TableCell align="right">
                       <strong>{totals.subTotal.toFixed(2)}</strong>
                     </TableCell>
-                    <TableCell colSpan={7} />
+                    <TableCell />
                   </TableRow>
-                  {/* Add tax breakdown rows if needed */}
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={4} align="right">
+                    <TableCell colSpan={15} align="right">
                       <strong>Total Description Tax:</strong>
                     </TableCell>
                     <TableCell align="right">
                       <strong>{totals.taxAmount.toFixed(2)}</strong>
                     </TableCell>
-                    <TableCell colSpan={7} />
+                    <TableCell />
                   </TableRow>
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={4} align="right">
+                    <TableCell colSpan={15} align="right">
                       <strong>Total Tax:</strong>
                     </TableCell>
                     <TableCell align="right">
                       <strong>{totals.roundedTotalTax.toFixed(2)}</strong>
                     </TableCell>
-                    <TableCell colSpan={7} />
+                    <TableCell />
                   </TableRow>
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={4} align="right">
+                    <TableCell colSpan={15} align="right">
                       <strong>Description-wise Discount:</strong>
                     </TableCell>
                     <TableCell align="right">
                       <strong>{totals.descriptionDiscountAmount.toFixed(2)}</strong>
                     </TableCell>
-                    <TableCell colSpan={7} />
+                    <TableCell />
                   </TableRow>
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={4} align="right">
+                    <TableCell colSpan={9} align="right">
                       <strong>Overall Discount:</strong>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" colSpan={9}> {/* Adjusted for input box spanning more cells */}
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <TextField
                           autoComplete='off'
@@ -1132,21 +1422,26 @@ const CreateServicePage: React.FC = () => {
                             step: '0.01',
                           }}
                           sx={{ width: 80 }}
-                          disabled={hasDescriptionWiseDiscount}
+                          disabled={hasDescriptionWiseDiscount || totalsLoading}
                         />
                         <Button
                           variant="contained"
                           size="small"
                           onClick={handleApplyDiscount}
-                          disabled={loading || overallDiscountValue <= 0 || serviceData.descriptions.length === 0 || hasDescriptionWiseDiscount}
+                          disabled={loading || overallDiscountValue <= 0 || descriptions.length === 0 || hasDescriptionWiseDiscount || totalsLoading}
                           startIcon={loading ? <CircularProgress size={16} /> : null}
                         >
                           {loading ? 'Applying...' : 'Apply'}
                         </Button>
                         <IconButton
-                          onClick={() => {/* Implement remove overall discount similar to PO */ }}
+                          onClick={() => {
+                            setOverallDiscountValue(0);
+                            dispatch(setSnackbarMessage('Overall discount removed'));
+                            dispatch(setSnackbarOpen(true));
+                          }}
                           size="small"
                           color="error"
+                          disabled={totalsLoading}
                         >
                           <ClearIcon />
                         </IconButton>
@@ -1159,7 +1454,7 @@ const CreateServicePage: React.FC = () => {
                             checked={overallDiscountMode === 'amount'}
                             onChange={() => setOverallDiscountModeWithConversion(overallDiscountMode === 'percentage' ? 'amount' : 'percentage')}
                             size="small"
-                            disabled={hasDescriptionWiseDiscount}
+                            disabled={hasDescriptionWiseDiscount || totalsLoading}
                           />
                         }
                         label={overallDiscountMode === 'amount' ? '₹' : '%'}
@@ -1167,19 +1462,19 @@ const CreateServicePage: React.FC = () => {
                         sx={{ m: 0 }}
                       />
                     </TableCell>
-                    <TableCell colSpan={6} />
+                    <TableCell colSpan={1} /> {/* Adjusted for total 17 */}
                   </TableRow>
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={4} align="right">
+                    <TableCell colSpan={15} align="right">
                       <strong>Total Discount:</strong>
                     </TableCell>
                     <TableCell align="right">
                       <strong>{totals.roundedTotalDiscount.toFixed(2)}</strong>
                     </TableCell>
-                    <TableCell colSpan={7} />
+                    <TableCell />
                   </TableRow>
                   <TableRow>
-                    <TableCell colSpan={4} align="right">
+                    <TableCell colSpan={15} align="right">
                       <strong>Round Off/Adjustment:</strong>
                     </TableCell>
                     <TableCell align="right">
@@ -1192,28 +1487,29 @@ const CreateServicePage: React.FC = () => {
                           type="number"
                           inputProps={{ step: '0.01', min: '-999999', max: '999999' }}
                           autoComplete='off'
+                          disabled={totalsLoading}
                         />
                         <Typography variant="body2">
                           ({roundOffValue >= 0 ? '+' : ''}{roundOffValue.toFixed(2)})
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell colSpan={7} />
+                    <TableCell />
                   </TableRow>
                   <TableRow sx={{ fontSize: '1.1em' }}>
-                    <TableCell colSpan={4} align="right">
+                    <TableCell colSpan={15} align="right">
                       <strong style={{ fontSize: '1.2em' }}>FINAL AMOUNT:</strong>
                     </TableCell>
                     <TableCell sx={{ fontSize: '1.2em', fontWeight: 'bold' }} align="right">
                       <strong>{totals.roundedTotalOrderAmount.toFixed(2)}</strong>
                     </TableCell>
-                    <TableCell colSpan={7} />
+                    <TableCell />
                   </TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
           </Box>
-          {/* Additional Form Fields (similar to PO, no freight) */}
+          {/* Additional Form Fields */}
           <Grid container spacing={2}>
             <Grid item xs={12} sm={2} md={2}>
               <TextField
@@ -1327,7 +1623,9 @@ const CreateServicePage: React.FC = () => {
                   variant="outlined"
                   InputProps={{
                     endAdornment: (
-                      <IconButton onClick={() => handleRemoveTerm(index)} size="small"><RemoveIcon /></IconButton>
+                      <IconButton onClick={() => handleRemoveTerm(index)} size="small">
+                        <RemoveIcon />
+                      </IconButton>
                     ),
                   }}
                 />
@@ -1365,16 +1663,18 @@ const CreateServicePage: React.FC = () => {
               variant="contained"
               color="primary"
               onClick={handleOpenDialog}
-              disabled={submitLoading || loading}
+              disabled={submitLoading || loading || totalsLoading}
             >
               {isEditMode ? 'Update Service Order' : 'Submit Service Order'}
             </Button>
           </Grid>
         </Grid>
       </Box>
-      {/* Dialogs (reuse from PO, adapt messages) */}
+      {/* Dialogs - unchanged */}
       <Dialog open={open} onClose={() => setDialogOpen(false)}>
-        <DialogTitle>{isHoldOrderDialog ? 'Confirm Hold Service Order' : (isEditMode ? 'Confirm Update' : 'Confirm Service Order')}</DialogTitle>
+        <DialogTitle>
+          {isHoldOrderDialog ? 'Confirm Hold Service Order' : (isEditMode ? 'Confirm Update' : 'Confirm Service Order')}
+        </DialogTitle>
         <DialogContent>
           <DialogContentText>
             {isHoldOrderDialog
@@ -1389,27 +1689,31 @@ const CreateServicePage: React.FC = () => {
             onClick={handleSubmit}
             color="primary"
             variant="contained"
-            disabled={submitLoading}
+            disabled={submitLoading || totalsLoading}
             startIcon={submitLoading ? <CircularProgress size={20} /> : null}
           >
             {submitLoading ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Confirm')}
           </Button>
         </DialogActions>
       </Dialog>
-      {/* Shipping Dialog (reuse) */}
       <Dialog open={openShippingDialog} onClose={() => { setOpenShippingDialog(false); setUpdatedShippingRow(null); }}>
         <DialogTitle>Add New Shipping Address</DialogTitle>
         <DialogContent>
-          {/* Fields same as PO */}
-          <TextField fullWidth label="Address" value={updatedShippingRow?.address || ''} onChange={(e) => setUpdatedShippingRow({ ...updatedShippingRow!, address: e.target.value })} margin="normal" variant="outlined" autoComplete="off" />
-          {/* Add other fields similarly */}
+          <TextField
+            fullWidth
+            label="Address"
+            value={updatedShippingRow?.address || ''}
+            onChange={(e) => setUpdatedShippingRow({ ...updatedShippingRow!, address: e.target.value })}
+            margin="normal"
+            variant="outlined"
+            autoComplete="off"
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setOpenShippingDialog(false); setUpdatedShippingRow(null); }}>Cancel</Button>
-          <Button onClick={() => {/* Implement save */ }}>Save</Button>
+          <Button onClick={() => { /* Implement save */ }}>Save</Button>
         </DialogActions>
       </Dialog>
-      {/* Navigation Confirm Dialog (reuse) */}
       <Dialog open={showNavigationConfirm} onClose={() => setShowNavigationConfirm(false)}>
         <DialogTitle>Unsaved Changes</DialogTitle>
         <DialogContent>
@@ -1417,12 +1721,18 @@ const CreateServicePage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowNavigationConfirm(false)}>Cancel</Button>
-          <Button onClick={() => { setShowNavigationConfirm(false); if (pendingNavigation) pendingNavigation(); setPendingNavigation(null); }} color="primary" variant="contained">
+          <Button onClick={() => {
+            setShowNavigationConfirm(false);
+            if (pendingNavigation) {
+              pendingNavigation();
+              setPendingNavigation(null);
+            }
+          }} color="primary" variant="contained">
             Leave Page
           </Button>
         </DialogActions>
       </Dialog>
-      <Backdrop sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: '#fff' }} open={loading}>
+      <Backdrop sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: '#fff' }} open={loading || totalsLoading}>
         <CircularProgress color="inherit" />
       </Backdrop>
       <Snackbar

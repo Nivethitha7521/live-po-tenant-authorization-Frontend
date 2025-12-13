@@ -17,6 +17,12 @@ interface AuthState {
   isInitialized: boolean;
   browserSessionId: string | null;
   tabId: string | null;
+  lastActivity: number | null;
+  sessionInfo: {
+    idleMinutes: number;
+    sessionMinutes: number;
+    willTimeoutIn: number;
+  } | null;
 }
 
 const initialState: AuthState = {
@@ -26,10 +32,12 @@ const initialState: AuthState = {
   isInitialized: false,
   browserSessionId: null,
   tabId: null,
+  lastActivity: null,
+  sessionInfo: null,
 };
 
 // Generate unique IDs for browser session and tab
-const generateBrowserSessionId = () => {
+export const generateBrowserSessionId = (): string => {
   let browserSessionId = localStorage.getItem('browserSessionId');
   if (!browserSessionId) {
     browserSessionId = crypto.randomUUID();
@@ -38,7 +46,7 @@ const generateBrowserSessionId = () => {
   return browserSessionId;
 };
 
-const generateTabId = () => {
+export const generateTabId = (): string => {
   let tabId = sessionStorage.getItem('tabId');
   if (!tabId) {
     tabId = crypto.randomUUID();
@@ -47,7 +55,7 @@ const generateTabId = () => {
   return tabId;
 };
 
-const getDeviceFingerprint = (): DeviceFingerprint => {
+export const getDeviceFingerprint = (): DeviceFingerprint => {
   return {
     userAgent: navigator.userAgent,
     screenResolution: `${window.screen.width}x${window.screen.height}`,
@@ -56,43 +64,77 @@ const getDeviceFingerprint = (): DeviceFingerprint => {
   };
 };
 
-// Track tab state to distinguish between reload and close
-const initializeTabTracking = () => {
-  const browserSessionId = generateBrowserSessionId();
-  const tabId = generateTabId();
-  
-  // Mark this tab as active
-  let activeTabs = JSON.parse(localStorage.getItem(`activeTabs_${browserSessionId}`) || '[]');
-  if (!activeTabs.includes(tabId)) {
-    activeTabs.push(tabId);
-    localStorage.setItem(`activeTabs_${browserSessionId}`, JSON.stringify(activeTabs));
+// Activity monitoring setup
+let activityMonitorInterval: NodeJS.Timeout | null = null;
+let activityListenersCleanup: (() => void) | null = null;
+
+const setupActivityMonitoring = (dispatch: any) => {
+  // Clear any existing monitoring
+  if (activityMonitorInterval) {
+    clearInterval(activityMonitorInterval);
   }
-  
-  // Set tab as reloading (not closing)
-  sessionStorage.setItem('isReloading', 'true');
-  
-  const cleanup = () => {
-    // Only remove tab if this is NOT a reload
-    if (sessionStorage.getItem('isReloading') !== 'true') {
-      let currentTabs = JSON.parse(localStorage.getItem(`activeTabs_${browserSessionId}`) || '[]');
-      currentTabs = currentTabs.filter((id: string) => id !== tabId);
-      localStorage.setItem(`activeTabs_${browserSessionId}`, JSON.stringify(currentTabs));
-      
-      // If this is the last tab, mark browser session for cleanup
-      if (currentTabs.length === 0) {
-        localStorage.setItem(`browser_${browserSessionId}_closed`, Date.now().toString());
-      }
-    }
-    
-    // Clear reload flag
-    sessionStorage.removeItem('isReloading');
+  if (activityListenersCleanup) {
+    activityListenersCleanup();
+  }
+
+  // Function to update activity
+  const updateActivity = () => {
+    dispatch(updateLastActivity());
   };
+
+  // Update activity on user interactions
+  const events = ['mousemove', 'keypress', 'click', 'scroll', 'touchstart'];
   
-  window.addEventListener('beforeunload', cleanup);
-  
-  return cleanup;
+  const throttledUpdate = () => {
+    updateActivity();
+  };
+
+  // Add event listeners with throttling
+  let throttleTimer: NodeJS.Timeout | null = null;
+  const eventHandler = () => {
+    if (!throttleTimer) {
+      throttleTimer = setTimeout(() => {
+        updateActivity();
+        throttleTimer = null;
+      }, 10000); // Throttle to 10 seconds
+    }
+  };
+
+  events.forEach(event => {
+    window.addEventListener(event, eventHandler);
+  });
+
+  // Cleanup function
+  activityListenersCleanup = () => {
+    events.forEach(event => {
+      window.removeEventListener(event, eventHandler);
+    });
+    if (throttleTimer) {
+      clearTimeout(throttleTimer);
+    }
+  };
+
+  // Periodic activity check every 5 minutes
+  activityMonitorInterval = setInterval(() => {
+    updateActivity();
+  }, 5 * 60 * 1000);
+
+  // Initial activity update
+  updateActivity();
 };
 
+const stopActivityMonitoring = () => {
+  if (activityMonitorInterval) {
+    clearInterval(activityMonitorInterval);
+    activityMonitorInterval = null;
+  }
+  if (activityListenersCleanup) {
+    activityListenersCleanup();
+    activityListenersCleanup = null;
+  }
+};
+
+// Async Thunks
 export const checkExistingSession = createAsyncThunk(
   'auth/checkExistingSession',
   async (username: string, { rejectWithValue }) => {
@@ -126,7 +168,7 @@ export const login = createAsyncThunk(
       username: string;
       password: string;
     },
-    { rejectWithValue }
+    { rejectWithValue, dispatch }
   ) => {
     try {
       const browserSessionId = generateBrowserSessionId();
@@ -155,8 +197,8 @@ export const login = createAsyncThunk(
       sessionStorage.setItem('username', response.data.username);
       sessionStorage.setItem('tabId', tabId);
 
-      // Initialize tab tracking
-      initializeTabTracking();
+      // Setup activity monitoring after successful login
+      setupActivityMonitoring(dispatch);
       
       return response.data;
     } catch (error: any) {
@@ -185,7 +227,6 @@ export const validateToken = createAsyncThunk(
 
       return response.data;
     } catch (error: any) {
-      // Don't clear session data immediately - let ClientLayout handle it
       return rejectWithValue(error.response?.data?.detail || 'Token validation failed');
     }
   }
@@ -193,7 +234,7 @@ export const validateToken = createAsyncThunk(
 
 export const addNewTab = createAsyncThunk(
   'auth/addNewTab',
-  async (newTabId: string, { rejectWithValue }) => {
+  async (newTabId: string, { rejectWithValue, dispatch }) => {
     try {
       const token = sessionStorage.getItem('accessToken');
       if (!token) {
@@ -216,8 +257,8 @@ export const addNewTab = createAsyncThunk(
       sessionStorage.setItem('accessToken', response.data.access_token);
       sessionStorage.setItem('tabId', newTabId);
 
-      // Initialize tab tracking for new tab
-      initializeTabTracking();
+      // Setup activity monitoring for new tab
+      setupActivityMonitoring(dispatch);
 
       return response.data;
     } catch (error: any) {
@@ -273,6 +314,58 @@ export const logout = createAsyncThunk(
   }
 );
 
+export const updateLastActivity = createAsyncThunk(
+  'auth/updateLastActivity',
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) {
+        return null;
+      }
+
+      const response = await axios.post(
+        `${BASE_URL}/logincheck/ping`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Activity update failed:', error);
+      return null;
+    }
+  }
+);
+
+export const checkActivityStatus = createAsyncThunk(
+  'auth/checkActivityStatus',
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) {
+        throw new Error('No token found');
+      }
+
+      const response = await axios.get(
+        `${BASE_URL}/logincheck/check-activity`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.detail || 'Activity check failed');
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -288,9 +381,7 @@ const authSlice = createSlice({
         state.username = username;
         state.browserSessionId = browserSessionId;
         state.tabId = tabId;
-        
-        // Initialize tab tracking on page load
-        initializeTabTracking();
+        state.lastActivity = Date.now();
       }
       state.isInitialized = true;
     },
@@ -303,19 +394,25 @@ const authSlice = createSlice({
       state.error = null;
       state.browserSessionId = null;
       state.tabId = null;
+      state.lastActivity = null;
+      state.sessionInfo = null;
       
       sessionStorage.clear();
       localStorage.removeItem('browserSessionId');
+      
+      // Stop activity monitoring
+      stopActivityMonitoring();
     },
     setTabSession(state, action) {
       state.isLoggedIn = true;
       state.username = action.payload.username;
       state.browserSessionId = action.payload.browserSessionId;
       state.tabId = action.payload.tabId;
+      state.lastActivity = Date.now();
       state.error = null;
-      
-      // Initialize tab tracking
-      initializeTabTracking();
+    },
+    updateActivity(state) {
+      state.lastActivity = Date.now();
     }
   },
   extraReducers: (builder) => {
@@ -326,6 +423,7 @@ const authSlice = createSlice({
           state.username = action.payload.username;
           state.browserSessionId = action.payload.browser_session_id;
           state.error = null;
+          state.lastActivity = Date.now();
         }
       })
       .addCase(login.fulfilled, (state, action) => {
@@ -334,6 +432,7 @@ const authSlice = createSlice({
         state.browserSessionId = action.payload.browser_session_id;
         state.tabId = action.payload.tab_id;
         state.error = null;
+        state.lastActivity = Date.now();
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoggedIn = false;
@@ -341,11 +440,20 @@ const authSlice = createSlice({
         state.browserSessionId = null;
         state.tabId = null;
         state.error = action.payload as string;
+        state.lastActivity = null;
       })
       .addCase(validateToken.fulfilled, (state, action) => {
         state.isLoggedIn = true;
         state.username = action.payload.username;
         state.error = null;
+        state.lastActivity = Date.now();
+        if (action.payload.session_info) {
+          state.sessionInfo = {
+            idleMinutes: action.payload.session_info.idle_minutes || 0,
+            sessionMinutes: action.payload.session_info.session_minutes || 0,
+            willTimeoutIn: action.payload.session_info.will_timeout_in || 60,
+          };
+        }
       })
       .addCase(validateToken.rejected, (state, action) => {
         state.isLoggedIn = false;
@@ -353,6 +461,8 @@ const authSlice = createSlice({
         state.browserSessionId = null;
         state.tabId = null;
         state.error = action.payload as string;
+        state.lastActivity = null;
+        state.sessionInfo = null;
       })
       .addCase(addNewTab.fulfilled, (state, action) => {
         state.isLoggedIn = true;
@@ -360,6 +470,7 @@ const authSlice = createSlice({
         state.browserSessionId = action.payload.browser_session_id;
         state.tabId = action.payload.tab_id;
         state.error = null;
+        state.lastActivity = Date.now();
       })
       .addCase(logout.fulfilled, (state) => {
         state.isLoggedIn = false;
@@ -367,9 +478,49 @@ const authSlice = createSlice({
         state.browserSessionId = null;
         state.tabId = null;
         state.error = null;
+        state.lastActivity = null;
+        state.sessionInfo = null;
+        
+        // Stop activity monitoring
+        stopActivityMonitoring();
+      })
+      .addCase(updateLastActivity.fulfilled, (state, action) => {
+        state.lastActivity = Date.now();
+      })
+      .addCase(checkActivityStatus.fulfilled, (state, action) => {
+        if (action.payload.should_logout) {
+          state.isLoggedIn = false;
+          state.username = null;
+          state.browserSessionId = null;
+          state.tabId = null;
+          state.lastActivity = null;
+          state.sessionInfo = null;
+          
+          // Stop activity monitoring
+          stopActivityMonitoring();
+        } else {
+          state.lastActivity = Date.now();
+          if (action.payload.inactive_minutes_left !== undefined) {
+            if (!state.sessionInfo) {
+              state.sessionInfo = {
+                idleMinutes: 0,
+                sessionMinutes: 0,
+                willTimeoutIn: 60,
+              };
+            }
+            state.sessionInfo.willTimeoutIn = action.payload.inactive_minutes_left;
+          }
+        }
       });
   },
 });
 
-export const { initializeAuth, clearError, forceLogout, setTabSession } = authSlice.actions;
+export const { 
+  initializeAuth, 
+  clearError, 
+  forceLogout, 
+  setTabSession,
+  updateActivity 
+} = authSlice.actions;
+
 export default authSlice.reducer;

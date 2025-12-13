@@ -290,16 +290,23 @@ export const approvePurchaseOrder = createAsyncThunk(
   'purchaseOrders/approve',
   async (purchaseOrderId: string, { rejectWithValue }) => {
     try {
+      console.log(`[Thunk] Approving PO: ${purchaseOrderId}`); // Debug: Confirm thunk starts
+      
       const response = await axios.patch(
         `http://192.168.29.116:8000/purchaseapi/purchaseorders/approved/${purchaseOrderId}`
       );
-      return response.data;
+      
+      const data = response.data;
+      console.log(`[Thunk] Success response:`, data); // Debug: Inspect data structure
+      
+      // NO ALERTS HERE - Handle in component
+      return data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to approve purchase order');
+      console.error(`[Thunk] Error approving PO ${purchaseOrderId}:`, error); // Debug: Log errors
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to approve purchase order');
     }
   }
 );
-
 export const rejectPurchaseOrder = createAsyncThunk(
   'purchaseOrders/reject',
   async (purchaseOrderId: string, { rejectWithValue }) => {

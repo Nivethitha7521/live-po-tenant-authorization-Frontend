@@ -1,3 +1,5 @@
+import { list } from "postcss";
+
 export interface Service {
   serviceId?: number | null;
   serviceName?: string | null;
@@ -8,6 +10,18 @@ export interface Service {
   lastUpdatedDate?: Date | string | null; // ISO string or Date object
 }
 
+export interface ServiceSummary{
+  mongoId:string;
+  serviceId:string;
+  saccode:number;
+}
+export interface PaginatedServiceSummary { 
+    data: ServiceSummary[]
+    total: number
+    page: number
+    limit: number
+    total_pages: number
+}
 export interface ImportResult {
   message: string;
   inserted_count: number;
@@ -54,6 +68,13 @@ export interface PaginatedServiceResponse {
   limit: number;
   total_pages: number;
 }
+export interface ServiceSummaryResponse {
+  data: ServiceSummary[];
+  total?: number;      // Optional for autocomplete
+  page?: number;       // Optional for autocomplete
+  limit?: number;      // Optional for autocomplete
+  total_pages?: number; // Optional for autocomplete
+}
 
 export interface ServiceState {
   displayItems: Service[];
@@ -78,6 +99,17 @@ export interface ServiceState {
   showImportResultDialog: boolean;
   snackbarOpen: boolean;
   snackbarMessage: string;
+
+   // Summary view states
+  summaryItems: ServiceSummary[];
+  summaryLoading: boolean;
+  summaryCurrentPage: number;
+  summaryTotalPages: number;
+  summaryTotalItems: number;
+  summaryPageSize: number;
+  summarySearchQuery: string;
+  summaryStatusFilter: 'active' ;
+
 }
 
 export const initialState: ServiceState = {
@@ -103,4 +135,13 @@ export const initialState: ServiceState = {
   showImportResultDialog: false,
   snackbarOpen: false,
   snackbarMessage: '',
+  // Summary view initial states
+  summaryItems: [],
+  summaryLoading: false,
+  summaryCurrentPage: 1,
+  summaryTotalPages: 0,
+  summaryTotalItems: 0,
+  summaryPageSize: 5, // Default to 5 as per backend endpoint
+  summarySearchQuery: '',
+  summaryStatusFilter: 'active',
 };

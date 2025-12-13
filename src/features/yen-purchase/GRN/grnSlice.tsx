@@ -28,7 +28,7 @@ export const revertGrnToPO = createAsyncThunk<
     try {
       // Fix: Use /grn/ (singular) to match backend prefix
       const response = await axios.patch<RevertGrnToPOResponse>(
-        `${BASE_URL}/grns/${grnId}/cancel`  // Changed from /grns/ to /grn/
+        `${BASE_URL}/grns/${grnId}/revert`  // Changed from /grns/ to /grn/
       );
       return response.data;
     } catch (error: any) {
@@ -201,7 +201,6 @@ export const updateGrnStatus = createAsyncThunk(
 //   return discountRate ? (amount * discountRate) / 100 : 0;
 // };
 
-
 // In your grnSlice.ts
 export const updateItemDetails = createAsyncThunk(
   'grn/updateItemDetails',
@@ -223,7 +222,7 @@ export const updateItemDetails = createAsyncThunk(
   ) => {
     try {
       const url = new URL(`${BASE_URL}/grns/convert-to-ap/ap-to-outgoing/${grnId}`);
-      url.searchParams.append('apRoundOff', apRoundOff.toString()); // CHANGED parameter name
+      url.searchParams.append('apRoundOff', apRoundOff.toFixed(2)); // FIXED: Use toFixed(2) to preserve trailing zeros (e.g., "0.30")
       if (apInvoiceDate) {
         url.searchParams.append('apInvoiceDate', apInvoiceDate);
       }
