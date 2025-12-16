@@ -422,14 +422,15 @@ const CreatePurchasePage: React.FC = () => {
   const handleDeleteFreight = useCallback((index: number) => {
     setFreights((prev) => prev.filter((_, i) => i !== index));
   }, []);
-  // Handler functions
   const handleOrderDateChange = (date: Date | null) => {
-    const finalDate = date || new Date();
-    dispatch(setPurchaseOrderData({
-      ...purchaseOrderData,
-      orderDate: finalDate.toISOString()
-    }));
-  };
+  let finalDate = date || new Date();
+  // Set to noon local to prevent timezone rollover
+  finalDate = new Date(finalDate.getTime() + 12 * 60 * 60 * 1000); // +12 hours
+  dispatch(setPurchaseOrderData({
+    ...purchaseOrderData,
+    orderDate: finalDate.toISOString()
+  }));
+};
   const handleExpectedDeliveryDateChange = (date: Date | null) => {
     const finalDate = date || new Date();
     dispatch(setPurchaseOrderData({

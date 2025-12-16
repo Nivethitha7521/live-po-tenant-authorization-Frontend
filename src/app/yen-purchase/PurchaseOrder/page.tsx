@@ -1700,15 +1700,15 @@ useEffect(() => {
       onClick={() => handleApproveOrder(selectedOrderId!, false)} 
       color="primary"
     >
-      No, Just Approve
+      Approve
     </Button>
-    <Button 
+    {/* <Button 
       onClick={() => handleApproveOrder(selectedOrderId!, true)} 
       color="primary" 
       variant="contained"
     >
       Yes, Send via WhatsApp
-    </Button>
+    </Button> */}
   </DialogActions>
 </Dialog>
         {/* Reject Order Dialog */}
