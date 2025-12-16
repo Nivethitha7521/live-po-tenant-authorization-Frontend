@@ -1708,7 +1708,7 @@ useEffect(() => {
       variant="contained"
     >
       Yes, Send via WhatsApp
-    </Button> */}
+    </Button> */} 
   </DialogActions>
 </Dialog>
         {/* Reject Order Dialog */}
