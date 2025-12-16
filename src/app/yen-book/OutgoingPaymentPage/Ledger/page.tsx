@@ -581,14 +581,14 @@ const LedgerPage = () => {
           </Grid>
         </Box>
 
-        {/* FIX: Debug information - remove in production */}
+        {/* FIX: Debug information - remove in production
         {transactions && transactions.length > 0 && (
           <Box sx={{ p: 1, backgroundColor: '#f5f5f5', mb: 2, borderRadius: 1 }}>
             <Typography variant="caption" color="textSecondary">
               Debug: {transactions.length} transactions found. Types: {[...new Set(transactions.map(t => t.type))].join(', ')}
             </Typography>
           </Box>
-        )}
+        )} */}
 
         {/* Summary Cards - All-time */}
         {selectedVendorName && (
@@ -647,7 +647,7 @@ const LedgerPage = () => {
         {/* Ledger Table - Filtered */}
         <Paper sx={{ mb: 2,mx:1}}>
           <TableContainer sx={{
-            maxHeight: 'calc(100vh - 350px)',
+            maxHeight: 'calc(100vh - 370px)',
             overflowY: 'auto',
           }}>
             <Table stickyHeader>

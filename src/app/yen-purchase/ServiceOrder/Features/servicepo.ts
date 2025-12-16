@@ -43,8 +43,6 @@ const formatDateTimeForBackend = (dateTimeValue: Date | string | null | undefine
   dt.setHours(0, 0, 0, 0);
   return dt.toISOString();
 };
-
-// FIXED: Transform backend flat arrays to frontend ServiceData
 const transformRawToNested = (raw: RawServiceData): ServiceData => {
   const sacCodesRaw = raw.sacCode || [];
   const descIdsRaw = raw.desc_ids || [];
@@ -57,9 +55,15 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
   const descSgstRaw = raw.desc_sgst || [];
   const descCgstRaw = raw.desc_cgst || [];
   const descIgstRaw = raw.desc_igst || [];
+  
+  // FIXED: Use empty array if desc_overall_discounts is not provided
   const descOverallDiscountsRaw = raw.desc_overall_discounts || [];
+  
   const remarksRaw = raw.remarks || [];
   const quantityRaw = raw.quantity || [];
+  
+  // FIXED: Add desc_discount_percentages from raw data
+  const descDiscountPercentagesRaw = raw.desc_discount_percentages || [];
   
   // Calculate additional arrays
   const descTaxAmountsRaw = descSgstRaw.map((sgst, i) =>
@@ -70,7 +74,7 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     fee + descTaxAmountsRaw[i] - (descOverallDiscountsRaw[i] || 0)
   );
   
-  const descDiscountAmountsRaw = new Array(feesRaw.length).fill(0);
+  const descDiscountAmountsRaw = raw.desc_discount_amounts || new Array(feesRaw.length).fill(0);
 
   // FIXED: Format dates for frontend (YYYY-MM-DD for date-only display)
   const formattedWorkOrderDate = raw.workOrderDate ? formatDateOnly(raw.workOrderDate) : null;
@@ -110,7 +114,8 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     desc_totals: descTotalsRaw,
     desc_total_fees: feesRaw,
     desc_discount_amounts: descDiscountAmountsRaw,
-    desc_overall_discounts: descOverallDiscountsRaw,
+    desc_discount_percentages: descDiscountPercentagesRaw, // FIXED: Add this
+    desc_overall_discounts: descOverallDiscountsRaw, // FIXED: Use the correct array
     
     totalAmount: raw.totalAmount || 0,
     paymentTerms: raw.paymentTerms || '',
@@ -131,6 +136,7 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     roundOffValue: raw.roundOffValue || 0,
     overallDiscountValue: raw.overallDiscountValue || 0,
     overallDiscountType: raw.overallDiscountType || 'percentage',
+    overallDiscountAppliedOn: raw.overallDiscountAppliedOn || 'after_tax',
     totalTax: raw.totalTax || 0,
     serviceCreatedPerson: raw.serviceCreatedPerson ?? null,
     serviceApprovedPerson: raw.serviceApprovedPerson ?? null,
@@ -143,8 +149,6 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     lastUpdatedTime: raw.lastUpdatedTime || null,
   };
 };
-
-
 // Helper to format time string
 const formatTimeString = (timeValue: any): string | null => {
   if (!timeValue) return null;
@@ -206,11 +210,10 @@ const addDescriptionToFlatArrays = (
     desc_totals: [...currentData.desc_totals, total],
     desc_total_fees: [...currentData.desc_total_fees, newDesc.fee * (newDesc.quantity || 1)],
     desc_discount_amounts: [...currentData.desc_discount_amounts, newDesc.discountAmount || 0],
+    desc_discount_percentages: [...(currentData.desc_discount_percentages || []), 0], // FIXED: Add this
     desc_overall_discounts: [...(currentData.desc_overall_discounts || []), 0],
   };
 };
-
-
 // FIXED: Helper to update description in flat arrays
 const updateDescriptionInFlatArrays = (
   currentData: ServiceData,
@@ -253,6 +256,7 @@ const updateDescriptionInFlatArrays = (
     desc_totals: updateArray(currentData.desc_totals, index, total),
     desc_total_fees: updateArray(currentData.desc_total_fees, index, updatedDesc.fee * (updatedDesc.quantity || 1)),
     desc_discount_amounts: updateArray(currentData.desc_discount_amounts, index, updatedDesc.discountAmount || 0),
+    desc_discount_percentages: updateArray(currentData.desc_discount_percentages || [], index, updatedDesc.discount_percentage || 0), // FIXED: Add this
     desc_overall_discounts: updateArray(currentData.desc_overall_discounts, index, currentData.desc_overall_discounts[index] || 0), // Preserve existing overall discount
   };
 };
@@ -318,7 +322,9 @@ export const initialState: ServiceState = {
     createdTime: null,
     lastUpdatedDate: null,
     lastUpdatedTime: null,
-    quantity:[],
+    quantity: [],
+    desc_discount_percentages: [],
+    overallDiscountAppliedOn: ''
   },
   
   // FIXED: newDescription with quantity and remarks
@@ -362,7 +368,7 @@ export const initialState: ServiceState = {
   calculatedTotals: null,
 };
 
-const BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
+const BASE_URL = 'https://yenerp.com/purchaseapi';
 
 // FIXED: Async thunk for calculateServiceTotals (sends nested ServiceDescription[])
 export const calculateServiceTotals = createAsyncThunk(
@@ -460,7 +466,6 @@ export const calculateDescriptionTotals = createAsyncThunk<
     }
   }
 );
-
 export const addService = createAsyncThunk<
   ServiceData,
   ServiceData,
@@ -474,20 +479,27 @@ export const addService = createAsyncThunk<
         ...service,
         workOrderDate: service.workOrderDate ? formatDateTimeForBackend(service.workOrderDate) : null,
         
+        // Use 'descriptions' field for backend
+        descriptions: service.desc_descriptions || [],
+        
         // Convert date strings to datetime for backend
         from_dates: service.from_dates.map(dateStr => 
-          dateStr ? formatDateTimeForBackend(dateStr) : ''
+          dateStr ? formatDateTimeForBackend(dateStr) : null
         ),
         to_dates: service.to_dates.map(dateStr => 
-          dateStr ? formatDateTimeForBackend(dateStr) : ''
+          dateStr ? formatDateTimeForBackend(dateStr) : null
         ),
         
         // Map arrays
-        descriptions: service.desc_descriptions,
         sacCode: service.sacCode || [],
         
-        // Include all array fields
-        desc_ids: service.desc_ids || [],
+        // CRITICAL: Include discount arrays (always zero for now)
+        desc_discount_percentages: service.desc_discount_percentages || 
+          Array(service.desc_descriptions.length).fill(0),
+        desc_discount_amounts: service.desc_discount_amounts || 
+          Array(service.desc_descriptions.length).fill(0),
+        
+        // Include other array fields
         remarks: service.remarks || [],
         quantity: service.quantity || [],
         desc_tax_types: service.desc_tax_types || [],
@@ -498,10 +510,10 @@ export const addService = createAsyncThunk<
         desc_tax_amounts: service.desc_tax_amounts || [],
         desc_totals: service.desc_totals || [],
         desc_total_fees: service.desc_total_fees || [],
-        desc_discount_amounts: service.desc_discount_amounts || [],
         desc_overall_discounts: service.desc_overall_discounts || [],
         
         overallDiscountType: service.overallDiscountType || 'percentage',
+        overallDiscountAppliedOn: service.overallDiscountAppliedOn || 'after_tax',
       };
       
       console.log('Sending to backend:', JSON.stringify(serviceToAdd, null, 2));
@@ -513,12 +525,16 @@ export const addService = createAsyncThunk<
       
       return transformRawToNested(rawResponse.data);
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to add service');
+      console.error('Add service error:', error.response?.data || error.message);
+      return rejectWithValue(
+        error.response?.data?.message || 
+        error.response?.data?.detail || 
+        error.message || 
+        'Failed to add service'
+      );
     }
   }
 );
-
-
 export const updateService = createAsyncThunk<
   ServiceData,
   { serviceId: string; service: ServiceData },
@@ -628,37 +644,102 @@ addDescriptionToService: (state, action: PayloadAction<ServiceDescription>) => {
     desc_overall_discounts: [...state.serviceData.desc_overall_discounts, 0],
   };
 },
-    // FIXED: Update description by index (include remarks, quantity, desc_overall_discounts)
-    updateDescription: (state, action: PayloadAction<{ index: number; desc: ServiceDescription }>) => {
-      const { index, desc } = action.payload;
-      state.serviceData = updateDescriptionInFlatArrays(state.serviceData, index, desc);
-    },
-    // FIXED: Delete description by index (include desc_overall_discounts)
-    deleteDescriptionFromService: (state, action: PayloadAction<number>) => {
-      const index = action.payload;
-      
-      // Remove from all arrays at the same index
-      const arraysToUpdate = [
-        'sacCode', 'desc_ids', 'desc_descriptions', 'from_dates', 'to_dates',
-        'fees', 'desc_tax_types', 'desc_tax_pers', 'desc_sgst', 'desc_cgst',
-        'desc_igst', 'desc_tax_amounts', 'desc_totals', 'desc_total_fees',
-        'desc_discount_amounts', 'desc_overall_discounts','remarks','quantity' // NEW
-      ] as const;
-      
-      arraysToUpdate.forEach(arrayKey => {
-        if (Array.isArray(state.serviceData[arrayKey])) {
-          (state.serviceData[arrayKey] as any[]).splice(index, 1);
-        }
-      });
-    },
-    
-    setDescriptionForEditing(state, action: PayloadAction<ServiceDescription & { index?: number }>) {
-      state.newDescription = {
-        ...initialState.newDescription,
-        ...action.payload,
-      };
-    },
-    
+// In your Features/servicepo.ts - update the updateDescription reducer
+
+updateDescription: (state, action: PayloadAction<{ index: number; desc: ServiceDescription }>) => {
+  const { index, desc } = action.payload;
+  
+  if (index < 0 || index >= state.serviceData.desc_descriptions.length) {
+    return;
+  }
+  
+  // Update all arrays at the specified index
+  const arraysToUpdate = [
+    'sacCode', 'desc_ids', 'desc_descriptions', 'from_dates', 'to_dates',
+    'fees', 'quantity', 'remarks', 'desc_tax_types', 'desc_tax_pers',
+    'desc_sgst', 'desc_cgst', 'desc_igst', 'desc_tax_amounts',
+    'desc_totals', 'desc_total_fees', 'desc_discount_amounts', 
+    'desc_discount_percentages'  // ADDED
+  ] as const;
+  
+  arraysToUpdate.forEach(arrayKey => {
+    if (Array.isArray(state.serviceData[arrayKey]) && index < state.serviceData[arrayKey].length) {
+      switch(arrayKey) {
+        case 'sacCode': state.serviceData.sacCode[index] = desc.sacCode; break;
+        case 'desc_ids': 
+          state.serviceData.desc_ids[index] = desc.id || state.serviceData.desc_ids[index]; 
+          break;
+        case 'desc_descriptions': state.serviceData.desc_descriptions[index] = desc.description; break;
+        case 'from_dates': 
+          state.serviceData.from_dates[index] = desc.from_date !== undefined ? desc.from_date : null; 
+          break;
+        case 'to_dates': 
+          state.serviceData.to_dates[index] = desc.to_date !== undefined ? desc.to_date : null; 
+          break;
+        case 'fees': state.serviceData.fees[index] = desc.fee; break;
+        case 'quantity': state.serviceData.quantity[index] = desc.quantity; break;
+        case 'remarks': state.serviceData.remarks[index] = desc.remarks; break;
+        case 'desc_tax_types': state.serviceData.desc_tax_types[index] = desc.tax_type; break;
+        case 'desc_tax_pers': state.serviceData.desc_tax_pers[index] = desc.tax_per; break;
+        case 'desc_sgst': state.serviceData.desc_sgst[index] = desc.sgst; break;
+        case 'desc_cgst': state.serviceData.desc_cgst[index] = desc.cgst; break;
+        case 'desc_igst': state.serviceData.desc_igst[index] = desc.igst; break;
+        case 'desc_tax_amounts': state.serviceData.desc_tax_amounts[index] = desc.taxAmount; break;
+        case 'desc_totals': state.serviceData.desc_totals[index] = desc.total; break;
+        case 'desc_total_fees': state.serviceData.desc_total_fees[index] = desc.totalFee; break;
+        case 'desc_discount_amounts': 
+          state.serviceData.desc_discount_amounts[index] = desc.discountAmount || 0; 
+          break;
+        case 'desc_discount_percentages':  // ADDED
+          state.serviceData.desc_discount_percentages[index] = desc.discount_percentage || 0;
+          break;
+      }
+    }
+  });
+},
+    // In your servicepo slice file (Features/servicepo.ts), add this reducer:
+deleteDescriptionFromService: (state, action: PayloadAction<number>) => {
+  const index = action.payload;
+  
+  if (index < 0 || index >= state.serviceData.desc_descriptions.length) {
+    return; // Invalid index
+  }
+  
+  // Helper function to remove element at index
+  const removeFromArray = <T>(arr: T[], idx: number): T[] => {
+    return arr.filter((_, i) => i !== idx);
+  };
+  
+  // Remove from all flat arrays
+  state.serviceData = {
+    ...state.serviceData,
+    sacCode: removeFromArray(state.serviceData.sacCode, index),
+    desc_ids: removeFromArray(state.serviceData.desc_ids, index),
+    desc_descriptions: removeFromArray(state.serviceData.desc_descriptions, index),
+    from_dates: removeFromArray(state.serviceData.from_dates, index),
+    to_dates: removeFromArray(state.serviceData.to_dates, index),
+    fees: removeFromArray(state.serviceData.fees, index),
+    quantity: removeFromArray(state.serviceData.quantity, index),
+    remarks: removeFromArray(state.serviceData.remarks, index),
+    desc_tax_types: removeFromArray(state.serviceData.desc_tax_types, index),
+    desc_tax_pers: removeFromArray(state.serviceData.desc_tax_pers, index),
+    desc_sgst: removeFromArray(state.serviceData.desc_sgst, index),
+    desc_cgst: removeFromArray(state.serviceData.desc_cgst, index),
+    desc_igst: removeFromArray(state.serviceData.desc_igst, index),
+    desc_tax_amounts: removeFromArray(state.serviceData.desc_tax_amounts, index),
+    desc_totals: removeFromArray(state.serviceData.desc_totals, index),
+    desc_total_fees: removeFromArray(state.serviceData.desc_total_fees, index),
+    desc_discount_amounts: removeFromArray(state.serviceData.desc_discount_amounts, index),
+    desc_overall_discounts: removeFromArray(state.serviceData.desc_overall_discounts, index),
+  };
+},
+   // In your slice
+setDescriptionForEditing(state, action: PayloadAction<ServiceDescription & { index?: number }>) {
+  state.newDescription = {
+    ...initialState.newDescription,
+    ...action.payload,
+  };
+},
     clearDescriptionForEditing(state) {
       state.newDescription = initialState.newDescription;
     },

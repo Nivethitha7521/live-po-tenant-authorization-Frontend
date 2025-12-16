@@ -165,6 +165,8 @@ export interface FrontendApInvoiceResponse {
     debitAmount?:number;
     hasDebitCreditNotes: boolean
     apRoundOff:number;
+    totalFreightAmount:number;
+totalFreightTaxAmount:number;
   }
   
   export interface ApInvoiceRandomId {

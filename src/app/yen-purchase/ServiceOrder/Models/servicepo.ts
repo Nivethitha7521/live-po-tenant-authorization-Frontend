@@ -44,6 +44,7 @@ export interface ServiceData {
   desc_totals: number[];
   desc_total_fees: number[];
   desc_discount_amounts: number[];
+  desc_discount_percentages:number[];
   desc_overall_discounts: number[]; // NEW: Per-description overall discounts
   mongoId:string;
   totalAmount: number;
@@ -76,6 +77,7 @@ export interface ServiceData {
   lastUpdatedTime?: string | null;
   quantity:number[];
   remarks:string[];
+  overallDiscountAppliedOn:string;
 }
 
 // For the flat array response from backend
@@ -107,8 +109,6 @@ export interface ServiceSearchAdd {
   hsnCode: string;
   randomId: string;
 }
-
-// Added 'desc_discount_amounts' property to match usage in your code (per-description individual discounts)
 export interface ServiceTotalsResponse {
   totalFees: number;
   totalDiscount: number;
@@ -119,19 +119,21 @@ export interface ServiceTotalsResponse {
   descriptionTaxAmount: number;
   freightTaxAmount: number;
   amountAfterDiscount: number;
-  totalIndividualDiscount: number; // NEW
-  totalOverallDiscount: number; // NEW
-  desc_sgst: number[]; // NEW
-  desc_cgst: number[]; // NEW
-  desc_igst: number[]; // NEW
-  desc_tax_amounts: number[]; // NEW
-  desc_totals: number[]; // NEW
-  desc_total_fees: number[]; // NEW
-  desc_overall_discounts: number[]; // NEW
-  desc_discount_amounts: number[]; // NEW: Added to resolve TS error (per-description individual discounts)
-  sacCodes: string[]; // NEW
-  remarks: string[]; // NEW
-  quantity: number[]; // NEW
+  totalIndividualDiscount: number;
+  totalOverallDiscount: number;
+  desc_sgst: number[];
+  desc_cgst: number[];
+  desc_igst: number[];
+  desc_tax_amounts: number[];
+  desc_totals: number[];
+  desc_total_fees: number[];
+  desc_overall_discounts: number[];  // This should match backend's desc_overall_discount_shares
+  desc_discount_amounts: number[];
+  desc_discount_percentages: number[];
+  sacCodes: string[];
+  remarks: string[];
+  quantity: number[];
+  overall_discount_applied_on?: 'before_tax' | 'after_tax';
 }
 export interface ServiceState {
   serviceData: ServiceData;
@@ -298,13 +300,13 @@ export const initialServiceListState: ServiceListState = {
   pendingTotalItems: 0
 };
 
-// UPDATED: ServiceDescription with quantity and remarks
+// Also update the ServiceDescription interface to include discount_percentage and discount_amount
 export interface ServiceDescription {
   id?: string;
   sacCode: string;
   description: string;
-  from_date?: string | null; // OPTIONAL
-  to_date?: string | null;   // OPTIONAL
+  from_date?: string | null;
+  to_date?: string | null;
   fee: number;
   tax_type: 'cgst_sgst' | 'igst';
   tax_per: number;
@@ -316,8 +318,10 @@ export interface ServiceDescription {
   totalFee: number;
   finalFee: number;
   discountAmount?: number;
-  quantity: number; // NEW: Optional
-  remarks: string; // NEW: Required
+  discount_percentage?: number;  // ADD THIS
+  discount_amount?: number;      // ADD THIS
+  quantity: number;
+  remarks: string;
 }
 // Added 'baseAmount' property to match usage in your code (likely the pre-tax fee input)
 export interface DescriptionCalculationResponse {
@@ -343,6 +347,7 @@ export interface ServiceTotalsRequest {
   descriptions: ServiceDescription[];
   overall_discount_value?: number;
   overall_discount_type?: 'percentage' | 'amount';
+  overall_discount_applied_on?: 'before_tax' | 'after_tax'; // ADD THIS
   round_off?: number;
 }
 
@@ -373,6 +378,8 @@ export interface RawServiceData {
   desc_cgst?: number[];
   desc_igst?: number[];
   desc_overall_discounts?: number[]; // NEW
+  desc_discount_percentages:number[];
+  desc_discount_amounts: number[];
   totalAmount: number;
   paymentTerms: string;
   shippingAddress: string;
@@ -388,6 +395,7 @@ export interface RawServiceData {
   locationName: string;
   overallDiscountValue: number;
   overallDiscountType: 'percentage' | 'amount';
+  overallDiscountAppliedOn:string;
   roundOffValue: number;
   totalTax: number;
   mongoId: string;

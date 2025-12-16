@@ -5,7 +5,7 @@ import { initialState, StorageLocationItem,Location } from '@/Models/storageloca
 import { ImportResult } from '@/Models/importResult';
 
 export const fetchStorageLocations = createAsyncThunk('storageLocations/fetchStorageLocations', async () => {
-  const response = await axios.get('http://192.168.29.116:8000/purchaseapi/storagelocations/');
+  const response = await axios.get('https://yenerp.com/purchaseapi/storagelocations/');
   return response.data;
 });
 
@@ -16,7 +16,7 @@ export const fetchLocations = createAsyncThunk('locations/fetchLocations', async
 
 export const addStorageLocation = createAsyncThunk<StorageLocationItem, StorageLocationItem>('storageLocations/addStorageLocation', async (locationData, { rejectWithValue }) => {
   try {
-    const response = await axios.post('http://192.168.29.116:8000/purchaseapi/storagelocations/', locationData);
+    const response = await axios.post('https://yenerp.com/purchaseapi/storagelocations/', locationData);
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -25,7 +25,7 @@ export const addStorageLocation = createAsyncThunk<StorageLocationItem, StorageL
 
 export const updateStorageLocation = createAsyncThunk<StorageLocationItem, StorageLocationItem>('storageLocations/updateStorageLocation', async (locationData, { rejectWithValue }) => {
   try {
-    const response = await axios.put(`http://192.168.29.116:8000/purchaseapi/storagelocations/${locationData.storageLocationId}`, locationData);
+    const response = await axios.put(`https://yenerp.com/purchaseapi/storagelocations/${locationData.storageLocationId}`, locationData);
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -34,7 +34,7 @@ export const updateStorageLocation = createAsyncThunk<StorageLocationItem, Stora
 
 export const deactivateStorageLocation = createAsyncThunk<StorageLocationItem, string>('storageLocations/deactivateStorageLocation', async (storageLocationId, { rejectWithValue }) => {
   try {
-    const response = await axios.put(`http://192.168.29.116:8000/purchaseapi/storagelocations/${storageLocationId}`, { status: 'deactivated' });
+    const response = await axios.put(`https://yenerp.com/purchaseapi/storagelocations/${storageLocationId}`, { status: 'deactivated' });
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -43,7 +43,7 @@ export const deactivateStorageLocation = createAsyncThunk<StorageLocationItem, s
 
 export const activateStorageLocation = createAsyncThunk<StorageLocationItem, string>('storageLocations/activateStorageLocation', async (storageLocationId, { rejectWithValue }) => {
   try {
-    const response = await axios.put(`http://192.168.29.116:8000/purchaseapi/storagelocations/${storageLocationId}`, { status: 'active' });
+    const response = await axios.put(`https://yenerp.com/purchaseapi/storagelocations/${storageLocationId}`, { status: 'active' });
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -61,7 +61,7 @@ export const importStorageLocation = createAsyncThunk<ImportResult, File>(
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post('http://192.168.29.116:8000/purchaseapi/storagelocations/import-csv', formData, {
+      const response = await axios.post('https://yenerp.com/purchaseapi/storagelocations/import-csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data as ImportResult;
@@ -76,7 +76,7 @@ export const exportStorageLocation = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        'http://192.168.29.116:8000/purchaseapi/storagelocations/exportstoragelocation/export-csv',
+        'https://yenerp.com/purchaseapi/storagelocations/exportstoragelocation/export-csv',
         { responseType: 'blob' }
       );
       const url = window.URL.createObjectURL(new Blob([response.data]));

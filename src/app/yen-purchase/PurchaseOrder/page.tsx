@@ -1075,34 +1075,49 @@ useEffect(() => {
       setRejectOpen(false);
     }
   };
-  const handleApproveOrder = async (orderId: string) => {
-  const selectedOrder = (pendingPurchaseList || []).find(order => order.purchaseOrderId === orderId);
-  if (selectedOrder) {
-    try {
-      console.log(`Approving PO: ${selectedOrder.randomId || orderId}`);
-      
-      // Show loading
-      setApproveOpen(false);
-      
-      // Call approve API
-      const result = await dispatch(approvePurchaseOrder(orderId)).unwrap();
-      
-      // Show result message (same as ecommerce)
+ const handleApproveOrder = async (orderId: string, sendWhatsapp: boolean) => {
+  const selectedOrder = (pendingPurchaseList || []).find(
+    (order) => order.purchaseOrderId === orderId
+  );
+
+  if (!selectedOrder) return;
+
+  try {
+    console.log(
+      `Approving PO: ${selectedOrder.randomId || orderId} | Send WhatsApp: ${sendWhatsapp}`
+    );
+
+    setApproveOpen(false);
+
+    // Pass the flag to the thunk
+    const result = await dispatch(
+      approvePurchaseOrder({ purchaseOrderId: orderId, sendWhatsapp })
+    ).unwrap();
+
+    // Success feedback
+    let message = "✅ Purchase Order Approved!";
+
+    if (sendWhatsapp) {
       if (result.whatsapp_sent) {
-        setSnackbarMessage(`✅ Purchase Order Approved!\n📧 WhatsApp sent to vendor\n📎 PDF: ${result.pdf_url}`);
+        message += `\n📧 WhatsApp sent to vendor\n📎 PDF: ${result.pdf_url || 'Generated'}`;
       } else if (result.pdf_url) {
-        setSnackbarMessage(`✅ Purchase Order Approved!\n📎 PDF generated: ${result.pdf_url}\n⚠️ WhatsApp not sent (check vendor phone)`);
+        message += `\n📎 PDF generated\n⚠️ WhatsApp failed (check vendor phone)`;
       } else {
-        setSnackbarMessage('✅ Purchase Order Approved!');
+        message += `\n⚠️ WhatsApp & PDF failed`;
       }
-      
-      // Refresh list
-      dispatch(fetchPendingPurchaseOrders({ page: newPage, size: pageSize }));
-      
-    } catch (error: any) {
-      console.error('Failed to approve:', error);
-      setSnackbarMessage(`Error: ${error.message || 'Failed to approve purchase order'}`);
+    } else {
+      if (result.pdf_url) {
+        message += `\n📎 PDF generated (not sent)`;
+      }
     }
+
+    setSnackbarMessage(message);
+    dispatch(fetchPendingPurchaseOrders({ page: newPage, size: pageSize }));
+  } catch (error: any) {
+    console.error("Failed to approve:", error);
+    setSnackbarMessage(
+      `❌ Error: ${error.message || "Failed to approve purchase order"}`
+    );
   }
 };
   if (loading) {
@@ -1670,17 +1685,32 @@ useEffect(() => {
             </Button>
           </DialogActions>
         </Dialog>
-        {/* Approve Order Dialog */}
-        <Dialog open={approveOpen} onClose={handleApproveDialogClose}>
-          <DialogTitle>Approve Purchase Order</DialogTitle>
-          <DialogContent>
-            <Typography>Are you sure you want to approve this order?</Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleApproveDialogClose} color="primary">Cancel</Button>
-            <Button onClick={() => handleApproveOrder(selectedOrderId!)} color="primary">Approve</Button>
-          </DialogActions>
-        </Dialog>
+      <Dialog open={approveOpen} onClose={handleApproveDialogClose}>
+  <DialogTitle>Approve Purchase Order</DialogTitle>
+  <DialogContent>
+    <Typography>
+      Do you want to send this Purchase Order via WhatsApp to the vendor?
+    </Typography>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleApproveDialogClose} color="secondary">
+      Cancel
+    </Button>
+    <Button 
+      onClick={() => handleApproveOrder(selectedOrderId!, false)} 
+      color="primary"
+    >
+      No, Just Approve
+    </Button>
+    <Button 
+      onClick={() => handleApproveOrder(selectedOrderId!, true)} 
+      color="primary" 
+      variant="contained"
+    >
+      Yes, Send via WhatsApp
+    </Button>
+  </DialogActions>
+</Dialog>
         {/* Reject Order Dialog */}
         <Dialog open={rejectOpen} onClose={handleRejectDialogClose}>
           <DialogTitle>Reject Purchase Order</DialogTitle>

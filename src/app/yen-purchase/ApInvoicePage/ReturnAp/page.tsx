@@ -57,49 +57,6 @@ interface TaxAmounts {
   igst: { [key: string]: number };
 }
 
-const initialApInvoiceState: ApInvoice = {
-  invoiceId: '',
-  purchaseOrderId: '',
-  vendorName: '',
-  apinvoiceDate: null,
-  dueDate: null,
-  invoiceDate: null,
-  invoiceNo: '',
-  itemDetails: [],
-  comments: '',
-  attachments: null,
-  createdDate: null,
-  poDate: null,
-  lastUpdatedDate: null,
-  status: '',
-  invoiceAmount: 0,
-  taxDetails: 0,
-  discountDetails: 0,
-  paymentTerms: '',
-  paymentStatus: '',
-  randomId: '',
-  discountPrice: 0,
-  grnId: '',
-  grnDate: null,
-  apDiscountPrice: 0,
-  address: '',
-  country: '',
-  state: '',
-  city: '',
-  postalCode: 0,
-  gstNumber: '',
-  contactpersonEmail: '',
-  shippingAddress: '',
-  billingAddress: '',
-  apReturnedDate: null,
-  apPerson: '',
-  apReturnedPerson: '',
-  poRandomId: '',
-  grnRandomId: '',
-  apRandomId: '',
-  hasDebitCreditNotes: false,
-  apRoundOff: 0
-};
 
 const ReturnnedApInvoicePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();

@@ -718,20 +718,38 @@ const ServiceList: React.FC = () => {
           <DialogContent>
             <TableContainer component={Paper}>
               <Table stickyHeader sx={{ minWidth: 500, fontSize: '0.875rem' }}>
-                <TableHead>
-                  <TableRow>{[<TableCell>S.No</TableCell>,<TableCell>Description</TableCell>,<TableCell>From Date</TableCell>,<TableCell>To Date</TableCell>,<TableCell>Fee</TableCell>,<TableCell>Tax (%)</TableCell>,<TableCell>Tax Amount</TableCell>,<TableCell>Total</TableCell>]}</TableRow>
-                </TableHead>
-                <TableBody>
-                  {selectedDescriptions.map((desc: ServiceDescription, index: number) => (
-                    <TableRow key={desc.id || index}>{[<TableCell>{index + 1}</TableCell>,<TableCell>{desc.description}</TableCell>,<TableCell>{desc.from_date ? format(new Date(desc.from_date), 'dd-MM-yyyy') : ''}</TableCell>,<TableCell>{desc.to_date ? format(new Date(desc.to_date), 'dd-MM-yyyy') : ''}</TableCell>,<TableCell align="right">{desc.fee.toFixed(2)}</TableCell>,<TableCell align="center">{desc.tax_per}%</TableCell>,<TableCell align="right">{(desc.sgst + desc.cgst + desc.igst).toFixed(2)}</TableCell>,<TableCell align="right">{desc.total.toFixed(2)}</TableCell>]}</TableRow>
-                  ))}
-                  <TableRow>{[<TableCell colSpan={4} align="right"><strong>Freight Charges:</strong></TableCell>,<TableCell align="right">{(selectedOrder?.totalFreightAmount || 0).toFixed(2)}</TableCell>,<TableCell></TableCell>,<TableCell align="right">{(selectedOrder?.totalFreightTaxAmount || 0).toFixed(2)}</TableCell>,<TableCell></TableCell>]}</TableRow>
-                  <TableRow>{[<TableCell colSpan={4} align="right"><strong>Overall Discount:</strong></TableCell>,<TableCell align="right" colSpan={4}>-{(selectedOrder?.overallDiscountValue || 0).toFixed(2)}</TableCell>]}</TableRow>
-                  {Object.entries(taxDetails).map(([key, tax]) => (
-                    <TableRow key={key}>{[<TableCell colSpan={6}></TableCell>,<TableCell><strong>{tax.type} ({tax.percentage}%):</strong></TableCell>,<TableCell align="right">{tax.amount.toFixed(2)}</TableCell>]}</TableRow>
-                  ))}
-                  <TableRow>{[<TableCell colSpan={6}></TableCell>,<TableCell align="right"><strong>Total Amount:</strong></TableCell>,<TableCell align="right">{(selectedOrder?.totalAmount || 0).toFixed(2)}</TableCell>]}</TableRow>
-                </TableBody>
+              <TableHead>
+  <TableRow>
+    <TableCell key="sno">S.No</TableCell>
+    <TableCell key="description">Description</TableCell>
+    <TableCell key="from-date">From Date</TableCell>
+    <TableCell key="to-date">To Date</TableCell>
+    <TableCell key="fee">Fee</TableCell>
+    <TableCell key="tax">Tax (%)</TableCell>
+    <TableCell key="tax-amount">Tax Amount</TableCell>
+    <TableCell key="total">Total</TableCell>
+  </TableRow>
+</TableHead>
+              <TableBody>
+  {selectedDescriptions.map((desc: ServiceDescription, index: number) => (
+    <TableRow key={desc.id || index}>
+      <TableCell key="sno">{index + 1}</TableCell>
+      <TableCell key="description">{desc.description}</TableCell>
+      <TableCell key="from-date">
+        {desc.from_date ? format(new Date(desc.from_date), 'dd-MM-yyyy') : ''}
+      </TableCell>
+      <TableCell key="to-date">
+        {desc.to_date ? format(new Date(desc.to_date), 'dd-MM-yyyy') : ''}
+      </TableCell>
+      <TableCell key="fee" align="right">{desc.fee.toFixed(2)}</TableCell>
+      <TableCell key="tax" align="center">{desc.tax_per}%</TableCell>
+      <TableCell key="tax-amount" align="right">
+        {(desc.sgst + desc.cgst + desc.igst).toFixed(2)}
+      </TableCell>
+      <TableCell key="total" align="right">{desc.total.toFixed(2)}</TableCell>
+    </TableRow>
+  ))}
+</TableBody>
               </Table>
             </TableContainer>
           </DialogContent>
@@ -793,9 +811,17 @@ const ServiceList: React.FC = () => {
         </Dialog>
         <TableContainer component={Paper} sx={{ maxHeight: 'calc(100vh - 245px)', overflowY: 'auto', width: '100%', mt: 0.7 }}>
           <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%' }}>
-            <TableHead>
-              <TableRow>{[<TableCell>S.No</TableCell>,<TableCell>Service ID</TableCell>,<TableCell>Vendor Name</TableCell>,<TableCell>Total Descriptions</TableCell>,<TableCell>Total Amount</TableCell>,<TableCell>Status</TableCell>,<TableCell>Actions</TableCell>]}</TableRow>
-            </TableHead>
+           <TableHead>
+  <TableRow>
+    <TableCell key="sno">S.No</TableCell>
+    <TableCell key="id">Service ID</TableCell>
+    <TableCell key="vendor">Vendor Name</TableCell>
+    <TableCell key="descriptions">Total Descriptions</TableCell>
+    <TableCell key="amount">Total Amount</TableCell>
+    <TableCell key="status">Status</TableCell>
+    <TableCell key="actions">Actions</TableCell>
+  </TableRow>
+</TableHead>
             <TableBody>
               {filteredServices.length === 0 ? (
                 <TableRow><TableCell colSpan={7} align="center">No services found.</TableCell></TableRow>

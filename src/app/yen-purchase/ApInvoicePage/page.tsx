@@ -92,7 +92,9 @@ const initialApInvoiceState: ApInvoice = {
   apRandomId: '',
   debitAmount: 0,
   hasDebitCreditNotes: false,
-  apRoundOff: 0
+  apRoundOff: 0,
+  totalFreightAmount: 0,
+  totalFreightTaxAmount: 0
 };
 const VerifiedApInvoicePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -1332,7 +1334,17 @@ const VerifiedApInvoicePage: React.FC = () => {
                           )}
                         </React.Fragment>
                       ))}
-
+ <TableRow>
+                        <TableCell colSpan={12} align="right">
+                          <strong>Freight Amount:</strong>
+                        </TableCell>
+                        <TableCell>{selectedInvoice.totalFreightAmount?.toFixed(2) ?? '0.00'}</TableCell>
+                      </TableRow> <TableRow>
+                        <TableCell colSpan={12} align="right">
+                          <strong>Freight Tax:</strong>
+                        </TableCell>
+                        <TableCell>{selectedInvoice.totalFreightTaxAmount?.toFixed(2) ?? '0.00'}</TableCell>
+                      </TableRow>
                       {/* Round off Amount */}
                       <TableRow>
                         <TableCell colSpan={12} align="right">

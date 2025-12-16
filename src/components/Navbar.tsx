@@ -130,29 +130,30 @@ const Navbar: React.FC<NavbarProps> = ({ moduleName, username, onToggleMenu }) =
             />
           </div>
 
-          <div className="navbar-center">
-            <Typography className={`module-name ${moduleName === moduleName.toLowerCase() ? 'module-name-uppercase' : ''}`}>
-              {moduleName}
-            </Typography>
-          </div>
+    <div className="navbar-center">
+  <Typography 
+    sx={{ 
+      fontSize: '18px !important', 
+      '&.module-name-uppercase': {
+        textTransform: 'uppercase !important',
+      }
+    }}
+    className={`${moduleName === moduleName.toLowerCase() ? 'module-name-uppercase' : ''}`}
+  >
+    {moduleName}
+  </Typography>
+</div>
 
           <div className="navbar-right">
-            {/* Session Timer */}
-            {sessionMinutesLeft > 0 && (
-              <div className={`session-timer ${getSessionTimerClass()}`}>
-                <FiClock />
-                <span>{sessionMinutesLeft} min</span>
-                <div className="session-dot"></div>
-              </div>
-            )}
-
-            {/* User Info */}
+  
+{/* 
+          
             <div className="user-info">
               <div className="user-avatar">
                 {username?.charAt(0).toUpperCase()}
               </div>
               <span className="username">{username}</span>
-            </div>
+            </div> */}
 
             {/* Business Logos */}
             {businesses?.length > 0 ? (
@@ -162,8 +163,8 @@ const Navbar: React.FC<NavbarProps> = ({ moduleName, username, onToggleMenu }) =
                     <Image
                       src={business.imageUrl}
                       alt={business.companyName}
-                      width={50}
-                      height={50}
+                      width={70}
+                      height={60}
                       className="navbar-image"
                       unoptimized={business.imageUrl.includes('http')}
                     />

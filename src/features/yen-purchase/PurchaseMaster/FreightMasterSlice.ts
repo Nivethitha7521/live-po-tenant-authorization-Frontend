@@ -9,7 +9,7 @@ export const fetchFreightItems = createAsyncThunk(
   'freightItems/fetchFreightItems',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<Freight[]>('http://192.168.29.116:8000/purchaseapi/freights/');
+      const response = await axios.get<Freight[]>('https://yenerp.com/purchaseapi/freights/');
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to fetch freight items');
@@ -22,7 +22,7 @@ export const addFreightItem = createAsyncThunk<Freight, Omit<Freight, 'freightId
   'freightItems/addFreightItem',
   async (freightData, { rejectWithValue }) => {
     try {
-      const response = await axios.post('http://192.168.29.116:8000/purchaseapi/freights/', freightData);
+      const response = await axios.post('https://yenerp.com/purchaseapi/freights/', freightData);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to add freight item');
@@ -36,7 +36,7 @@ export const updateFreightItem = createAsyncThunk<Freight, Freight>(
   async (freightData, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        `http://192.168.29.116:8000/purchaseapi/freights/${freightData.freightId}`,
+        `https://yenerp.com/purchaseapi/freights/${freightData.freightId}`,
         freightData
       );
       return response.data;
@@ -51,7 +51,7 @@ export const deactivateFreightItem = createAsyncThunk<Freight, string>(
   'freightItems/deactivateFreightItem',
   async (freightId, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`http://192.168.29.116:8000/purchaseapi/freights/${freightId}`, {
+      const response = await axios.patch(`https://yenerp.com/purchaseapi/freights/${freightId}`, {
         status: 'deactivated',
       });
       return response.data;
@@ -66,7 +66,7 @@ export const activateFreightItem = createAsyncThunk<Freight, string>(
   'freightItems/activateFreightItem',
   async (freightId, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`http://192.168.29.116:8000/purchaseapi/freights/${freightId}`, {
+      const response = await axios.patch(`https://yenerp.com/purchaseapi/freights/${freightId}`, {
         status: 'active',
       });
       return response.data;
@@ -89,7 +89,7 @@ export const importCSV = createAsyncThunk<ImportResult, File>(
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post('http://192.168.29.116:8000/purchaseapi/freights/import-csv', formData, {
+      const response = await axios.post('https://yenerp.com/purchaseapi/freights/import-csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data as ImportResult;
@@ -102,7 +102,7 @@ export const importCSV = createAsyncThunk<ImportResult, File>(
 // Async thunk for exporting CSV
 export const exportCSV = createAsyncThunk('freightItems/exportCSV', async (_, { rejectWithValue }) => {
   try {
-    const response = await axios.get('http://192.168.29.116:8000/purchaseapi/freights/export-csv', {
+    const response = await axios.get('https://yenerp.com/purchaseapi/freights/export-csv', {
       responseType: 'blob',
     });
     console.log('Export CSV response status:', response.status, 'headers:', response.headers);

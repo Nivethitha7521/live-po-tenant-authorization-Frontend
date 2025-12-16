@@ -5,6 +5,9 @@ import {
   Box, TextField, Button, Typography, Grid, Paper, TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
   Autocomplete, Snackbar, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, RadioGroup,
   FormControlLabel, Radio, CircularProgress, Tooltip, Backdrop, Switch, FormControl,
+  Select,
+  MenuItem,
+  Chip,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -18,11 +21,12 @@ import {
   setNewDescriptionData, addDescriptionToService, setSnackbarMessage, clearSnackbarMessage, setSnackbarOpen,
   setDescriptionForEditing, clearDescriptionForEditing, deleteDescriptionFromService, calculateDescriptionTotals,
   setReduxTotals, setDiscountMode, fetchServiceById, updateService, calculateServiceTotals,
+  updateDescription,
 } from '../Features/servicepo';
 import { fetchBusinesses, fetchShipping, selectBusinesses } from '@/features/account-setting/businessSlice';
 import { AppDispatch, RootState } from '@/redux/store';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ServiceData, ServiceDescription } from '../Models/servicepo';
+import { ServiceData, ServiceDescription, ServiceTotalsRequest } from '../Models/servicepo';
 import { ShippingAddress } from '@/Models/businessModel';
 import VendorAutocomplete from '../../../../components/yen-purchase/pocreationcomponent/vendorautocomplete';
 import * as Yup from 'yup';
@@ -36,6 +40,7 @@ import { selectPurchaseOrderState } from '@/features/yen-purchase/PurchaseOrder/
 import { ServiceSummary } from '../../PurchaseMaster/Service/Models/Service';
 import ServiceAutocomplete from '../../PurchaseMaster/Service/Components/ServiceAutocomplete';
 import { fetchPurchaseTaxes } from '@/features/yen-purchase/PurchaseMaster/purchaseTaxSlice';
+import FreightSelectionDialog from '../../PurchaseOrder/Component/freightSelectionDialog';
 // Helper functions for date handling
 const formatDate = (date: Date | null): string => {
   if (!date) return '';
@@ -59,7 +64,8 @@ const validationSchema = Yup.object({
   creditLimit: Yup.number().required('Credit limit is required').min(0, 'Credit limit must be non-negative'),
   workOrderDate: Yup.string().required('Work order date is required'),
 });
-// Helper to get description objects from flat arrays
+// Update the helper function to include discount_percentage and discount_amount
+
 const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescription[] => {
   const descriptions: ServiceDescription[] = [];
   const maxLen = Math.max(
@@ -70,7 +76,7 @@ const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescrip
     serviceData.to_dates.length,
     serviceData.fees.length,
     serviceData.quantity?.length || 0,
-    serviceData.remarks?.length || 0, // ADDED: Include remarks
+    serviceData.remarks?.length || 0,
     serviceData.desc_tax_types.length,
     serviceData.desc_tax_pers.length,
     serviceData.desc_sgst.length,
@@ -79,8 +85,10 @@ const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescrip
     serviceData.desc_tax_amounts.length,
     serviceData.desc_totals.length,
     serviceData.desc_total_fees.length,
-    serviceData.desc_discount_amounts.length
+    serviceData.desc_discount_amounts.length,
+    serviceData.desc_discount_percentages?.length || 0  // ADDED
   );
+  
   for (let i = 0; i < maxLen; i++) {
     descriptions.push({
       id: serviceData.desc_ids[i] || '',
@@ -100,9 +108,12 @@ const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescrip
       totalFee: serviceData.desc_total_fees[i] || 0,
       finalFee: serviceData.desc_total_fees[i] || 0,
       discountAmount: serviceData.desc_discount_amounts[i] || 0,
-      remarks: serviceData.remarks?.[i] || '', // FIXED: Pull from flat array, default empty
+      discount_percentage: serviceData.desc_discount_percentages?.[i] || 0, // ADDED
+      discount_amount: serviceData.desc_discount_amounts[i] || 0,          // ADDED
+      remarks: serviceData.remarks?.[i] || '',
     });
   }
+  
   return descriptions;
 };
 // Simple unique ID generator
@@ -145,6 +156,7 @@ const CreateServicePage: React.FC = () => {
     paymentTerms: false,
     creditLimit: false
   });
+const isEditing = (newDescription as any).index !== undefined && (newDescription as any).index >= 0;
   const [selectedService, setSelectedService] = useState<ServiceSummary | null>(null);
   const [vendorSearch, setVendorSearch] = useState<VendorSummary | null>(null);
   const [locationSearch, setLocationSearch] = useState<Location | null>(null);
@@ -154,10 +166,15 @@ const CreateServicePage: React.FC = () => {
   const [isHoldOrderDialog, setIsHoldOrderDialog] = useState(false);
   const [overallDiscountValue, setOverallDiscountValue] = useState<number>(0);
   const [overallDiscountMode, setOverallDiscountMode] = useState<'percentage' | 'amount'>('percentage');
+  const [overallDiscountAppliedOn, setOverallDiscountAppliedOn] = useState<'before_tax' | 'after_tax'>('after_tax');
   const [roundOffValue, setRoundOffValue] = useState<number>(0);
   const [orderLoading, setOrderLoading] = useState(false);
   const descriptionRef = useRef<HTMLInputElement | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [servicesList, setServicesList] = useState<ServiceSummary[]>([]);
+// Add ONLY these 2 states for freight:
+  const [freights, setFreights] = useState<any[]>([]);
+  const [openFreightDialog, setOpenFreightDialog] = useState(false);
   // FIXED: Load specific service data in edit mode (proper date parsing without time)
   useEffect(() => {
     if (isEditMode && editId) {
@@ -208,73 +225,115 @@ const CreateServicePage: React.FC = () => {
         });
     }
   }, [isEditMode, editId, dispatch, router]);
-  // UPDATED: Fetch totals from backend after description changes or discount updates
-  const refreshTotals = useCallback(async () => {
-    if (serviceData.desc_descriptions.length === 0) {
-      setTotals({
-        subTotal: 0, roundedTotalOrderAmount: 0, roundedTotalDiscount: 0, roundedTotalTax: 0,
-        overallDiscountAmount: 0, descriptionDiscountAmount: 0, taxAmount: 0, afterDiscount: 0,
-      });
-      return;
-    }
-    try {
-      const descriptions = getDescriptionsFromFlatArrays(serviceData).map(desc => ({
-        ...desc,
-        from_date: desc.from_date || null,
-        to_date: desc.to_date || null,
-        remarks: desc.remarks || '', // FIXED: Use actual remarks, not description
-        quantity: desc.quantity || 1, // Ensure quantity is sent
-        discountAmount: desc.discountAmount || 0,
-      }));
-      const request = {
-        descriptions,
-        overall_discount_value: overallDiscountValue,
-        overall_discount_type: overallDiscountMode,
-        round_off: roundOffValue,
-      };
-      const result = await dispatch(calculateServiceTotals(request)).unwrap();
-      // UPDATED: Update flat arrays with backend-calculated values (including proportional overall discounts)
-      const updatedServiceData = { ...serviceData };
-      if (result.desc_sgst && result.desc_sgst.length > 0) {
-        updatedServiceData.desc_sgst = result.desc_sgst;
-        updatedServiceData.desc_cgst = result.desc_cgst;
-        updatedServiceData.desc_igst = result.desc_igst;
-        updatedServiceData.desc_tax_amounts = result.desc_tax_amounts || descriptions.map(d => (d.sgst || 0) + (d.cgst || 0) + (d.igst || 0));
-        updatedServiceData.desc_totals = result.desc_totals || descriptions.map((d, i) => descriptions[i].fee + (result.desc_tax_amounts?.[i] || 0) - (result.desc_overall_discounts?.[i] || 0));
-        updatedServiceData.desc_total_fees = result.desc_total_fees || descriptions.map(d => d.fee);
-        updatedServiceData.desc_discount_amounts = result.desc_discount_amounts || descriptions.map(d => d.discountAmount || 0); // Individual
-        updatedServiceData.desc_overall_discounts = result.desc_overall_discounts || []; // NEW: Store per-desc overall discounts
-        // ADDED: Preserve quantity (not calculated by backend)
-        updatedServiceData.quantity = serviceData.quantity || descriptions.map(() => 1);
-        // ADDED: Preserve remarks (not calculated by backend)
-        updatedServiceData.remarks = serviceData.remarks || descriptions.map(() => '');
+    // Add freight totals calculation (simple)
+  const freightSubTotal = freights.reduce((sum, f) => sum + (f.amt || 0), 0);
+  const freightTaxTotal = freights.reduce((sum, f) => sum + (f.tAmt || 0), 0);
+  const freightGrandTotal = freights.reduce((sum, f) => sum + (f.totalAmt || 0), 0);
+
+  // Add freight handler (simple)
+  const handleAddFreights = (newFreights: any[]) => {
+    setFreights(newFreights);
+    // You can call refreshTotals here if needed
+  };
+const refreshTotals = useCallback(async () => {
+  if (serviceData.desc_descriptions.length === 0) {
+    setTotals({
+      subTotal: 0, 
+      roundedTotalOrderAmount: 0, 
+      roundedTotalDiscount: 0, 
+      roundedTotalTax: 0,
+      overallDiscountAmount: 0, 
+      descriptionDiscountAmount: 0, 
+      taxAmount: 0, 
+      afterDiscount: 0,
+    });
+    return;
+  }
+  
+  try {
+    // Create proper description objects
+    const descriptions: ServiceDescription[] = serviceData.desc_descriptions.map((desc, index) => ({
+      id: serviceData.desc_ids[index] || `desc_${Date.now()}_${index}`,
+      sacCode: serviceData.sacCode[index] || '',
+      description: desc,
+      from_date: serviceData.from_dates[index] || null,
+      to_date: serviceData.to_dates[index] || null,
+      fee: serviceData.fees[index] || 0,
+      quantity: serviceData.quantity?.[index] || 1,
+      remarks: serviceData.remarks?.[index] || '',
+      tax_type: serviceData.desc_tax_types[index] as 'cgst_sgst' | 'igst' || 'cgst_sgst',
+      tax_per: serviceData.desc_tax_pers[index] || 0,
+      sgst: serviceData.desc_sgst?.[index] || 0,
+      cgst: serviceData.desc_cgst?.[index] || 0,
+      igst: serviceData.desc_igst?.[index] || 0,
+      total: serviceData.desc_totals?.[index] || 0,
+      taxAmount: serviceData.desc_tax_amounts?.[index] || 0,
+      totalFee: serviceData.desc_total_fees?.[index] || serviceData.fees[index] || 0,
+      finalFee: serviceData.desc_total_fees?.[index] || serviceData.fees[index] || 0,
+      discountAmount: serviceData.desc_discount_amounts?.[index] || 0,
+      discount_percentage: serviceData.desc_discount_percentages?.[index] || 0,
+      discount_amount: serviceData.desc_discount_amounts?.[index] || 0,
+    }));
+    
+    const request: ServiceTotalsRequest = {
+      descriptions,
+      overall_discount_value: overallDiscountValue,
+      overall_discount_type: overallDiscountMode,
+      overall_discount_applied_on: overallDiscountAppliedOn, // This is now valid
+      round_off: roundOffValue,
+    };
+    
+    console.log('Sending calculate request:', request);
+    
+    const result = await dispatch(calculateServiceTotals(request)).unwrap();
+    
+    console.log('Received totals result:', result);
+    
+    // Update state with backend-calculated values
+    const updatedServiceData = { ...serviceData };
+    
+    if (result.desc_sgst && result.desc_sgst.length > 0) {
+      updatedServiceData.desc_sgst = result.desc_sgst;
+      updatedServiceData.desc_cgst = result.desc_cgst;
+      updatedServiceData.desc_igst = result.desc_igst;
+      updatedServiceData.desc_tax_amounts = result.desc_tax_amounts || [];
+      updatedServiceData.desc_totals = result.desc_totals || [];
+      updatedServiceData.desc_total_fees = result.desc_total_fees || [];
+      updatedServiceData.desc_discount_amounts = result.desc_discount_amounts || [];
+      updatedServiceData.desc_overall_discounts = result.desc_overall_discounts || [];
+      
+      updatedServiceData.desc_discount_percentages = serviceData.desc_discount_percentages || Array(result.desc_sgst.length).fill(0);
+      updatedServiceData.desc_discount_amounts = serviceData.desc_discount_amounts || Array(result.desc_sgst.length).fill(0);
+      
+      // Store the applied on method if returned
+      if (result.overall_discount_applied_on) {
+        setOverallDiscountAppliedOn(result.overall_discount_applied_on);
       }
-      dispatch(setServiceData(updatedServiceData));
-      // Set totals from backend response
-      setTotals({
-        subTotal: result.totalFees || 0,
-        roundedTotalOrderAmount: result.totalAmount || 0,
-        roundedTotalDiscount: result.totalDiscount || 0,
-        roundedTotalTax: result.totalTax || 0,
-        overallDiscountAmount: result.totalOverallDiscount || 0,
-        descriptionDiscountAmount: result.totalIndividualDiscount || 0,
-        taxAmount: result.totalTax || 0,
-        afterDiscount: result.amountAfterDiscount || 0,
-      });
-      dispatch(setReduxTotals({
-        totalFees: result.totalFees || 0,
-        totalAmount: result.totalAmount || 0,
-        totalDiscount: result.totalDiscount || 0,
-        totalTax: result.totalTax || 0,
-      }));
-    } catch (error) {
-      console.error('Error refreshing totals:', error);
-      dispatch(setSnackbarMessage('Failed to calculate totals.'));
-      dispatch(setSnackbarOpen(true));
     }
-  }, [serviceData, overallDiscountValue, overallDiscountMode, roundOffValue, dispatch]);
-  // FIXED: Removed refreshTotals from deps to prevent infinite loop; effect now runs only on primitive dep changes
-  // Call refreshTotals after adding/deleting descriptions or changing discounts/roundoff
+    
+    dispatch(setServiceData(updatedServiceData));
+    
+    // Calculate final total INCLUDING FREIGHT
+    const serviceTotal = result.totalAmount || 0;
+    const finalTotal = serviceTotal + freightGrandTotal;
+    
+    setTotals({
+      subTotal: result.totalFees || 0,
+      roundedTotalOrderAmount: finalTotal, // Include freight in final amount
+      roundedTotalDiscount: result.totalDiscount || 0,
+      roundedTotalTax: result.totalTax || 0,
+      overallDiscountAmount: result.totalOverallDiscount || 0,
+      descriptionDiscountAmount: result.totalIndividualDiscount || 0,
+      taxAmount: result.totalTax || 0,
+      afterDiscount: result.totalFees || 0,
+    });
+    
+  } catch (error) {
+    console.error('Error refreshing totals:', error);
+    dispatch(setSnackbarMessage('Failed to calculate totals. Please check the data.'));
+    dispatch(setSnackbarOpen(true));
+  }
+}, [serviceData, overallDiscountValue, overallDiscountMode, overallDiscountAppliedOn, roundOffValue, dispatch, freightGrandTotal]);
   useEffect(() => {
   if (open) {
     dispatch(fetchPurchaseTaxes());
@@ -561,6 +620,9 @@ const CreateServicePage: React.FC = () => {
     dispatch(setNewDescriptionData({ ...newDescription, tax_type: event.target.value as 'cgst_sgst' | 'igst' }));
   };
 const handleAddDescription = useCallback(async () => {
+  const isEditing = (newDescription as any).index !== undefined && (newDescription as any).index >= 0;
+  const editingIndex = (newDescription as any).index;
+  
   // Validation
   setErrors({
     description: !newDescription.description?.trim(),
@@ -569,7 +631,7 @@ const handleAddDescription = useCallback(async () => {
     fee: !newDescription.fee || newDescription.fee <= 0,
     taxPer: false,
     quantity: !newDescription.quantity || newDescription.quantity < 1,
-    remarks: false, // Remarks is optional
+    remarks: false,
   });
  
   // Description, fee, and quantity are required
@@ -595,17 +657,14 @@ const handleAddDescription = useCallback(async () => {
       sacCode: newDescription.sacCode || '',
       discount: 0,
       quantity: newDescription.quantity || 1,
-      remarks: newDescription.remarks || '', // FIXED: Include remarks in params
+      remarks: newDescription.remarks || '',
     };
    
     const calcResult = await dispatch(calculateDescriptionTotals(params)).unwrap();
    
-    // DEBUG: Log the calculation result
-    console.log('Calculation Result:', calcResult);
-   
     // Create the new description with calculated values
     const newDescWithId: ServiceDescription = {
-      id: generateUniqueId(),
+      id: isEditing ? newDescription.id : generateUniqueId(),
       sacCode: newDescription.sacCode || '',
       description: newDescription.description.trim(),
       from_date: newDescription.from_date || null,
@@ -622,17 +681,25 @@ const handleAddDescription = useCallback(async () => {
       totalFee: calcResult.totalFee || 0,
       finalFee: calcResult.totalFee || 0,
       discountAmount: 0,
+      discount_percentage: 0,  // ADDED
+      discount_amount: 0,      // ADDED
       remarks: newDescription.remarks || '',
     };
    
-    // DEBUG: Log the created description
-    console.log('New Description to Add:', newDescWithId);
+    if (isEditing && editingIndex !== undefined) {
+      // UPDATE existing description
+      dispatch(updateDescription({
+        index: editingIndex,
+        desc: newDescWithId
+      }));
+      dispatch(setSnackbarMessage('Description updated successfully'));
+    } else {
+      // ADD new description
+      dispatch(addDescriptionToService(newDescWithId));
+      dispatch(setSnackbarMessage('Description added successfully'));
+    }
    
-    dispatch(addDescriptionToService(newDescWithId));
-   
-    // FIXED: Removed manual quantity update (handled in reducer)
-   
-    // Reset form
+    // Reset form - include index property
     dispatch(setNewDescriptionData({
       id: '',
       sacCode: '',
@@ -650,38 +717,46 @@ const handleAddDescription = useCallback(async () => {
       totalFee: 0,
       finalFee: 0,
       discountAmount: 0,
+      discount_percentage: 0,  // ADDED
+      discount_amount: 0,      // ADDED
       quantity: 1,
       remarks: '',
-    }));
+      index: undefined,
+    } as any));
    
-    // Clear the selected service from autocomplete
     setSelectedService(null);
-   
     setErrors({ description: false, fromDate: false, toDate: false, fee: false, taxPer: false, quantity: false, remarks: false });
-   
-    // Show success message
-    dispatch(setSnackbarMessage('Description added successfully'));
-    dispatch(setSnackbarOpen(true));
    
     setTimeout(() => descriptionRef.current?.focus(), 100);
    
   } catch (error) {
-    console.error('Add desc error:', error);
-    dispatch(setSnackbarMessage(`Failed to add: ${error instanceof Error ? error.message : 'Try again'}`));
+    console.error('Add/Update desc error:', error);
+    dispatch(setSnackbarMessage(`Failed: ${error instanceof Error ? error.message : 'Try again'}`));
     dispatch(setSnackbarOpen(true));
   } finally {
     setLoading(false);
   }
 }, [dispatch, newDescription, serviceData]);
-  // FIXED: Handle edit description (load dates as Date objects for picker)
-  const handleEditDescription = (index: number) => {
-    const descriptions = getDescriptionsFromFlatArrays(serviceData);
-    const desc = descriptions[index];
-    if (desc) {
-      // FIXED: Set dates as strings, but picker will parse to Date; include quantity and remarks
-      dispatch(setDescriptionForEditing({ ...desc, index }));
+// Update handleEditDescription to use servicesList
+const handleEditDescription = (index: number) => {
+  const descriptions = getDescriptionsFromFlatArrays(serviceData);
+  const desc = descriptions[index];
+  if (desc) {
+    // Find the selected service by SAC code to populate dropdown
+    if (desc.sacCode && servicesList.length > 0) {
+      const service = servicesList.find(s => s.saccode.toString() === desc.sacCode);
+      setSelectedService(service || null);
     }
-  };
+    
+    dispatch(setDescriptionForEditing({ 
+      ...desc, 
+      index: index
+    }));
+    
+    // Scroll to description form
+    document.getElementById('description-form')?.scrollIntoView({ behavior: 'smooth' });
+  }
+};
   const handleDeleteDescription = (index: number) => {
     dispatch(deleteDescriptionFromService(index));
     dispatch(clearDescriptionForEditing());
@@ -889,84 +964,93 @@ const handleAddDescription = useCallback(async () => {
       router.push('/yen-purchase/ServiceOrder');
     }
   };
-  const handleSubmit = async () => {
-    try {
-      await validationSchema.validate(serviceData, { abortEarly: false });
-      setFormErrors({
-        vendorName: false,
-        billingAddress: false,
-        shippingAddress: false,
-        locationName: false,
-        paymentTerms: false,
-        creditLimit: false
-      });
-      if (serviceData.desc_descriptions.length === 0) {
-        dispatch(setSnackbarMessage('At least one description is required.'));
-        dispatch(setSnackbarOpen(true));
-        return;
-      }
-      // UPDATED: Final totals refresh before submit
-      await refreshTotals();
-      const workOrderDate = serviceData.workOrderDate || formatDate(new Date()); // Date-only
-      const finalAmount = totals.roundedTotalOrderAmount;
-      const totalDiscount = totals.roundedTotalDiscount;
-      const totalTax = totals.roundedTotalTax;
-      // CRITICAL: Include all required fields (flat arrays)
-      const dataToSubmit = {
-        ...serviceData,
-        workOrderDate,
-        totalAmount: finalAmount,
-        totalTax: totalTax,
-        overallDiscountType: overallDiscountMode, // Send discount mode
-        overallDiscountValue,
-        totalDiscount,
-        roundOffValue,
-        quantity: serviceData.quantity || [], // ADDED: Ensure quantities sent
-        remarks: serviceData.remarks || [], // ADDED: Ensure remarks sent
-        // Ensure all array fields exist
-        sacCode: serviceData.sacCode || [],
-        desc_ids: serviceData.desc_ids || [],
-        desc_descriptions: serviceData.desc_descriptions || [],
-        from_dates: serviceData.from_dates || [],
-        to_dates: serviceData.to_dates || [],
-        fees: serviceData.fees || [],
-        desc_tax_types: serviceData.desc_tax_types || [],
-        desc_tax_pers: serviceData.desc_tax_pers || [],
-        desc_sgst: serviceData.desc_sgst || [],
-        desc_cgst: serviceData.desc_cgst || [],
-        desc_igst: serviceData.desc_igst || [],
-        desc_tax_amounts: serviceData.desc_tax_amounts || [],
-        desc_totals: serviceData.desc_totals || [],
-        desc_total_fees: serviceData.desc_total_fees || [],
-        desc_discount_amounts: serviceData.desc_discount_amounts || [],
-        desc_overall_discounts: serviceData.desc_overall_discounts || [], // NEW
-        // Other required fields
-        termsandConditions: serviceData.termsandConditions || [''],
-      } as ServiceData;
-      let result;
-      setSubmitLoading(true);
-      if (isEditMode && editId) {
-        result = await dispatch(updateService({ serviceId: editId, service: dataToSubmit })).unwrap();
-        dispatch(setSnackbarMessage(`Service Order ${result.serviceId || editId} successfully updated.`));
-      } else {
-        result = await dispatch(addService(dataToSubmit)).unwrap();
-        dispatch(setSnackbarMessage(
-          `Service Order ${result.serviceId || 'Unknown'} successfully created.`
-        ));
-      }
+ const handleSubmit = async () => {
+  try {
+    await validationSchema.validate(serviceData, { abortEarly: false });
+    setFormErrors({
+      vendorName: false,
+      billingAddress: false,
+      shippingAddress: false,
+      locationName: false,
+      paymentTerms: false,
+      creditLimit: false
+    });
+    if (serviceData.desc_descriptions.length === 0) {
+      dispatch(setSnackbarMessage('At least one description is required.'));
       dispatch(setSnackbarOpen(true));
-      await dispatch(fetchServices());
-      handleClear();
-      setDialogOpen(false);
-      router.push('/yen-purchase/ServiceOrder');
-    } catch (error) {
-      console.error('Submit error:', error);
-      dispatch(setSnackbarMessage('Failed to submit service order. Please check the data.'));
-      dispatch(setSnackbarOpen(true));
-    } finally {
-      setSubmitLoading(false);
+      return;
     }
-  };
+    
+    await refreshTotals();
+    
+    const workOrderDate = serviceData.workOrderDate || formatDate(new Date());
+    const finalAmount = totals.roundedTotalOrderAmount;
+    const totalDiscount = totals.roundedTotalDiscount;
+    const totalTax = totals.roundedTotalTax;
+    
+    // Prepare freight data
+    const freightData = {
+      freights: freights,
+      totalFreightAmount: freightSubTotal,
+      totalFreightTaxAmount: freightTaxTotal,
+    };
+    
+    const dataToSubmit = {
+      ...serviceData,
+      ...freightData,
+      workOrderDate,
+      totalAmount: finalAmount,
+      totalTax: totalTax,
+      overallDiscountType: overallDiscountMode,
+      overallDiscountAppliedOn: overallDiscountAppliedOn,
+      overallDiscountValue,
+      totalDiscount,
+      roundOffValue,
+      quantity: serviceData.quantity || [],
+      remarks: serviceData.remarks || [],
+      sacCode: serviceData.sacCode || [],
+      desc_ids: serviceData.desc_ids || [],
+      desc_descriptions: serviceData.desc_descriptions || [],
+      from_dates: serviceData.from_dates || [],
+      to_dates: serviceData.to_dates || [],
+      fees: serviceData.fees || [],
+      desc_tax_types: serviceData.desc_tax_types || [],
+      desc_tax_pers: serviceData.desc_tax_pers || [],
+      desc_sgst: serviceData.desc_sgst || [],
+      desc_cgst: serviceData.desc_cgst || [],
+      desc_igst: serviceData.desc_igst || [],
+      desc_tax_amounts: serviceData.desc_tax_amounts || [],
+      desc_totals: serviceData.desc_totals || [],
+      desc_total_fees: serviceData.desc_total_fees || [],
+      desc_discount_amounts: serviceData.desc_discount_amounts || [],
+      desc_overall_discounts: serviceData.desc_overall_discounts || [],
+      termsandConditions: serviceData.termsandConditions || [''],
+    } as ServiceData;
+    
+    let result;
+    setSubmitLoading(true);
+    if (isEditMode && editId) {
+      result = await dispatch(updateService({ serviceId: editId, service: dataToSubmit })).unwrap();
+      dispatch(setSnackbarMessage(`Service Order ${result.serviceId || editId} successfully updated.`));
+    } else {
+      result = await dispatch(addService(dataToSubmit)).unwrap();
+      dispatch(setSnackbarMessage(
+        `Service Order ${result.serviceId || 'Unknown'} successfully created.`
+      ));
+    }
+    dispatch(setSnackbarOpen(true));
+    await dispatch(fetchServices());
+    handleClear();
+    setDialogOpen(false);
+    router.push('/yen-purchase/ServiceOrder');
+  } catch (error) {
+    console.error('Submit error:', error);
+    dispatch(setSnackbarMessage('Failed to submit service order. Please check the data.'));
+    dispatch(setSnackbarOpen(true));
+  } finally {
+    setSubmitLoading(false);
+  }
+};
   const handleOpenDialog = () => {
     validationSchema.validate(serviceData, { abortEarly: false })
       .then(() => {
@@ -1282,19 +1366,32 @@ const handleAddDescription = useCallback(async () => {
                   </RadioGroup>
                 </Box>
               </Grid>
-              {/* Add Button */}
-              <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleAddDescription}
-                  size="small"
-                  disabled={loading}
-                  startIcon={loading ? <CircularProgress size={20} /> : null}
-                >
-                  {loading ? 'Adding...' : 'Add Description'}
-                </Button>
-              </Grid>
+<Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+  {isEditing && (
+    <Button
+      variant="outlined"
+      color="error"
+      onClick={() => {
+        dispatch(clearDescriptionForEditing());
+        setSelectedService(null);
+      }}
+      size="small"
+    >
+      Cancel Edit
+    </Button>
+  )}
+  <Button
+    variant="contained"
+    color={isEditing ? "secondary" : "primary"}
+    onClick={handleAddDescription}
+    size="small"
+    disabled={loading}
+    startIcon={loading ? <CircularProgress size={20} /> : null}
+  >
+    {loading ? 'Processing...' : (isEditing ? 'Update Description' : 'Add Description')}
+  </Button>
+</Grid>
+
             </Grid>
             {/* Descriptions Table - UPDATED with Quantity and Remarks */}
             <TableContainer sx={{ maxHeight: '500px', overflowY: 'auto', marginBottom: '10px' }}>
@@ -1334,37 +1431,46 @@ const handleAddDescription = useCallback(async () => {
                       <TableCell colSpan={17} align="center">No descriptions added</TableCell>
                     </TableRow>
                   ) : (
-                    descriptions.map((desc, index) => (
-                      <TableRow key={desc.id || index}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{desc.sacCode || 'N/A'}</TableCell>
-                        <TableCell sx={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {desc.description}
-                        </TableCell>
-                        <TableCell sx={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {desc.remarks || 'N/A'}
-                        </TableCell>
-                        <TableCell>{desc.quantity || 1}</TableCell> {/* FIXED: Now pulls from flat array */}
-                        <TableCell>{desc.from_date ? new Date(desc.from_date).toLocaleDateString() : 'N/A'}</TableCell>
-                        <TableCell>{desc.to_date ? new Date(desc.to_date).toLocaleDateString() : 'N/A'}</TableCell>
-                        <TableCell align="right">{desc.fee?.toFixed(2)}</TableCell>
-                        <TableCell align="center">{desc.tax_type === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}</TableCell>
-                        <TableCell align="right">{desc.tax_per?.toFixed(2)}%</TableCell>
-                        <TableCell align="right">{desc.sgst?.toFixed(2)}</TableCell>
-                        <TableCell align="right">{desc.cgst?.toFixed(2)}</TableCell>
-                        <TableCell align="right">{desc.igst?.toFixed(2)}</TableCell>
-                        <TableCell align="right">{(serviceData.desc_overall_discounts?.[index] || 0)?.toFixed(2)}</TableCell>
-                        <TableCell align="right">{desc.total?.toFixed(2)}</TableCell>
-                        <TableCell align="right">
-                          <IconButton onClick={() => handleEditDescription(index)} size="small">
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton onClick={() => handleDeleteDescription(index)} size="small">
-                            <DeleteIcon />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                   descriptions.map((desc, index) => (
+  <TableRow key={desc.id || index}>
+    <TableCell>{index + 1}</TableCell>
+    <TableCell>{desc.sacCode || 'N/A'}</TableCell>
+    <TableCell sx={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {desc.description}
+    </TableCell>
+    <TableCell sx={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {desc.remarks || 'N/A'}
+    </TableCell>
+    <TableCell>{desc.quantity || 1}</TableCell>
+    <TableCell>{desc.from_date ? new Date(desc.from_date).toLocaleDateString() : 'N/A'}</TableCell>
+    <TableCell>{desc.to_date ? new Date(desc.to_date).toLocaleDateString() : 'N/A'}</TableCell>
+    <TableCell align="right">{desc.fee?.toFixed(2)}</TableCell>
+    <TableCell align="center">{desc.tax_type === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}</TableCell>
+    <TableCell align="right">{desc.tax_per?.toFixed(2)}%</TableCell>
+    <TableCell align="right">{desc.sgst?.toFixed(2)}</TableCell>
+    <TableCell align="right">{desc.cgst?.toFixed(2)}</TableCell>
+    <TableCell align="right">{desc.igst?.toFixed(2)}</TableCell>
+    {/* Show overall discount share for this item */}
+<TableCell align="right">
+  {(serviceData.desc_overall_discounts?.[index] || 0)?.toFixed(2)}
+  <Typography variant="caption" color="text.secondary" display="block">
+    {serviceData.desc_overall_discounts?.[index] && totals.overallDiscountAmount > 0 
+      ? `(${((serviceData.desc_overall_discounts[index] / totals.overallDiscountAmount) * 100).toFixed(1)}%)`
+      : ''
+    }
+  </Typography>
+</TableCell>
+    <TableCell align="right">{desc.total?.toFixed(2)}</TableCell>
+    <TableCell align="right">
+      <IconButton onClick={() => handleEditDescription(index)} size="small">
+        <EditIcon />
+      </IconButton>
+      <IconButton onClick={() => handleDeleteDescription(index)} size="small">
+        <DeleteIcon />
+      </IconButton>
+    </TableCell>
+  </TableRow>
+))
                   )}
                   {/* Totals rows - FIXED colspan to 17 columns (label colSpan=15, value=1, empty=1) */}
                   <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
@@ -1403,76 +1509,81 @@ const handleAddDescription = useCallback(async () => {
                     </TableCell>
                     <TableCell />
                   </TableRow>
-                  <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={9} align="right">
-                      <strong>Overall Discount:</strong>
-                    </TableCell>
-                    <TableCell align="right" colSpan={9}> {/* Adjusted for input box spanning more cells */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <TextField
-                          autoComplete='off'
-                          value={overallDiscountValue === 0 ? '' : overallDiscountValue.toString()}
-                          onChange={handleOverallDiscountChange}
-                          size="small"
-                          type="number"
-                          label={overallDiscountMode === 'percentage' ? '%' : '₹'}
-                          inputProps={{
-                            min: '0',
-                            max: overallDiscountMode === 'percentage' ? '99.99' : undefined,
-                            step: '0.01',
-                          }}
-                          sx={{ width: 80 }}
-                          disabled={hasDescriptionWiseDiscount || totalsLoading}
-                        />
-                        <Button
-                          variant="contained"
-                          size="small"
-                          onClick={handleApplyDiscount}
-                          disabled={loading || overallDiscountValue <= 0 || descriptions.length === 0 || hasDescriptionWiseDiscount || totalsLoading}
-                          startIcon={loading ? <CircularProgress size={16} /> : null}
-                        >
-                          {loading ? 'Applying...' : 'Apply'}
-                        </Button>
-                        <IconButton
-                          onClick={() => {
-                            setOverallDiscountValue(0);
-                            dispatch(setSnackbarMessage('Overall discount removed'));
-                            dispatch(setSnackbarOpen(true));
-                          }}
-                          size="small"
-                          color="error"
-                          disabled={totalsLoading}
-                        >
-                          <ClearIcon />
-                        </IconButton>
-                      </Box>
-                    </TableCell>
-                    <TableCell align="center">
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={overallDiscountMode === 'amount'}
-                            onChange={() => setOverallDiscountModeWithConversion(overallDiscountMode === 'percentage' ? 'amount' : 'percentage')}
-                            size="small"
-                            disabled={hasDescriptionWiseDiscount || totalsLoading}
-                          />
-                        }
-                        label={overallDiscountMode === 'amount' ? '₹' : '%'}
-                        labelPlacement="top"
-                        sx={{ m: 0 }}
-                      />
-                    </TableCell>
-                    <TableCell colSpan={1} /> {/* Adjusted for total 17 */}
-                  </TableRow>
-                  <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={15} align="right">
-                      <strong>Total Discount:</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>{totals.roundedTotalDiscount.toFixed(2)}</strong>
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
+<TableRow sx={{ fontWeight: 'bold' }}>
+  <TableCell colSpan={9} align="right">
+    <strong>Overall Discount:</strong>
+  </TableCell>
+  <TableCell align="right" colSpan={6}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <TextField
+        autoComplete='off'
+        value={overallDiscountValue === 0 ? '' : overallDiscountValue.toString()}
+        onChange={handleOverallDiscountChange}
+        size="small"
+        type="number"
+        label={overallDiscountMode === 'percentage' ? '%' : '₹'}
+        inputProps={{
+          min: '0',
+          max: overallDiscountMode === 'percentage' ? '99.99' : undefined,
+          step: '0.01',
+        }}
+        sx={{ width: 80 }}
+        disabled={hasDescriptionWiseDiscount || totalsLoading}
+      />
+      
+      {/* Apply on selector */}
+      <FormControl size="small" sx={{ minWidth: 120 }}>
+        <Select
+          value={overallDiscountAppliedOn}
+          onChange={(e) => setOverallDiscountAppliedOn(e.target.value as 'before_tax' | 'after_tax')}
+          disabled={hasDescriptionWiseDiscount || totalsLoading}
+        >
+          <MenuItem value="after_tax">On Total</MenuItem>
+          <MenuItem value="before_tax">Before Tax</MenuItem>
+        </Select>
+      </FormControl>
+      
+      <Button
+        variant="contained"
+        size="small"
+        onClick={handleApplyDiscount}
+        disabled={loading || overallDiscountValue <= 0 || descriptions.length === 0 || hasDescriptionWiseDiscount || totalsLoading}
+        startIcon={loading ? <CircularProgress size={16} /> : null}
+      >
+        {loading ? 'Applying...' : 'Apply'}
+      </Button>
+      
+      <IconButton
+        onClick={() => {
+          setOverallDiscountValue(0);
+          dispatch(setSnackbarMessage('Overall discount removed'));
+          dispatch(setSnackbarOpen(true));
+        }}
+        size="small"
+        color="error"
+        disabled={totalsLoading}
+      >
+        <ClearIcon />
+      </IconButton>
+    </Box>
+  </TableCell>
+  <TableCell align="center">
+    <FormControlLabel
+      control={
+        <Switch
+          checked={overallDiscountMode === 'amount'}
+          onChange={() => setOverallDiscountModeWithConversion(overallDiscountMode === 'percentage' ? 'amount' : 'percentage')}
+          size="small"
+          disabled={hasDescriptionWiseDiscount || totalsLoading}
+        />
+      }
+      label={overallDiscountMode === 'amount' ? '₹' : '%'}
+      labelPlacement="top"
+      sx={{ m: 0 }}
+    />
+  </TableCell>
+  <TableCell colSpan={1} />
+</TableRow>
                   <TableRow>
                     <TableCell colSpan={15} align="right">
                       <strong>Round Off/Adjustment:</strong>
@@ -1496,15 +1607,23 @@ const handleAddDescription = useCallback(async () => {
                     </TableCell>
                     <TableCell />
                   </TableRow>
-                  <TableRow sx={{ fontSize: '1.1em' }}>
-                    <TableCell colSpan={15} align="right">
-                      <strong style={{ fontSize: '1.2em' }}>FINAL AMOUNT:</strong>
-                    </TableCell>
-                    <TableCell sx={{ fontSize: '1.2em', fontWeight: 'bold' }} align="right">
-                      <strong>{totals.roundedTotalOrderAmount.toFixed(2)}</strong>
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
+<TableRow sx={{ bgcolor: '#e8f5e8' }}>
+  <TableCell colSpan={2} align="right">
+    <Typography variant="h6" fontWeight="bold">
+      FINAL AMOUNT (Service + Freight):
+    </Typography>
+  </TableCell>
+  <TableCell align="right">
+    <Typography variant="h6" fontWeight="bold" color="success.main">
+      ₹{totals.roundedTotalOrderAmount?.toFixed(2)}
+    </Typography>
+    {freightGrandTotal > 0 && (
+      <Typography variant="caption" color="text.secondary">
+        (Service: ₹{(totals.roundedTotalOrderAmount - freightGrandTotal).toFixed(2)} + Freight: ₹{freightGrandTotal.toFixed(2)})
+      </Typography>
+    )}
+  </TableCell>
+</TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
@@ -1649,6 +1768,54 @@ const handleAddDescription = useCallback(async () => {
             </Grid>
           </Grid>
         </Box>
+         <Box sx={{ mt: 2, mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Freight Charges
+              </Typography>
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={() => setOpenFreightDialog(true)}
+                startIcon={<AddIcon />}
+              >
+                Add Freight
+              </Button>
+            </Box>
+            
+            {freights.length > 0 ? (
+              <Box>
+                {/* Simple Freight Summary */}
+                <Grid container spacing={2} sx={{ mb: 2 }}>
+                  <Grid item xs={4}>
+                    <Typography variant="body2">Freight Amount: <strong>₹{freightSubTotal.toFixed(2)}</strong></Typography>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Typography variant="body2">Freight Tax: <strong>₹{freightTaxTotal.toFixed(2)}</strong></Typography>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Typography variant="body2">Freight Total: <strong>₹{freightGrandTotal.toFixed(2)}</strong></Typography>
+                  </Grid>
+                </Grid>
+                
+                {/* Simple List */}
+                {freights.map((freight, index) => (
+                  <Chip
+                    key={index}
+                    label={`${freight.name}: ₹${freight.totalAmt.toFixed(2)}`}
+                    onDelete={() => {
+                      setFreights(prev => prev.filter((_, i) => i !== index));
+                    }}
+                    sx={{ m: 0.5 }}
+                  />
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No freight charges added
+              </Typography>
+            )}
+          </Box>
       </Box>
       {/* Footer */}
       <Box sx={{ p: 0.5, bgcolor: 'white', position: 'sticky', bottom: 0, zIndex: 10 }}>
@@ -1741,6 +1908,14 @@ const handleAddDescription = useCallback(async () => {
         onClose={() => dispatch(clearSnackbarMessage())}
         message={snackbarMessage}
       />
+            {/* === FREIGHT DIALOG === */}
+      <FreightSelectionDialog
+        open={openFreightDialog}
+        onClose={() => setOpenFreightDialog(false)}
+        onAddFreights={handleAddFreights}
+        existingFreights={freights}
+      />
+
     </Box>
   );
 };

@@ -1,136 +1,115 @@
+/* Main navbar container - ensure it doesn't wrap and allows overflow if needed */
 .navbar {
-  background-color: white !important; /* Change background to white */
+  background-color: white !important;
   padding: 1px !important;
   margin-left: 5px;
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
-  color: black !important; /* Change text color to black */
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important; /* Add a subtle shadow */
-
+  color: black !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+  min-width: 0; /* Important: allows flex children to shrink properly */
+  overflow-x: auto; /* Allows horizontal scrolling if content is too wide */
+  overflow-y: hidden;
 }
 
-.navbar h1 {
-  font-size: 12px !important;
-  font-family: 'Source Sans 3', sans-serif !important;
-  margin: 0 !important;
-  color: black !important; /* Change text color to black */
-}
-
-.navbar h2 {
-  font-size: 12px !important;
-  font-family: 'Source Sans 3', sans-serif !important;
-  color: black !important; /* Change text color to black */
-}
-
-.navbar button {
-  background-color: transparent !important;
-  border: none !important;
-  padding: 2px 2px !important;
-  color: black !important; /* Change button text color to black */
-  cursor: pointer !important;
-  transition: background-color 0.3s ease, border-color 0.3s ease !important;
-  font-size: 12px !important;
-  font-family: 'Source Sans 3', sans-serif !important;
-  font-weight: bold !important;
-  border-radius: 4px !important;
-}
-
-.navbar-actions {
+/* The main content wrapper inside navbar */
+.navbar-content {
   display: flex !important;
   align-items: center !important;
+  width: 100% !important;
+  min-width: 0; /* Prevents layout break */
 }
 
-.navbar-icon {
-  font-size: 30px !important;
-  color: black !important; /* Change icon color to black */
-}
-
-.text-black {
-  color: black !important; /* Change text color to black */
-}
-
-.text-lg {
-  font-size: 1.25rem !important;
-}
-
-.ml-2 {
-  margin-left: 8px !important;
-}
-
-.ml-4 {
-  margin-left: 16px !important;
-}
-.logo{
-  width: 80px !important;
-  height: 40px !important;
-  object-fit: contain !important;
-}
-.navbar-logout {
+/* LEFT: Menu + Logo */
+.navbar-left {
   display: flex !important;
   align-items: center !important;
-  border: 1px solid black !important; /* Change border color to black */
-  border-radius: 4px !important;
-  padding: 4px 8px !important;
-  margin-left: 16px !important;
+  flex-shrink: 0; /* Don't let this shrink */
+  gap: 12px;
 }
 
-.navbar-image {
-  width: 150px !important;
-  height: 50px !important;
-  object-fit: contain !important;
+/* CENTER: Module Name - takes available space */
+.navbar-center {
+  flex-grow: 1 !important;
+  display: flex !important;
+  justify-content: center !important;
+  min-width: 0;
 }
 
-/* Apply styles to the .module-name class */
-.MuiTypography-root.module-name {
-  font-family: 'Source Sans 3', sans-serif !important;
-  font-weight: bold !important; /* Bold text */
-  font-size: 1rem !important; /* Larger font size */
-  margin: 0; /* Remove default margin */
+/* RIGHT: All right-side items in one horizontal row, no wrapping */
+.navbar-right {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;     /* CRITICAL: Prevents wrapping */
+  flex-shrink: 0 !important;        /* Don't shrink this section */
+  gap: 16px;                        /* Consistent spacing between items */
+  padding-right: 16px;
 }
 
-/* Uppercase version of the class */
-.module-name-uppercase {
-  text-transform: uppercase !important;
+/* Ensure each item in navbar-right doesn't shrink or wrap */
+.navbar-right > * {
+  flex-shrink: 0 !important;
 }
+
+/* Session timer styling */
+.session-timer {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* User info */
+.user-info {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background-color: #1976d2;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Business logos container - keep them small and in row */
 .navbar-logo {
   width: 60px !important;
-  height: 30px !important;
+  height: 40px !important;   /* Slightly taller for better visibility */
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
-}
-
-.no-logo {
-  font-size: 12px !important;
-  color: black !important;
+  flex-shrink: 0;
 }
 
 .navbar-image {
-  width:50% !important;
-  height: 50% !important;
+  width: 100% !important;
+  height: 100% !important;
   object-fit: contain !important;
 }
 
-
-
-/* Center module name properly */
-.module-name {
-  font-family: 'Source Sans 3', sans-serif !important;
-  font-weight: bold !important;
-  font-size: 1rem !important;
-  text-align: center !important;
-  flex-grow: 1 !important;
+.no-logo {
+  font-size: 10px !important;
+  color: #666 !important;
+  text-align: center;
+  white-space: nowrap;
 }
 
-/* Prevent logo loading from expanding the layout */
-.navbar-logo img, .navbar-logo  {
-  width: 60px !important;
-  height: 30px !important;
-  object-fit: cover !important;
-  display: block !important;
-}
-.no-logo{
-  object-fit: cover !important;
-  display: block !important;
+/* Logout button */
+.navbar-logout button {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px;
+  white-space: nowrap;
 }

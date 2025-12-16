@@ -1858,3 +1858,8 @@
 // };
 
 // export default ApprovedService;
+
+// src/app/yen-purchase/ServiceOrder/ApprovedService/page.tsx
+export default function ApprovedServicePage() {
+  return null; // or return a simple message
+}
