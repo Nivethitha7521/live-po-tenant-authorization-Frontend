@@ -289,17 +289,16 @@ export const updatePurchaseOrderStatusToPending = createAsyncThunk(
 export const approvePurchaseOrder = createAsyncThunk(
   'purchaseOrders/approve',
   async (
-    payload: { purchaseOrderId: string; sendWhatsapp: boolean },
+    payload: { purchaseOrderId: string },
     { rejectWithValue }
   ) => {
-    const { purchaseOrderId, sendWhatsapp } = payload;
+    const { purchaseOrderId } = payload;
 
     try {
-      console.log(`[Thunk] Approving PO: ${purchaseOrderId}, Send WhatsApp: ${sendWhatsapp}`);
+      console.log(`[Thunk] Approving PO: ${purchaseOrderId}`);
 
-      const url = sendWhatsapp
-        ? `https://yenerp.com/purchaseapi/purchaseorders/approved/${purchaseOrderId}`
-        : `https://yenerp.com/purchaseapi/purchaseorders/approved-nosms/${purchaseOrderId}`;
+      // Always use the SMS/WhatsApp endpoint
+      const url = `https://yenerp.com/purchaseapi/purchaseorders/approved/${purchaseOrderId}`;
 
       const response = await axios.patch(url);
 

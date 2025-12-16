@@ -1091,7 +1091,7 @@ useEffect(() => {
 
     // Pass the flag to the thunk
     const result = await dispatch(
-      approvePurchaseOrder({ purchaseOrderId: orderId, sendWhatsapp })
+      approvePurchaseOrder({ purchaseOrderId: orderId})
     ).unwrap();
 
     // Success feedback
