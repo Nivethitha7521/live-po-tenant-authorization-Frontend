@@ -13,7 +13,7 @@ import {
   ServiceTotalsRequest
 } from "../Models/servicepo"
 import { VendorSummary } from "@/Models/vendor";
-
+import qs from 'qs';
 // FIXED: Helper for date-only formatting (YYYY-MM-DD) for UI display
 const formatDateOnly = (dateValue: Date | string | null | undefined): string => {
   if (!dateValue) return '';
@@ -83,7 +83,7 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
   // For description dates, keep as date-only strings for UI
   const formattedFromDates = fromDatesRaw.map(d => formatDateOnly(d));
   const formattedToDates = toDatesRaw.map(d => formatDateOnly(d));
-  
+  const mongoId = raw.mongoId || (raw.mongoId ? String(raw.mongoId) : '');
   return {
     serviceId: raw.serviceId,
     vendorId: raw.vendorId || '',
@@ -95,7 +95,8 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     invoiceDate: raw.invoiceDate ? formatDateOnly(raw.invoiceDate) : null,
     invoiceNo: raw.invoiceNo || '',
     status: raw.status || '',
-    
+    mongoId: mongoId, // Ensure this is included
+
     // FLAT ARRAYS (date-only strings for UI)
     sacCode: sacCodesRaw,
     desc_ids: descIdsRaw,
@@ -128,6 +129,8 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     country: raw.country || '',
     state: raw.state || '',
     city: raw.city || '',
+    vendorEmail:raw.vendorEmail || '',
+    vendorPhone:raw.vendorPhone || '',
     creditLimit: raw.creditLimit || 0,
     locationName: raw.locationName || '',
     freights: raw.freights || [],
@@ -141,7 +144,6 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     serviceCreatedPerson: raw.serviceCreatedPerson ?? null,
     serviceApprovedPerson: raw.serviceApprovedPerson ?? null,
     serviceRejectedPerson: raw.serviceRejectedPerson ?? null,
-    mongoId: raw.mongoId || '',
     imageUrl: raw.imageUrl || '',
     createdDate: formattedCreatedDate || null,
     createdTime: raw.createdTime || null,
@@ -211,7 +213,6 @@ const addDescriptionToFlatArrays = (
     desc_total_fees: [...currentData.desc_total_fees, newDesc.fee * (newDesc.quantity || 1)],
     desc_discount_amounts: [...currentData.desc_discount_amounts, newDesc.discountAmount || 0],
     desc_discount_percentages: [...(currentData.desc_discount_percentages || []), 0], // FIXED: Add this
-    desc_overall_discounts: [...(currentData.desc_overall_discounts || []), 0],
   };
 };
 // FIXED: Helper to update description in flat arrays
@@ -257,7 +258,6 @@ const updateDescriptionInFlatArrays = (
     desc_total_fees: updateArray(currentData.desc_total_fees, index, updatedDesc.fee * (updatedDesc.quantity || 1)),
     desc_discount_amounts: updateArray(currentData.desc_discount_amounts, index, updatedDesc.discountAmount || 0),
     desc_discount_percentages: updateArray(currentData.desc_discount_percentages || [], index, updatedDesc.discount_percentage || 0), // FIXED: Add this
-    desc_overall_discounts: updateArray(currentData.desc_overall_discounts, index, currentData.desc_overall_discounts[index] || 0), // Preserve existing overall discount
   };
 };
 
@@ -267,6 +267,8 @@ export const initialState: ServiceState = {
     vendorId: '',
     vendorName: '',
     vendorContact: '',
+    vendorEmail:'',
+    vendorPhone:'',
     workOrderDate: null,
     approvedDate: null,
     rejectedDate: null,
@@ -368,7 +370,7 @@ export const initialState: ServiceState = {
   calculatedTotals: null,
 };
 
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
 
 // FIXED: Async thunk for calculateServiceTotals (sends nested ServiceDescription[])
 export const calculateServiceTotals = createAsyncThunk(
@@ -384,15 +386,44 @@ export const calculateServiceTotals = createAsyncThunk(
 );
 
 // REMOVED: calculateOverallDiscountForAllDescriptions (integrated into calculateServiceTotals)
-
+// Fix the fetchServices thunk:
 export const fetchServices = createAsyncThunk(
   'serviceOrder/fetchServices',
-  async (): Promise<ServiceData[]> => {
-    const response = await axios.get<RawServiceData[]>(`${BASE_URL}/servicepo/`);
+  async (params: {
+    status?: string;
+    skip?: number;
+    limit?: number;
+    vendorName?: string;
+    serviceId?: string;
+    fromDate?: string;
+    toDate?: string;
+    workOrderFrom?: string;
+    workOrderTo?: string;
+  } = {}): Promise<ServiceData[]> => {
+    
+    // Default to "Pending" for this page
+    const defaultParams = {
+      status: 'Pending', // Default status
+      skip: 0,
+      limit: 50,
+      ...params
+    };
+    
+    // FIXED: Expect RawServiceData[] from backend
+    const response = await axios.get<RawServiceData[]>(
+      `${BASE_URL}/servicepo/getServices/`,
+      { 
+        params: defaultParams,
+        paramsSerializer: (params) => {
+          return qs.stringify(params, { arrayFormat: 'repeat' });
+        }
+      }
+    );
+    
+    // Transform each raw data to ServiceData
     return response.data.map(transformRawToNested);
   }
 );
-
 export const fetchAllVendors = createAsyncThunk<
   VendorSummary[],
   void,
@@ -537,11 +568,11 @@ export const addService = createAsyncThunk<
 );
 export const updateService = createAsyncThunk<
   ServiceData,
-  { serviceId: string; service: ServiceData },
+  { mongoId: string; service: ServiceData },
   { rejectValue: string }
 >(
   'services/update',
-  async ({ serviceId, service }, { rejectWithValue }) => {
+  async ({ mongoId, service }, { rejectWithValue }) => {
     try {
       const serviceToUpdate = {
         ...service,
@@ -554,8 +585,8 @@ export const updateService = createAsyncThunk<
         desc_overall_discounts: service.desc_overall_discounts || [], // NEW
       };
       
-      const rawResponse = await axios.put<RawServiceData>(
-        `${BASE_URL}/servicepo/${serviceId}`, 
+      const rawResponse = await axios.patch<RawServiceData>(
+        `${BASE_URL}/servicepo/update/${mongoId}`, 
         serviceToUpdate
       );
       
@@ -572,9 +603,9 @@ export const approveServiceOrder = createAsyncThunk<
   { rejectValue: string }
 >(
   'serviceOrder/approveServiceOrder',
-  async (serviceId, { rejectWithValue }) => {
+  async (mongoId, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`${BASE_URL}/servicepo/approved/${serviceId}`, { send_whatsapp: true });
+      const response = await axios.patch(`${BASE_URL}/servicepo/approved/${mongoId}`, { send_whatsapp: false });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to approve service order');
@@ -588,9 +619,9 @@ export const rejectServiceOrder = createAsyncThunk<
   { rejectValue: string }
 >(
   'serviceOrder/rejectServiceOrder',
-  async (serviceId, { rejectWithValue }) => {
+  async (mongoId, { rejectWithValue }) => {
     try {
-      await axios.patch(`${BASE_URL}/servicepo/rejected/${serviceId}`, { reason: 'Rejected by user', send_notification: true });
+      await axios.patch(`${BASE_URL}/servicepo/rejected/${mongoId}`, { reason: 'Rejected by user', send_notification: false });
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to reject service order');
     }
@@ -826,8 +857,7 @@ setDescriptionForEditing(state, action: PayloadAction<ServiceDescription & { ind
       .addCase(fetchServices.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string || action.error.message || 'Failed to fetch services';
-      })
-      
+      })      
       .addCase(fetchAllVendors.pending, (state) => {
         state.loading = true;
         state.error = null;

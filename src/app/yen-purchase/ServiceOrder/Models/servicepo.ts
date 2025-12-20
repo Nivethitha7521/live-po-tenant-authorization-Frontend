@@ -56,6 +56,8 @@ export interface ServiceData {
   contactpersonEmail: string;
   address: string;
   country: string;
+  vendorEmail:string;
+  vendorPhone:string;
   state: string;
   city: string;
   creditLimit: number;
@@ -119,7 +121,6 @@ export interface ServiceTotalsResponse {
   descriptionTaxAmount: number;
   freightTaxAmount: number;
   amountAfterDiscount: number;
-  totalIndividualDiscount: number;
   totalOverallDiscount: number;
   desc_sgst: number[];
   desc_cgst: number[];
@@ -349,6 +350,7 @@ export interface ServiceTotalsRequest {
   overall_discount_type?: 'percentage' | 'amount';
   overall_discount_applied_on?: 'before_tax' | 'after_tax'; // ADD THIS
   round_off?: number;
+  
 }
 
 // Raw response type from backend (flat arrays)
@@ -393,6 +395,8 @@ export interface RawServiceData {
   city: string;
   creditLimit: number;
   locationName: string;
+  vendorPhone:string;
+  vendorEmail:string;
   overallDiscountValue: number;
   overallDiscountType: 'percentage' | 'amount';
   overallDiscountAppliedOn:string;
@@ -436,4 +440,9 @@ export interface OverallDiscountServiceResponse {
     totalTax?: number;
     [key: string]: any;
   };
+}
+
+export interface ServiceIdItem {
+  mongoId: string;      // MongoDB _id
+  serviceId: string;    // Custom ID like "SR0001"
 }

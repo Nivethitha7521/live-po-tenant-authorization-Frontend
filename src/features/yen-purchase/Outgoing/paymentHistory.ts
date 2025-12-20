@@ -77,7 +77,7 @@ export const fetchPaymentsById = createAsyncThunk(
       }
       params.append('page', page.toString());
       params.append('limit', limit.toString());
-      const url = `https://yenerp.com/purchaseapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
+      const url = `http://192.168.29.116:8000/purchaseapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
       console.log('Fetching from URL:', url);
       const response = await axios.get(url);
       console.log('API Response received:', response.data);
@@ -110,7 +110,7 @@ export const exportPaymentsCSV = createAsyncThunk(
         params.append('date', date);
       }
       params.append('format', 'csv');
-      const url = `https://yenerp.com/purchaseapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
+      const url = `http://192.168.29.116:8000/purchaseapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
       console.log('Exporting CSV from URL:', url);
       const response = await axios.get(url, { responseType: 'blob' });
       return response.data; // Blob
@@ -135,7 +135,7 @@ export const exportPaymentsPDF = createAsyncThunk(
         params.append('date', date);
       }
       params.append('format', 'pdf');
-      const url = `https://yenerp.com/purchaseapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
+      const url = `http://192.168.29.116:8000/purchaseapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
       console.log('Exporting PDF from URL:', url);
       const response = await axios.get(url, { responseType: 'blob' });
       return response.data; // Blob

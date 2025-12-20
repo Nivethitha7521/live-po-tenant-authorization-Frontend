@@ -4,7 +4,7 @@ import axios from 'axios';
 import { RootState } from '@/redux/store';
 import { initialState, Service, ImportResult, PaginatedServiceResponse, PaginatedServiceSummary, ServiceSummary } from '../Models/Service';
 
-const API_BASE_URL = 'https://yenerp.com/purchaseapi';
+const API_BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
 
 // Async thunk to fetch paginated Service items
 export const fetchServiceItems = createAsyncThunk<
@@ -84,10 +84,10 @@ export const deactivateServiceItem = createAsyncThunk<Service, string>(
 // Single thunk for all service summary operations
 export const fetchServiceSummaries = createAsyncThunk<
   PaginatedServiceSummary,  // Always returns full paginated response
-  { 
-    page?: number; 
-    limit?: number; 
-    status?: 'active' | 'deactivated' | 'all'; 
+  {
+    page?: number;
+    limit?: number;
+    status?: 'active' | 'deactivated' | 'all';
     search?: string;
     // Optional flag to indicate if this is for infinite scroll
     forInfiniteScroll?: boolean;
@@ -95,22 +95,22 @@ export const fetchServiceSummaries = createAsyncThunk<
   { rejectValue: string }
 >(
   'serviceItems/fetchServiceSummaries',
-  async ({ 
-    page = 1, 
-    limit = 5, 
-    status = 'active', 
+  async ({
+    page = 1,
+    limit = 5,
+    status = 'active',
     search = '',
     forInfiniteScroll = false
   }, { rejectWithValue }) => {
     try {
       // For infinite scroll, adjust limit if needed
       const actualLimit = forInfiniteScroll ? Math.max(limit, 50) : limit;
-      
+
       let url = `${API_BASE_URL}/services/summary/paginatedsummary?page=${page}&limit=${actualLimit}&status=${status}`;
       if (search) {
         url += `&search=${encodeURIComponent(search)}`;
       }
-      
+
       const response = await axios.get<PaginatedServiceSummary>(url);
       return response.data;
     } catch (error: any) {
@@ -295,7 +295,7 @@ const serviceSlice = createSlice({
       .addCase(importCSV.rejected, (state, action: any) => {
         state.importing = false;
         const errorDetail = action.payload?.detail || 'Failed to import CSV';
-        state.importError = 
+        state.importError =
           typeof errorDetail === 'object'
             ? errorDetail.message
             : errorDetail;
@@ -334,40 +334,40 @@ const serviceSlice = createSlice({
         state.snackbarMessage = `Export failed: ${action.payload?.detail || 'Unknown error'} (Status: ${action.payload?.status || 'Unknown'})`;
         state.snackbarOpen = true;
       })
-.addCase(fetchServiceSummaries.pending, (state) => {
-      state.summaryLoading = true;
-    })
-    .addCase(fetchServiceSummaries.fulfilled, (state, action) => {
-      state.summaryLoading = false;
-      
-      const { data, page, total, total_pages, limit } = action.payload;
-      const { forInfiniteScroll } = action.meta.arg;
-      
-      if (forInfiniteScroll) {
-        // For infinite scroll, append to existing items
-        if (page === 1) {
-          // First page, replace all items
-          state.summaryItems = data;
+      .addCase(fetchServiceSummaries.pending, (state) => {
+        state.summaryLoading = true;
+      })
+      .addCase(fetchServiceSummaries.fulfilled, (state, action) => {
+        state.summaryLoading = false;
+
+        const { data, page, total, total_pages, limit } = action.payload;
+        const { forInfiniteScroll } = action.meta.arg;
+
+        if (forInfiniteScroll) {
+          // For infinite scroll, append to existing items
+          if (page === 1) {
+            // First page, replace all items
+            state.summaryItems = data;
+          } else {
+            // Subsequent pages, append new items
+            const currentIds = new Set(state.summaryItems.map(item => item.mongoId));
+            const newItems = data.filter(item => !currentIds.has(item.mongoId));
+            state.summaryItems = [...state.summaryItems, ...newItems];
+          }
         } else {
-          // Subsequent pages, append new items
-          const currentIds = new Set(state.summaryItems.map(item => item.mongoId));
-          const newItems = data.filter(item => !currentIds.has(item.mongoId));
-          state.summaryItems = [...state.summaryItems, ...newItems];
+          // For regular paginated view, replace items and store metadata
+          state.summaryItems = data;
+          state.summaryCurrentPage = page || 1;
+          state.summaryTotalPages = total_pages || 0;
+          state.summaryTotalItems = total || 0;
+          state.summaryPageSize = limit || 5;
         }
-      } else {
-        // For regular paginated view, replace items and store metadata
-        state.summaryItems = data;
-        state.summaryCurrentPage = page || 1;
-        state.summaryTotalPages = total_pages || 0;
-        state.summaryTotalItems = total || 0;
-        state.summaryPageSize = limit || 5;
-      }
-    })
-    .addCase(fetchServiceSummaries.rejected, (state, action) => {
-      state.summaryLoading = false;
-      state.snackbarMessage = action.payload as string;
-      state.snackbarOpen = true;
-    });
+      })
+      .addCase(fetchServiceSummaries.rejected, (state, action) => {
+        state.summaryLoading = false;
+        state.snackbarMessage = action.payload as string;
+        state.snackbarOpen = true;
+      });
   },
 });
 // At the bottom of your ServiceSlice file, add this selector

@@ -21,7 +21,7 @@ const YenPurchasePage = () => {
       { label: 'Vendor', path: '/yen-purchase/VendorPage' },
       { label: 'Purchase Item', path: '/yen-purchase/PurchaseItemPage' },
       { label: 'Purchase Order', path: '/yen-purchase/PurchaseOrder' },
-      // { label: 'Service Order', path: '/yen-purchase/ServiceOrder' },
+      { label: 'Service Order', path: '/yen-purchase/ServiceOrder' },
       { label: 'GRN Note', path: '/yen-purchase/GrnPage' },
       { label: 'AP Invoice', path: '/yen-purchase/ApInvoicePage' },
     ],
