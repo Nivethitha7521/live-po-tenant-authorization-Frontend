@@ -20,7 +20,7 @@ interface ItemUpdate {
   befTaxDiscount?: number;
   afTaxDiscount?: number;
   expiryDate?: string;
-  action: 'add' | 'edit' | 'delete';
+  action: 'add' | 'edit' | 'delete'; 
 }
 
 // Interface for the API request payload
