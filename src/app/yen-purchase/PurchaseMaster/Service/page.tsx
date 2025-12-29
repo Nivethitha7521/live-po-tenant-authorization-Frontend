@@ -53,7 +53,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 const initialServiceState: Service = {
   mongoId:'',
-  serviceId:0,
+  serviceId:'',
   serviceName: '',
   saccode: 0,
   status: 'active',

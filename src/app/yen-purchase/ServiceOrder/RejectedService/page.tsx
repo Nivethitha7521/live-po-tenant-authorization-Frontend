@@ -91,7 +91,7 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 
   // Get the maximum length from available arrays
   const maxLength = Math.max(
-    service.desc_descriptions?.length || 0,
+    service.descriptions?.length || 0,
     service.sacCode?.length || 0,
     service.from_dates?.length || 0,
     service.to_dates?.length || 0,
@@ -99,8 +99,8 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
   );
 
   for (let i = 0; i < maxLength; i++) {
-    // Create description from remarks if desc_descriptions doesn't exist
-    const descriptionText = service.desc_descriptions?.[i] ||
+    // Create description from remarks if descriptions doesn't exist
+    const descriptionText = service.descriptions?.[i] ||
       service.remarks?.[i] ||
       `Service ${i + 1}`;
 
@@ -122,7 +122,8 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
       finalFee: service.desc_total_fees?.[i] || 0,
       discountAmount: service.desc_discount_amounts?.[i] || 0,
       remarks: service.remarks?.[i] || '',
-      quantity: service.quantity?.[i] || 0
+      quantity: service.quantity?.[i] || 0,
+      base_amount:service.base_amounts?.[i] || 0,
     });
   }
 
@@ -419,7 +420,7 @@ const RejectedService: React.FC = () => {
 
     const headers = [["S.No", "Service ID", "Vendor Name", "Total Descriptions", "Order Date", "Total Amount", "Status"]];
     const rows = rejectedServices.map((service: ServiceData, index: number) => {
-      const totalDescs = service.desc_descriptions.length;
+      const totalDescs = service.descriptions.length;
       const orderDate = service.workOrderDate ? format(new Date(service.workOrderDate), 'dd-MM-yyyy') : '';
       return [
         (index + 1).toString(),
@@ -468,7 +469,7 @@ const RejectedService: React.FC = () => {
   const handleExportCSV = () => {
     const headers = 'SNO,Service ID,Vendor Name,Total Descriptions,Order Date,Total Amount,Status\n';
     const rows = rejectedServices.map((service: ServiceData, index: number) => {
-      const totalDescs = service.desc_descriptions.length;
+      const totalDescs = service.descriptions.length;
       const orderDate = service.workOrderDate ? format(new Date(service.workOrderDate), 'dd-MM-yyyy') : '';
       return [
         (index + 1),
@@ -648,7 +649,7 @@ const RejectedService: React.FC = () => {
         `City: ${service.city || ''}\n` +
         `State: ${service.state || ''}\n` +
         `Country: ${service.country || ''}\n` +
-        `Email: ${service.vendorEmail || ''}\n` +
+        `Email: ${service.contactpersonEmail || ''}\n` +
         `Phone: ${service.vendorPhone || ''}`,
         `Service ID: ${service.serviceId}\n` +
         `Order Date: ${service.workOrderDate ? format(new Date(service.workOrderDate), 'dd-MM-yyyy') : ''}\n` +

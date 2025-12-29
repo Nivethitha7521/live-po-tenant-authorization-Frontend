@@ -4,13 +4,13 @@ import { RootState } from '../../../redux/store';
 import { initialState, PurchaseItemType } from '@/Models/itemType';
 
 export const fetchPurchaseTypeItems = createAsyncThunk('purchaseTypeItems/fetchPurchaseTypeItems', async () => {
-  const response = await axios.get<PurchaseItemType[]>('http://192.168.29.116:8000/purchaseapi/itemtypes/');
+  const response = await axios.get<PurchaseItemType[]>('https://yenerp.com/purchasetestapi/itemtypes/');
   return response.data;
 });
 
 export const addPurchaseTypeItem = createAsyncThunk<PurchaseItemType, Omit<PurchaseItemType, 'itemtypeId'>>('purchaseTypeItems/addPurchaseTypeItem', async (groupItemData, { rejectWithValue }) => {
   try {
-    const response = await axios.post('http://192.168.29.116:8000/purchaseapi/itemtypes/', groupItemData);
+    const response = await axios.post('https://yenerp.com/purchasetestapi/itemtypes/', groupItemData);
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -19,7 +19,7 @@ export const addPurchaseTypeItem = createAsyncThunk<PurchaseItemType, Omit<Purch
 
 export const updatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, PurchaseItemType>('purchaseTypeItems/updatePurchaseTypeItem', async (groupItemData, { rejectWithValue }) => {
   try {
-    const response = await axios.patch(`http://192.168.29.116:8000/purchaseapi/itemtypes/${groupItemData.itemtypeId}`, groupItemData);
+    const response = await axios.patch(`https://yenerp.com/purchasetestapi/itemtypes/${groupItemData.itemtypeId}`, groupItemData);
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -28,7 +28,7 @@ export const updatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, Purchas
 
 export const deactivatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, string>('purchaseTypeItems/deactivatePurchaseTypeItem', async (itemtypeId, { rejectWithValue }) => {
   try {
-    const response = await axios.patch(`http://192.168.29.116:8000/purchaseapi/itemtypes/${itemtypeId}`, { status: 'deactivated' });
+    const response = await axios.patch(`https://yenerp.com/purchasetestapi/itemtypes/${itemtypeId}`, { status: 'deactivated' });
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -37,7 +37,7 @@ export const deactivatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, str
 
 export const activatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, string>('purchaseTypeItems/activatePurchaseTypeItem', async (itemtypeId, { rejectWithValue }) => {
   try {
-    const response = await axios.patch(`http://192.168.29.116:8000/purchaseapi/itemtypes/${itemtypeId}`, { status: 'active' });
+    const response = await axios.patch(`https://yenerp.com/purchasetestapi/itemtypes/${itemtypeId}`, { status: 'active' });
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -51,7 +51,7 @@ export const importPurchaseTypeItem = createAsyncThunk(
       const formData = new FormData();
       formData.append('file', file);
       const response = await axios.post(
-        'http://192.168.29.116:8000/purchaseapi/itemtypes/import-csv',
+        'https://yenerp.com/purchasetestapi/itemtypes/import-csv',
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
@@ -69,7 +69,7 @@ export const exportPurchaseTypeItem = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        'http://192.168.29.116:8000/purchaseapi/itemtypes/export-itemtype/export-csv',
+        'https://yenerp.com/purchasetestapi/itemtypes/export-itemtype/export-csv',
         { responseType: 'blob' }
       );
       const url = window.URL.createObjectURL(new Blob([response.data]));

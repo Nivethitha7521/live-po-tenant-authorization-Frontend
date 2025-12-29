@@ -4,67 +4,140 @@ import axios from 'axios';
 import { ApInvoice, ApInvoiceRandomId, ApInvoiceState, initialState } from '@/Models/apModel';
 
 
-const BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
-
-
+const BASE_URL = 'https://yenerp.com/purchasetestapi';
 // Fetch AP Invoices with pagination and advanced filtering
+// Add this async thunk for loading more statuses
+export const loadMoreStatuses = createAsyncThunk(
+  'apInvoice/loadMoreStatuses',
+  async (_, { getState, dispatch }) => {
+    const state = getState() as RootState;
+    const { statusSearch, statuses } = state.apInvoice;
+    
+    const currentPage = Math.ceil(statuses.length / 50) + 1;
+    
+    dispatch(setStatusesLoading(true));
+    try {
+      const response = await axios.get('https://yenerp.com/purchasetestapi/apinvoices/statuses', {
+        params: { 
+          search: statusSearch || '', 
+          page: currentPage,
+          limit: 50
+        }
+      });
+      
+      if (currentPage === 1) {
+        dispatch(setStatuses(response.data.data));
+      } else {
+        dispatch(appendStatuses(response.data.data));
+      }
+      
+      dispatch(setHasMoreStatuses(response.data.hasMore));
+    } catch (error) {
+      console.error('Failed to load more statuses:', error);
+      dispatch(setSnackbarMessage('Failed to load statuses'));
+      dispatch(setSnackbarOpen(true));
+    } finally {
+      dispatch(setStatusesLoading(false));
+    }
+  }
+);
+// Update fetchApStatuses thunk in apInvoiceSlice.ts
+export const fetchApStatuses = createAsyncThunk(
+  'apInvoice/fetchApStatuses',
+  async ({ search = '', page = 1 }: { search?: string; page?: number }, { dispatch, rejectWithValue }) => {
+    dispatch(setStatusesLoading(true));
+    try {
+      const response = await axios.get('https://yenerp.com/purchasetestapi/apinvoices/statuses', {
+        params: { 
+          search: search, 
+          page: page,
+          limit: 50
+        }
+      });
+      
+      // Check if response has the expected structure
+      const statusData = response.data?.data || response.data || [];
+      const hasMore = response.data?.hasMore || false;
+      
+      if (page === 1) {
+        dispatch(setStatuses(statusData));
+      } else {
+        dispatch(appendStatuses(statusData));
+      }
+      
+      dispatch(setHasMoreStatuses(hasMore));
+      
+      return statusData;
+    } catch (error: any) {
+      console.error('Failed to fetch statuses:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to fetch statuses';
+      dispatch(setSnackbarMessage(errorMessage));
+      dispatch(setSnackbarOpen(true));
+      return rejectWithValue(errorMessage);
+    } finally {
+      dispatch(setStatusesLoading(false));
+    }
+  }
+);
+// Update the existing fetchApInvoices thunk
 export const fetchApInvoices = createAsyncThunk(
   'apinvoice/fetchApInvoices',
   async (
-    { page, size, fromDate, toDate, vendorName, dateFilterField }: {
+    {
+      page,
+      size,
+      fromDate,
+      toDate,
+      vendorName,
+      dateFilterField = 'apinvoiceDate',
+      invoiceType,
+      search,
+      status,
+      loadMore = false, // Add this flag for infinite scroll
+    }: {
       page: number;
       size: number;
       fromDate?: Date;
       toDate?: Date;
       vendorName?: string;
-      dateFilterField?: string;  // New parameter for date field
+      dateFilterField?: string;
+      invoiceType?: string;
+      search?: string;
+      status?: string;
+      loadMore?: boolean;
     },
-    { rejectWithValue }
+    { rejectWithValue, getState }
   ) => {
     try {
-      // Prepare the parameters for the API call
-      const params: {
-        skip: number;
-        limit: number;
-        fromDate?: string;
-        toDate?: string;
-        vendorName?: string;
-        dateFilterField?: string;  // Add dateFilterField to params
-      } = {
-        skip: (page - 1) * size, // Pagination skip
-        limit: size,             // Pagination limit
+      const state = getState() as RootState;
+      const params: any = {
+        skip: loadMore ? state.apInvoice.apInvoices.length : (page - 1) * size,
+        limit: size,
+        date_filter_field: dateFilterField,
       };
 
-      // Add filters to the params object if they exist
-      if (fromDate) {
-        params.fromDate = fromDate.toISOString();  // Convert to ISO string format
-      }
+      if (fromDate) params.fromDate = fromDate.toISOString();
+      if (toDate) params.toDate = toDate.toISOString();
+      if (vendorName && vendorName.trim()) params.vendorName = vendorName.trim();
+      if (invoiceType && invoiceType !== 'all') params.invoiceType = invoiceType;
+      if (search && search.trim()) params.search = search.trim();
+      if (status && status.trim()) params.status = status.trim();
 
-      if (toDate) {
-        params.toDate = toDate.toISOString();  // Convert to ISO string format
-      }
+      const response = await axios.get(`${BASE_URL}/apinvoices/`, { params });
 
-      if (vendorName) {
-        params.vendorName = vendorName;
-      }
-
-      if (dateFilterField) {
-        params.dateFilterField = dateFilterField;  // Add the date filter field to the params
-      }
-
-      // Make the API request with the correctly formatted parameters
-      const response = await axios.get(`${BASE_URL}/apinvoices/`, {
-        params: params,
-      });
-
-      return response.data; // Returning the paginated and filtered AP Invoices
+      return {
+        data: response.data,
+        page,
+        hasMore: response.data.length === size,
+        isSearch: !!search,
+        isLoadMore: loadMore,
+      };
     } catch (error: any) {
       console.error('Failed to fetch AP Invoices:', error);
       return rejectWithValue(error.response?.data || 'Failed to fetch AP Invoices');
     }
   }
 );
-
 // Add AP Invoice
 export const addApInvoice = createAsyncThunk(
   'apinvoice/add',
@@ -225,6 +298,44 @@ const apInvoiceSlice = createSlice({
     setSearchQuery: (state, action: PayloadAction<string>) => {
       state.searchQuery = action.payload;
     },
+    // Status filtering actions
+    setSelectedStatus: (state, action: PayloadAction<string | null>) => {
+      state.selectedStatus = action.payload;
+    },
+    
+    setStatusSearch: (state, action: PayloadAction<string>) => {
+      state.statusSearch = action.payload;
+    },
+    
+    clearStatus: (state) => {
+      state.selectedStatus = null;
+      state.statusSearch = '';
+    },
+    
+    setStatuses: (state, action: PayloadAction<string[]>) => {
+      state.statuses = action.payload;
+    },
+    
+    appendStatuses: (state, action: PayloadAction<string[]>) => {
+      state.statuses = [...state.statuses, ...action.payload];
+    },
+    
+    setStatusesLoading: (state, action: PayloadAction<boolean>) => {
+      state.statusesLoading = action.payload;
+    },
+    
+    setHasMoreStatuses: (state, action: PayloadAction<boolean>) => {
+      state.hasMoreStatuses = action.payload;
+    },
+    
+    resetStatuses: (state) => {
+      state.statuses = [];
+      state.statusesLoading = false;
+      state.hasMoreStatuses = false;
+      state.statusSearch = '';
+      state.selectedStatus = null;
+    },
+
     setSnackbarMessage(state, action: PayloadAction<string>) {
       state.snackbarMessage = action.payload;
     },
@@ -248,29 +359,55 @@ const apInvoiceSlice = createSlice({
     setApDialogOpen: (state, action: PayloadAction<boolean>) => {
       state.apDialogOpen = action.payload;
     },
+    setIsSearchActive: (state, action: PayloadAction<boolean>) => {
+      state.isSearchActive = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
       // Fetch AP Invoices
-      .addCase(fetchApInvoices.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+      .addCase(fetchApStatuses.pending, (state) => {
+        state.statusesLoading = true;
+        state.statusesError = null;
+      })
+      .addCase(fetchApStatuses.fulfilled, (state, action) => {
+        state.statusesLoading = false;
+      })
+      .addCase(fetchApStatuses.rejected, (state, action) => {
+        state.statusesLoading = false;
+        state.statusesError = action.payload as string;
       })
       .addCase(fetchApInvoices.fulfilled, (state, action) => {
         state.loading = false;
-        state.apInvoices = action.payload;
-        state.totalItems = action.payload.totalItems; // Total items for pagination 
-        state.currentPage = action.meta.arg.page;
-        state.pageSize = action.meta.arg.size;
+        const { data, page, hasMore, isSearch, isLoadMore } = action.payload;
 
+        if (isSearch && !isLoadMore) {
+          // Reset for new search
+          state.apInvoices = data;
+        } else if (isLoadMore) {
+          // Append for load more
+          state.apInvoices = [...state.apInvoices, ...data];
+        } else {
+          // Normal pagination
+          state.apInvoices = data;
+        }
+
+        state.currentPage = page;
+        state.hasMore = hasMore;
+        state.isSearchActive = !!isSearch;
       })
       .addCase(fetchApInvoices.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      .addCase(fetchAllApInvoices.fulfilled, (state, action) => {
-        state.loading = false;
-        state.allapInvoices = action.payload;
+      .addCase(loadMoreStatuses.pending, (state) => {
+        state.statusesLoading = true;
+      })
+      .addCase(loadMoreStatuses.fulfilled, (state) => {
+        state.statusesLoading = false;
+      })
+      .addCase(loadMoreStatuses.rejected, (state) => {
+        state.statusesLoading = false;
       })
       // Add AP Invoice
       .addCase(addApInvoice.pending, (state) => {
@@ -383,13 +520,21 @@ const apInvoiceSlice = createSlice({
   },
 });
 
-export const { setSearchQuery, clearError, setSelectedinvoiceId, setSnackbarMessage, setSnackbarOpen, setPagination, clearSnackbarMessage,
-  setApDialogOpen, } = apInvoiceSlice.actions;
+export const { setSearchQuery, setSelectedStatus, clearError, setSelectedinvoiceId, setSnackbarMessage, setSnackbarOpen, setPagination, clearSnackbarMessage,
+  setApDialogOpen, clearStatus,
+  setStatusSearch,
+  setStatuses,
+  setStatusesLoading,
+  setHasMoreStatuses,
+  appendStatuses,
+  setIsSearchActive,resetStatuses } = apInvoiceSlice.actions;
 
 export const selectApinvoice = (state: RootState) => state.apInvoice;
 export const selectCurrentPage = (state: RootState) => state.apInvoice.currentPage;
 export const selectPageSize = (state: RootState) => state.apInvoice.pageSize;
 export const selectTotalItems = (state: RootState) => state.apInvoice.totalItems;
-
+export const selectStatuses = (state: RootState) => state.apInvoice.statuses;
+export const selectStatusesLoading = (state: RootState) => state.apInvoice.statusesLoading;
+export const selectHasMoreStatuses = (state: RootState) => state.apInvoice.hasMoreStatuses;
 
 export default apInvoiceSlice.reducer;

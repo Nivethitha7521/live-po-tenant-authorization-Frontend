@@ -205,7 +205,7 @@ const ServiceAutocomplete: React.FC<ServiceAutocompleteProps> = ({
           <div>
             <div style={{ fontWeight: 'bold' }}>SAC Code: {option.saccode}</div>
             <div style={{ fontSize: '0.875rem', color: '#666' }}>
-              Service ID: {option.serviceId}
+             S.Name: {option.serviceName}
             </div>
           </div>
         </li>

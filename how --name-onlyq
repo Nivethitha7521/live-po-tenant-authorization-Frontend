@@ -1949,7 +1949,7 @@ Date:   Thu Sep 18 15:33:53 2025 +0530
 [32m+[m[32m  async ({ vendorName, startDate, endDate }: { vendorName: string; startDate?: string; endDate?: string }, { rejectWithValue }) => {[m
 [32m+[m[32m    try {[m
 [32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
-       let url = `http://192.168.29.116:8000/purchaseapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`;[m
+       let url = `http://192.168.33.24:8000/purchaseapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`;[m
        [m
        // Add date parameters if provided[m
 [36m@@ -109,7 +138,10 @@[m [mexport const fetchLedgerData = createAsyncThunk([m
@@ -2045,12 +2045,12 @@ Date:   Thu Sep 18 15:33:53 2025 +0530
      try {[m
 [32m+[m[32m<<<<<<< HEAD[m
  <<<<<<< HEAD[m
-       const response = await axios.post('http://192.168.29.116:8000/purchaseapi/outgoingpayments/addvendorpayment/', {[m
+       const response = await axios.post('http://192.168.33.24:8000/purchaseapi/outgoingpayments/addvendorpayment/', {[m
  =======[m
-       const response = await axios.post('http://192.168.29.116:8000/purchaseapi/outgoingpayments/advance/', {[m
+       const response = await axios.post('http://192.168.33.24:8000/purchaseapi/outgoingpayments/advance/', {[m
  >>>>>>> recover-branch[m
 [32m+[m[32m=======[m
-[32m+[m[32m      const response = await axios.post('http://192.168.29.116:8000/purchaseapi/outgoingpayments/advance/', {[m
+[32m+[m[32m      const response = await axios.post('http://192.168.33.24:8000/purchaseapi/outgoingpayments/advance/', {[m
 [32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
          ...paymentData,[m
          isPreOutgoing: !paymentData.poId,[m

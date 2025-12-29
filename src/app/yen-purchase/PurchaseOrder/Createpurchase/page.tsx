@@ -861,6 +861,7 @@ const CreatePurchasePage: React.FC = () => {
       dispatch(setPurchaseOrderData({
         ...purchaseOrderData,
         vendorName: vendor.vendorName,
+        vendorId:vendor.vendorId,
         vendorContact: vendor.contactpersonPhone,
         contactpersonEmail: vendor.contactpersonEmail,
         address: vendor.address,

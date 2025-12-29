@@ -1,7 +1,7 @@
 import { list } from "postcss";
 
 export interface Service {
-  serviceId?: number | null;
+  serviceId?: string | null;
   serviceName?: string | null;
   saccode?: number | null;
   status?: 'active' | 'deactivated' | null;
@@ -14,6 +14,7 @@ export interface ServiceSummary{
   mongoId:string;
   serviceId:string;
   saccode:number;
+  serviceName:string;
 }
 export interface PaginatedServiceSummary { 
     data: ServiceSummary[]
@@ -30,7 +31,7 @@ export interface ImportResult {
     row: number;
     data: {
       serviceName: string;
-      serviceId?: number;
+      serviceId?: string;
       ID?: string;
       SNo?: string;
       Status?: string;

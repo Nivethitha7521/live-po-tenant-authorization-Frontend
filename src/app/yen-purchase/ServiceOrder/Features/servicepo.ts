@@ -14,39 +14,91 @@ import {
 } from "../Models/servicepo"
 import { VendorSummary } from "@/Models/vendor";
 import qs from 'qs';
-// FIXED: Helper for date-only formatting (YYYY-MM-DD) for UI display
+// FIXED: Helper for date-only formatting (YYYY-MM-DD) for UI display - NO TIMEZONE CONVERSION
 const formatDateOnly = (dateValue: Date | string | null | undefined): string => {
   if (!dateValue) return '';
+  
   let dt: Date;
   if (typeof dateValue === 'string') {
-    dt = new Date(dateValue);
+    // Parse without timezone conversion
+    const parts = dateValue.split('T')[0].split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]) - 1; // JS months are 0-indexed
+      const day = parseInt(parts[2]);
+      dt = new Date(year, month, day);
+    } else {
+      dt = new Date(dateValue);
+    }
   } else {
     dt = new Date(dateValue);
   }
+  
   if (isNaN(dt.getTime())) return '';
+  
+  // Format as YYYY-MM-DD without timezone offset
   const year = dt.getFullYear();
   const month = String(dt.getMonth() + 1).padStart(2, '0');
   const day = String(dt.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
-// FIXED: Helper for backend datetime (ISO with time 00:00:00 for date-only fields)
-const formatDateTimeForBackend = (dateTimeValue: Date | string | null | undefined): string => {
-  if (!dateTimeValue) return '';
+
+// FIXED: Helper for backend datetime (ISO with time 00:00:00.000Z)
+const formatDateTimeForBackend = (dateValue: Date | string | null | undefined): string => {
+  if (!dateValue) return '';
+  
   let dt: Date;
-  if (typeof dateTimeValue === 'string') {
-    dt = new Date(dateTimeValue);
+  if (typeof dateValue === 'string') {
+    // Parse without timezone conversion
+    const parts = dateValue.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]) - 1;
+      const day = parseInt(parts[2]);
+      dt = new Date(Date.UTC(year, month, day));
+    } else {
+      dt = new Date(dateValue);
+    }
   } else {
-    dt = new Date(dateTimeValue);
+    dt = new Date(dateValue);
   }
+  
   if (isNaN(dt.getTime())) return '';
-  // Set time to 00:00:00.000 for date-only fields
-  dt.setHours(0, 0, 0, 0);
-  return dt.toISOString();
+  
+  // Create ISO string in UTC with time 00:00:00.000
+  const year = dt.getUTCFullYear();
+  const month = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(dt.getUTCDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T00:00:00.000Z`;
+};
+
+// FIXED: Parse date string without timezone shifting
+const parseDate = (dateStr: string | null): Date | null => {
+  if (!dateStr) return null;
+  
+  try {
+    // Extract date parts from YYYY-MM-DD format
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]) - 1;
+      const day = parseInt(parts[2]);
+      
+      // Create date in local timezone (but don't adjust for timezone)
+      return new Date(year, month, day);
+    }
+    
+    // Fallback for other formats
+    return new Date(dateStr);
+  } catch {
+    return null;
+  }
 };
 const transformRawToNested = (raw: RawServiceData): ServiceData => {
   const sacCodesRaw = raw.sacCode || [];
   const descIdsRaw = raw.desc_ids || [];
-  const descriptionsRaw = raw.descriptions || raw.desc_descriptions || [];
+  const descriptionsRaw = raw.descriptions || raw.descriptions || [];
   const fromDatesRaw = raw.from_dates || [];
   const toDatesRaw = raw.to_dates || [];
   const feesRaw = raw.fees || [];
@@ -55,7 +107,7 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
   const descSgstRaw = raw.desc_sgst || [];
   const descCgstRaw = raw.desc_cgst || [];
   const descIgstRaw = raw.desc_igst || [];
-  
+  const baseamounts=raw.base_amounts || [];
   // FIXED: Use empty array if desc_overall_discounts is not provided
   const descOverallDiscountsRaw = raw.desc_overall_discounts || [];
   
@@ -100,7 +152,7 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     // FLAT ARRAYS (date-only strings for UI)
     sacCode: sacCodesRaw,
     desc_ids: descIdsRaw,
-    desc_descriptions: descriptionsRaw,
+    descriptions: descriptionsRaw,
     from_dates: formattedFromDates,
     to_dates: formattedToDates,
     fees: feesRaw,
@@ -117,7 +169,7 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     desc_discount_amounts: descDiscountAmountsRaw,
     desc_discount_percentages: descDiscountPercentagesRaw, // FIXED: Add this
     desc_overall_discounts: descOverallDiscountsRaw, // FIXED: Use the correct array
-    
+    base_amounts:baseamounts,
     totalAmount: raw.totalAmount || 0,
     paymentTerms: raw.paymentTerms || '',
     shippingAddress: raw.shippingAddress || '',
@@ -129,7 +181,6 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     country: raw.country || '',
     state: raw.state || '',
     city: raw.city || '',
-    vendorEmail:raw.vendorEmail || '',
     vendorPhone:raw.vendorPhone || '',
     creditLimit: raw.creditLimit || 0,
     locationName: raw.locationName || '',
@@ -180,86 +231,6 @@ const calculateTaxValues = (fee: number, taxPer: number, taxType: 'cgst_sgst' | 
     total
   };
 };
-// FIXED: Helper to add description to flat arrays
-const addDescriptionToFlatArrays = (
-  currentData: ServiceData,
-  newDesc: ServiceDescription
-): ServiceData => {
-  const { taxAmount, sgst, cgst, igst, total } = calculateTaxValues(
-    newDesc.fee * (newDesc.quantity || 1), // Multiply by quantity
-    newDesc.tax_per || 0,
-    newDesc.tax_type
-  );
- 
-  const uniqueId = `desc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
- 
-  return {
-    ...currentData,
-    sacCode: [...currentData.sacCode, newDesc.sacCode || ''],
-    desc_ids: [...currentData.desc_ids, uniqueId],
-    desc_descriptions: [...currentData.desc_descriptions, newDesc.description],
-    from_dates: [...currentData.from_dates, newDesc.from_date || null],
-    to_dates: [...currentData.to_dates, newDesc.to_date || null],
-    fees: [...currentData.fees, newDesc.fee],
-    remarks: [...currentData.remarks, newDesc.remarks || ''],
-    quantity: [...currentData.quantity, newDesc.quantity || 1],
-    desc_tax_types: [...currentData.desc_tax_types, newDesc.tax_type],
-    desc_tax_pers: [...currentData.desc_tax_pers, newDesc.tax_per || 0],
-    desc_sgst: [...currentData.desc_sgst, sgst],
-    desc_cgst: [...currentData.desc_cgst, cgst],
-    desc_igst: [...currentData.desc_igst, igst],
-    desc_tax_amounts: [...currentData.desc_tax_amounts, taxAmount],
-    desc_totals: [...currentData.desc_totals, total],
-    desc_total_fees: [...currentData.desc_total_fees, newDesc.fee * (newDesc.quantity || 1)],
-    desc_discount_amounts: [...currentData.desc_discount_amounts, newDesc.discountAmount || 0],
-    desc_discount_percentages: [...(currentData.desc_discount_percentages || []), 0], // FIXED: Add this
-  };
-};
-// FIXED: Helper to update description in flat arrays
-const updateDescriptionInFlatArrays = (
-  currentData: ServiceData,
-  index: number,
-  updatedDesc: ServiceDescription
-): ServiceData => {
-  if (index < 0 || index >= currentData.desc_descriptions.length) {
-    return currentData; // Invalid index, no update
-  }
-
-  const { taxAmount, sgst, cgst, igst, total } = calculateTaxValues(
-    updatedDesc.fee * (updatedDesc.quantity || 1),
-    updatedDesc.tax_per || 0,
-    updatedDesc.tax_type
-  );
-
-  // Create new arrays with updated values at index
-  const updateArray = <T>(arr: T[], idx: number, value: T): T[] => {
-    const newArr = [...arr];
-    newArr[idx] = value;
-    return newArr;
-  };
-
-  return {
-    ...currentData,
-    sacCode: updateArray(currentData.sacCode, index, updatedDesc.sacCode || ''),
-    desc_ids: updateArray(currentData.desc_ids, index, updatedDesc.id || currentData.desc_ids[index]),
-    desc_descriptions: updateArray(currentData.desc_descriptions, index, updatedDesc.description),
-    from_dates: updateArray(currentData.from_dates, index, updatedDesc.from_date || null),
-    to_dates: updateArray(currentData.to_dates, index, updatedDesc.to_date || null),
-    fees: updateArray(currentData.fees, index, updatedDesc.fee),
-    remarks: updateArray(currentData.remarks, index, updatedDesc.remarks || ''),
-    quantity: updateArray(currentData.quantity, index, updatedDesc.quantity || 1),
-    desc_tax_types: updateArray(currentData.desc_tax_types, index, updatedDesc.tax_type),
-    desc_tax_pers: updateArray(currentData.desc_tax_pers, index, updatedDesc.tax_per || 0),
-    desc_sgst: updateArray(currentData.desc_sgst, index, sgst),
-    desc_cgst: updateArray(currentData.desc_cgst, index, cgst),
-    desc_igst: updateArray(currentData.desc_igst, index, igst),
-    desc_tax_amounts: updateArray(currentData.desc_tax_amounts, index, taxAmount),
-    desc_totals: updateArray(currentData.desc_totals, index, total),
-    desc_total_fees: updateArray(currentData.desc_total_fees, index, updatedDesc.fee * (updatedDesc.quantity || 1)),
-    desc_discount_amounts: updateArray(currentData.desc_discount_amounts, index, updatedDesc.discountAmount || 0),
-    desc_discount_percentages: updateArray(currentData.desc_discount_percentages || [], index, updatedDesc.discount_percentage || 0), // FIXED: Add this
-  };
-};
 
 export const initialState: ServiceState = {
   serviceData: {
@@ -267,7 +238,6 @@ export const initialState: ServiceState = {
     vendorId: '',
     vendorName: '',
     vendorContact: '',
-    vendorEmail:'',
     vendorPhone:'',
     workOrderDate: null,
     approvedDate: null,
@@ -280,7 +250,7 @@ export const initialState: ServiceState = {
     remarks: [],
     sacCode: [],
     desc_ids: [],
-    desc_descriptions: [],
+    descriptions: [],
     from_dates: [],
     to_dates: [],
     fees: [],
@@ -294,7 +264,7 @@ export const initialState: ServiceState = {
     desc_total_fees: [],
     desc_discount_amounts: [],
     desc_overall_discounts: [], // NEW
-
+    base_amounts:[],
     totalAmount: 0,
     paymentTerms: '',
     shippingAddress: '',
@@ -349,6 +319,7 @@ export const initialState: ServiceState = {
     discountAmount: 0,
     quantity: 1, // NEW
     remarks: '', // NEW
+    base_amount:0,
   },
   
   services: [],
@@ -370,7 +341,7 @@ export const initialState: ServiceState = {
   calculatedTotals: null,
 };
 
-const BASE_URL = 'http://192.168.29.116:8000/purchaseapi';
+const BASE_URL = 'https://yenerp.com/purchasetestapi';
 
 // FIXED: Async thunk for calculateServiceTotals (sends nested ServiceDescription[])
 export const calculateServiceTotals = createAsyncThunk(
@@ -386,7 +357,6 @@ export const calculateServiceTotals = createAsyncThunk(
 );
 
 // REMOVED: calculateOverallDiscountForAllDescriptions (integrated into calculateServiceTotals)
-// Fix the fetchServices thunk:
 export const fetchServices = createAsyncThunk(
   'serviceOrder/fetchServices',
   async (params: {
@@ -452,7 +422,6 @@ export const fetchServiceById = createAsyncThunk(
     return transformRawToNested(response.data);
   }
 );
-
 export const calculateDescriptionTotals = createAsyncThunk<
   DescriptionCalculationResponse,
   DescriptionCalculationRequest & { quantity?: number },
@@ -467,7 +436,7 @@ export const calculateDescriptionTotals = createAsyncThunk<
       fee,
       taxPer,
       taxType,
-      quantity = 1, // FIXED: Default quantity
+      quantity = 1, // For display only
       remarks
     },
     { rejectWithValue }
@@ -477,10 +446,10 @@ export const calculateDescriptionTotals = createAsyncThunk<
         description,
         fromDate: formatDateOnly(fromDate), // Date-only
         toDate: formatDateOnly(toDate),
-        fee,
+        fee, // This is already the total amount including tax
         taxPer: taxPer || 0,
         taxType,
-        quantity, // NEW: Include quantity if provided
+        quantity, // For display only
         remarks
       };
       
@@ -511,7 +480,7 @@ export const addService = createAsyncThunk<
         workOrderDate: service.workOrderDate ? formatDateTimeForBackend(service.workOrderDate) : null,
         
         // Use 'descriptions' field for backend
-        descriptions: service.desc_descriptions || [],
+        descriptions: service.descriptions || [],
         
         // Convert date strings to datetime for backend
         from_dates: service.from_dates.map(dateStr => 
@@ -526,9 +495,9 @@ export const addService = createAsyncThunk<
         
         // CRITICAL: Include discount arrays (always zero for now)
         desc_discount_percentages: service.desc_discount_percentages || 
-          Array(service.desc_descriptions.length).fill(0),
+          Array(service.descriptions.length).fill(0),
         desc_discount_amounts: service.desc_discount_amounts || 
-          Array(service.desc_descriptions.length).fill(0),
+          Array(service.descriptions.length).fill(0),
         
         // Include other array fields
         remarks: service.remarks || [],
@@ -577,7 +546,7 @@ export const updateService = createAsyncThunk<
       const serviceToUpdate = {
         ...service,
         workOrderDate: formatDateTimeForBackend(service.workOrderDate),
-        descriptions: service.desc_descriptions,
+        descriptions: service.descriptions,
         from_dates: service.from_dates.map(dateStr => dateStr ? formatDateTimeForBackend(dateStr) : ''),
         to_dates: service.to_dates.map(dateStr => dateStr ? formatDateTimeForBackend(dateStr) : ''),
         sacCode: service.sacCode || [],
@@ -657,7 +626,7 @@ addDescriptionToService: (state, action: PayloadAction<ServiceDescription>) => {
     // Add to all flat arrays
     sacCode: [...state.serviceData.sacCode, desc.sacCode || ''],
     desc_ids: [...state.serviceData.desc_ids, desc.id || ''],
-    desc_descriptions: [...state.serviceData.desc_descriptions, desc.description || ''],
+    descriptions: [...state.serviceData.descriptions, desc.description || ''],
     from_dates: [...state.serviceData.from_dates, desc.from_date || null],
     to_dates: [...state.serviceData.to_dates, desc.to_date || null],
     fees: [...state.serviceData.fees, desc.fee || 0],
@@ -680,13 +649,13 @@ addDescriptionToService: (state, action: PayloadAction<ServiceDescription>) => {
 updateDescription: (state, action: PayloadAction<{ index: number; desc: ServiceDescription }>) => {
   const { index, desc } = action.payload;
   
-  if (index < 0 || index >= state.serviceData.desc_descriptions.length) {
+  if (index < 0 || index >= state.serviceData.descriptions.length) {
     return;
   }
   
   // Update all arrays at the specified index
   const arraysToUpdate = [
-    'sacCode', 'desc_ids', 'desc_descriptions', 'from_dates', 'to_dates',
+    'sacCode', 'desc_ids', 'descriptions', 'from_dates', 'to_dates',
     'fees', 'quantity', 'remarks', 'desc_tax_types', 'desc_tax_pers',
     'desc_sgst', 'desc_cgst', 'desc_igst', 'desc_tax_amounts',
     'desc_totals', 'desc_total_fees', 'desc_discount_amounts', 
@@ -700,7 +669,7 @@ updateDescription: (state, action: PayloadAction<{ index: number; desc: ServiceD
         case 'desc_ids': 
           state.serviceData.desc_ids[index] = desc.id || state.serviceData.desc_ids[index]; 
           break;
-        case 'desc_descriptions': state.serviceData.desc_descriptions[index] = desc.description; break;
+        case 'descriptions': state.serviceData.descriptions[index] = desc.description; break;
         case 'from_dates': 
           state.serviceData.from_dates[index] = desc.from_date !== undefined ? desc.from_date : null; 
           break;
@@ -732,7 +701,7 @@ updateDescription: (state, action: PayloadAction<{ index: number; desc: ServiceD
 deleteDescriptionFromService: (state, action: PayloadAction<number>) => {
   const index = action.payload;
   
-  if (index < 0 || index >= state.serviceData.desc_descriptions.length) {
+  if (index < 0 || index >= state.serviceData.descriptions.length) {
     return; // Invalid index
   }
   
@@ -746,7 +715,7 @@ deleteDescriptionFromService: (state, action: PayloadAction<number>) => {
     ...state.serviceData,
     sacCode: removeFromArray(state.serviceData.sacCode, index),
     desc_ids: removeFromArray(state.serviceData.desc_ids, index),
-    desc_descriptions: removeFromArray(state.serviceData.desc_descriptions, index),
+    descriptions: removeFromArray(state.serviceData.descriptions, index),
     from_dates: removeFromArray(state.serviceData.from_dates, index),
     to_dates: removeFromArray(state.serviceData.to_dates, index),
     fees: removeFromArray(state.serviceData.fees, index),
@@ -832,16 +801,13 @@ setDescriptionForEditing(state, action: PayloadAction<ServiceDescription & { ind
     builder
       // FIXED: calculateServiceTotals cases
       .addCase(calculateServiceTotals.pending, (state) => {
-        state.serviceTotalsLoading = true;
         state.error = null;
       })
       .addCase(calculateServiceTotals.fulfilled, (state, action) => {
-        state.serviceTotalsLoading = false;
         state.calculatedTotals = action.payload;
         state.error = null;
       })
       .addCase(calculateServiceTotals.rejected, (state, action) => {
-        state.serviceTotalsLoading = false;
         state.error = action.payload as string || 'Failed to calculate totals';
       })
       

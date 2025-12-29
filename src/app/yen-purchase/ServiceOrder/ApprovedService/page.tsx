@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
-import BlockIcon from '@mui/icons-material/Block';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import ClearIcon from "@mui/icons-material/Clear";
 import CheckIcon from '@mui/icons-material/Check';
@@ -20,11 +20,13 @@ import {
   Menu,
   MenuItem,
   Chip,
-  Divider
+  Divider,
+  TextField,
+  Alert,
+  Stack
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ServiceData, ServiceDescription } from '../Models/servicepo';
 import { VendorSearch } from '@/Models/vendor';
@@ -36,6 +38,14 @@ import {
   setSnackbarMessage,
   setSnackbarOpen,
 } from '../Features/servicepo';
+import {
+  updateServiceOrderStatusToPending,
+  convertServiceToAPOutgoing,
+  selectConversionLoading,
+  selectConversionError,
+  selectConversionSuccess,
+  clearConversionState
+} from '../Features/servicelist';
 import { fetchBusinesses, selectBusinesses } from '@/features/account-setting/businessSlice';
 import Papa from 'papaparse';
 import 'react-date-range/dist/styles.css';
@@ -44,8 +54,10 @@ import DateRangeDialog from '@/components/dateRange';
 import VendorSearchAutocomplete from '@/components/vendorsearchautocomplete';
 import { debounce } from 'lodash';
 import YenPurchasePage from '../../page';
-import { deactivateServiceOrder, updateServiceOrderStatusToPending } from '../Features/servicelist';
 import ServiceIdSearch from '../Components/ServiceIDSeacrh';
+import FreightSelectionDialog, { FreightData } from '../../PurchaseOrder/Component/freightSelectionDialog';
+import EditIcon from '@mui/icons-material/Edit';
+import AddIcon from '@mui/icons-material/Add';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -88,7 +100,7 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 
   // Get the maximum length from available arrays
   const maxLength = Math.max(
-    service.desc_descriptions?.length || 0,
+    service.descriptions?.length || 0,
     service.sacCode?.length || 0,
     service.from_dates?.length || 0,
     service.to_dates?.length || 0,
@@ -97,7 +109,7 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 
   for (let i = 0; i < maxLength; i++) {
     // Create description from remarks if desc_descriptions doesn't exist
-    const descriptionText = service.desc_descriptions?.[i] ||
+    const descriptionText = service.descriptions?.[i] ||
       service.remarks?.[i] ||
       `Service ${i + 1}`;
 
@@ -119,7 +131,8 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
       finalFee: service.desc_total_fees?.[i] || 0,
       discountAmount: service.desc_discount_amounts?.[i] || 0,
       remarks: service.remarks?.[i] || '',
-      quantity: service.quantity?.[i] || 0
+      quantity: service.quantity?.[i] || 0,
+      base_amount: service.base_amounts?.[i] || 0
     });
   }
 
@@ -131,6 +144,11 @@ const ApprovedService: React.FC = () => {
   const serviceOrder = useSelector(selectServiceState);
   const { services, loading, error, snackbarMessage, snackbarOpen } = serviceOrder;
   const { businesses } = useSelector(selectBusinesses);
+
+  // Conversion state
+  const conversionLoading = useSelector(selectConversionLoading);
+  const conversionError = useSelector(selectConversionError);
+  const conversionSuccess = useSelector(selectConversionSuccess);
 
   // State for filters
   const [filters, setFilters] = useState({
@@ -144,7 +162,6 @@ const ApprovedService: React.FC = () => {
 
   const [selectedOrder, setSelectedOrder] = useState<ServiceData | null>(null);
   const [selectedDescriptions, setSelectedDescriptions] = useState<ServiceDescription[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectionRange, setSelectionRange] = useState({
     startDate: new Date(),
@@ -154,22 +171,50 @@ const ApprovedService: React.FC = () => {
   const [selectedVendor, setSelectedVendor] = useState<VendorSearch | null>(null);
   const [dialogDownloadOpen, setDialogDownloadOpen] = useState(false);
   const [dialogSummaryOpen, setDialogSummaryOpen] = useState(false);
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openMovePendingDialog, setOpenMovePendingDialog] = useState(false);
-  const [selectedMongoId, setSelectedMongoId] = useState<string | null>(null);
+  const [openConvertToAPDialog, setOpenConvertToAPDialog] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState('');
-
+  const [apRoundOff, setApRoundOff] = useState(''); // Start empty for easy typing
+  const [apRoundOffError, setApRoundOffError] = useState('');
+  const [openConvertConfirmation, setOpenConvertConfirmation] = useState(false);
+  const [apInvoiceDate, setApInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [apInvoiceNo, setApInvoiceNo] = useState('');
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [totalItems, setTotalItems] = useState(0);
-
+  const [freights, setFreights] = useState<FreightData[]>([]);
+  // const [openFreightDialog, setOpenFreightDialog] = useState(false);
   // Fetch initial Approved services
   useEffect(() => {
     dispatch(fetchBusinesses());
     fetchApprovedServices();
   }, [dispatch]);
+  // Handle conversion success/error
+  useEffect(() => {
+    if (conversionSuccess) {
+      // Close both dialogs
+      setOpenConvertConfirmation(false);
+      setOpenConvertToAPDialog(false);
 
+      // Reset form state
+      handleDialogClose();
+
+      // Show success message and refresh data
+      dispatch(setSnackbarMessage('Service successfully converted to AP and Outgoing'));
+      dispatch(setSnackbarOpen(true));
+      fetchApprovedServices();
+
+      // Clear conversion state
+      dispatch(clearConversionState());
+    }
+
+    if (conversionError) {
+      dispatch(setSnackbarMessage(conversionError));
+      dispatch(setSnackbarOpen(true));
+      // Keep the dialogs open on error so user can retry
+    }
+  }, [conversionSuccess, conversionError, dispatch]);
   // Function to fetch services with current filters
   const fetchApprovedServices = useCallback((additionalParams = {}) => {
     const allParams = {
@@ -238,7 +283,46 @@ const ApprovedService: React.FC = () => {
     setCurrentPage(1);
     debouncedFetch(newFilters);
   }, [debouncedFetch]);
+  const handleApRoundOffChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setApRoundOff(value);
 
+    // Clear error while user is typing
+    setApRoundOffError('');
+  }, [setApRoundOff, setApRoundOffError]);
+
+  const handleApRoundOffBlur = useCallback(() => {
+    // If empty, treat as 0 with no error
+    if (apRoundOff === '' || apRoundOff === '-') {
+      setApRoundOff('0.00');
+      setApRoundOffError('');
+      return;
+    }
+
+    // Parse the value
+    const parsed = parseFloat(apRoundOff);
+
+    // Check if valid number
+    if (isNaN(parsed)) {
+      setApRoundOffError('Please enter a valid number (e.g., 0.50, -0.25)');
+      setApRoundOff('');
+      return;
+    }
+
+    // Check range
+    if (parsed > 2 || parsed < -2) {
+      setApRoundOffError('Must be between -2.00 and +2.00');
+      // Auto-correct to nearest limit
+      const corrected = parsed > 2 ? '2.00' : '-2.00';
+      setApRoundOff(corrected);
+      return;
+    }
+
+    // Format to 2 decimal places
+    const formatted = parsed.toFixed(2);
+    setApRoundOff(formatted);
+    setApRoundOffError('');
+  }, [apRoundOff, setApRoundOff, setApRoundOffError]);
   // Clear all filters
   const handleFilterClose = useCallback(() => {
     setSelectionRange({
@@ -311,44 +395,33 @@ const ApprovedService: React.FC = () => {
       setSelectedOrder(selected);
       const descriptions = getDescriptionsFromFlatArrays(selected);
       setSelectedDescriptions(descriptions);
-      setDialogOpen(true);
+
+      // If not stored yet, start with empty array
+      const existingFreights: FreightData[] = selected.freights || []; // adjust field name as per your model
+      setFreights(existingFreights);
+
+      setApInvoiceDate(format(new Date(), 'yyyy-MM-dd'));
+      setApInvoiceNo('');
+      setApRoundOff('0.00');
+      setOpenConvertToAPDialog(true);
     }
   };
 
   const handleDialogClose = () => {
-    setDialogOpen(false);
     setSelectedOrder(null);
     setSelectedDescriptions([]);
-  };
+    setOpenConvertToAPDialog(false);
+    setOpenConvertConfirmation(false);
+    setApInvoiceDate(format(new Date(), 'yyyy-MM-dd'));
+    setApInvoiceNo('');
+    setApRoundOff('0.00');
+    setApRoundOffError('');
 
+    // Also clear conversion states if needed
+    dispatch(clearConversionState());
+  };
   const handleCloseSnackbar = () => {
     dispatch(setSnackbarOpen(false));
-  };
-
-  // Deactivate handler
-  const handleOpenDeactivateDialog = (mongoId: string) => {
-    setSelectedMongoId(mongoId);
-    setOpenDeleteDialog(true);
-  };
-
-  const handleCloseDeleteDialog = () => {
-    setOpenDeleteDialog(false);
-    setSelectedMongoId(null);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (selectedMongoId) {
-      try {
-        await dispatch(deactivateServiceOrder(selectedMongoId)).unwrap();
-        dispatch(setSnackbarMessage('Service order deactivated successfully'));
-        dispatch(setSnackbarOpen(true));
-        fetchApprovedServices();
-        handleCloseDeleteDialog();
-      } catch (error: any) {
-        dispatch(setSnackbarMessage(error || 'Failed to deactivate service order'));
-        dispatch(setSnackbarOpen(true));
-      }
-    }
   };
 
   // Move to Pending handler
@@ -375,7 +448,33 @@ const ApprovedService: React.FC = () => {
       }
     }
   };
+  const handleConfirmConvertToAP = () => {
+    if (!selectedOrder || !apInvoiceNo.trim()) return;
 
+    const request = {
+      service_id: selectedOrder.mongoId,
+      apRoundOff: apRoundOff || '0.00',
+      invoiceNo: apInvoiceNo.trim(),
+      invoiceDate: apInvoiceDate
+    };
+
+    dispatch(convertServiceToAPOutgoing(request)).then((result) => {
+      if (result.meta.requestStatus === 'fulfilled') {
+        // Close confirmation dialog first
+        setOpenConvertConfirmation(false);
+
+        // Close the main details dialog
+        handleDialogClose();
+
+        // Fetch updated data
+        fetchApprovedServices();
+
+        // Show success message
+        dispatch(setSnackbarMessage('Service successfully converted to AP and Outgoing'));
+        dispatch(setSnackbarOpen(true));
+      }
+    });
+  };
   // Generate PDF for vendorwise report
   const generatePDF = () => {
     const doc = new jsPDF();
@@ -412,7 +511,7 @@ const ApprovedService: React.FC = () => {
 
     const headers = [["S.No", "Service ID", "Vendor Name", "Total Descriptions", "Order Date", "Total Amount", "Status"]];
     const rows = approvedServices.map((service: ServiceData, index: number) => {
-      const totalDescs = service.desc_descriptions.length;
+      const totalDescs = service.descriptions.length;
       const orderDate = service.workOrderDate ? format(new Date(service.workOrderDate), 'dd-MM-yyyy') : '';
       return [
         (index + 1).toString(),
@@ -461,7 +560,7 @@ const ApprovedService: React.FC = () => {
   const handleExportCSV = () => {
     const headers = 'SNO,Service ID,Vendor Name,Total Descriptions,Order Date,Total Amount,Status\n';
     const rows = approvedServices.map((service: ServiceData, index: number) => {
-      const totalDescs = service.desc_descriptions.length;
+      const totalDescs = service.descriptions.length;
       const orderDate = service.workOrderDate ? format(new Date(service.workOrderDate), 'dd-MM-yyyy') : '';
       return [
         (index + 1),
@@ -601,6 +700,10 @@ const ApprovedService: React.FC = () => {
     document.body.removeChild(link);
     setDialogSummaryOpen(false);
   };
+  const handleOpenConvertConfirmation = () => {
+    setOpenConvertConfirmation(true);
+  };
+
 
   // Individual PDF download
   const handleDownload = (service: ServiceData) => {
@@ -641,7 +744,7 @@ const ApprovedService: React.FC = () => {
         `City: ${service.city || ''}\n` +
         `State: ${service.state || ''}\n` +
         `Country: ${service.country || ''}\n` +
-        `Email: ${service.vendorEmail || ''}\n` +
+        `Email: ${service.contactpersonEmail || ''}\n` +
         `Phone: ${service.vendorPhone || ''}`,
         `Service ID: ${service.serviceId}\n` +
         `Order Date: ${service.workOrderDate ? format(new Date(service.workOrderDate), 'dd-MM-yyyy') : ''}\n` +
@@ -957,8 +1060,6 @@ const ApprovedService: React.FC = () => {
                             <PictureAsPdfIcon />
                           </IconButton>
                         </Tooltip>
-
-
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -989,11 +1090,11 @@ const ApprovedService: React.FC = () => {
           </IconButton>
         </Box>
 
-        {/* VIEW DETAILS DIALOG */}
+        {/* VIEW DETAILS DIALOG - Updated Layout like GRN Dialog */}
         <Dialog
-          open={dialogOpen}
+          open={openConvertToAPDialog}
           onClose={handleDialogClose}
-          maxWidth="md"
+          maxWidth="lg"
           fullWidth={true}
         >
           <DialogTitle>
@@ -1001,15 +1102,49 @@ const ApprovedService: React.FC = () => {
           </DialogTitle>
 
           <DialogContent dividers>
-            {/* Table */}
-            <Typography variant="h6" gutterBottom>Service Descriptions</Typography>
-            <TableContainer component={Paper} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={7} md={3}>
+                <TextField
+                  autoComplete='off'
+                  label="Invoice No *"
+                  value={apInvoiceNo}
+                  onChange={(e) => setApInvoiceNo(e.target.value)}
+                  placeholder=""
+                  fullWidth
+                  required
+                  size="small"  // ← Smaller field
+                  error={!apInvoiceNo.trim()}
+                  helperText={!apInvoiceNo.trim() ? "Required" : " "}
+                />
+              </Grid>
+              <Grid item xs={12} sm={5} md={3}>
+                <TextField
+                  autoComplete='off'
+                  label="Invoice Date *"
+                  type="date"
+                  value={apInvoiceDate}
+                  onChange={(e) => setApInvoiceDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                  required
+                  size="small"  // ← Smaller field
+                  inputProps={{
+                    max: format(new Date(), 'yyyy-MM-dd'),
+                  }}
+                />
+              </Grid>
+            </Grid>
+            {/* Service Descriptions Table */}
+            <Typography variant="h6" gutterBottom>
+              Service Descriptions
+            </Typography>
+            <TableContainer component={Paper} sx={{ mb: 4 }}>
               <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell><b>S.No</b></TableCell>
-                    <TableCell><b>Description</b></TableCell>
                     <TableCell><b>SAC Code</b></TableCell>
+                    <TableCell><b>Description</b></TableCell>
                     <TableCell><b>From Date</b></TableCell>
                     <TableCell><b>To Date</b></TableCell>
                     <TableCell align="right"><b>Fee</b></TableCell>
@@ -1021,8 +1156,8 @@ const ApprovedService: React.FC = () => {
                   {selectedDescriptions.map((desc: ServiceDescription, index: number) => (
                     <TableRow key={desc.id || index}>
                       <TableCell>{index + 1}</TableCell>
-                      <TableCell>{desc.description}</TableCell>
                       <TableCell>{desc.sacCode}</TableCell>
+                      <TableCell>{desc.description}</TableCell>
                       <TableCell>
                         {desc.from_date ? format(new Date(desc.from_date), 'dd-MM-yyyy') : ''}
                       </TableCell>
@@ -1037,69 +1172,172 @@ const ApprovedService: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
-
-            {/* SIMPLE SUMMARY */}
             {selectedOrder && (
               <>
-                <Typography variant="h6" gutterBottom>Order Summary</Typography>
+                <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+                  Order Summary
+                </Typography>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography>Total Service Fee:</Typography>
-                  <Typography fontWeight="bold">
-                    ₹ {selectedDescriptions.reduce((sum, desc) => sum + desc.fee, 0).toFixed(2)}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography>Freight Amount:</Typography>
-                  <Typography fontWeight="bold">
-                    {selectedOrder.totalFreightAmount}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography>Total Tax:</Typography>
-                  <Typography fontWeight="bold">
-                    {selectedOrder.totalTax}
-                  </Typography>
-                </Box>
+                <Table size="small" sx={{ mb: 3 }}>
+                  <TableBody>
+                    {/* Service Tax */}
+                    <TableRow>
+                      <TableCell sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap' }}>
+                        Service Tax:
+                      </TableCell>
+                      <TableCell align="right" sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap', width: '150px' }}>
+                        ₹ {selectedDescriptions.reduce((sum, d) => sum + (d.taxAmount || 0), 0).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
 
-                <Divider sx={{ my: 2 }} />
+                    {/* Freight Amount */}
+                    <TableRow>
+                      <TableCell sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap' }}>
+                        Freight Amount:
+                      </TableCell>
+                      <TableCell align="right" sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap', width: '150px' }}>
+                        ₹ {freights.reduce((sum, f) => sum + f.amt, 0).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="h6">Grand Total:</Typography>
-                  <Typography variant="h5" fontWeight="bold" color="primary">
-                    ₹ {selectedOrder.totalAmount?.toFixed(2) || '0.00'}
-                  </Typography>
-                </Box>
+                    {/* Amount Before Round Off */}
+                    <TableRow>
+                      <TableCell sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap' }}>
+                        Amount Before Round Off:
+                      </TableCell>
+                      <TableCell align="right" sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap', width: '150px' }}>
+                        ₹ {selectedOrder.totalAmount?.toFixed(2) || '0.00'}
+                      </TableCell>
+                    </TableRow>
+
+                    <TableRow>
+                      <TableCell sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap' }}>
+                        AP Round Off:
+                      </TableCell>
+                      <TableCell align="right">
+                        <TextField
+                          autoComplete="off"
+                          type="text"
+                          value={apRoundOff}
+                          onChange={handleApRoundOffChange}
+                          onBlur={handleApRoundOffBlur}
+                          onFocus={(e) => e.target.select()} // Select all text when clicked
+                          placeholder="0.00"
+                          size="small"
+                          variant="outlined"
+                          error={!!apRoundOffError}
+                          helperText={apRoundOffError || ''}
+                          sx={{
+                            width: '100px',
+                            '& .MuiInputBase-input': {
+                              textAlign: 'right',
+                              padding: '10px 12px',
+                              fontSize: '1rem'
+                            }
+                          }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                    {/* Final Invoice Amount - Highlighted */}
+                    <TableRow sx={{ backgroundColor: '#e8f5e8' }}>
+                      <TableCell sx={{ border: 0, py: 1, whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                        Final Invoice Amount:
+                      </TableCell>
+                      <TableCell align="right" sx={{ border: 0, py: 1, whiteSpace: 'nowrap', color: 'success.main' }}>
+                        <strong style={{ fontSize: '1.25em' }}>
+                          ₹ {(
+                            (selectedOrder.totalAmount || 0) +
+                            parseFloat(apRoundOff || '0')
+                          ).toFixed(2)}
+                        </strong>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </>
             )}
           </DialogContent>
 
-          <DialogActions>
-            <Button onClick={handleOpenMovePendingDialog} variant="contained">
+          <DialogActions sx={{ p: 2, gap: 1 }}>
+            <Button onClick={handleDialogClose} color="inherit">
+              Close
+            </Button>
+            <Button onClick={handleOpenMovePendingDialog} variant="outlined" color="primary">
               Move to Pending
             </Button>
-            <Button onClick={handleDialogClose} color="primary">Close</Button>
+            <Button
+              onClick={handleOpenConvertConfirmation}
+              variant="contained"
+              color="success"
+              disabled={conversionLoading || !apInvoiceNo.trim() || !apInvoiceDate}
+              startIcon={conversionLoading ? <CircularProgress size={20} /> : <CheckIcon />}
+            >
+              {conversionLoading ? 'Converting...' : 'Convert to AP Invoice'}
+            </Button>
           </DialogActions>
         </Dialog>
-
-        {/* DEACTIVATE DIALOG */}
-        <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
-          <DialogTitle>Confirm Deactivate Service Order</DialogTitle>
+        {/* FINAL CONFIRMATION DIALOG */}
+        <Dialog open={openConvertConfirmation} onClose={() => !conversionLoading && setOpenConvertConfirmation(false)}>
+          <DialogTitle>Confirm Conversion to AP Invoice</DialogTitle>
           <DialogContent>
-            <Typography>
-              Are you sure you want to deactivate this Service Order permanently?
-              Once deactivated, it cannot be recovered.
-            </Typography>
+            {conversionError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {conversionError}
+              </Alert>
+            )}
+            <DialogContentText>
+              Are you sure you want to convert this service order to AP Invoice?
+              <br /><br />
+              <strong>Service ID:</strong> {selectedOrder?.serviceId}<br />
+              <strong>Invoice No:</strong> {apInvoiceNo}<br />
+              <strong>Invoice Date:</strong> {apInvoiceDate ? format(new Date(apInvoiceDate), 'dd-MM-yyyy') : ''}<br />
+              <strong>Round Off:</strong> ₹ {apRoundOff || '0.00'}
+              <br /><br />
+              This action <strong>cannot be undone</strong>.
+            </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDeleteDialog} color="primary">
+            <Button
+              onClick={() => setOpenConvertConfirmation(false)}
+              disabled={conversionLoading}
+            >
               Cancel
             </Button>
-            <Button onClick={handleConfirmDelete} color="error">
-              Deactivate Permanently
+            <Button
+              onClick={handleConfirmConvertToAP}
+              variant="contained"
+              color="success"
+              disabled={conversionLoading}
+              startIcon={conversionLoading ? <CircularProgress size={20} /> : null}
+            >
+              {conversionLoading ? 'Converting...' : 'Yes, Convert to AP'}
             </Button>
           </DialogActions>
         </Dialog>
+        {/* Final Confirmation Dialog
+        <Dialog open={openConvertConfirmation} onClose={() => setOpenConvertConfirmation(false)}>
+          <DialogTitle>Confirm Convert to AP</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to convert Service Order <strong>{selectedOrder?.serviceId}</strong> to AP Invoice?
+              <br /><br />
+              This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenConvertConfirmation(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmConvertToAP}
+              variant="contained"
+              color="success"
+              disabled={conversionLoading}
+            >
+              Yes, Convert
+            </Button>
+          </DialogActions>
+        </Dialog> */}
 
         {/* MOVE TO PENDING DIALOG */}
         <Dialog open={openMovePendingDialog} onClose={handleCloseMovePendingDialog}>
@@ -1135,7 +1373,15 @@ const ApprovedService: React.FC = () => {
             <Button onClick={() => setDialogDownloadOpen(false)} variant="outlined">Cancel</Button>
           </DialogActions>
         </Dialog>
-
+        {/* <FreightSelectionDialog
+          open={openFreightDialog}
+          onClose={() => setOpenFreightDialog(false)}
+          onAddFreights={(newFreights: FreightData[]) => {
+            setFreights(newFreights);
+            setOpenFreightDialog(false);
+          }}
+          existingFreights={freights}
+        /> */}
         {/* DESCRIPTIONWISE EXPORT DIALOG */}
         <Dialog open={dialogSummaryOpen} onClose={() => setDialogSummaryOpen(false)}>
           <DialogTitle>Export Options</DialogTitle>

@@ -4,27 +4,27 @@ import { RootState } from '../../../redux/store';
 import { initialState, UOMItem } from '@/Models/uom';
 
 export const fetchUOMItems = createAsyncThunk<UOMItem[]>('uom/fetchUOMItems', async () => {
-  const response = await axios.get('http://192.168.29.116:8000/purchaseapi/purchaseuoms/');
+  const response = await axios.get('https://yenerp.com/purchasetestapi/purchaseuoms/');
   return response.data;
 });
 
 export const addUOMItem = createAsyncThunk<UOMItem, UOMItem>('uom/addUOMItem', async (uomData) => {
-  const response = await axios.post('http://192.168.29.116:8000/purchaseapi/purchaseuoms', uomData);
+  const response = await axios.post('https://yenerp.com/purchasetestapi/purchaseuoms', uomData);
   return response.data;
 });
 
 export const updateUOMItem = createAsyncThunk<UOMItem, UOMItem>('uom/updateUOMItem', async (uomData) => {
-  const response = await axios.put(`http://192.168.29.116:8000/purchaseapi/purchaseuoms/${uomData.purchaseuomId}`, uomData);
+  const response = await axios.put(`https://yenerp.com/purchasetestapi/purchaseuoms/${uomData.purchaseuomId}`, uomData);
   return response.data;
 });
 
 export const deactivateUOMItem = createAsyncThunk<UOMItem, string>('uom/deactivateUOMItem', async (purchaseuomId) => {
-  const response = await axios.put(`http://192.168.29.116:8000/purchaseapi/purchaseuoms/${purchaseuomId}`, { status: 'deactivated' });
+  const response = await axios.put(`https://yenerp.com/purchasetestapi/purchaseuoms/${purchaseuomId}`, { status: 'deactivated' });
   return response.data;
 });
 
 export const activateUOMItem = createAsyncThunk<UOMItem, string>('uom/activateUOMItem', async (purchaseuomId) => {
-  const response = await axios.put(`http://192.168.29.116:8000/purchaseapi/purchaseuoms/${purchaseuomId}`, { status: 'active' });
+  const response = await axios.put(`https://yenerp.com/purchasetestapi/purchaseuoms/${purchaseuomId}`, { status: 'active' });
   return response.data;
 });
 
@@ -35,7 +35,7 @@ export const importPurchaseUom = createAsyncThunk(
       const formData = new FormData();
       formData.append('file', file);
       const response = await axios.post(
-        'http://192.168.29.116:8000/purchaseapi/purchaseuoms/import-csv',
+        'https://yenerp.com/purchasetestapi/purchaseuoms/import-csv',
         formData,
         {
           headers: {
@@ -55,7 +55,7 @@ export const exportPurchaseUom = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        'http://192.168.29.116:8000/purchaseapi/purchaseuoms/export-uom/export-csv',
+        'https://yenerp.com/purchasetestapi/purchaseuoms/export-uom/export-csv',
         {
           responseType: 'blob',
         }

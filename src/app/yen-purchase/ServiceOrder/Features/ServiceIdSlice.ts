@@ -2,7 +2,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const API_BASE_URL = `http://192.168.29.116:8000/purchaseapi`;
+const API_BASE_URL = `https://yenerp.com/purchasetestapi`;
 export const LIMIT = 20; // Add this export
 
 export interface ServiceIdItem {

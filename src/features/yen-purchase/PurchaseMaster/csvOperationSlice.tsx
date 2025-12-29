@@ -45,7 +45,7 @@ export const importCSV = createAsyncThunk(
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await axios.post('http://192.168.29.116:8000/purchaseapi/itemgroups/import-csv', formData, {
+      const response = await axios.post('https://yenerp.com/purchasetestapi/itemgroups/import-csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -62,7 +62,7 @@ export const importCSV = createAsyncThunk(
 // Async thunk for exporting CSV
 export const exportCSV = createAsyncThunk('csvOperations/exportCSV', async (_, { rejectWithValue }) => {
   try {
-    const response = await axios.get('http://192.168.29.116:8000/purchaseapi/itemgroups/export-csv', {
+    const response = await axios.get('https://yenerp.com/purchasetestapi/itemgroups/export-csv', {
       responseType: 'blob',
     });
 

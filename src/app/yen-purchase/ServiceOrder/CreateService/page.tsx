@@ -47,23 +47,35 @@ const formatDate = (date: Date | null): string => {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
-
+const formatDateForBackend = (date: Date | null): string => {
+  if (!date) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}T00:00:00.000Z`; // Keep backend happy
+};
 const parseDate = (dateStr: string | null): Date | null => {
   if (!dateStr) return null;
-  const date = new Date(dateStr);
-  return isNaN(date.getTime()) ? null : date;
+
+  // Split the date part only: "2025-12-25T00:00:00.000Z" → "2025-12-25"
+  const datePart = dateStr.split('T')[0]; // "2025-12-25"
+  if (!datePart) return null;
+
+  const [year, month, day] = datePart.split('-').map(Number);
+
+  // Create date using LOCAL time zone explicitly at noon to prevent rollover
+  return new Date(year, month - 1, day, 12, 0, 0);
+};
+const formatWorkOrderDate = (date: Date | null): string => {
+  if (!date) return '';
+  const localDate = new Date(date);
+  return localDate.toISOString();
 };
 
-// Validation schema
-const validationSchema = Yup.object({
-  vendorName: Yup.string().required('Vendor name is required'),
-  billingAddress: Yup.string().required('Billing address is required'),
-  shippingAddress: Yup.string().required('Shipping address is required'),
-  locationName: Yup.string().required('Location is required'),
-  paymentTerms: Yup.string().required('Payment terms are required'),
-  creditLimit: Yup.number().required('Credit limit is required').min(0, 'Credit limit must be non-negative'),
-  workOrderDate: Yup.string().required('Work order date is required'),
-});
+// Simple unique ID generator
+const generateUniqueId = (): string => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
 
 // Helper function to convert flat arrays to descriptions
 const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescription[] => {
@@ -71,7 +83,7 @@ const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescrip
   const maxLen = Math.max(
     serviceData.sacCode?.length || 0,
     serviceData.desc_ids?.length || 0,
-    serviceData.desc_descriptions?.length || 0,
+    serviceData.descriptions?.length || 0,
     serviceData.from_dates?.length || 0,
     serviceData.to_dates?.length || 0,
     serviceData.fees?.length || 0,
@@ -92,7 +104,7 @@ const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescrip
     descriptions.push({
       id: serviceData.desc_ids?.[i] || '',
       sacCode: serviceData.sacCode?.[i] || '',
-      description: serviceData.desc_descriptions?.[i] || '',
+      description: serviceData.descriptions?.[i] || '',
       from_date: serviceData.from_dates?.[i] || null,
       to_date: serviceData.to_dates?.[i] || null,
       fee: serviceData.fees?.[i] || 0,
@@ -110,15 +122,22 @@ const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescrip
       discount_percentage: serviceData.desc_discount_percentages?.[i] || 0,
       discount_amount: serviceData.desc_discount_amounts?.[i] || 0,
       remarks: serviceData.remarks?.[i] || '',
+      base_amount:serviceData.base_amounts?.[i] || 0,
     });
   }
   return descriptions;
 };
 
-// Simple unique ID generator
-const generateUniqueId = (): string => {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-};
+// Validation schema
+const validationSchema = Yup.object({
+  vendorName: Yup.string().required('Vendor name is required'),
+  billingAddress: Yup.string().required('Billing address is required'),
+  shippingAddress: Yup.string().required('Shipping address is required'),
+  locationName: Yup.string().required('Location is required'),
+  paymentTerms: Yup.string().required('Payment terms are required'),
+  creditLimit: Yup.number().required('Credit limit is required').min(0, 'Credit limit must be non-negative'),
+  workOrderDate: Yup.string().required('Work order date is required'),
+});
 
 const CreateServicePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -127,12 +146,20 @@ const CreateServicePage: React.FC = () => {
   const editId = searchParams?.get('edit');
   const isEditMode = !!editId;
 
+  // Redux selectors
   const { serviceData, newDescription, snackbarOpen, snackbarMessage, serviceTotalsLoading: totalsLoading } = useSelector(selectServiceState);
   const { businesses, shippingaddress } = useSelector(selectBusinesses);
-  const { location: locations, loading: locationsLoading } = useSelector(selectStorageLocations);
+  const { location: locations } = useSelector(selectStorageLocations);
   const { items: taxItems } = useSelector((state: RootState) => state.purchaseTax);
   const { vendors } = useSelector(selectPurchaseOrderState);
 
+  // Memoized selectors
+  const descriptions = useMemo(() =>
+    getDescriptionsFromFlatArrays(serviceData),
+    [serviceData]
+  );
+
+  // Main state declarations
   const [open, setDialogOpen] = useState(false);
   const [openShippingDialog, setOpenShippingDialog] = useState(false);
   const [updatedShippingRow, setUpdatedShippingRow] = useState<ShippingAddress | null>(null);
@@ -147,9 +174,19 @@ const CreateServicePage: React.FC = () => {
     taxAmount: 0,
     afterDiscount: 0,
   });
+
+  // Loading states
+  const [loadingStates, setLoadingStates] = useState({
+    totals: false,
+    submit: false,
+    description: false,
+    initial: false,
+  });
+
   const [isFormDirty, setIsFormDirty] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [submitLoading, setSubmitLoading] = useState(false);
+  const [needsTotalsRefresh, setNeedsTotalsRefresh] = useState(false);
+
+  // Error states
   const [errors, setErrors] = useState({
     description: false,
     fromDate: false,
@@ -159,6 +196,7 @@ const CreateServicePage: React.FC = () => {
     quantity: false,
     remarks: false
   });
+
   const [formErrors, setFormErrors] = useState({
     vendorName: false,
     billingAddress: false,
@@ -169,401 +207,421 @@ const CreateServicePage: React.FC = () => {
   });
 
   const isEditing = (newDescription as any).index !== undefined && (newDescription as any).index >= 0;
+
+  // Selection states
   const [selectedService, setSelectedService] = useState<ServiceSummary | null>(null);
   const [vendorSearch, setVendorSearch] = useState<VendorSummary | null>(null);
   const [locationSearch, setLocationSearch] = useState<Location | null>(null);
+
+  // Navigation states
   const [showNavigationConfirm, setShowNavigationConfirm] = useState(false);
   const [hasDescriptionWiseDiscount, setHasDescriptionWiseDiscount] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const [isHoldOrderDialog, setIsHoldOrderDialog] = useState(false);
+
+  // Discount states
   const [overallDiscountValue, setOverallDiscountValue] = useState<number>(0);
   const [overallDiscountMode, setOverallDiscountMode] = useState<'percentage' | 'amount'>('percentage');
   const [overallDiscountAppliedOn, setOverallDiscountAppliedOn] = useState<'before_tax' | 'after_tax'>('after_tax');
   const [roundOffValue, setRoundOffValue] = useState<number>(0);
-  const [orderLoading, setOrderLoading] = useState(false);
+
+  // UI states
   const descriptionRef = useRef<HTMLInputElement | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [servicesList, setServicesList] = useState<ServiceSummary[]>([]);
+  const [servicesList] = useState<ServiceSummary[]>([]);
 
   // Freight states
   const [freights, setFreights] = useState<FreightData[]>([]);
   const [openFreightDialog, setOpenFreightDialog] = useState(false);
 
+  // Memoized calculations
+  const freightSubTotal = useMemo(() =>
+    freights.reduce((sum, f) => sum + (f.amt || 0), 0), [freights]
+  );
+
+  const freightTaxTotal = useMemo(() =>
+    freights.reduce((sum, f) => sum + (f.tAmt || 0), 0), [freights]
+  );
+
+  const freightGrandTotal = useMemo(() =>
+    freightSubTotal + freightTaxTotal, [freightSubTotal, freightTaxTotal]
+  );
+  const refreshTotals = useCallback(async (isMounted: boolean = true) => {
+    if (!isMounted || loadingStates.totals) return;
+
+    setLoadingStates(prev => ({ ...prev, totals: true }));
+
+    if (descriptions.length === 0 && freights.length === 0) {
+      setTotals({
+        subTotal: 0,
+        freightAmountTotal: 0,
+        freightTaxTotal: 0,
+        roundedTotalOrderAmount: 0,
+        roundedTotalDiscount: 0,
+        roundedTotalTax: 0,
+        overallDiscountAmount: 0,
+        taxAmount: 0,
+        afterDiscount: 0,
+      });
+      setLoadingStates(prev => ({ ...prev, totals: false }));
+      return;
+    }
+
+    try {
+      // Calculate local totals first for immediate UI update
+      let subTotal = 0;
+      let taxAmount = 0;
+      let discountAmount = 0;
+
+      // In refreshTotals function:
+      descriptions.forEach(desc => {
+        const fee = desc.fee || 0; // This is total including tax
+        const taxPercent = desc.tax_per || 0;
+
+        // Calculate taxable base from total including tax (same as backend)
+        let taxableBase = fee;
+        if (fee > 0 && taxPercent > 0) {
+          const taxRate = taxPercent / 100;
+          taxableBase = fee / (1 + taxRate);
+        }
+
+        subTotal += taxableBase;
+        taxAmount += (taxableBase * taxPercent) / 100;
+        discountAmount += desc.discountAmount || 0;
+      });    // Immediate UI update
+      const localTotals = {
+        subTotal: Number(subTotal.toFixed(2)),
+        taxAmount: Number(taxAmount.toFixed(2)),
+        overallDiscountAmount: Number(discountAmount.toFixed(2)),
+        afterDiscount: Number((subTotal - discountAmount).toFixed(2)),
+        freightAmountTotal: Number(freightSubTotal.toFixed(2)),
+        freightTaxTotal: Number(freightTaxTotal.toFixed(2)),
+        roundedTotalTax: Number((taxAmount + freightTaxTotal).toFixed(2)),
+        roundedTotalDiscount: Number(discountAmount.toFixed(2)),
+        roundedTotalOrderAmount: Number((subTotal - discountAmount + taxAmount + freightGrandTotal).toFixed(2))
+      };
+
+      setTotals(localTotals);
+
+      // Call backend for complex calculations
+      const request: ServiceTotalsRequest = {
+        descriptions: descriptions.map(desc => ({
+          ...desc,
+          fee: desc.fee, // This is TOTAL including tax
+          discount_percentage: desc.discount_percentage || 0,
+          discount_amount: desc.discountAmount || 0,
+        })),
+        overall_discount_value: overallDiscountValue,
+        overall_discount_type: overallDiscountMode,
+        overall_discount_applied_on: overallDiscountAppliedOn,
+        round_off: roundOffValue,
+        fees_are_total_including_tax: true, // CRITICAL: Tell backend fees include tax
+        total_freight_amount: freightSubTotal,
+        total_freight_tax: freightTaxTotal,
+      };
+
+      const result = await dispatch(calculateServiceTotals(request)).unwrap();
+
+      // Update service data with calculated values
+      if (result.desc_sgst?.length > 0) {
+        dispatch(setServiceData({
+          ...serviceData,
+          desc_sgst: result.desc_sgst,
+          desc_cgst: result.desc_cgst,
+          desc_igst: result.desc_igst,
+          desc_tax_amounts: result.desc_tax_amounts || [],
+          base_amounts: result.desc_base_amounts || [], // CHANGE THIS
+          desc_totals: result.desc_totals || [],
+          desc_discount_amounts: result.desc_discount_amounts || [],
+          desc_discount_percentages: result.desc_discount_percentages || [],
+          desc_overall_discounts: result.desc_overall_discounts || [],
+        }));
+      }
+
+      // Update totals with backend calculations
+      setTotals(prev => ({
+        ...prev,
+        subTotal: result.totalFees || 0,
+        taxAmount: result.totalTax || 0,
+        overallDiscountAmount: result.totalOverallDiscount || 0,
+        roundedTotalOrderAmount: (result.totalAmount || 0),
+        roundedTotalTax: (result.totalTax || 0),
+        roundedTotalDiscount: result.totalDiscount || 0,
+      }));
+    } catch (error) {
+      console.error('Error refreshing totals:', error);
+      if (isMounted) {
+        dispatch(setSnackbarMessage('Failed to calculate totals. Please check the data.'));
+        dispatch(setSnackbarOpen(true));
+      }
+    } finally {
+      if (isMounted) {
+        setLoadingStates(prev => ({ ...prev, totals: false }));
+        setNeedsTotalsRefresh(false);
+      }
+    }
+  }, [
+    descriptions,
+    overallDiscountValue,
+    overallDiscountMode,
+    overallDiscountAppliedOn,
+    roundOffValue,
+    dispatch,
+    freightGrandTotal,
+    freightSubTotal,
+    freightTaxTotal,
+    serviceData,
+    loadingStates.totals
+  ]);
+  // Manual refresh totals function for external calls
+  const manualRefreshTotals = useCallback(() => {
+    setNeedsTotalsRefresh(true);
+  }, []);
+
+  // Effect to refresh totals only when needed
+  useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout;
+
+    const refreshIfNeeded = () => {
+      if (!isMounted || !needsTotalsRefresh) return;
+
+      refreshTotals(isMounted);
+    };
+
+    // Debounce the refresh to avoid rapid consecutive calls
+    timeoutId = setTimeout(refreshIfNeeded, 300);
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [needsTotalsRefresh, refreshTotals]);
+
+  // Trigger totals refresh when descriptions change (add/edit/delete)
+  useEffect(() => {
+    manualRefreshTotals();
+  }, [descriptions.length]); // Only trigger when description count changes
+
+  // Trigger totals refresh when freights change
+  useEffect(() => {
+    manualRefreshTotals();
+  }, [freights.length]);
+
+  // Trigger totals refresh when discount/roundoff changes
+  useEffect(() => {
+    manualRefreshTotals();
+  }, [overallDiscountValue, roundOffValue]);
+
   // Load service data in edit mode
   useEffect(() => {
     if (isEditMode && editId) {
-      setOrderLoading(false);
-      dispatch(fetchServiceById(editId))
-        .unwrap()
-        .then((data) => {
+      setLoadingStates(prev => ({ ...prev, initial: true }));
+
+      const loadService = async () => {
+        try {
+          const data = await dispatch(fetchServiceById(editId)).unwrap();
           const parsedData = { ...data };
 
-          // Parse work order date
+          // Parse dates
           if (parsedData.workOrderDate) {
             parsedData.workOrderDate = formatDate(new Date(parsedData.workOrderDate));
           }
 
-          // Parse description dates
           if (parsedData.from_dates) {
             parsedData.from_dates = parsedData.from_dates.map((dt: string | null) =>
               dt ? formatDate(new Date(dt)) : null
             );
           }
+
           if (parsedData.to_dates) {
             parsedData.to_dates = parsedData.to_dates.map((dt: string | null) =>
               dt ? formatDate(new Date(dt)) : null
             );
           }
 
-          // Handle quantities and remarks
           parsedData.quantity = parsedData.quantity || [];
           parsedData.remarks = parsedData.remarks || [];
 
           dispatch(setServiceData(parsedData));
-
-          // Load freights from backend
           setFreights(data.freights || []);
 
-          // Load discount and round off values
           if (data.overallDiscountValue !== undefined) {
             setOverallDiscountValue(data.overallDiscountValue);
           }
+
           if (data.roundOffValue !== undefined) {
             setRoundOffValue(data.roundOffValue);
           }
 
-          setOrderLoading(false);
-        })
-        .catch((error) => {
+          // Refresh totals after loading data
+          setNeedsTotalsRefresh(true);
+        } catch (error) {
           console.error('Failed to load service order for edit:', error);
           dispatch(setSnackbarMessage('Failed to load service order data.'));
           dispatch(setSnackbarOpen(true));
-          setOrderLoading(false);
           router.push('/yen-purchase/ServiceOrder');
-        });
+        } finally {
+          setLoadingStates(prev => ({ ...prev, initial: false }));
+        }
+      };
+
+      loadService();
     }
   }, [isEditMode, editId, dispatch, router]);
 
-  // Freight totals calculation
-  const freightSubTotal = useMemo(() =>
-    freights.reduce((sum, f) => sum + (f.amt || 0), 0), [freights]
-  );
-  const freightTaxTotal = useMemo(() =>
-    freights.reduce((sum, f) => sum + (f.tAmt || 0), 0), [freights]
-  );
-  const freightGrandTotal = useMemo(() =>
-    freightSubTotal + freightTaxTotal, [freightSubTotal, freightTaxTotal]
-  );
-
-  // Handle adding/editing freights
-  const handleAddFreights = useCallback((newFreights: FreightData[]) => {
-    setFreights(newFreights);
-    // Totals will auto-update via refreshTotals
-  }, []);
-
-  // Handle deleting individual freight
-  const handleDeleteFreight = useCallback((index: number) => {
-    setFreights((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  // Refresh totals with freight integration
-  const refreshTotals = useCallback(async () => {
-    if (serviceData.desc_descriptions?.length === 0) {
-      setTotals({
-        subTotal: 0,
-        freightAmountTotal: freightSubTotal,
-        freightTaxTotal: freightTaxTotal,
-        roundedTotalOrderAmount: freightGrandTotal,
-        roundedTotalDiscount: 0,
-        roundedTotalTax: freightTaxTotal,
-        overallDiscountAmount: 0,
-        taxAmount: 0,
-        afterDiscount: 0,
-      });
-      return;
-    }
-
-    try {
-      const descriptions: ServiceDescription[] = serviceData.desc_descriptions.map((desc, index) => ({
-        id: serviceData.desc_ids?.[index] || `desc_${Date.now()}_${index}`,
-        sacCode: serviceData.sacCode?.[index] || '',
-        description: desc,
-        from_date: serviceData.from_dates?.[index] || null,
-        to_date: serviceData.to_dates?.[index] || null,
-        fee: serviceData.fees?.[index] || 0,
-        quantity: serviceData.quantity?.[index] || 1,
-        remarks: serviceData.remarks?.[index] || '',
-        tax_type: serviceData.desc_tax_types?.[index] as 'cgst_sgst' | 'igst' || 'cgst_sgst',
-        tax_per: serviceData.desc_tax_pers?.[index] || 0,
-        sgst: serviceData.desc_sgst?.[index] || 0,
-        cgst: serviceData.desc_cgst?.[index] || 0,
-        igst: serviceData.desc_igst?.[index] || 0,
-        total: serviceData.desc_totals?.[index] || 0,
-        taxAmount: serviceData.desc_tax_amounts?.[index] || 0,
-        totalFee: serviceData.desc_total_fees?.[index] || serviceData.fees?.[index] || 0,
-        finalFee: serviceData.desc_total_fees?.[index] || serviceData.fees?.[index] || 0,
-        discountAmount: serviceData.desc_discount_amounts?.[index] || 0,
-        discount_percentage: serviceData.desc_discount_percentages?.[index] || 0,
-        discount_amount: serviceData.desc_discount_amounts?.[index] || 0,
-      }));
-
-      const request: ServiceTotalsRequest = {
-        descriptions,
-        overall_discount_value: overallDiscountValue,
-        overall_discount_type: overallDiscountMode,
-        overall_discount_applied_on: overallDiscountAppliedOn,
-        round_off: roundOffValue,
-      };
-
-      const result = await dispatch(calculateServiceTotals(request)).unwrap();
-
-      // Update service data with backend-calculated values
-      const updatedServiceData = { ...serviceData };
-      if (result.desc_sgst && result.desc_sgst.length > 0) {
-        updatedServiceData.desc_sgst = result.desc_sgst;
-        updatedServiceData.desc_cgst = result.desc_cgst;
-        updatedServiceData.desc_igst = result.desc_igst;
-        updatedServiceData.desc_tax_amounts = result.desc_tax_amounts || [];
-        updatedServiceData.desc_totals = result.desc_totals || [];
-        updatedServiceData.desc_total_fees = result.desc_total_fees || [];
-        updatedServiceData.desc_discount_amounts = result.desc_discount_amounts || [];
-        updatedServiceData.desc_discount_percentages = result.desc_discount_percentages || [];
-        updatedServiceData.desc_overall_discounts = result.desc_overall_discounts || [];
-        if (result.overall_discount_applied_on) {
-          setOverallDiscountAppliedOn(result.overall_discount_applied_on);
-        }
-      }
-      dispatch(setServiceData(updatedServiceData));
-
-      // Calculate final total INCLUDING FREIGHT
-      const serviceTotal = result.totalAmount || 0;
-      const serviceTax = result.totalTax || 0;
-      const serviceDiscount = result.totalDiscount || 0;
-      const finalTotal = serviceTotal + freightGrandTotal;
-      const finalTax = serviceTax + freightTaxTotal;
-      const finalDiscount = serviceDiscount + (overallDiscountValue > 0 ? overallDiscountValue : 0);
-
-      setTotals({
-        subTotal: result.totalFees || 0,
-        freightAmountTotal: freightSubTotal,
-        freightTaxTotal: freightTaxTotal,
-        roundedTotalOrderAmount: finalTotal,
-        roundedTotalDiscount: finalDiscount,
-        roundedTotalTax: finalTax,
-        overallDiscountAmount: result.totalOverallDiscount || 0,
-        taxAmount: serviceTax,
-        afterDiscount: result.totalFees || 0,
-      });
-    } catch (error) {
-      console.error('Error refreshing totals:', error);
-      dispatch(setSnackbarMessage('Failed to calculate totals. Please check the data.'));
-      dispatch(setSnackbarOpen(true));
-    }
-  }, [serviceData, overallDiscountValue, overallDiscountMode, overallDiscountAppliedOn, roundOffValue, dispatch, freightGrandTotal, freightSubTotal, freightTaxTotal]);
-
-  // Fetch taxes
+  // Fetch purchase taxes
   useEffect(() => {
-    dispatch(fetchPurchaseTaxes());
+    let isMounted = true;
+
+    const fetchTaxes = async () => {
+      if (!isMounted) return;
+
+      try {
+        await dispatch(fetchPurchaseTaxes());
+      } catch (error) {
+        console.error('Failed to fetch purchase taxes:', error);
+      }
+    };
+
+    fetchTaxes();
+
+    return () => {
+      isMounted = false;
+    };
   }, [dispatch]);
 
-  // Auto-refresh totals when dependencies change
-  // Replace your current refreshTotals useEffect with this:
-
+  // Initial data fetch
   useEffect(() => {
-    if (!serviceData.desc_descriptions?.length) return; // early exit if no data
+    let isMounted = true;
 
-    const timer = setTimeout(() => {
-      refreshTotals();
-    }, 500); // debounce 500ms
+    const initializeData = async () => {
+      try {
+        await Promise.all([
+          dispatch(fetchBusinesses()),
+          dispatch(fetchShipping()),
+          dispatch(fetchLocations())
+        ]);
 
-    return () => clearTimeout(timer);
-  }, [
-    serviceData.desc_descriptions?.length,
-    serviceData.desc_descriptions, // add this
-    serviceData.fees,
-    serviceData.desc_tax_pers,
-    serviceData.desc_tax_types,
-    serviceData.quantity,
-    overallDiscountValue,
-    overallDiscountMode,
-    overallDiscountAppliedOn,
-    roundOffValue,
-    freightGrandTotal,
-    // refreshTotals is stable (useCallback), so no need to depend on it
-  ]);
-  // Auto-select vendor in edit mode
-  useEffect(() => {
-    if (isEditMode && serviceData.vendorName && vendors.length > 0) {
-      const matchedVendor = vendors.find((vendor: VendorSummary) =>
-        vendor.vendorName === serviceData.vendorName
-      );
-      if (matchedVendor && !vendorSearch) {
-        setVendorSearch({
-          vendorName: matchedVendor.vendorName,
-          contactpersonPhone: matchedVendor.contactpersonPhone,
-          contactpersonEmail: matchedVendor.contactpersonEmail,
-          address: matchedVendor.address,
-          country: matchedVendor.country,
-          paymentTerms: matchedVendor.paymentTerms,
-          creditLimit: matchedVendor.creditLimit,
-          state: matchedVendor.state,
-          city: matchedVendor.city,
-          postalCode: matchedVendor.postalCode,
-          gstNumber: matchedVendor.gstNumber,
-        } as VendorSummary);
+        if (!isMounted || isEditMode) return;
+
+        // Set defaults for create mode
+        const currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
+
+        const updates: Partial<ServiceData> = {
+          serviceId: '',
+          vendorName: '',
+          vendorContact: '',
+          workOrderDate: formatDate(currentDate),
+          status: 'Pending',
+          sacCode: [],
+          desc_ids: [],
+          descriptions: [],
+          from_dates: [],
+          to_dates: [],
+          quantity: [],
+          remarks: [],
+          fees: [],
+          desc_tax_types: [],
+          desc_tax_pers: [],
+          desc_sgst: [],
+          desc_cgst: [],
+          desc_igst: [],
+          desc_tax_amounts: [],
+          desc_totals: [],
+          desc_total_fees: [],
+          desc_discount_amounts: [],
+          desc_overall_discounts: [],
+          totalAmount: 0,
+          paymentTerms: '',
+          shippingAddress: '',
+          billingAddress: '',
+          locationName: '',
+          comments: '',
+          termsandConditions: [''],
+          contactpersonEmail: '',
+          address: '',
+          country: '',
+          state: '',
+          city: '',
+          creditLimit: 0,
+          overallDiscountValue: 0,
+          roundOffValue: 0,
+          totalTax: 0,
+          vendorId: '',
+          freights: [],
+        };
+
+        // Set default addresses if available
+        if (shippingaddress.length > 0) {
+          updates.shippingAddress = shippingaddress[2]?.address ?? '';
+        }
+
+        if (businesses.length === 1) {
+          updates.billingAddress = `${businesses[0].address1 ?? ''} ${businesses[0].address2 ?? ''}`.trim();
+        }
+
+        dispatch(setServiceData(updates as ServiceData));
+        setFreights([]);
+      } catch (error) {
+        console.error('Error initializing data:', error);
       }
-    }
-  }, [isEditMode, serviceData.vendorName, vendors, vendorSearch]);
+    };
 
-  // Auto-select location in edit mode
+    initializeData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [dispatch, isEditMode]);
+
+  // Track form dirty state
   useEffect(() => {
-    if (isEditMode && serviceData.locationName && locations.length > 0) {
-      const matchedLocation = locations.find((loc: Location) =>
-        loc.branchName === serviceData.locationName
-      );
-      if (matchedLocation && !locationSearch) {
-        setLocationSearch(matchedLocation);
+    const trackFormState = () => {
+      const hasDescriptionWiseDiscountValue = descriptions.some(desc => (desc.discountAmount || 0) > 0);
+      setHasDescriptionWiseDiscount(hasDescriptionWiseDiscountValue);
+
+      if (hasDescriptionWiseDiscountValue && overallDiscountValue > 0) {
+        setOverallDiscountValue(0);
+        dispatch(setSnackbarMessage('Overall discount disabled due to existing description-wise discounts'));
+        dispatch(setSnackbarOpen(true));
       }
-    }
-  }, [isEditMode, serviceData.locationName, locations, locationSearch]);
 
-  // Reset form for create mode
-  useEffect(() => {
-    if (!isEditMode) {
-      const currentDate = new Date();
-      currentDate.setHours(0, 0, 0, 0);
-      dispatch(setServiceData({
-        serviceId: '',
-        vendorName: '',
-        vendorContact: '',
-        workOrderDate: formatDate(currentDate),
-        status: 'Pending',
-        // Flat arrays initialization
-        sacCode: [],
-        desc_ids: [],
-        desc_descriptions: [],
-        from_dates: [],
-        to_dates: [],
-        quantity: [],
-        remarks: [],
-        fees: [],
-        desc_tax_types: [],
-        desc_tax_pers: [],
-        desc_sgst: [],
-        desc_cgst: [],
-        desc_igst: [],
-        desc_tax_amounts: [],
-        desc_totals: [],
-        desc_total_fees: [],
-        desc_discount_amounts: [],
-        desc_overall_discounts: [],
-        // Other fields
-        totalAmount: 0,
-        paymentTerms: '',
-        shippingAddress: '',
-        billingAddress: '',
-        locationName: '',
-        comments: '',
-        termsandConditions: [''],
-        contactpersonEmail: '',
-        address: '',
-        country: '',
-        state: '',
-        city: '',
-        creditLimit: 0,
-        overallDiscountValue: 0,
-        roundOffValue: 0,
-        totalTax: 0,
-        vendorId: '',
-        freights: [], // Initialize empty freights
-      }));
-      setFreights([]);
-    }
-  }, [isEditMode, dispatch]);
+      const hasChanges =
+        serviceData.vendorName !== '' ||
+        descriptions.length > 0 ||
+        serviceData.billingAddress !== '' ||
+        serviceData.shippingAddress !== '' ||
+        serviceData.locationName !== '' ||
+        serviceData.comments !== '' ||
+        serviceData.termsandConditions.some((term) => term !== '') ||
+        overallDiscountValue !== 0 ||
+        roundOffValue !== 0 ||
+        freights.length > 0;
 
-  // Set default shipping address
-  useEffect(() => {
-    if (shippingaddress.length > 0 && !serviceData.shippingAddress) {
-      const defaultShippingAddress = shippingaddress[2]?.address ?? '';
-      dispatch(setServiceData({
-        ...serviceData,
-        shippingAddress: defaultShippingAddress
-      }));
-      setFormErrors(prev => ({ ...prev, shippingAddress: false }));
-    }
-  }, [shippingaddress, serviceData.shippingAddress, dispatch]);
+      setIsFormDirty(hasChanges);
+    };
 
-  // Set default billing address
-  useEffect(() => {
-    if (businesses.length === 1 && !serviceData.billingAddress) {
-      const defaultBillingAddress = `${businesses[0].address1 ?? ''} ${businesses[0].address2 ?? ''}`.trim();
-      dispatch(setServiceData({ ...serviceData, billingAddress: defaultBillingAddress }));
-    }
-  }, [businesses, serviceData, dispatch]);
-
-  // Set default work order date
-  useEffect(() => {
-    if (!isEditMode && (!serviceData.workOrderDate || serviceData.workOrderDate === '')) {
-      const currentDate = new Date();
-      currentDate.setHours(0, 0, 0, 0);
-      dispatch(setServiceData({
-        ...serviceData,
-        workOrderDate: formatDate(currentDate)
-      }));
-    }
-  }, [dispatch, serviceData.workOrderDate, isEditMode]);
-
-  // Track dirty state
-  useEffect(() => {
-    const descriptions = getDescriptionsFromFlatArrays(serviceData);
-    const hasChanges =
-      serviceData.vendorName !== '' ||
-      descriptions.length > 0 ||
-      serviceData.billingAddress !== '' ||
-      serviceData.shippingAddress !== '' ||
-      serviceData.locationName !== '' ||
-      serviceData.comments !== '' ||
-      serviceData.termsandConditions.some((term) => term !== '') ||
-      overallDiscountValue !== 0 ||
-      roundOffValue !== 0 ||
-      freights.length > 0;
-
-    setIsFormDirty(hasChanges);
-  }, [serviceData, overallDiscountValue, roundOffValue, freights]);
+    trackFormState();
+  }, [serviceData, descriptions, overallDiscountValue, roundOffValue, freights, dispatch]);
 
   useBeforeUnload(isFormDirty, 'You have unsaved changes. Are you sure you want to leave?');
 
-  // Fetch initial data
-  useEffect(() => {
-    dispatch(fetchBusinesses());
-    dispatch(fetchShipping());
-    dispatch(fetchLocations());
-  }, [dispatch]);
-
-  // Check for description-wise discounts
-  useEffect(() => {
-    const descriptions = getDescriptionsFromFlatArrays(serviceData);
-    const hasDiscount = descriptions.some(desc => (desc.discountAmount || 0) > 0);
-    setHasDescriptionWiseDiscount(hasDiscount);
-    if (hasDiscount && overallDiscountValue > 0) {
-      setOverallDiscountValue(0);
-      dispatch(setSnackbarMessage('Overall discount disabled due to existing description-wise discounts'));
-      dispatch(setSnackbarOpen(true));
-    }
-  }, [serviceData, overallDiscountValue, dispatch]);
-
-  // Service-specific handlers
-  const handleWorkOrderDateChange = (date: Date | null) => {
-    const finalDateStr = formatDate(date);
+  // Date handlers
+  const handleWorkOrderDateChange = useCallback((date: Date | null) => {
     dispatch(setServiceData({
       ...serviceData,
-      workOrderDate: finalDateStr
+      workOrderDate: formatDateForBackend(date)
     }));
-  };
+  }, [dispatch, serviceData]);
 
   const handleSelectAddressChange = useCallback(
     (name: string, value: string | null) => {
       const updatedData = { ...serviceData, [name]: value ?? '' };
+
       if (name === 'billingAddress') {
         const selectedBusiness = businesses.find((business) =>
           `${business.address1 ?? ''} ${business.address2 ?? ''}`.trim() === value
@@ -571,19 +629,22 @@ const CreateServicePage: React.FC = () => {
         updatedData.billingAddress = selectedBusiness
           ? `${selectedBusiness.address1 ?? ''} ${selectedBusiness.address2 ?? ''}`.trim()
           : value ?? '';
-        if (updatedData.billingAddress && updatedData.billingAddress.trim() !== '') {
-          setFormErrors((prev) => ({ ...prev, billingAddress: false }));
+
+        if (updatedData.billingAddress.trim()) {
+          setFormErrors(prev => ({ ...prev, billingAddress: false }));
         }
       } else if (name === 'shippingAddress') {
         const selectedShippingAddress = shippingaddress.find((address) => address.address === value);
         updatedData.shippingAddress = selectedShippingAddress ? selectedShippingAddress.address : value ?? '';
-        if (updatedData.shippingAddress && updatedData.shippingAddress.trim() !== '') {
-          setFormErrors((prev) => ({ ...prev, shippingAddress: false }));
+
+        if (updatedData.shippingAddress.trim()) {
+          setFormErrors(prev => ({ ...prev, shippingAddress: false }));
         }
       }
+
       dispatch(setServiceData(updatedData));
     },
-    [dispatch, serviceData, businesses, shippingaddress]
+    [dispatch, serviceData, businesses, shippingaddress, setFormErrors]
   );
 
   const handleLocationChange = useCallback((location: Location | null) => {
@@ -593,163 +654,138 @@ const CreateServicePage: React.FC = () => {
       locationName: location?.branchName || ''
     }));
     setFormErrors(prev => ({ ...prev, locationName: false }));
-  }, [dispatch, serviceData]);
+  }, [dispatch, serviceData, setFormErrors]);
 
-  const handleTextFieldChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index?: number) => {
+  // Text field change handlers
+  const handleTextFieldChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index?: number) => {
     const { name, value } = e.target;
+
     if (index !== undefined) {
       dispatch(setServiceData({
         ...serviceData,
-        termsandConditions: serviceData.termsandConditions.map((term, i) => (i === index ? value : term)),
+        termsandConditions: serviceData.termsandConditions.map((term, i) =>
+          i === index ? value : term
+        ),
       }));
     } else {
       dispatch(setServiceData({ ...serviceData, [name]: value }));
-      setFormErrors({ ...formErrors, [name]: false });
+      setFormErrors(prev => ({ ...prev, [name]: false }));
     }
-  };
+  }, [dispatch, serviceData, setFormErrors]);
 
-  const toggleFullScreen = () => {
-    setIsFullScreen((prev) => !prev);
-  };
-
-  const handleAddTerm = () => {
-    if (serviceData.termsandConditions.length < 3) {
-      dispatch(setServiceData({
-        ...serviceData,
-        termsandConditions: [...serviceData.termsandConditions, ''],
-      }));
-    }
-  };
-
-  const handleRemoveTerm = (index: number) => {
-    dispatch(setServiceData({
-      ...serviceData,
-      termsandConditions: serviceData.termsandConditions.filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleRoundOffChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '' || /^-?\d*\.?\d{0,2}$/.test(value)) {
-      const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
-      setRoundOffValue(parsedValue);
-    }
-  };
-
-  const handleDescriptionChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Description change handlers
+  const handleDescriptionChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    if (name === 'sacCode') {
-      dispatch(setNewDescriptionData({ ...newDescription, sacCode: value }));
-    } else if (name === 'description') {
-      if (value === '' || value.length <= 500) {
-        dispatch(setNewDescriptionData({ ...newDescription, description: value }));
-        setErrors({ ...errors, description: false });
-      }
-    } else if (name === 'quantity') {
-      if (value === '' || /^\d+$/.test(value)) {
-        const parsedValue = value === '' ? 1 : parseInt(value) || 1;
-        if (parsedValue < 1) {
-          dispatch(setSnackbarMessage('Quantity must be at least 1'));
-          dispatch(setSnackbarOpen(true));
-          return;
-        }
-        dispatch(setNewDescriptionData({
-          ...newDescription,
-          quantity: parsedValue,
-        }));
-        setErrors({ ...errors, quantity: false });
-      }
-    } else if (name === 'remarks') {
-      dispatch(setNewDescriptionData({ ...newDescription, remarks: value }));
-      setErrors({ ...errors, remarks: false });
-    } else if (name === 'fee') {
-      if (value === '' || /^\d{0,8}(\.\d{0,2})?$/.test(value)) {
-        const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
-        dispatch(setNewDescriptionData({
-          ...newDescription,
-          fee: parsedValue,
-        }));
-        setErrors({ ...errors, fee: false });
-      }
-    } else if (name === 'taxPer') {
-      if (value === '' || /^\d{0,2}(\.\d{0,2})?$/.test(value)) {
-        const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
-        if (parsedValue > 99.99) {
-          dispatch(setSnackbarMessage('Tax percentage cannot exceed 99.99%'));
-          dispatch(setSnackbarOpen(true));
-          return;
-        }
-        dispatch(setNewDescriptionData({
-          ...newDescription,
-          tax_per: parsedValue,
-        }));
-        setErrors({ ...errors, taxPer: false });
-      }
-    }
-  };
 
-  const handleDescriptionDateChange = (name: 'from_date' | 'to_date', date: Date | null) => {
-    const finalDateStr = formatDate(date);
+    switch (name) {
+      case 'sacCode':
+        dispatch(setNewDescriptionData({ ...newDescription, sacCode: value }));
+        break;
+      case 'description':
+        if (value.length <= 500) {
+          dispatch(setNewDescriptionData({ ...newDescription, description: value }));
+          setErrors(prev => ({ ...prev, description: false }));
+        }
+        break;
+      case 'quantity':
+        if (value === '' || /^\d+$/.test(value)) {
+          const parsedValue = value === '' ? 1 : parseInt(value) || 1;
+          if (parsedValue < 1) {
+            dispatch(setSnackbarMessage('Quantity must be at least 1'));
+            dispatch(setSnackbarOpen(true));
+            return;
+          }
+          dispatch(setNewDescriptionData({ ...newDescription, quantity: parsedValue }));
+          setErrors(prev => ({ ...prev, quantity: false }));
+        }
+        break;
+      case 'remarks':
+        dispatch(setNewDescriptionData({ ...newDescription, remarks: value }));
+        setErrors(prev => ({ ...prev, remarks: false }));
+        break;
+      case 'fee':
+        if (/^\d{0,8}(\.\d{0,2})?$/.test(value) || value === '') {
+          const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+          dispatch(setNewDescriptionData({ ...newDescription, fee: parsedValue }));
+          setErrors(prev => ({ ...prev, fee: false }));
+        }
+        break;
+      case 'taxPer':
+        if (/^\d{0,2}(\.\d{0,2})?$/.test(value) || value === '') {
+          const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+          if (parsedValue > 99.99) {
+            dispatch(setSnackbarMessage('Tax percentage cannot exceed 99.99%'));
+            dispatch(setSnackbarOpen(true));
+            return;
+          }
+          dispatch(setNewDescriptionData({ ...newDescription, tax_per: parsedValue }));
+          setErrors(prev => ({ ...prev, taxPer: false }));
+        }
+        break;
+    }
+  }, [dispatch, newDescription]);
+
+  const handleDescriptionDateChange = useCallback((name: 'from_date' | 'to_date', date: Date | null) => {
     dispatch(setNewDescriptionData({
       ...newDescription,
-      [name]: finalDateStr,
+      [name]: formatDateForBackend(date),
     }));
-    setErrors({ ...errors, [name === 'from_date' ? 'fromDate' : 'toDate']: false });
-  };
+    setErrors(prev => ({ ...prev, [name === 'from_date' ? 'fromDate' : 'toDate']: false }));
+  }, [dispatch, newDescription]);
 
-  const handleDescriptionTaxTypeChange = (event: ChangeEvent<HTMLInputElement>) => {
-    dispatch(setNewDescriptionData({ ...newDescription, tax_type: event.target.value as 'cgst_sgst' | 'igst' }));
-  };
+  const handleDescriptionTaxTypeChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    dispatch(setNewDescriptionData({
+      ...newDescription,
+      tax_type: event.target.value as 'cgst_sgst' | 'igst'
+    }));
+  }, [dispatch, newDescription]);
 
   const handleAddDescription = useCallback(async () => {
-    const isEditing = (newDescription as any).index !== undefined && (newDescription as any).index >= 0;
     const editingIndex = (newDescription as any).index;
+    const isCurrentlyEditing = editingIndex !== undefined && editingIndex >= 0;
 
     // Validation
-    setErrors({
+    const validationErrors = {
       description: !newDescription.description?.trim(),
-      fromDate: false,
-      toDate: false,
       fee: !newDescription.fee || newDescription.fee <= 0,
-      taxPer: false,
       quantity: !newDescription.quantity || newDescription.quantity < 1,
-      remarks: false,
-    });
+    };
 
-    if (!newDescription.description?.trim() ||
-      !newDescription.fee ||
-      newDescription.fee <= 0 ||
-      !newDescription.quantity ||
-      newDescription.quantity < 1) {
+    setErrors(prev => ({ ...prev, ...validationErrors }));
+
+    if (validationErrors.description || validationErrors.fee || validationErrors.quantity) {
       dispatch(setSnackbarMessage('Description, fee (>0), and quantity (≥1) are required.'));
       dispatch(setSnackbarOpen(true));
       return;
     }
 
-    setLoading(true);
+    setLoadingStates(prev => ({ ...prev, description: true }));
+
     try {
+      // IMPORTANT: The fee the user enters is the TOTAL amount including tax
+      // The backend will reverse-calculate the taxable base
       const params = {
         description: newDescription.description.trim(),
         fromDate: newDescription.from_date || null,
         toDate: newDescription.to_date || null,
-        fee: newDescription.fee,
+        fee: newDescription.fee, // This is TOTAL including tax
         taxType: newDescription.tax_type,
         taxPer: newDescription.tax_per || 0,
         sacCode: newDescription.sacCode || '',
-        discount: 0,
-        quantity: newDescription.quantity || 1,
+        discount: 0, // Individual discount amount (not percentage)
+        quantity: newDescription.quantity || 1, // For display only
         remarks: newDescription.remarks || '',
       };
 
       const calcResult = await dispatch(calculateDescriptionTotals(params)).unwrap();
 
       const newDescWithId: ServiceDescription = {
-        id: isEditing ? newDescription.id : generateUniqueId(),
+        id: isCurrentlyEditing ? newDescription.id : generateUniqueId(),
         sacCode: newDescription.sacCode || '',
         description: newDescription.description.trim(),
         from_date: newDescription.from_date || null,
         to_date: newDescription.to_date || null,
-        fee: newDescription.fee,
+        fee: newDescription.fee, // Store the total amount including tax
         quantity: newDescription.quantity || 1,
         tax_type: newDescription.tax_type,
         tax_per: newDescription.tax_per || 0,
@@ -758,15 +794,16 @@ const CreateServicePage: React.FC = () => {
         igst: calcResult.igst || 0,
         total: calcResult.total || 0,
         taxAmount: calcResult.totalTax || 0,
-        totalFee: calcResult.totalFee || 0,
-        finalFee: calcResult.totalFee || 0,
+        totalFee: calcResult.fee || 0, // This is the fee user entered (total including tax)
+        finalFee: calcResult.fee || 0,
         discountAmount: 0,
         discount_percentage: 0,
         discount_amount: 0,
         remarks: newDescription.remarks || '',
+        base_amount:newDescription.base_amount,
       };
 
-      if (isEditing && editingIndex !== undefined) {
+      if (isCurrentlyEditing && editingIndex !== undefined) {
         dispatch(updateDescription({
           index: editingIndex,
           desc: newDescWithId
@@ -813,18 +850,33 @@ const CreateServicePage: React.FC = () => {
         remarks: false
       });
 
+      // Trigger totals refresh after adding/editing description
+      setNeedsTotalsRefresh(true);
+
       setTimeout(() => descriptionRef.current?.focus(), 100);
     } catch (error) {
       console.error('Add/Update desc error:', error);
-      dispatch(setSnackbarMessage(`Failed: ${error instanceof Error ? error.message : 'Try again'}`));
+      dispatch(setSnackbarMessage('Failed to save description. Please try again.'));
       dispatch(setSnackbarOpen(true));
     } finally {
-      setLoading(false);
+      setLoadingStates(prev => ({ ...prev, description: false }));
     }
-  }, [dispatch, newDescription, serviceData]);
+  }, [dispatch, newDescription]);
+  // Freight handlers
+  const handleAddFreights = useCallback((newFreights: FreightData[]) => {
+    setFreights(newFreights);
+    // Trigger totals refresh after adding freights
+    setNeedsTotalsRefresh(true);
+  }, []);
 
-  const handleEditDescription = (index: number) => {
-    const descriptions = getDescriptionsFromFlatArrays(serviceData);
+  const handleDeleteFreight = useCallback((index: number) => {
+    setFreights(prev => prev.filter((_, i) => i !== index));
+    // Trigger totals refresh after deleting freight
+    setNeedsTotalsRefresh(true);
+  }, []);
+
+  // Description actions
+  const handleEditDescription = useCallback((index: number) => {
     const desc = descriptions[index];
     if (desc) {
       if (desc.sacCode && servicesList.length > 0) {
@@ -837,15 +889,17 @@ const CreateServicePage: React.FC = () => {
       }));
       document.getElementById('description-form')?.scrollIntoView({ behavior: 'smooth' });
     }
-  };
+  }, [descriptions, servicesList, dispatch]);
 
-  const handleDeleteDescription = (index: number) => {
+  const handleDeleteDescription = useCallback((index: number) => {
     dispatch(deleteDescriptionFromService(index));
     dispatch(clearDescriptionForEditing());
-  };
+    // Trigger totals refresh after deleting description
+    setNeedsTotalsRefresh(true);
+  }, [dispatch]);
 
   // Overall discount handlers
-  const handleOverallDiscountChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleOverallDiscountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {
       const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
@@ -861,74 +915,48 @@ const CreateServicePage: React.FC = () => {
       }
       setOverallDiscountValue(parsedValue);
     }
-  };
+  }, [overallDiscountMode, totals.subTotal, dispatch]);
 
-  const setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amount') => {
-    if (hasDescriptionWiseDiscount) {
-      dispatch(setSnackbarMessage('Cannot change discount mode when description-wise discounts exist'));
-      dispatch(setSnackbarOpen(true));
-      return;
-    }
-    if (newMode === overallDiscountMode) return;
-    let newValue = 0;
-    if (overallDiscountValue > 0 && totals.subTotal > 0) {
-      newValue = overallDiscountMode === 'percentage'
-        ? (overallDiscountValue / 100) * totals.subTotal
-        : (overallDiscountValue / totals.subTotal) * 100;
-      newValue = Math.round(newValue * 100) / 100;
-    }
-    setOverallDiscountMode(newMode);
-    setOverallDiscountValue(newValue);
-  };
-
-  const handleApplyDiscount = async () => {
+  const handleApplyDiscount = useCallback(async () => {
     if (hasDescriptionWiseDiscount) {
       dispatch(setSnackbarMessage('Cannot apply overall discount when description-wise discounts exist'));
       dispatch(setSnackbarOpen(true));
       return;
     }
+
     if (overallDiscountValue <= 0) {
       dispatch(setSnackbarMessage('Please enter a valid discount amount'));
       dispatch(setSnackbarOpen(true));
       return;
     }
-    if (serviceData.desc_descriptions?.length === 0) {
+
+    if (descriptions.length === 0) {
       dispatch(setSnackbarMessage('Add descriptions before applying discount'));
       dispatch(setSnackbarOpen(true));
       return;
     }
-    setLoading(true);
-    try {
-      await refreshTotals();
-      dispatch(setSnackbarMessage(
-        `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} discount across all descriptions`
-      ));
-      dispatch(setSnackbarOpen(true));
-    } catch (error) {
-      console.error('Error applying overall discount:', error);
-      dispatch(setSnackbarMessage(
-        error instanceof Error ? error.message : 'Error applying overall discount. Please try again.'
-      ));
-      dispatch(setSnackbarOpen(true));
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleClearOverallDiscount = async () => {
-    if (totalsLoading) return;
+    // Trigger totals refresh after applying discount
+    setNeedsTotalsRefresh(true);
+
+    dispatch(setSnackbarMessage(
+      `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} discount across all descriptions`
+    ));
+    dispatch(setSnackbarOpen(true));
+  }, [hasDescriptionWiseDiscount, overallDiscountValue, overallDiscountMode, descriptions.length, dispatch]);
+
+  const handleClearOverallDiscount = useCallback(async () => {
+    if (loadingStates.totals) return;
     setOverallDiscountValue(0);
-    try {
-      await refreshTotals();
-      dispatch(setSnackbarMessage('Overall discount removed'));
-      dispatch(setSnackbarOpen(true));
-    } catch (error) {
-      console.error('Error clearing discount:', error);
-    }
-  };
+    // Trigger totals refresh after clearing discount
+    setNeedsTotalsRefresh(true);
+    dispatch(setSnackbarMessage('Overall discount removed'));
+    dispatch(setSnackbarOpen(true));
+  }, [loadingStates.totals, dispatch]);
 
-  const handleVendorSelection = (vendor: VendorSummary | null) => {
+  const handleVendorSelection = useCallback((vendor: VendorSummary | null) => {
     setVendorSearch(vendor);
+
     if (vendor) {
       dispatch(setServiceData({
         ...serviceData,
@@ -943,17 +971,15 @@ const CreateServicePage: React.FC = () => {
         state: vendor.state,
         city: vendor.city,
       }));
+
       setFormErrors({
         ...formErrors,
         vendorName: false,
         paymentTerms: false,
         creditLimit: false
       });
-      setTimeout(() => {
-        if (descriptionRef.current) {
-          descriptionRef.current.focus();
-        }
-      }, 0);
+
+      setTimeout(() => descriptionRef.current?.focus(), 0);
     } else {
       dispatch(setServiceData({
         ...serviceData,
@@ -969,11 +995,12 @@ const CreateServicePage: React.FC = () => {
         city: '',
       }));
     }
-  };
+  }, [dispatch, serviceData, formErrors]);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
+
     dispatch(setServiceData({
       serviceId: '',
       vendorName: '',
@@ -982,7 +1009,7 @@ const CreateServicePage: React.FC = () => {
       status: 'Pending',
       sacCode: [],
       desc_ids: [],
-      desc_descriptions: [],
+      descriptions: [],
       from_dates: [],
       to_dates: [],
       quantity: [],
@@ -1017,6 +1044,7 @@ const CreateServicePage: React.FC = () => {
       vendorId: '',
       freights: [],
     }));
+
     dispatch(setNewDescriptionData({
       id: '',
       sacCode: '',
@@ -1037,6 +1065,7 @@ const CreateServicePage: React.FC = () => {
       quantity: 1,
       remarks: '',
     }));
+
     setVendorSearch(null);
     setLocationSearch(null);
     setSelectedService(null);
@@ -1053,12 +1082,14 @@ const CreateServicePage: React.FC = () => {
       paymentTerms: false,
       creditLimit: false
     });
+    setNeedsTotalsRefresh(true);
+
     if (isEditMode) {
       router.push('/yen-purchase/ServiceOrder');
     }
-  };
+  }, [dispatch, isEditMode, router]);
 
-  const handleBackToService = () => {
+  const handleBackToService = useCallback(() => {
     if (isFormDirty) {
       setPendingNavigation(() => () => {
         handleClear();
@@ -1069,10 +1100,9 @@ const CreateServicePage: React.FC = () => {
       handleClear();
       router.push('/yen-purchase/ServiceOrder');
     }
-  };
+  }, [isFormDirty, handleClear, router]);
 
-  // Submit handler with freight integration
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     try {
       await validationSchema.validate(serviceData, { abortEarly: false });
       setFormErrors({
@@ -1084,18 +1114,17 @@ const CreateServicePage: React.FC = () => {
         creditLimit: false
       });
 
-      if (serviceData.desc_descriptions?.length === 0) {
+      if (descriptions.length === 0) {
         dispatch(setSnackbarMessage('At least one description is required.'));
         dispatch(setSnackbarOpen(true));
         return;
       }
 
-      await refreshTotals();
+      setLoadingStates(prev => ({ ...prev, submit: true }));
 
-      const workOrderDate = serviceData.workOrderDate || formatDate(new Date());
       const finalAmount = totals.roundedTotalOrderAmount;
 
-      // Prepare freight data for backend
+      // Prepare freight data
       const freightData = freights.map(freight => ({
         id: freight.id || generateUniqueId(),
         name: freight.name || '',
@@ -1110,12 +1139,14 @@ const CreateServicePage: React.FC = () => {
         taxPercentage: freight.taxPercentage || 0
       }));
 
+      // CRITICAL FIX: Use the correct fees from descriptions (totals including tax)
+      // Map descriptions to get arrays for submission
       const dataToSubmit = {
         ...serviceData,
         freights: freightData,
         totalFreightAmount: freightSubTotal,
         totalFreightTaxAmount: freightTaxTotal,
-        workOrderDate,
+        workOrderDate: serviceData.workOrderDate ? formatDateForBackend(parseDate(serviceData.workOrderDate)) : null,
         totalAmount: finalAmount,
         totalTax: totals.roundedTotalTax,
         overallDiscountType: overallDiscountMode,
@@ -1123,16 +1154,21 @@ const CreateServicePage: React.FC = () => {
         overallDiscountValue: overallDiscountValue,
         totalDiscount: totals.roundedTotalDiscount,
         roundOffValue,
-        quantity: serviceData.quantity || [],
-        remarks: serviceData.remarks || [],
-        sacCode: serviceData.sacCode || [],
-        desc_ids: serviceData.desc_ids || [],
-        desc_descriptions: serviceData.desc_descriptions || [],
-        from_dates: serviceData.from_dates || [],
-        to_dates: serviceData.to_dates || [],
-        fees: serviceData.fees || [],
-        desc_tax_types: serviceData.desc_tax_types || [],
-        desc_tax_pers: serviceData.desc_tax_pers || [],
+        // Use descriptions to populate arrays correctly
+        quantity: descriptions.map(desc => desc.quantity),
+        remarks: descriptions.map(desc => desc.remarks || ''),
+        sacCode: descriptions.map(desc => desc.sacCode || ''),
+        desc_ids: descriptions.map(desc => desc.id || ''),
+        desc_descriptions: descriptions.map(desc => desc.description),
+        from_dates: descriptions.map(desc =>
+          desc.from_date ? formatDateForBackend(parseDate(desc.from_date)) : null
+        ),
+        to_dates: descriptions.map(desc =>
+          desc.to_date ? formatDateForBackend(parseDate(desc.to_date)) : null
+        ),
+        fees: descriptions.map(desc => desc.fee), // This is TOTAL including tax
+        desc_tax_types: descriptions.map(desc => desc.tax_type),
+        desc_tax_pers: descriptions.map(desc => desc.tax_per || 0),
         desc_sgst: serviceData.desc_sgst || [],
         desc_cgst: serviceData.desc_cgst || [],
         desc_igst: serviceData.desc_igst || [],
@@ -1144,22 +1180,24 @@ const CreateServicePage: React.FC = () => {
       } as ServiceData;
 
       let result;
-      setSubmitLoading(true);
+
       if (isEditMode && editId) {
         result = await dispatch(updateService({ mongoId: editId, service: dataToSubmit })).unwrap();
-        dispatch(setSnackbarMessage(`Service Order ${result.mongoId || editId} successfully updated.`));
+        dispatch(setSnackbarMessage(`Service Order ${result.serviceId || editId} successfully updated.`));
       } else {
         result = await dispatch(addService(dataToSubmit)).unwrap();
         dispatch(setSnackbarMessage(
-          `Service Order ${result.mongoId || 'Unknown'} successfully created.`
+          `Service Order ${result.serviceId} successfully created.`
         ));
       }
+
       dispatch(setSnackbarOpen(true));
       handleClear();
       setDialogOpen(false);
       router.push('/yen-purchase/ServiceOrder');
     } catch (error) {
       console.error('Submit error:', error);
+
       if (error instanceof Yup.ValidationError) {
         const newErrors = {
           vendorName: false,
@@ -1169,21 +1207,27 @@ const CreateServicePage: React.FC = () => {
           paymentTerms: false,
           creditLimit: false
         };
+
         error.inner.forEach((err) => {
           if (err.path && err.path in newErrors) {
             newErrors[err.path as keyof typeof newErrors] = true;
           }
         });
+
         setFormErrors(newErrors);
       }
+
       dispatch(setSnackbarMessage('Failed to submit service order. Please check the data.'));
       dispatch(setSnackbarOpen(true));
     } finally {
-      setSubmitLoading(false);
+      setLoadingStates(prev => ({ ...prev, submit: false }));
     }
-  };
-
-  const handleOpenDialog = () => {
+  }, [
+    serviceData, descriptions, totals, freights, freightSubTotal, freightTaxTotal,
+    overallDiscountMode, overallDiscountAppliedOn, overallDiscountValue, roundOffValue,
+    dispatch, isEditMode, editId, handleClear, router
+  ]);
+  const handleOpenDialog = useCallback(() => {
     validationSchema.validate(serviceData, { abortEarly: false })
       .then(() => {
         setFormErrors({
@@ -1206,19 +1250,51 @@ const CreateServicePage: React.FC = () => {
           paymentTerms: false,
           creditLimit: false
         };
+
         err.inner.forEach((error) => {
           if (error.path && error.path in newErrors) {
             newErrors[error.path as keyof typeof newErrors] = true;
           }
         });
+
         setFormErrors(newErrors);
         dispatch(setSnackbarMessage('Please fill all required fields.'));
         dispatch(setSnackbarOpen(true));
       });
-  };
+  }, [serviceData, totals.roundedTotalOrderAmount, serviceData.creditLimit, dispatch]);
 
-  // Loading state
-  if (orderLoading) {
+  // UI Helper functions
+  const toggleFullScreen = useCallback(() => {
+    setIsFullScreen(prev => !prev);
+  }, []);
+
+  const handleAddTerm = useCallback(() => {
+    if (serviceData.termsandConditions.length < 3) {
+      dispatch(setServiceData({
+        ...serviceData,
+        termsandConditions: [...serviceData.termsandConditions, ''],
+      }));
+    }
+  }, [dispatch, serviceData]);
+
+  const handleRemoveTerm = useCallback((index: number) => {
+    dispatch(setServiceData({
+      ...serviceData,
+      termsandConditions: serviceData.termsandConditions.filter((_, i) => i !== index),
+    }));
+  }, [dispatch, serviceData]);
+
+  const handleRoundOffChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '' || /^-?\d*\.?\d{0,2}$/.test(value)) {
+      const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+      setRoundOffValue(parsedValue);
+    }
+  }, []);
+
+  // ========== RENDER ==========
+
+  if (loadingStates.initial) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh" flexDirection="column">
         <CircularProgress size={60} />
@@ -1228,8 +1304,6 @@ const CreateServicePage: React.FC = () => {
       </Box>
     );
   }
-
-  const descriptions = getDescriptionsFromFlatArrays(serviceData);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
@@ -1308,7 +1382,7 @@ const CreateServicePage: React.FC = () => {
             </Grid>
             <Grid item xs={12} sm={3} md={2}>
               <SmartDatePicker
-                label="Order Date"
+                label="Workorder Date"
                 value={serviceData.workOrderDate ? parseDate(serviceData.workOrderDate) : null}
                 onChange={handleWorkOrderDateChange}
                 maxDate={new Date()}
@@ -1445,7 +1519,6 @@ const CreateServicePage: React.FC = () => {
                   minDate={serviceData.workOrderDate ? parseDate(serviceData.workOrderDate) : null}
                 />
               </Grid>
-
               {/* To Date */}
               <Grid item xs={12} sm={2}>
                 <SmartDatePicker
@@ -1492,7 +1565,7 @@ const CreateServicePage: React.FC = () => {
                         tax_per: 0,
                       }));
                     }
-                    setErrors({ ...errors, taxPer: false });
+                    setErrors(prev => ({ ...prev, taxPer: false }));
                   }}
                   renderInput={(params) => (
                     <TextField
@@ -1552,10 +1625,10 @@ const CreateServicePage: React.FC = () => {
                   color={isEditing ? "secondary" : "primary"}
                   onClick={handleAddDescription}
                   size="small"
-                  disabled={loading}
-                  startIcon={loading ? <CircularProgress size={20} /> : null}
+                  disabled={loadingStates.description}
+                  startIcon={loadingStates.description ? <CircularProgress size={20} /> : null}
                 >
-                  {loading ? 'Processing...' : (isEditing ? 'Update Description' : 'Add Description')}
+                  {loadingStates.description ? 'Processing...' : (isEditing ? 'Update Description' : 'Add Description')}
                 </Button>
               </Grid>
             </Grid>
@@ -1608,9 +1681,29 @@ const CreateServicePage: React.FC = () => {
                         <TableCell sx={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {desc.remarks || 'N/A'}
                         </TableCell>
-                        <TableCell>{desc.quantity || 1}</TableCell>
-                        <TableCell>{desc.from_date ? new Date(desc.from_date).toLocaleDateString() : 'N/A'}</TableCell>
-                        <TableCell>{desc.to_date ? new Date(desc.to_date).toLocaleDateString() : 'N/A'}</TableCell>
+                        <TableCell sx={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {desc.quantity}
+                        </TableCell>
+                        <TableCell>
+                          {desc.from_date
+                            ? new Date(desc.from_date).toLocaleDateString('en-IN', {
+                              timeZone: 'UTC', // Force UTC timezone
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            })
+                            : 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {desc.to_date
+                            ? new Date(desc.to_date).toLocaleDateString('en-IN', {
+                              timeZone: 'UTC', // Force UTC timezone
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            })
+                            : 'N/A'}
+                        </TableCell>
                         <TableCell align="right">{desc.fee?.toFixed(2)}</TableCell>
                         <TableCell align="center">{desc.tax_type === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}</TableCell>
                         <TableCell align="right">{desc.tax_per?.toFixed(2)}%</TableCell>
@@ -1679,18 +1772,15 @@ const CreateServicePage: React.FC = () => {
                             step: '0.01',
                           }}
                           sx={{ width: 80 }}
-                          disabled={hasDescriptionWiseDiscount || totalsLoading}
+                          disabled={hasDescriptionWiseDiscount || loadingStates.totals}
                         />
                         <FormControl size="small" sx={{ minWidth: 50 }}>
                           <Select
                             value={overallDiscountAppliedOn}
                             onChange={(e) => {
                               setOverallDiscountAppliedOn(e.target.value as 'before_tax' | 'after_tax');
-                              if (overallDiscountValue > 0) {
-                                setTimeout(() => refreshTotals(), 100);
-                              }
                             }}
-                            disabled={hasDescriptionWiseDiscount || totalsLoading}
+                            disabled={hasDescriptionWiseDiscount || loadingStates.totals}
                           >
                             <MenuItem value="after_tax">On Total</MenuItem>
                             <MenuItem value="before_tax">Before Tax</MenuItem>
@@ -1700,16 +1790,16 @@ const CreateServicePage: React.FC = () => {
                           variant="contained"
                           size="small"
                           onClick={handleApplyDiscount}
-                          disabled={loading || overallDiscountValue <= 0 || descriptions.length === 0 || hasDescriptionWiseDiscount || totalsLoading}
-                          startIcon={loading ? <CircularProgress size={16} /> : null}
+                          disabled={loadingStates.description || overallDiscountValue <= 0 || descriptions.length === 0 || hasDescriptionWiseDiscount || loadingStates.totals}
+                          startIcon={loadingStates.description ? <CircularProgress size={16} /> : null}
                         >
-                          {loading ? 'Applying...' : 'Apply'}
+                          {loadingStates.description ? 'Applying...' : 'Apply'}
                         </Button>
                         <IconButton
                           onClick={handleClearOverallDiscount}
                           size="small"
                           color="error"
-                          disabled={overallDiscountValue === 0 || totalsLoading}
+                          disabled={overallDiscountValue === 0 || loadingStates.totals}
                           title="Clear overall discount"
                         >
                           <ClearIcon />
@@ -1783,7 +1873,7 @@ const CreateServicePage: React.FC = () => {
                           type="number"
                           inputProps={{ step: '0.01', min: '-999999', max: '999999' }}
                           autoComplete='off'
-                          disabled={totalsLoading}
+                          disabled={loadingStates.totals}
                         />
                         <Typography variant="body2">
                           ({roundOffValue >= 0 ? '+' : ''}{roundOffValue.toFixed(2)})
@@ -1821,14 +1911,14 @@ const CreateServicePage: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
                 Freight Charges
-                {totalsLoading && <CircularProgress size={16} sx={{ ml: 1 }} />}
+                {loadingStates.totals && <CircularProgress size={16} sx={{ ml: 1 }} />}
               </Typography>
               <Button
                 variant="outlined"
                 color="primary"
                 onClick={() => setOpenFreightDialog(true)}
                 startIcon={<AddIcon />}
-                disabled={totalsLoading}
+                disabled={loadingStates.totals}
               >
                 Add Freight
               </Button>
@@ -1871,7 +1961,7 @@ const CreateServicePage: React.FC = () => {
                             size="small"
                             color="error"
                             onClick={() => handleDeleteFreight(index)}
-                            disabled={totalsLoading}
+                            disabled={loadingStates.totals}
                             title="Delete Freight"
                           >
                             <DeleteIcon fontSize="small" />
@@ -2055,7 +2145,7 @@ const CreateServicePage: React.FC = () => {
               variant="contained"
               color="primary"
               onClick={handleOpenDialog}
-              disabled={submitLoading || loading || totalsLoading}
+              disabled={loadingStates.submit || loadingStates.description || loadingStates.totals}
             >
               {isEditMode ? 'Update Service Order' : 'Submit Service Order'}
             </Button>
@@ -2082,10 +2172,10 @@ const CreateServicePage: React.FC = () => {
             onClick={handleSubmit}
             color="primary"
             variant="contained"
-            disabled={submitLoading || totalsLoading}
-            startIcon={submitLoading ? <CircularProgress size={20} /> : null}
+            disabled={loadingStates.submit || loadingStates.totals}
+            startIcon={loadingStates.submit ? <CircularProgress size={20} /> : null}
           >
-            {submitLoading ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Confirm')}
+            {loadingStates.submit ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Confirm')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -2143,7 +2233,7 @@ const CreateServicePage: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      <Backdrop sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: '#fff' }} open={loading || totalsLoading}>
+      <Backdrop sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: '#fff' }} open={loadingStates.description || loadingStates.totals || loadingStates.submit}>
         <CircularProgress color="inherit" />
       </Backdrop>
 
@@ -2159,7 +2249,6 @@ const CreateServicePage: React.FC = () => {
         open={openFreightDialog}
         onClose={() => setOpenFreightDialog(false)}
         onAddFreights={handleAddFreights}
-
         existingFreights={freights}
       />
     </Box>

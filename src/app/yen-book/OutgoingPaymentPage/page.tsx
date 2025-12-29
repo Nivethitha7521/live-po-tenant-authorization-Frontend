@@ -1341,7 +1341,7 @@ Description:<br />
                         title={isAllCurrentPageSelected ? "Deselect all on this page" : "Select all on this page"}
                       />
                     </TableCell>
-                    <TableCell>PO No</TableCell>
+                    <TableCell>PO.No/SO.No</TableCell>
                     <TableCell>GRN No</TableCell>
                     <TableCell>Ap No</TableCell>
                     <TableCell>Outgoing No</TableCell>
@@ -1392,12 +1392,16 @@ Description:<br />
                             />
                           </TableCell>
                           <TableCell>
-                            {payment.purchaseOrderId ? (
+                            {payment.poRandomId ? (
                               <span
-                                style={{ color: 'purple', cursor: 'pointer' }}
-                                onClick={() => handlePoClick(payment.purchaseOrderId ?? '')}
+                                style={{ color: 'purple', cursor: 'pointer', textDecoration: 'underline' }}
+                                onClick={() => payment.purchaseOrderId && handlePoClick(payment.purchaseOrderId)}
                               >
-                                {payment.poRandomId || 'N/A'}
+                                {payment.poRandomId}
+                              </span>
+                            ) : payment.serviceId ? (
+                              <span style={{ color: '#9c27b0',fontWeight: '600' }}>
+                                {payment.serviceId} 
                               </span>
                             ) : (
                               'N/A'
@@ -1536,11 +1540,11 @@ Description:<br />
             onClose={handleCloseApDialog}
             apInvoice={selectedApInvoice}
           />
-           <BulkPaymentDialog
-    open={isBulkPaymentOpen}
-    onClose={() => setIsBulkPaymentOpen(false)}
-    selectedOutgoings={selectedOutgoings} // This now contains ALL selected across pages
-  />
+          <BulkPaymentDialog
+            open={isBulkPaymentOpen}
+            onClose={() => setIsBulkPaymentOpen(false)}
+            selectedOutgoings={selectedOutgoings} // This now contains ALL selected across pages
+          />
           {/* Dialog for choosing PDF or CSV */}
           <Dialog open={openDialog} onClose={handleCloseDialog}>
             <DialogTitle>Choose a file format</DialogTitle>

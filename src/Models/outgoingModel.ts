@@ -12,6 +12,8 @@ export interface ItemDetails {
 export interface Outgoing {
   outgoingId: string;
   purchaseOrderId?: string;
+  serviceId:string;
+  invoiceType:string;
   grnId: string;
   invoiceId: string;
   poRandomId?: string;

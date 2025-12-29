@@ -65,17 +65,35 @@ interface AutoTableHookData {
 const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription[] => {
   const descriptions: ServiceDescription[] = [];
 
-  // Get the maximum length from available arrays
   const maxLength = Math.max(
     service.sacCode?.length || 0,
     service.from_dates?.length || 0,
     service.to_dates?.length || 0,
-    service.fees?.length || 0
+    service.fees?.length || 0,
+    service.descriptions?.length || 0,
+    service.quantity?.length || 0,
+    service.desc_tax_pers?.length || 0,
+    service.desc_tax_amounts?.length || 0
   );
 
   for (let i = 0; i < maxLength; i++) {
-    // Create description from remarks if desc_descriptions doesn't exist
-    const descriptionText = service.desc_descriptions?.[i] ||
+    const totalInclusive = service.fees?.[i] || 0; // This is amount INCLUDING tax
+    const taxAmount = service.desc_tax_amounts?.[i] || 0;
+    const taxPercent = service.desc_tax_pers?.[i] || 0;
+
+    // Calculate base amount (excluding tax) accurately
+    let baseAmount = totalInclusive;
+    if (taxPercent > 0) {
+      baseAmount = Number((totalInclusive * 100 / (100 + taxPercent)).toFixed(2));
+    }
+    // If taxAmount is available and more reliable, use subtraction (fallback)
+    if (taxAmount > 0 && Math.abs(totalInclusive - taxAmount - baseAmount) > 1) {
+      baseAmount = Number((totalInclusive - taxAmount).toFixed(2));
+    }
+
+    const descriptionText =
+      service.descriptions?.[i] ||
+      service.descriptions?.[i] ||
       service.remarks?.[i] ||
       `Service ${i + 1}`;
 
@@ -85,19 +103,20 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
       description: descriptionText,
       from_date: service.from_dates?.[i],
       to_date: service.to_dates?.[i],
-      fee: service.fees?.[i] || 0,
+      fee: totalInclusive, // Final amount (incl. tax)
       tax_type: service.desc_tax_types?.[i] as 'cgst_sgst' | 'igst' || 'cgst_sgst',
-      tax_per: service.desc_tax_pers?.[i] || 0,
+      tax_per: taxPercent,
       sgst: service.desc_sgst?.[i] || 0,
       cgst: service.desc_cgst?.[i] || 0,
       igst: service.desc_igst?.[i] || 0,
-      total: service.desc_totals?.[i] || 0,
-      taxAmount: service.desc_tax_amounts?.[i] || 0,
-      totalFee: service.desc_total_fees?.[i] || 0,
-      finalFee: service.desc_total_fees?.[i] || 0,
+      total: totalInclusive, // Same as fee (incl. tax)
+      taxAmount: taxAmount,
+      base_amount: baseAmount, // Base before tax ← THIS IS KEY
       discountAmount: service.desc_discount_amounts?.[i] || 0,
       remarks: service.remarks?.[i] || '',
-      quantity: service.quantity?.[i] || 0
+      quantity: service.quantity?.[i] || 0,
+      totalFee: 0,
+      finalFee: 0
     });
   }
 
@@ -420,7 +439,7 @@ const ServiceList: React.FC = () => {
 
     const headers = [["S.No", "Service ID", "Vendor Name", "Total Descriptions", "Order Date", "Total Amount", "Status"]];
     const rows = memoizedServices.map((service: ServiceData, index: number) => {
-      const totalDescs = service.desc_descriptions.length;
+      const totalDescs = service.descriptions.length;
       const orderDate = service.workOrderDate ? format(new Date(service.workOrderDate), 'dd-MM-yyyy') : '';
       return [
         (index + 1).toString(),
@@ -469,7 +488,7 @@ const ServiceList: React.FC = () => {
   const handleExportCSV = () => {
     const headers = 'SNO,Service ID,Vendor Name,Total Descriptions,Order Date,Total Amount,Status\n';
     const rows = memoizedServices.map((service: ServiceData, index: number) => {
-      const totalDescs = service.desc_descriptions.length;
+      const totalDescs = service.descriptions.length;
       const orderDate = service.workOrderDate ? format(new Date(service.workOrderDate), 'dd-MM-yyyy') : '';
       return [
         (index + 1),
@@ -824,9 +843,9 @@ const ServiceList: React.FC = () => {
                       <TableCell>
                         {desc.to_date ? format(new Date(desc.to_date), 'dd-MM-yyyy') : ''}
                       </TableCell>
-                      <TableCell align="right">{desc.fee.toFixed(2)}</TableCell>
+                      <TableCell align="right">{desc.base_amount.toFixed(2)}</TableCell>
                       <TableCell align="center">{desc.tax_per}%</TableCell>
-                      <TableCell align="right">{desc.total.toFixed(2)}</TableCell>
+                      <TableCell align="right">{desc.fee.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

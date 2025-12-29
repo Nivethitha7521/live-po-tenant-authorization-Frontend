@@ -31,9 +31,9 @@ export interface ServiceData {
   // Use ONLY flat arrays (no nested objects)
   sacCode: string[];
   desc_ids: string[];
-  desc_descriptions: string[]; // Renamed from 'descriptions'
-  from_dates: (string | null)[]; // Date strings or null
-  to_dates: (string | null)[];   // Date strings or null
+  descriptions: string[]; // Renamed from 'descriptions'
+  from_dates: (string | null)[];
+  to_dates: (string | null)[];
   fees: number[];
   desc_tax_types: ('cgst_sgst' | 'igst')[];
   desc_tax_pers: number[];
@@ -42,11 +42,11 @@ export interface ServiceData {
   desc_igst: number[];
   desc_tax_amounts: number[];
   desc_totals: number[];
-  desc_total_fees: number[];
+  desc_total_fees: number[]; // REMOVE THIS LINE - we're not using it anymore
   desc_discount_amounts: number[];
-  desc_discount_percentages:number[];
-  desc_overall_discounts: number[]; // NEW: Per-description overall discounts
-  mongoId:string;
+  desc_discount_percentages: number[];
+  desc_overall_discounts: number[];
+  mongoId: string;
   totalAmount: number;
   paymentTerms: string;
   shippingAddress: string;
@@ -56,8 +56,7 @@ export interface ServiceData {
   contactpersonEmail: string;
   address: string;
   country: string;
-  vendorEmail:string;
-  vendorPhone:string;
+  vendorPhone: string;
   state: string;
   city: string;
   creditLimit: number;
@@ -77,11 +76,11 @@ export interface ServiceData {
   createdTime?: string | null;
   lastUpdatedDate?: string | null;
   lastUpdatedTime?: string | null;
-  quantity:number[];
-  remarks:string[];
-  overallDiscountAppliedOn:string;
+  quantity: number[];
+  base_amounts: number[]; // ADD THIS: base amounts WITHOUT tax
+  remarks: string[];
+  overallDiscountAppliedOn: string;
 }
-
 // For the flat array response from backend
 export interface ServiceFlatResponse {
   serviceId: string;
@@ -127,8 +126,8 @@ export interface ServiceTotalsResponse {
   desc_igst: number[];
   desc_tax_amounts: number[];
   desc_totals: number[];
-  desc_total_fees: number[];
-  desc_overall_discounts: number[];  // This should match backend's desc_overall_discount_shares
+  desc_base_amounts: number[]; // CHANGE FROM desc_total_fees to desc_base_amounts
+  desc_overall_discounts: number[];
   desc_discount_amounts: number[];
   desc_discount_percentages: number[];
   sacCodes: string[];
@@ -308,25 +307,25 @@ export interface ServiceDescription {
   description: string;
   from_date?: string | null;
   to_date?: string | null;
-  fee: number;
+  fee: number; // This is TOTAL including tax
   tax_type: 'cgst_sgst' | 'igst';
   tax_per: number;
   sgst: number;
   cgst: number;
   igst: number;
-  total: number;
+  total: number; // Total WITH tax
   taxAmount: number;
-  totalFee: number;
+  totalFee: number; // Base WITHOUT tax (rename this to base_amount for clarity)
   finalFee: number;
+  base_amount: number; // ADD THIS: Base WITHOUT tax
   discountAmount?: number;
-  discount_percentage?: number;  // ADD THIS
-  discount_amount?: number;      // ADD THIS
+  discount_percentage?: number;
+  discount_amount?: number;
   quantity: number;
   remarks: string;
 }
-// Added 'baseAmount' property to match usage in your code (likely the pre-tax fee input)
 export interface DescriptionCalculationResponse {
-  baseAmount: number; // NEW: Added to resolve TS error (e.g., the original fee before calculations)
+  baseAmount: number; // First definition
   totalFee: number;
   sgst: number;
   cgst: number;
@@ -334,13 +333,23 @@ export interface DescriptionCalculationResponse {
   totalTax: number;
   total: number;
 }
+
+// Replace the duplicate interfaces with this single correct one
 export interface DescriptionCalculationResponse {
-  totalFee: number;
+  description: string;
+  quantity: number;
+  baseAmount: number; // Original fee amount (taxable base)
+  fee: number; // The total amount including tax (what user entered)
+  subtotalAfterDiscount: number;
   sgst: number;
   cgst: number;
   igst: number;
   totalTax: number;
   total: number;
+  taxableBase?: number; // Optional: calculated taxable base
+  from_date?: string | null; // Optional: from date if provided
+  to_date?: string | null; // Optional: to date if provided
+  remarks?: string; // Optional: remarks if provided
 }
 // Update ServiceTotalsRequest to accept nested descriptions
 export interface ServiceTotalsRequest {
@@ -350,7 +359,9 @@ export interface ServiceTotalsRequest {
   overall_discount_type?: 'percentage' | 'amount';
   overall_discount_applied_on?: 'before_tax' | 'after_tax'; // ADD THIS
   round_off?: number;
-  
+  total_freight_amount?: number;  // Add this
+  total_freight_tax?: number;     // Add this
+  fees_are_total_including_tax: true,  // ← ALWAYS TRUE
 }
 
 // Raw response type from backend (flat arrays)
@@ -365,12 +376,11 @@ export interface RawServiceData {
   invoiceDate: string | null;
   invoiceNo: string;
   status: string;
-  descriptions: string[] | null;
   sacCode: string[];
   desc_ids?: string[];
   remarks:string[];
   quantity:number[];
-  desc_descriptions?: string[]; // NEW: Handle if backend uses this
+  descriptions?: string[]; // NEW: Handle if backend uses this
   from_dates: string[];
   to_dates: string[];
   fees: number[];
@@ -379,6 +389,7 @@ export interface RawServiceData {
   desc_sgst?: number[];
   desc_cgst?: number[];
   desc_igst?: number[];
+  base_amounts:number[];
   desc_overall_discounts?: number[]; // NEW
   desc_discount_percentages:number[];
   desc_discount_amounts: number[];
@@ -396,7 +407,6 @@ export interface RawServiceData {
   creditLimit: number;
   locationName: string;
   vendorPhone:string;
-  vendorEmail:string;
   overallDiscountValue: number;
   overallDiscountType: 'percentage' | 'amount';
   overallDiscountAppliedOn:string;

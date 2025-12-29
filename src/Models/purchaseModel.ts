@@ -76,6 +76,7 @@ export interface Item {
 export interface PurchaseOrderData {
   purchaseOrderId: string;
   vendorName: string;
+  vendorId:string;
   vendorContact: string;
   vendorCode:string;
   orderDate: string | null;  // FIXED: Changed from Date | null to string | null (ISO format)
