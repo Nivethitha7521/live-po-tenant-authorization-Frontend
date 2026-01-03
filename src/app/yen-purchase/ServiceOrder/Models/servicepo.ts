@@ -80,6 +80,8 @@ export interface ServiceData {
   base_amounts: number[]; // ADD THIS: base amounts WITHOUT tax
   remarks: string[];
   overallDiscountAppliedOn: string;
+  totalFees:number;
+  totalDiscount:number;
 }
 // For the flat array response from backend
 export interface ServiceFlatResponse {
@@ -111,6 +113,7 @@ export interface ServiceSearchAdd {
   randomId: string;
 }
 export interface ServiceTotalsResponse {
+  base_amounts: never[];
   totalFees: number;
   totalDiscount: number;
   totalTax: number;
@@ -225,6 +228,7 @@ export interface ServiceListState {
   pendingServiceList: ServiceData[];
   pendingTotalItems: number;
   services: ServiceData[];
+  selectedService: ServiceData | null;
   serviceinvoice: ServiceInvoice[];
   serviceDialogOpen: boolean;
   grnList: GrnData[];
@@ -264,6 +268,7 @@ export const initialServiceListState: ServiceListState = {
   serviceList: [],
   services: [],
   serviceinvoice: [],
+  selectedService: null,
   serviceDialogOpen: false,
   randomIds: [],
   grnList: [],
@@ -424,6 +429,8 @@ export interface RawServiceData {
   freights?: Freight[];
   totalFreightAmount?: number;
   totalFreightTaxAmount?: number;
+  totalDiscount?:number;
+  totalFees?:number;
 }
 
 // Add this interface to your Models/servicepo.ts

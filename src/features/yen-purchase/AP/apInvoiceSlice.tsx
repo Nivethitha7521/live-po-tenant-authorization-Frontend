@@ -4,7 +4,7 @@ import axios from 'axios';
 import { ApInvoice, ApInvoiceRandomId, ApInvoiceState, initialState } from '@/Models/apModel';
 
 
-const BASE_URL = 'https://yenerp.com/purchasetestapi';
+const BASE_URL = 'https://yenerp.com/purchaseapi';
 // Fetch AP Invoices with pagination and advanced filtering
 // Add this async thunk for loading more statuses
 export const loadMoreStatuses = createAsyncThunk(
@@ -17,7 +17,7 @@ export const loadMoreStatuses = createAsyncThunk(
     
     dispatch(setStatusesLoading(true));
     try {
-      const response = await axios.get('https://yenerp.com/purchasetestapi/apinvoices/statuses', {
+      const response = await axios.get('https://yenerp.com/purchaseapi/apinvoices/statuses', {
         params: { 
           search: statusSearch || '', 
           page: currentPage,
@@ -47,7 +47,7 @@ export const fetchApStatuses = createAsyncThunk(
   async ({ search = '', page = 1 }: { search?: string; page?: number }, { dispatch, rejectWithValue }) => {
     dispatch(setStatusesLoading(true));
     try {
-      const response = await axios.get('https://yenerp.com/purchasetestapi/apinvoices/statuses', {
+      const response = await axios.get('https://yenerp.com/purchaseapi/apinvoices/statuses', {
         params: { 
           search: search, 
           page: page,

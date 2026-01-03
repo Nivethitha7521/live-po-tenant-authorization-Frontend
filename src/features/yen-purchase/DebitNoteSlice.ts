@@ -4,7 +4,7 @@ import axios from 'axios';
 import { RootState } from '@/redux/store';
 import { DebitCreditNote } from '@/Models/DebitCreditNote';
 
-const BASE_URL = 'https://yenerp.com/purchasetestapi';
+const BASE_URL = 'https://yenerp.com/purchaseapi';
 
 interface DebitCreditNoteState {
   debitCreditNotes: DebitCreditNote[];

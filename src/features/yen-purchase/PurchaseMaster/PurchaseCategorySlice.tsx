@@ -4,12 +4,12 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 
 export const fetchCategories = createAsyncThunk<Category[]>('category/fetchCategories', async () => {
-  const response = await axios.get('https://yenerp.com/purchasetestapi/purchasecategories/');
+  const response = await axios.get('https://yenerp.com/purchaseapi/purchasecategories/');
   return response.data;
 });
 
 export const addCategory = createAsyncThunk<Category, Category>('category/addCategory', async (category) => {
-  const response = await axios.post('https://yenerp.com/purchasetestapi/purchasecategories', category);
+  const response = await axios.post('https://yenerp.com/purchaseapi/purchasecategories', category);
   return response.data;
 });
 export const removeSubcategory = createAsyncThunk<
@@ -20,7 +20,7 @@ export const removeSubcategory = createAsyncThunk<
   async ({ categoryId, subcategory }, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        `https://yenerp.com/purchasetestapi/purchasecategories/${categoryId}/subcategories/remove`,
+        `https://yenerp.com/purchaseapi/purchasecategories/${categoryId}/subcategories/remove`,
         { subcategoryToRemove: subcategory },
         {
           headers: {
@@ -38,23 +38,23 @@ export const removeSubcategory = createAsyncThunk<
 export const updateCategory = createAsyncThunk<Category, { purchasecategoryId: string, category: Category }>(
   'category/updateCategory',
   async ({ purchasecategoryId, category }) => {
-    const response = await axios.patch(`https://yenerp.com/purchasetestapi/purchasecategories/${purchasecategoryId}`, category);
+    const response = await axios.patch(`https://yenerp.com/purchaseapi/purchasecategories/${purchasecategoryId}`, category);
     return response.data;
   }
 );
 
 export const deactivateCategory = createAsyncThunk<Category, string>('category/deactivateCategory', async (purchasecategoryId) => {
-  const response = await axios.patch(`https://yenerp.com/purchasetestapi/purchasecategories/${purchasecategoryId}`, { status: 'deactivated' });
+  const response = await axios.patch(`https://yenerp.com/purchaseapi/purchasecategories/${purchasecategoryId}`, { status: 'deactivated' });
   return response.data;
 });
 
 export const activateCategory = createAsyncThunk<Category, string>('category/activateCategory', async (purchasecategoryId) => {
-  const response = await axios.patch(`https://yenerp.com/purchasetestapi/purchasecategories/${purchasecategoryId}`, { status: 'active' });
+  const response = await axios.patch(`https://yenerp.com/purchaseapi/purchasecategories/${purchasecategoryId}`, { status: 'active' });
   return response.data;
 });
 
 export const fetchSubcategories = createAsyncThunk<Subcategory[]>('subcategory/fetchSubcategories', async () => {
-  const response = await axios.get('https://yenerp.com/purchasetestapi/purchasesubcategories/');
+  const response = await axios.get('https://yenerp.com/purchaseapi/purchasesubcategories/');
   return response.data;
 });
 
@@ -65,7 +65,7 @@ export const importPurchaseCategoriesCSV = createAsyncThunk(
       const formData = new FormData();
       formData.append('file', file);
       const response = await axios.post(
-        'https://yenerp.com/purchasetestapi/purchasecategories/import_csv',
+        'https://yenerp.com/purchaseapi/purchasecategories/import_csv',
         formData,
         {
           headers: {
@@ -85,7 +85,7 @@ export const exportPurchaseCategoriesCSV = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        'https://yenerp.com/purchasetestapi/purchasecategories/exportcategory/export_csv',
+        'https://yenerp.com/purchaseapi/purchasecategories/exportcategory/export_csv',
         {
           responseType: 'blob',
         }

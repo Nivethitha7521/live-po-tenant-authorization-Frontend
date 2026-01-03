@@ -2,6 +2,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import axios from "axios";
 import { initialState } from "./servicepo";
+import { ServiceData } from "../Models/servicepo";
 
 // Interface for conversion request
 interface ServiceToAPRequest {
@@ -86,7 +87,7 @@ export const convertServiceToAPOutgoing = createAsyncThunk(
       }
 
       const response = await axios.post<ServiceToAPResponse>(
-        `https://yenerp.com/purchasetestapi/servicepo/convert-service-to-ap-outgoing/${service_id}`,
+        `https://yenerp.com/purchaseapi/servicepo/convert-service-to-ap-outgoing/${service_id}`,
         null,
         {
           params: params,
@@ -137,7 +138,7 @@ export const deactivateServiceOrder = createAsyncThunk(
       if (!mongoId) throw new Error("Invalid service order ID");
 
       const response = await axios.patch(
-        `https://yenerp.com/purchasetestapi/servicepo/deactivated/${mongoId}`
+        `https://yenerp.com/purchaseapi/servicepo/deactivated/${mongoId}`
       );
       return response.data;
     } catch (error: any) {
@@ -152,7 +153,7 @@ export const updateServiceOrderStatusToPending = createAsyncThunk(
   async (mongoId: string, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        `https://yenerp.com/purchasetestapi/servicepo/pending/${mongoId}`
+        `https://yenerp.com/purchaseapi/servicepo/pending/${mongoId}`
       );
       return response.data;
     } catch (error: any) {
@@ -160,7 +161,43 @@ export const updateServiceOrderStatusToPending = createAsyncThunk(
     }
   }
 );
+export const fetchServiceById = createAsyncThunk(
+  'service/fetchServiceById',
+  async (identifier: string, { rejectWithValue }) => {
+    try {
+      // Use your actual backend base URL
+      const response = await axios.get(
+        `https://yenerp.com/purchaseapi/servicepo/getOutgoing/${identifier}`
+        // or `/api/service/getOutgoing/${identifier}` if using proxy
+      );
 
+      const data = response.data;
+
+      // Optional: Transform dates to ISO strings if backend returns Date objects
+      const transformed: ServiceData = {
+        ...data,
+        // Ensure all datetime fields are strings
+        createdDate: data.createdDate ? String(data.createdDate) : null,
+        lastUpdatedDate: data.lastUpdatedDate ? String(data.lastUpdatedDate) : null,
+        workOrderDate: data.workOrderDate ? String(data.workOrderDate) : null,
+        approvedDate: data.approvedDate ? String(data.approvedDate) : null,
+        rejectedDate: data.rejectedDate ? String(data.rejectedDate) : null,
+        invoiceDate: data.invoiceDate ? String(data.invoiceDate) : null,
+
+        // Handle array dates
+        from_dates: data.from_dates?.map((d: any) => (d ? String(d) : null)) || [],
+        to_dates: data.to_dates?.map((d: any) => (d ? String(d) : null)) || [],
+      };
+
+      return transformed;
+    } catch (error: any) {
+      console.error('Failed to fetch Service details:', error);
+      return rejectWithValue(
+        error.response?.data?.detail || 'Failed to fetch service order'
+      );
+    }
+  }
+);
 // Update the servicepo.ts initial state to include conversion state
 interface ServicePOState {
   services: any[];
@@ -241,6 +278,7 @@ const serviceListSlice = createSlice({
     removeServiceFromList: (state, action: PayloadAction<string>) => {
       state.services = state.services.filter(service => service.mongoId !== action.payload);
     },
+
   },
   extraReducers: (builder) => {
     // ... your existing extraReducers ...

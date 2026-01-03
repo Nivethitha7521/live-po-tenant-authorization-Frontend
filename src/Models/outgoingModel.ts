@@ -13,6 +13,7 @@ export interface Outgoing {
   outgoingId: string;
   purchaseOrderId?: string;
   serviceId:string;
+  serOId:string;
   invoiceType:string;
   grnId: string;
   invoiceId: string;
@@ -78,6 +79,7 @@ export interface Outgoing {
   paymentHistory?: PaymentHistory[];
   selectedAdvancePayments?: string[]; // ADDED: Missing property
   itemDetails?: ItemDetails[];
+  invocieType:string;
 }
 
 export interface TaxDetail {

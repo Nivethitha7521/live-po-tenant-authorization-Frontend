@@ -123,6 +123,17 @@ export interface FrontendApInvoiceResponse {
   itemDetails?: FrontendItemDetail[];
   invoiceAmount?: number;
   paymentStatus?: string;
+  invoiceType: 'goods' | 'service';
+  // Service-specific arrays
+  descriptions?: string[];
+  sacCode?: string[];
+  from_dates?: string[];
+  to_dates?: string[];
+  fees?: number[];
+  quantity?: number[];
+  desc_tax_pers?: number[];
+  desc_tax_amounts?: number[];
+  desc_totals?: number[];
 }
 
 export interface ApInvoice {

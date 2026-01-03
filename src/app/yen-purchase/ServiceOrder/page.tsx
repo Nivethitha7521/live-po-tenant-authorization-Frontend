@@ -875,7 +875,12 @@ const ServiceList: React.FC = () => {
                     {selectedOrder.totalTax}
                   </Typography>
                 </Box>
-
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography>Total Discount:</Typography>
+                  <Typography fontWeight="bold">
+                    {selectedOrder.totalDiscount}
+                  </Typography>
+                </Box>
                 <Divider sx={{ my: 2 }} />
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>

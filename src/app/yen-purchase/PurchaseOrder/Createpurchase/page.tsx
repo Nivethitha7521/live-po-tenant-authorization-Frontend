@@ -1401,7 +1401,19 @@ const CreatePurchasePage: React.FC = () => {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
       {/* Main Content */}
       <Box sx={{ flex: 1, p: 3, overflowY: 'auto', maxHeight: 'calc(100vh - 64px)' }}>
-        <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
+       <Box sx={{
+  width: '100%',
+  maxWidth: {
+    xs: '100%',      // Mobile: full
+    sm: '100%',      // Tablets: full with padding
+    md: '1200px',    // Laptops (1366-1600px): comfortable fixed width
+    lg: '1400px',    // Large monitors: more space
+    xl: '1600px',    // XXL monitors (1920px+): max readable width
+  },
+  mx: 'auto',        // Centered
+  px: { xs: 2, sm: 3, md: 4},  // Generous side padding on big screens
+  py: 3,
+}}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography fontWeight={'bold'} sx={{ textDecoration: 'underline' }}>
               {isEditMode ? `Edit Purchase Order - ${purchaseOrderData.randomId || editId}` : 'Create New Purchase Order'}
@@ -1484,6 +1496,7 @@ const CreatePurchasePage: React.FC = () => {
                 value={purchaseOrderData.orderDate ? new Date(purchaseOrderData.orderDate) : null}
                 onChange={handleOrderDateChange}
                 maxDate={new Date()}
+                disabled
               />
             </Grid>
            

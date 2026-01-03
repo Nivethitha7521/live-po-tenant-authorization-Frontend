@@ -14,6 +14,7 @@ import {
 } from "../Models/servicepo"
 import { VendorSummary } from "@/Models/vendor";
 import qs from 'qs';
+import { useCallback } from 'react';
 // FIXED: Helper for date-only formatting (YYYY-MM-DD) for UI display - NO TIMEZONE CONVERSION
 const formatDateOnly = (dateValue: Date | string | null | undefined): string => {
   if (!dateValue) return '';
@@ -200,6 +201,8 @@ const transformRawToNested = (raw: RawServiceData): ServiceData => {
     createdTime: raw.createdTime || null,
     lastUpdatedDate: raw.lastUpdatedDate ? formatDateOnly(raw.lastUpdatedDate) : null,
     lastUpdatedTime: raw.lastUpdatedTime || null,
+    totalFees:raw.totalFees ||0,
+    totalDiscount:raw.totalDiscount || 0,
   };
 };
 // Helper to format time string
@@ -296,7 +299,9 @@ export const initialState: ServiceState = {
     lastUpdatedTime: null,
     quantity: [],
     desc_discount_percentages: [],
-    overallDiscountAppliedOn: ''
+    overallDiscountAppliedOn: '',
+    totalFees:0,
+    totalDiscount:0,
   },
   
   // FIXED: newDescription with quantity and remarks
@@ -341,7 +346,7 @@ export const initialState: ServiceState = {
   calculatedTotals: null,
 };
 
-const BASE_URL = 'https://yenerp.com/purchasetestapi';
+const BASE_URL = 'https://yenerp.com/purchaseapi';
 
 // FIXED: Async thunk for calculateServiceTotals (sends nested ServiceDescription[])
 export const calculateServiceTotals = createAsyncThunk(

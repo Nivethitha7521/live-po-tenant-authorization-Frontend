@@ -69,6 +69,10 @@ import PODialog from '@/components/yen-purchase/OutgoingComponent/PODialog';
 import ConfirmationDialog from '@/components/confirmationDialog';
 import BulkPaymentDialog from '@/components/yen-purchase/OutgoingComponent/BulkPaymentDialog';
 import SinglePaymentDialog from '@/components/yen-purchase/OutgoingComponent/SinglePayment';
+import { ServiceData } from '@/app/yen-purchase/ServiceOrder/Models/servicepo';
+import ServiceDialog from '@/app/yen-purchase/ServiceOrder/Components/ServiceDialog';
+import { fetchServiceById } from '@/app/yen-purchase/ServiceOrder/Features/servicelist';
+
 const OutgoingPaymentComponent = React.memo(() => {
   const dispatch = useDispatch<AppDispatch>();
   const { outgoings, snackbarMessage, snackbarOpen, selection, outgoingvendor, banks // ADD THIS IF MISSING
@@ -95,7 +99,8 @@ const OutgoingPaymentComponent = React.memo(() => {
   const [paymentTerms, setPaymentTerms] = useState("");
   const [openDialog, setOpenDialog] = useState(false); // Control dialog visibility
   // State for the selected filter (number or empty string for all data)
-  const [selectedDays, setSelectedDays] = useState<string | number>('');
+  const [selectedService, setSelectedService] = useState<ServiceData | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   // Sort the outgoings data in descending order by 'dueDays' field
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null); // Default: no sorting
   const [sortColumn, setSortColumn] = useState<string | null>(null); // Default: no column sorted
@@ -242,6 +247,33 @@ const OutgoingPaymentComponent = React.memo(() => {
       dispatch(setSnackbarMessage('Failed to fetch PO details.'));
       dispatch(setSnackbarOpen(true));
       console.error('Failed to fetch PO details:', error);
+    }
+  };
+  const handleCloseServiceDialog = () => {
+    setDialogOpen(false);
+    setSelectedService(null); // Clear it
+  };
+  const handleServiceClick = async (identifier: string) => {
+    if (!identifier) {
+      dispatch(setSnackbarMessage('Invalid Service ID'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    try {
+      // Fetch the service data
+      const result = await dispatch(fetchServiceById(identifier)).unwrap();
+
+      // IMPORTANT: Set the fetched service to local state
+      setSelectedService(result); // Make sure result matches ServiceData type
+
+      // Open the dialog
+      setDialogOpen(true);
+
+    } catch (error) {
+      dispatch(setSnackbarMessage('Failed to load service details'));
+      dispatch(setSnackbarOpen(true));
+      console.error('Service fetch error:', error);
     }
   };
   const handleViewCreditNotes = (outgoingId: string) => {
@@ -1346,6 +1378,7 @@ Description:<br />
                     <TableCell>Ap No</TableCell>
                     <TableCell>Outgoing No</TableCell>
                     <TableCell>Vendor Name</TableCell>
+                    <TableCell>Type</TableCell>
                     <TableCell>Invoice No</TableCell>
                     <TableCell>Invoice Date</TableCell>
                     <TableCell>Invoice Amount</TableCell>
@@ -1400,8 +1433,16 @@ Description:<br />
                                 {payment.poRandomId}
                               </span>
                             ) : payment.serviceId ? (
-                              <span style={{ color: '#9c27b0',fontWeight: '600' }}>
-                                {payment.serviceId} 
+                              <span
+                                style={{
+                                  color: '#9c27b0',
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  fontWeight: '600',
+                                }}
+                                onClick={() => handleServiceClick(payment.serOId)}
+                              >
+                                {payment.serviceId}
                               </span>
                             ) : (
                               'N/A'
@@ -1433,6 +1474,7 @@ Description:<br />
                           </TableCell>
                           <TableCell>{payment.randomId}</TableCell>
                           <TableCell>{payment.vendorName}</TableCell>
+                          <TableCell>{payment.invoiceType}</TableCell>
                           <TableCell>{payment.invoiceNo || 'N/A'}</TableCell>
                           <TableCell>
                             {payment.invoiceDate ? format(new Date(payment.invoiceDate), 'dd-MM-yyyy') : ''}
@@ -1604,6 +1646,11 @@ Description:<br />
                 filterByAmount: true,
               }));
             }}
+          />
+          <ServiceDialog
+            open={dialogOpen}
+            onClose={() => setDialogOpen(false)}
+            service={selectedService}
           />
         </Grid>
       </Box>

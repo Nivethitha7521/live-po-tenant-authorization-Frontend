@@ -12,7 +12,7 @@ export interface ItemUpdate {
   afTaxDiscount?: number;
   expiryDate?: Date | null;
 }
-const BASE_URL = 'https://yenerp.com/purchasetestapi';
+const BASE_URL = 'https://yenerp.com/purchaseapi';
 const customRoundOf = (value: number) => {
   return Math.round(value * 100) / 100; // Round to two decimal placeshttp://192.168.29.117:8000
 };
@@ -274,7 +274,7 @@ export const fetchRandomNumbers = createAsyncThunk(
   'invoiceNumbers/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<PurchaseRandomId[]>('https://yenerp.com/purchasetestapi/purchaseorders/getByRandomId');
+      const response = await axios.get<PurchaseRandomId[]>('https://yenerp.com/purchaseapi/purchaseorders/getByRandomId');
       return response.data;  // List of invoice numbers
     } catch (error: any) {
       return rejectWithValue(error.response?.data || 'Failed to fetch invoice numbers');
@@ -286,7 +286,7 @@ export const fetchReturnReasons = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       console.log('Fetching return reasons...');
-      const response = await axios.get<ReturnReason[]>('https://yenerp.com/purchasetestapi/grns/getgrn/return-reasons');
+      const response = await axios.get<ReturnReason[]>('https://yenerp.com/purchaseapi/grns/getgrn/return-reasons');
       console.log('Return reasons fetched:', response.data);
       return response.data;
     } catch (error: any) {
@@ -299,7 +299,7 @@ export const addReturnReason = createAsyncThunk(
   'grn/addReturnReason',
   async (reason: string, { rejectWithValue }) => {
     try {
-      const response = await axios.post('https://yenerp.com/purchasetestapi/grns/return-reasons', { reason });
+      const response = await axios.post('https://yenerp.com/purchaseapi/grns/return-reasons', { reason });
       return response.data.reason;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to add return reason');
@@ -311,7 +311,7 @@ export const returnGrn = createAsyncThunk(
   'grn/returnGrn',
   async (payload: { grnId: string; returnData: ReturnGRNRequest }, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`https://yenerp.com/purchasetestapi/grns/${payload.grnId}/return`, payload.returnData);
+      const response = await axios.patch(`https://yenerp.com/purchaseapi/grns/${payload.grnId}/return`, payload.returnData);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to return GRN');
@@ -326,7 +326,7 @@ export const fetchDebitCreditNotesByGrn = createAsyncThunk<
   'grn/fetchDebitCreditNotesByGrn',
   async ({ grnId, page, size }, { rejectWithValue }) => {
     try {
-      const response = await axios.get<DebitCreditNote[]>(`https://yenerp.com/purchasetestapi/grns/returnprocess/DebitNote/${grnId}`, {
+      const response = await axios.get<DebitCreditNote[]>(`https://yenerp.com/purchaseapi/grns/returnprocess/DebitNote/${grnId}`, {
         params: { skip: (page - 1) * size, limit: size },
       });
       return response.data;
@@ -362,7 +362,7 @@ export const fetchDebitCreditNotesByGrn = createAsyncThunk<
 
 //     try {
 //       // Make the API request with the correctly formatted parameters
-//       const response = await axios.get('https://yenerp.com/purchasetestapi/grns/from-date/', {
+//       const response = await axios.get('https://yenerp.com/purchaseapi/grns/from-date/', {
 //         params: params,
 //       });
 
@@ -397,7 +397,7 @@ export const updateGrnCancelStatus = createAsyncThunk(
   async (grnId: string, { rejectWithValue }) => {
     try {
       // Send the PATCH request to update the GRN status
-      const response = await axios.patch(`https://yenerp.com/purchasetestapi/grns/${grnId}`, {
+      const response = await axios.patch(`https://yenerp.com/purchaseapi/grns/${grnId}`, {
         status: 'active',
       });
 

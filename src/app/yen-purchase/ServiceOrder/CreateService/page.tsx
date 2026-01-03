@@ -38,6 +38,7 @@ import { ServiceSummary } from '../../PurchaseMaster/Service/Models/Service';
 import ServiceAutocomplete from '../../PurchaseMaster/Service/Components/ServiceAutocomplete';
 import { fetchPurchaseTaxes } from '@/features/yen-purchase/PurchaseMaster/purchaseTaxSlice';
 import FreightSelectionDialog, { FreightData } from '../../PurchaseOrder/Component/freightSelectionDialog';
+import InfoIcon from '@mui/icons-material/Info';
 
 // Helper functions for date handling
 const formatDate = (date: Date | null): string => {
@@ -47,31 +48,36 @@ const formatDate = (date: Date | null): string => {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
+
 const formatDateForBackend = (date: Date | null): string => {
   if (!date) return '';
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}T00:00:00.000Z`; // Keep backend happy
+  return `${year}-${month}-${day}T00:00:00.000Z`;
 };
+
 const parseDate = (dateStr: string | null): Date | null => {
   if (!dateStr) return null;
-
-  // Split the date part only: "2025-12-25T00:00:00.000Z" → "2025-12-25"
-  const datePart = dateStr.split('T')[0]; // "2025-12-25"
+  const datePart = dateStr.split('T')[0];
   if (!datePart) return null;
-
   const [year, month, day] = datePart.split('-').map(Number);
-
-  // Create date using LOCAL time zone explicitly at noon to prevent rollover
   return new Date(year, month - 1, day, 12, 0, 0);
 };
-const formatWorkOrderDate = (date: Date | null): string => {
-  if (!date) return '';
-  const localDate = new Date(date);
-  return localDate.toISOString();
-};
 
+const formatDateForDisplay = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return 'N/A';
+  try {
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      timeZone: 'UTC',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  } catch {
+    return 'N/A';
+  }
+};
 // Simple unique ID generator
 const generateUniqueId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -122,7 +128,7 @@ const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescrip
       discount_percentage: serviceData.desc_discount_percentages?.[i] || 0,
       discount_amount: serviceData.desc_discount_amounts?.[i] || 0,
       remarks: serviceData.remarks?.[i] || '',
-      base_amount:serviceData.base_amounts?.[i] || 0,
+      base_amount: serviceData.base_amounts?.[i] || 0,
     });
   }
   return descriptions;
@@ -246,6 +252,35 @@ const CreateServicePage: React.FC = () => {
   const freightGrandTotal = useMemo(() =>
     freightSubTotal + freightTaxTotal, [freightSubTotal, freightTaxTotal]
   );
+
+  // Calculate distributed discounts
+  const calculateDistributedDiscounts = useCallback(() => {
+    if (!serviceData.fees || serviceData.fees.length === 0) return [];
+    
+    const totalFees = serviceData.fees.reduce((sum, fee) => sum + (fee || 0), 0);
+    if (totalFees === 0) return [];
+    
+    let discountPercentage = 0;
+    
+    // Calculate overall discount percentage
+    if (overallDiscountMode === 'percentage') {
+      discountPercentage = overallDiscountValue;
+    } else {
+      // Calculate percentage from amount
+      discountPercentage = (overallDiscountValue / totalFees) * 100;
+    }
+    
+    // Apply same percentage to each description
+    return serviceData.fees.map(fee => {
+      const discountAmount = (fee * discountPercentage) / 100;
+      return {
+        amount: discountAmount,
+        percentage: discountPercentage
+      };
+    });
+  }, [serviceData.fees, overallDiscountValue, overallDiscountMode]);
+
+  // Refresh totals function
   const refreshTotals = useCallback(async (isMounted: boolean = true) => {
     if (!isMounted || loadingStates.totals) return;
 
@@ -273,12 +308,11 @@ const CreateServicePage: React.FC = () => {
       let taxAmount = 0;
       let discountAmount = 0;
 
-      // In refreshTotals function:
       descriptions.forEach(desc => {
-        const fee = desc.fee || 0; // This is total including tax
+        const fee = desc.fee || 0;
         const taxPercent = desc.tax_per || 0;
 
-        // Calculate taxable base from total including tax (same as backend)
+        // Calculate taxable base from total including tax
         let taxableBase = fee;
         if (fee > 0 && taxPercent > 0) {
           const taxRate = taxPercent / 100;
@@ -288,7 +322,8 @@ const CreateServicePage: React.FC = () => {
         subTotal += taxableBase;
         taxAmount += (taxableBase * taxPercent) / 100;
         discountAmount += desc.discountAmount || 0;
-      });    // Immediate UI update
+      });
+
       const localTotals = {
         subTotal: Number(subTotal.toFixed(2)),
         taxAmount: Number(taxAmount.toFixed(2)),
@@ -307,7 +342,7 @@ const CreateServicePage: React.FC = () => {
       const request: ServiceTotalsRequest = {
         descriptions: descriptions.map(desc => ({
           ...desc,
-          fee: desc.fee, // This is TOTAL including tax
+          fee: desc.fee,
           discount_percentage: desc.discount_percentage || 0,
           discount_amount: desc.discountAmount || 0,
         })),
@@ -315,7 +350,7 @@ const CreateServicePage: React.FC = () => {
         overall_discount_type: overallDiscountMode,
         overall_discount_applied_on: overallDiscountAppliedOn,
         round_off: roundOffValue,
-        fees_are_total_including_tax: true, // CRITICAL: Tell backend fees include tax
+        fees_are_total_including_tax: true,
         total_freight_amount: freightSubTotal,
         total_freight_tax: freightTaxTotal,
       };
@@ -323,20 +358,18 @@ const CreateServicePage: React.FC = () => {
       const result = await dispatch(calculateServiceTotals(request)).unwrap();
 
       // Update service data with calculated values
-      if (result.desc_sgst?.length > 0) {
-        dispatch(setServiceData({
-          ...serviceData,
-          desc_sgst: result.desc_sgst,
-          desc_cgst: result.desc_cgst,
-          desc_igst: result.desc_igst,
-          desc_tax_amounts: result.desc_tax_amounts || [],
-          base_amounts: result.desc_base_amounts || [], // CHANGE THIS
-          desc_totals: result.desc_totals || [],
-          desc_discount_amounts: result.desc_discount_amounts || [],
-          desc_discount_percentages: result.desc_discount_percentages || [],
-          desc_overall_discounts: result.desc_overall_discounts || [],
-        }));
-      }
+      dispatch(setServiceData({
+        ...serviceData,
+        desc_sgst: result.desc_sgst || [],
+        desc_cgst: result.desc_cgst || [],
+        desc_igst: result.desc_igst || [],
+        desc_tax_amounts: result.desc_tax_amounts || [],
+        base_amounts: result.base_amounts || [],
+        desc_totals: result.desc_totals || [],
+        desc_discount_amounts: result.desc_discount_amounts || [],
+        desc_discount_percentages: result.desc_discount_percentages || [],
+        desc_overall_discounts: result.desc_overall_discounts || [],
+      }));
 
       // Update totals with backend calculations
       setTotals(prev => ({
@@ -344,10 +377,11 @@ const CreateServicePage: React.FC = () => {
         subTotal: result.totalFees || 0,
         taxAmount: result.totalTax || 0,
         overallDiscountAmount: result.totalOverallDiscount || 0,
-        roundedTotalOrderAmount: (result.totalAmount || 0),
-        roundedTotalTax: (result.totalTax || 0),
+        roundedTotalOrderAmount: result.totalAmount || 0,
+        roundedTotalTax: result.totalTax || 0,
         roundedTotalDiscount: result.totalDiscount || 0,
       }));
+
     } catch (error) {
       console.error('Error refreshing totals:', error);
       if (isMounted) {
@@ -373,6 +407,7 @@ const CreateServicePage: React.FC = () => {
     serviceData,
     loadingStates.totals
   ]);
+
   // Manual refresh totals function for external calls
   const manualRefreshTotals = useCallback(() => {
     setNeedsTotalsRefresh(true);
@@ -385,7 +420,6 @@ const CreateServicePage: React.FC = () => {
 
     const refreshIfNeeded = () => {
       if (!isMounted || !needsTotalsRefresh) return;
-
       refreshTotals(isMounted);
     };
 
@@ -403,7 +437,7 @@ const CreateServicePage: React.FC = () => {
   // Trigger totals refresh when descriptions change (add/edit/delete)
   useEffect(() => {
     manualRefreshTotals();
-  }, [descriptions.length]); // Only trigger when description count changes
+  }, [descriptions.length]);
 
   // Trigger totals refresh when freights change
   useEffect(() => {
@@ -762,18 +796,16 @@ const CreateServicePage: React.FC = () => {
     setLoadingStates(prev => ({ ...prev, description: true }));
 
     try {
-      // IMPORTANT: The fee the user enters is the TOTAL amount including tax
-      // The backend will reverse-calculate the taxable base
       const params = {
         description: newDescription.description.trim(),
         fromDate: newDescription.from_date || null,
         toDate: newDescription.to_date || null,
-        fee: newDescription.fee, // This is TOTAL including tax
+        fee: newDescription.fee,
         taxType: newDescription.tax_type,
         taxPer: newDescription.tax_per || 0,
         sacCode: newDescription.sacCode || '',
-        discount: 0, // Individual discount amount (not percentage)
-        quantity: newDescription.quantity || 1, // For display only
+        discount: 0,
+        quantity: newDescription.quantity || 1,
         remarks: newDescription.remarks || '',
       };
 
@@ -785,7 +817,7 @@ const CreateServicePage: React.FC = () => {
         description: newDescription.description.trim(),
         from_date: newDescription.from_date || null,
         to_date: newDescription.to_date || null,
-        fee: newDescription.fee, // Store the total amount including tax
+        fee: newDescription.fee,
         quantity: newDescription.quantity || 1,
         tax_type: newDescription.tax_type,
         tax_per: newDescription.tax_per || 0,
@@ -794,13 +826,13 @@ const CreateServicePage: React.FC = () => {
         igst: calcResult.igst || 0,
         total: calcResult.total || 0,
         taxAmount: calcResult.totalTax || 0,
-        totalFee: calcResult.fee || 0, // This is the fee user entered (total including tax)
+        totalFee: calcResult.fee || 0,
         finalFee: calcResult.fee || 0,
         discountAmount: 0,
         discount_percentage: 0,
         discount_amount: 0,
         remarks: newDescription.remarks || '',
-        base_amount:newDescription.base_amount,
+        base_amount: newDescription.base_amount,
       };
 
       if (isCurrentlyEditing && editingIndex !== undefined) {
@@ -862,16 +894,15 @@ const CreateServicePage: React.FC = () => {
       setLoadingStates(prev => ({ ...prev, description: false }));
     }
   }, [dispatch, newDescription]);
+
   // Freight handlers
   const handleAddFreights = useCallback((newFreights: FreightData[]) => {
     setFreights(newFreights);
-    // Trigger totals refresh after adding freights
     setNeedsTotalsRefresh(true);
   }, []);
 
   const handleDeleteFreight = useCallback((index: number) => {
     setFreights(prev => prev.filter((_, i) => i !== index));
-    // Trigger totals refresh after deleting freight
     setNeedsTotalsRefresh(true);
   }, []);
 
@@ -894,7 +925,6 @@ const CreateServicePage: React.FC = () => {
   const handleDeleteDescription = useCallback((index: number) => {
     dispatch(deleteDescriptionFromService(index));
     dispatch(clearDescriptionForEditing());
-    // Trigger totals refresh after deleting description
     setNeedsTotalsRefresh(true);
   }, [dispatch]);
 
@@ -939,16 +969,20 @@ const CreateServicePage: React.FC = () => {
     // Trigger totals refresh after applying discount
     setNeedsTotalsRefresh(true);
 
+    const totalOriginal = serviceData.fees?.reduce((a, b) => a + b, 0) || 0;
+    const calculatedPercentage = overallDiscountMode === 'percentage' 
+      ? overallDiscountValue 
+      : (overallDiscountValue / totalOriginal * 100);
+
     dispatch(setSnackbarMessage(
-      `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} discount across all descriptions`
+      `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : '₹'} discount (${calculatedPercentage.toFixed(2)}% to each description)`
     ));
     dispatch(setSnackbarOpen(true));
-  }, [hasDescriptionWiseDiscount, overallDiscountValue, overallDiscountMode, descriptions.length, dispatch]);
+  }, [hasDescriptionWiseDiscount, overallDiscountValue, overallDiscountMode, descriptions.length, dispatch, serviceData.fees]);
 
   const handleClearOverallDiscount = useCallback(async () => {
     if (loadingStates.totals) return;
     setOverallDiscountValue(0);
-    // Trigger totals refresh after clearing discount
     setNeedsTotalsRefresh(true);
     dispatch(setSnackbarMessage('Overall discount removed'));
     dispatch(setSnackbarOpen(true));
@@ -1139,8 +1173,7 @@ const CreateServicePage: React.FC = () => {
         taxPercentage: freight.taxPercentage || 0
       }));
 
-      // CRITICAL FIX: Use the correct fees from descriptions (totals including tax)
-      // Map descriptions to get arrays for submission
+      // Prepare data for submission
       const dataToSubmit = {
         ...serviceData,
         freights: freightData,
@@ -1154,7 +1187,6 @@ const CreateServicePage: React.FC = () => {
         overallDiscountValue: overallDiscountValue,
         totalDiscount: totals.roundedTotalDiscount,
         roundOffValue,
-        // Use descriptions to populate arrays correctly
         quantity: descriptions.map(desc => desc.quantity),
         remarks: descriptions.map(desc => desc.remarks || ''),
         sacCode: descriptions.map(desc => desc.sacCode || ''),
@@ -1166,7 +1198,7 @@ const CreateServicePage: React.FC = () => {
         to_dates: descriptions.map(desc =>
           desc.to_date ? formatDateForBackend(parseDate(desc.to_date)) : null
         ),
-        fees: descriptions.map(desc => desc.fee), // This is TOTAL including tax
+        fees: descriptions.map(desc => desc.fee),
         desc_tax_types: descriptions.map(desc => desc.tax_type),
         desc_tax_pers: descriptions.map(desc => desc.tax_per || 0),
         desc_sgst: serviceData.desc_sgst || [],
@@ -1227,6 +1259,7 @@ const CreateServicePage: React.FC = () => {
     overallDiscountMode, overallDiscountAppliedOn, overallDiscountValue, roundOffValue,
     dispatch, isEditMode, editId, handleClear, router
   ]);
+
   const handleOpenDialog = useCallback(() => {
     validationSchema.validate(serviceData, { abortEarly: false })
       .then(() => {
@@ -1305,11 +1338,26 @@ const CreateServicePage: React.FC = () => {
     );
   }
 
+  const distributedDiscounts = calculateDistributedDiscounts();
+  const totalOriginalAmount = serviceData.fees?.reduce((a, b) => a + b, 0) || 0;
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
       {/* Main Content */}
       <Box sx={{ flex: 1, p: 3, overflowY: 'auto', maxHeight: 'calc(100vh - 64px)' }}>
-        <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
+      <Box sx={{
+  width: '100%',
+  maxWidth: {
+    xs: '100%',      // Mobile: full
+    sm: '100%',      // Tablets: full with padding
+    md: '1200px',    // Laptops (1366-1600px): comfortable fixed width
+    lg: '1400px',    // Large monitors: more space
+    xl: '1600px',    // XXL monitors (1920px+): max readable width
+  },
+  mx: 'auto',        // Centered
+  px: { xs: 2, sm: 3, md: 4 },  // Generous side padding on big screens
+  py: 3,
+}}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Button variant="contained" color="primary" onClick={handleBackToService}>
               Back to Service Orders
@@ -1519,6 +1567,7 @@ const CreateServicePage: React.FC = () => {
                   minDate={serviceData.workOrderDate ? parseDate(serviceData.workOrderDate) : null}
                 />
               </Grid>
+
               {/* To Date */}
               <Grid item xs={12} sm={2}>
                 <SmartDatePicker
@@ -1654,84 +1703,247 @@ const CreateServicePage: React.FC = () => {
                     <TableCell>Quantity</TableCell>
                     <TableCell>From Date</TableCell>
                     <TableCell>To Date</TableCell>
-                    <TableCell align="right">Fee (₹)</TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Original amount before discount">
+                        <Typography variant="body2">Original Amt (₹)</Typography>
+                      </Tooltip>
+                    </TableCell>
                     <TableCell align="center">Tax Type</TableCell>
                     <TableCell align="right">Tax %</TableCell>
                     <TableCell align="right">SGST (₹)</TableCell>
                     <TableCell align="right">CGST (₹)</TableCell>
                     <TableCell align="right">IGST (₹)</TableCell>
-                    <TableCell align="right">Overall Disc (₹)</TableCell>
-                    <TableCell align="right">Total (₹)</TableCell>
+                    
+                    {/* INDIVIDUAL DISCOUNT */}
+                    <TableCell align="right">
+                      <Tooltip title="Individual discount applied to this description">
+                        <Typography variant="body2">Ind. Disc</Typography>
+                      </Tooltip>
+                    </TableCell>
+                    
+                    {/* OVERALL DISCOUNT */}
+                    <TableCell align="right">
+                      <Box>
+                        <Typography variant="body2">Overall Disc</Typography>
+                        {overallDiscountValue > 0 && (
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {overallDiscountMode === 'percentage' ? 
+                              `${overallDiscountValue}%` : 
+                              `₹${overallDiscountValue}`
+                            }
+                          </Typography>
+                        )}
+                      </Box>
+                    </TableCell>
+                    
+                    {/* TOTAL DISCOUNT */}
+                    <TableCell align="right">
+                      <Tooltip title="Total discount (Individual + Overall)">
+                        <Typography variant="body2">Total Disc</Typography>
+                      </Tooltip>
+                    </TableCell>
+                    
+                    {/* FINAL AMOUNT */}
+                    <TableCell align="right">
+                      <Tooltip title="Final amount after all discounts">
+                        <Typography variant="body2">Final Amt (₹)</Typography>
+                      </Tooltip>
+                    </TableCell>
+                    
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
+                
                 <TableBody>
                   {descriptions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={17} align="center">No descriptions added</TableCell>
+                      <TableCell colSpan={19} align="center">No descriptions added</TableCell>
                     </TableRow>
                   ) : (
-                    descriptions.map((desc, index) => (
-                      <TableRow key={desc.id || index}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{desc.sacCode || 'N/A'}</TableCell>
-                        <TableCell sx={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {desc.description}
-                        </TableCell>
-                        <TableCell sx={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {desc.remarks || 'N/A'}
-                        </TableCell>
-                        <TableCell sx={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {desc.quantity}
-                        </TableCell>
-                        <TableCell>
-                          {desc.from_date
-                            ? new Date(desc.from_date).toLocaleDateString('en-IN', {
-                              timeZone: 'UTC', // Force UTC timezone
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric'
-                            })
-                            : 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {desc.to_date
-                            ? new Date(desc.to_date).toLocaleDateString('en-IN', {
-                              timeZone: 'UTC', // Force UTC timezone
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric'
-                            })
-                            : 'N/A'}
-                        </TableCell>
-                        <TableCell align="right">{desc.fee?.toFixed(2)}</TableCell>
-                        <TableCell align="center">{desc.tax_type === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}</TableCell>
-                        <TableCell align="right">{desc.tax_per?.toFixed(2)}%</TableCell>
-                        <TableCell align="right">{desc.sgst?.toFixed(2)}</TableCell>
-                        <TableCell align="right">{desc.cgst?.toFixed(2)}</TableCell>
-                        <TableCell align="right">{desc.igst?.toFixed(2)}</TableCell>
-                        <TableCell align="right">
-                          {(serviceData.desc_overall_discounts?.[index] || 0)?.toFixed(2)}
+                    descriptions.map((desc, index) => {
+                      const originalAmount = serviceData.fees?.[index] || 0;
+                      const finalAmount = serviceData.desc_totals?.[index] || 0;
+                      
+                      // Get individual discount
+                      const individualDiscountAmount = serviceData.desc_discount_amounts?.[index] || 0;
+                      const individualDiscountPercentage = serviceData.desc_discount_percentages?.[index] || 0;
+                      
+                      // Get overall discount (distributed)
+                      const overallDiscountAmount = serviceData.desc_overall_discounts?.[index] || distributedDiscounts[index]?.amount || 0;
+                      const overallDiscountPercentage = serviceData.desc_discount_percentages?.[index] || distributedDiscounts[index]?.percentage || 0;
+                      
+                      // Calculate total discount
+                      const totalDiscountAmount = individualDiscountAmount + overallDiscountAmount;
+                      const totalDiscountPercentage = originalAmount > 0 ? 
+                        (totalDiscountAmount / originalAmount * 100) : 0;
+                      
+                      return (
+                        <TableRow key={desc.id || index} hover>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>{desc.sacCode || 'N/A'}</TableCell>
+                          <TableCell sx={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {desc.description}
+                          </TableCell>
+                          <TableCell sx={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {desc.remarks || 'N/A'}
+                          </TableCell>
+                          <TableCell>{desc.quantity}</TableCell>
+                          <TableCell>
+                            {formatDateForDisplay(desc.from_date)}
+                          </TableCell>
+                          <TableCell>
+                            {formatDateForDisplay(desc.to_date)}
+                          </TableCell>
+                          
+                          {/* ORIGINAL AMOUNT */}
+                          <TableCell align="right">
+                            <Typography variant="body2">
+                              ₹{originalAmount.toFixed(2)}
+                            </Typography>
+                          </TableCell>
+                          
+                          <TableCell align="center">
+                            {desc.tax_type === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}
+                          </TableCell>
+                          <TableCell align="right">{desc.tax_per?.toFixed(2)}%</TableCell>
+                          <TableCell align="right">{desc.sgst?.toFixed(2)}</TableCell>
+                          <TableCell align="right">{desc.cgst?.toFixed(2)}</TableCell>
+                          <TableCell align="right">{desc.igst?.toFixed(2)}</TableCell>
+                          
+                          {/* INDIVIDUAL DISCOUNT */}
+                          <TableCell align="right">
+                            {individualDiscountAmount > 0 ? (
+                              <Box>
+                                <Typography variant="body2">
+                                  ₹{individualDiscountAmount.toFixed(2)}
+                                </Typography>
+                                {individualDiscountPercentage > 0 && (
+                                  <Typography variant="caption" color="text.secondary" display="block">
+                                    ({individualDiscountPercentage.toFixed(2)}%)
+                                  </Typography>
+                                )}
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                -
+                              </Typography>
+                            )}
+                          </TableCell>
+                          
+                          {/* OVERALL DISCOUNT (Distributed) */}
+                          <TableCell align="right">
+                            {overallDiscountAmount > 0 ? (
+                              <Box>
+                                <Typography variant="body2">
+                                  ₹{overallDiscountAmount.toFixed(2)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  ({overallDiscountPercentage.toFixed(2)}%)
+                                </Typography>
+                                <Typography variant="caption" color="primary" display="block" fontSize="0.7rem">
+                                  {overallDiscountAppliedOn === 'before_tax' ? 'Before Tax' : 'On Total'}
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                -
+                              </Typography>
+                            )}
+                          </TableCell>
+                          
+                          {/* TOTAL DISCOUNT */}
+                          <TableCell align="right">
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">
+                                ₹{totalDiscountAmount.toFixed(2)}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                ({totalDiscountPercentage.toFixed(2)}%)
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          
+                          {/* FINAL AMOUNT */}
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight="bold" color="success.main">
+                              ₹{finalAmount.toFixed(2)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              {totalDiscountPercentage > 0 ? `-${totalDiscountPercentage.toFixed(2)}%` : ''}
+                            </Typography>
+                          </TableCell>
+                          
+                          <TableCell align="right">
+                            <IconButton onClick={() => handleEditDescription(index)} size="small">
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton onClick={() => handleDeleteDescription(index)} size="small">
+                              <DeleteIcon />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                  
+                  {/* TOTALS SECTION */}
+                  <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
+                    <TableCell colSpan={7} align="right">
+                      <strong>Totals:</strong>
+                    </TableCell>
+                    
+                    {/* Original Amount Total */}
+                    <TableCell align="right">
+                      <strong>₹{totalOriginalAmount.toFixed(2)}</strong>
+                    </TableCell>
+                    
+                    <TableCell colSpan={4} />
+                    
+                    {/* Individual Discount Total */}
+                    <TableCell align="right">
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold">
+                          ₹{(serviceData.desc_discount_amounts?.reduce((a, b) => a + b, 0) || 0).toFixed(2)}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    
+                    {/* Overall Discount Total */}
+                    <TableCell align="right">
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold">
+                          ₹{overallDiscountValue.toFixed(2)}
+                        </Typography>
+                        {overallDiscountValue > 0 && (
                           <Typography variant="caption" color="text.secondary" display="block">
-                            {serviceData.desc_overall_discounts?.[index] && totals.overallDiscountAmount > 0
-                              ? `(${((serviceData.desc_overall_discounts[index] / totals.overallDiscountAmount) * 100).toFixed(1)}%)`
-                              : ''
+                            {overallDiscountMode === 'percentage' ? 
+                              `${overallDiscountValue}%` : 
+                              `${((overallDiscountValue / totalOriginalAmount) * 100 || 0).toFixed(2)}%`
                             }
                           </Typography>
-                        </TableCell>
-                        <TableCell align="right">{desc.total?.toFixed(2)}</TableCell>
-                        <TableCell align="right">
-                          <IconButton onClick={() => handleEditDescription(index)} size="small">
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton onClick={() => handleDeleteDescription(index)} size="small">
-                            <DeleteIcon />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-
+                        )}
+                      </Box>
+                    </TableCell>
+                    
+                    {/* Total Discount */}
+                    <TableCell align="right">
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold" color="error.main">
+                          ₹{totals.roundedTotalDiscount.toFixed(2)}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    
+                    {/* Final Amount */}
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="bold" color="success.main">
+                        ₹{totals.roundedTotalOrderAmount.toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                    
+                    <TableCell />
+                  </TableRow>
+                  
                   {/* Service Totals Section */}
                   <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
                     <TableCell colSpan={15} align="right">
@@ -1753,6 +1965,7 @@ const CreateServicePage: React.FC = () => {
                     <TableCell />
                   </TableRow>
 
+                  {/* Overall Discount Control */}
                   <TableRow sx={{ fontWeight: 'bold' }}>
                     <TableCell colSpan={15} align="right">
                       <strong>Overall Discount:</strong>
@@ -1774,7 +1987,19 @@ const CreateServicePage: React.FC = () => {
                           sx={{ width: 80 }}
                           disabled={hasDescriptionWiseDiscount || loadingStates.totals}
                         />
-                        <FormControl size="small" sx={{ minWidth: 50 }}>
+                        
+                        <FormControl size="small" sx={{ minWidth: 100 }}>
+                          <Select
+                            value={overallDiscountMode}
+                            onChange={(e) => setOverallDiscountMode(e.target.value as 'percentage' | 'amount')}
+                            disabled={hasDescriptionWiseDiscount || loadingStates.totals}
+                          >
+                            <MenuItem value="percentage">Percentage</MenuItem>
+                            <MenuItem value="amount">Amount</MenuItem>
+                          </Select>
+                        </FormControl>
+                        
+                        <FormControl size="small" sx={{ minWidth: 100 }}>
                           <Select
                             value={overallDiscountAppliedOn}
                             onChange={(e) => {
@@ -1786,6 +2011,7 @@ const CreateServicePage: React.FC = () => {
                             <MenuItem value="before_tax">Before Tax</MenuItem>
                           </Select>
                         </FormControl>
+                        
                         <Button
                           variant="contained"
                           size="small"
@@ -1795,6 +2021,7 @@ const CreateServicePage: React.FC = () => {
                         >
                           {loadingStates.description ? 'Applying...' : 'Apply'}
                         </Button>
+                        
                         <IconButton
                           onClick={handleClearOverallDiscount}
                           size="small"
@@ -1901,6 +2128,36 @@ const CreateServicePage: React.FC = () => {
                     </TableCell>
                     <TableCell colSpan={14} />
                   </TableRow>
+                  
+                  {/* Verification Row */}
+                  {overallDiscountValue > 0 && (
+                    <TableRow sx={{ backgroundColor: '#f0f8ff' }}>
+                      <TableCell colSpan={8} align="center">
+                        <Typography variant="caption" color="primary">
+                          <InfoIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
+                          Discount Distribution
+                        </Typography>
+                      </TableCell>
+                      <TableCell colSpan={9} align="left">
+                        <Box>
+                          <Typography variant="caption">
+                            Overall Discount Applied: ₹{overallDiscountValue} ({overallDiscountMode === 'percentage' ? '%' : 'amount'})
+                          </Typography>
+                          <br />
+                          <Typography variant="caption">
+                            Applied as: {overallDiscountMode === 'amount' ? 
+                              `${((overallDiscountValue / totalOriginalAmount) * 100 || 0).toFixed(2)}%` : 
+                              `${overallDiscountValue}%`} to each description
+                          </Typography>
+                          <br />
+                          <Typography variant="caption">
+                            Sum of distributed discounts: ₹{(serviceData.desc_overall_discounts?.reduce((a, b) => a + b, 0) || 0).toFixed(2)}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>

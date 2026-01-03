@@ -4,7 +4,7 @@ import axios from 'axios';
 import { RootState } from '@/redux/store';
 import { initialState, Service, ImportResult, PaginatedServiceResponse, PaginatedServiceSummary, ServiceSummary } from '../Models/Service';
 
-const API_BASE_URL = 'https://yenerp.com/purchasetestapi';
+const API_BASE_URL = 'https://yenerp.com/purchaseapi';
 
 // Async thunk to fetch paginated Service items
 export const fetchServiceItems = createAsyncThunk<

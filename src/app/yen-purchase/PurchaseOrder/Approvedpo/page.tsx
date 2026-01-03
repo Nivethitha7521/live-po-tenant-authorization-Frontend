@@ -551,18 +551,60 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                       : ''
                 }
               />
-              <TextField
-                label="Invoice Date"
-                type="date"
-                value={invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : getCurrentDate()}
-                onChange={(e) => setInvoiceDate(e.target.value ? new Date(e.target.value) : new Date())}
-                disabled={!selectedOrder?.orderDate}
-                inputProps={{
-                  min: getOrderDateMin(),
-                  max: getCurrentDate(),
-                }}
-                InputLabelProps={{ shrink: true }}
-              />
+            <TextField
+  label="Invoice Date"
+  type="date"
+  value={invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : getCurrentDate()}
+  onChange={(e) => {
+    const value = e.target.value;
+    if (!value) {
+      setInvoiceDate(new Date());
+      return;
+    }
+
+    const candidateDate = new Date(value);
+
+    // Parse the minimum allowed date (PO date)
+    const minDateStr = getOrderDateMin();
+    const minDate = parseLocalDate(minDateStr);
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+
+    // Only accept if valid and within range
+    if (
+      isValid(candidateDate) &&
+      (!minDate || candidateDate >= minDate) &&
+      candidateDate <= today
+    ) {
+      setInvoiceDate(candidateDate);
+    }
+    // Else: silently ignore invalid input (or show error)
+  }}
+  disabled={!selectedOrder?.orderDate}
+  inputProps={{
+    min: getOrderDateMin(),
+    max: getCurrentDate(),
+  }}
+  InputLabelProps={{ shrink: true }}
+  // Add error state
+  error={Boolean(
+    invoiceDate &&
+    (
+      (parseLocalDate(getOrderDateMin()) && invoiceDate < parseLocalDate(getOrderDateMin())!) ||
+      invoiceDate > new Date()
+    )
+  )}
+  helperText={
+    invoiceDate ? (
+      parseLocalDate(getOrderDateMin()) && invoiceDate < parseLocalDate(getOrderDateMin())!
+        ? "Invoice date cannot be before PO date"
+        : invoiceDate > new Date()
+          ? "Invoice date cannot be in the future"
+          : ""
+    ) : ""
+  }
+/>
               <TextField
                 label="GRN Date"
                 type="date"
@@ -1087,6 +1129,7 @@ const ApprovedPurchase: React.FC = () => {
       ),
     [calculatedItems]
   );
+
   useEffect(() => {
     if (selectedOrder) {
       setInvoiceNumber(selectedOrder.invoiceNo || "");
@@ -1169,6 +1212,7 @@ const ApprovedPurchase: React.FC = () => {
       setIsInvoiceDuplicate(false);
     }
   }, [invoiceNumber, purchaseinvoice, selectedOrder]);
+  
   const handleQuantityChange = useCallback(
     (itemId: string, field: "receivedQuantity", value: string | number) => {
       console.log("Quantity Change:", { itemId, field, value });
