@@ -235,6 +235,7 @@ export interface ApInvoiceState {
   currentPage: number;
   pageSize: number;
   totalItems: number;
+  totalPages: number;  // ADD THIS LINE - Total pages count
   apDialogOpen: boolean;
   // Status related properties
   statuses: string[];
@@ -266,6 +267,7 @@ export const initialState: ApInvoiceState = {
   currentPage: 1,
   pageSize: 50,
   totalItems: 0,
+  totalPages: 0,  // ADD THIS LINE - Initialize to 0
   apDialogOpen: false,
   // Status related initial state
   statuses: [],

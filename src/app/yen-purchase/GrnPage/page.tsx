@@ -121,6 +121,7 @@ const GrnPage = () => {
   const openHeaderSelect = Boolean(anchorEl);
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [minDate, setMinDate] = useState<Date | null>(null);
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVendorName, setSelectedVendorName] = useState('');
@@ -237,102 +238,102 @@ const GrnPage = () => {
       dispatch(setPagination({ page: newPage, size: pageSize }));
     dispatch(fetchGrns({ page: newPage, size: pageSize, status, vendorName: selectedVendorName || '' }));
   };
-const handleApRoundOffInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
-  // Update the input string
-  setApRoundOffInput(value);
-  // If empty, clear errors and reset value
-  if (value === '') {
-    setApRoundOff(0);
-    setApRoundOffError('');
-    return;
-  }
-  // Allow single minus, decimal, or minus with decimal
-  if (value === '-' || value === '.' || value === '-.') {
-    setApRoundOff(0);
-    setApRoundOffError('');
-    return;
-  }
-  // Remove spaces from input for validation
-  const cleanValue = value.replace(/\s/g, '');
-  // Allow decimal numbers with up to 2 decimal places
-  const decimalRegex = /^-?\d*\.?\d{0,2}$/;
-  // Check for proper format
-  if (decimalRegex.test(cleanValue)) {
-    const parsedValue = parseFloat(cleanValue);
-    // Check if it's a valid number
-    if (isNaN(parsedValue)) {
-      setApRoundOffError("Please enter a valid number");
+  const handleApRoundOffInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Update the input string
+    setApRoundOffInput(value);
+    // If empty, clear errors and reset value
+    if (value === '') {
       setApRoundOff(0);
+      setApRoundOffError('');
       return;
     }
-    // STRICT LIMITS: Only allow between -2 and +2
-    if (parsedValue > 2) {
-      setApRoundOffError("Maximum allowed is +2.00");
-      setApRoundOff(2);
-      setApRoundOffInput('2.00');
-    } else if (parsedValue < -2) {
-      setApRoundOffError("Minimum allowed is -2.00");
-      setApRoundOff(-2);
-      setApRoundOffInput('-2.00');
+    // Allow single minus, decimal, or minus with decimal
+    if (value === '-' || value === '.' || value === '-.') {
+      setApRoundOff(0);
+      setApRoundOffError('');
+      return;
+    }
+    // Remove spaces from input for validation
+    const cleanValue = value.replace(/\s/g, '');
+    // Allow decimal numbers with up to 2 decimal places
+    const decimalRegex = /^-?\d*\.?\d{0,2}$/;
+    // Check for proper format
+    if (decimalRegex.test(cleanValue)) {
+      const parsedValue = parseFloat(cleanValue);
+      // Check if it's a valid number
+      if (isNaN(parsedValue)) {
+        setApRoundOffError("Please enter a valid number");
+        setApRoundOff(0);
+        return;
+      }
+      // STRICT LIMITS: Only allow between -2 and +2
+      if (parsedValue > 2) {
+        setApRoundOffError("Maximum allowed is +2.00");
+        setApRoundOff(2);
+        setApRoundOffInput('2.00');
+      } else if (parsedValue < -2) {
+        setApRoundOffError("Minimum allowed is -2.00");
+        setApRoundOff(-2);
+        setApRoundOffInput('-2.00');
+      } else {
+        setApRoundOffError("");
+        setApRoundOff(parsedValue);
+      }
+      // Keep the input as typed (no auto-appending)
+      setApRoundOffInput(value);
+    } else {
+      setApRoundOffError("Enter numbers only between -2.00 and +2.00");
+      setApRoundOff(0);
+    }
+  }; // FIXED: handleApRoundOffBlur - properly handle and format on blur
+  const handleApRoundOffBlur = () => {
+    // If input is empty or just special characters, set to 0
+    if (apRoundOffInput === '' || apRoundOffInput === '-' || apRoundOffInput === '.' || apRoundOffInput === '-.') {
+      setApRoundOffInput('0');
+      setApRoundOff(0);
+      setApRoundOffError('');
+      return;
+    }
+    const parsedValue = parseFloat(apRoundOffInput);
+    // If not a valid number, reset
+    if (isNaN(parsedValue)) {
+      setApRoundOffInput('0');
+      setApRoundOff(0);
+      setApRoundOffError('Invalid number');
+      return;
+    }
+    // Validate within range
+    let currentValue = parsedValue;
+    if (currentValue > 2) {
+      currentValue = 2;
+      setApRoundOffError("Capped at +2.00");
+    } else if (currentValue < -2) {
+      currentValue = -2;
+      setApRoundOffError("Capped at -2.00");
     } else {
       setApRoundOffError("");
-      setApRoundOff(parsedValue);
     }
-    // Keep the input as typed (no auto-appending)
-    setApRoundOffInput(value);
-  } else {
-    setApRoundOffError("Enter numbers only between -2.00 and +2.00");
-    setApRoundOff(0);
-  }
-}; // FIXED: handleApRoundOffBlur - properly handle and format on blur
-const handleApRoundOffBlur = () => {
-  // If input is empty or just special characters, set to 0
-  if (apRoundOffInput === '' || apRoundOffInput === '-' || apRoundOffInput === '.' || apRoundOffInput === '-.') {
-    setApRoundOffInput('0');
-    setApRoundOff(0);
-    setApRoundOffError('');
-    return;
-  }
-  const parsedValue = parseFloat(apRoundOffInput);
-  // If not a valid number, reset
-  if (isNaN(parsedValue)) {
-    setApRoundOffInput('0');
-    setApRoundOff(0);
-    setApRoundOffError('Invalid number');
-    return;
-  }
-  // Validate within range
-  let currentValue = parsedValue;
-  if (currentValue > 2) {
-    currentValue = 2;
-    setApRoundOffError("Capped at +2.00");
-  } else if (currentValue < -2) {
-    currentValue = -2;
-    setApRoundOffError("Capped at -2.00");
-  } else {
-    setApRoundOffError("");
-  }
-  // Calculate the total with freight (if freight is applied in GRN)
-  const totalReceivedAmount = selectedGrn?.grnAmount || 0;
-  const totalFreight = selectedGrn?.totalFreightAmount || 0;
-  const totalFreightTax = selectedGrn?.totalFreightTaxAmount || 0;
-  // Total before AP round off (GRN amount + freight + freight tax)
-  const totalBeforeRoundOff = totalReceivedAmount + totalFreight + totalFreightTax;
-  // Calculate final total with AP round off
-  const finalTotal = totalBeforeRoundOff + currentValue;
-  // Check if final total would be negative
-  if (finalTotal < 0) {
-    setApRoundOffError(`Cannot make total negative. Maximum allowed: -${Math.min(totalBeforeRoundOff, 2).toFixed(2)}`);
-    const maxNegativeAllowed = -Math.min(totalBeforeRoundOff, 2);
-    setApRoundOffInput(maxNegativeAllowed.toString());
-    setApRoundOff(maxNegativeAllowed);
-    return;
-  }
-  // Keep the input as typed (no formatting to 2 decimals)
-  setApRoundOffInput(apRoundOffInput);
-  setApRoundOff(currentValue);
-};
+    // Calculate the total with freight (if freight is applied in GRN)
+    const totalReceivedAmount = selectedGrn?.grnAmount || 0;
+    const totalFreight = selectedGrn?.totalFreightAmount || 0;
+    const totalFreightTax = selectedGrn?.totalFreightTaxAmount || 0;
+    // Total before AP round off (GRN amount + freight + freight tax)
+    const totalBeforeRoundOff = totalReceivedAmount + totalFreight + totalFreightTax;
+    // Calculate final total with AP round off
+    const finalTotal = totalBeforeRoundOff + currentValue;
+    // Check if final total would be negative
+    if (finalTotal < 0) {
+      setApRoundOffError(`Cannot make total negative. Maximum allowed: -${Math.min(totalBeforeRoundOff, 2).toFixed(2)}`);
+      const maxNegativeAllowed = -Math.min(totalBeforeRoundOff, 2);
+      setApRoundOffInput(maxNegativeAllowed.toString());
+      setApRoundOff(maxNegativeAllowed);
+      return;
+    }
+    // Keep the input as typed (no formatting to 2 decimals)
+    setApRoundOffInput(apRoundOffInput);
+    setApRoundOff(currentValue);
+  };
   const handleNextPage = () => {
     if (currentPage * pageSize) {
       handlePageChange(currentPage + 1);
@@ -384,17 +385,30 @@ const handleApRoundOffBlur = () => {
       }
     }
   }, [selectedGrn]);
-  // Function to handle opening the invoice edit dialog
   const handleEditInvoice = (grnId: string) => {
     console.log(`GRN ID Clicked for Editing Invoice: ${grnId}`);
-    const selectedGrn = grns.find(grn => grn.grnId === grnId); // Assume grns is available in scope
+    const selectedGrn = grns.find(grn => grn.grnId === grnId);
+
     if (selectedGrn) {
       // Set invoice details from selected GRN
-      setInvoiceNo(selectedGrn.invoiceNo || ''); // Set Invoice No
-      setInvoiceDate(selectedGrn.invoiceDate ? new Date(selectedGrn.invoiceDate) : null); // Ensure proper Date object handling
-      setSelectedGrnId(grnId); // Store selected GRN ID
-      setInvoiceOpen(true); // Open the dialog
-      dispatch(setSelectedGrnId(grnId)); // Optionally dispatch to the store if needed
+      setInvoiceNo(selectedGrn.invoiceNo || '');
+
+      // Set invoice date with proper handling
+      const initialInvoiceDate = selectedGrn.invoiceDate
+        ? new Date(selectedGrn.invoiceDate)
+        : null;
+      setInvoiceDate(initialInvoiceDate);
+
+      // Set minimum date based on PO date (or GRN date as fallback)
+      let poDate = selectedGrn.poDate ? new Date(selectedGrn.poDate) : null;
+      if (!poDate && selectedGrn.grnDate) {
+        poDate = new Date(selectedGrn.grnDate);
+      }
+      setMinDate(poDate);
+
+      // Store selected GRN ID
+      setSelectedGrnId(grnId);
+      setInvoiceOpen(true);
     } else {
       console.error(`GRN with ID ${grnId} not found`);
     }
@@ -770,72 +784,72 @@ const handleApRoundOffBlur = () => {
     });
   };
   const handleSaveAll = async () => {
-  if (!selectedGrnId) {
-    setErrorMessage('No GRN selected to save.');
-    setLoading(false);
-    return;
-  }
-  // Validate AP Round Off before saving
-  if (apRoundOffError) {
-    setSnackbarMessage('Please fix AP Round Off errors before saving.');
-    setSnackbarOpen(true);
-    return;
-  }
-  // Additional validation
-  if (apRoundOff < -2 || apRoundOff > 2) {
-    setSnackbarMessage('AP Round Off must be between -2.00 and +2.00');
-    setSnackbarOpen(true);
-    return;
-  }
-  const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
-    itemId,
-    befTaxDiscount: itemData.befTaxDiscount,
-    afTaxDiscount: itemData.afTaxDiscount,
-    expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
-  }));
-  const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
-  const outgoingDateValue = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
-  // Use the parsed number directly without toFixed (passes exact value as typed, parsed to float)
-  const payload = {
-    grnId: selectedGrnId,
-    apRoundOff: apRoundOff, // Exact parsed value (e.g., 0.3 if typed 0.3)
-    itemUpdates,
-    apInvoiceDate: apInvoiceDateValue,
-    outgoingDate: outgoingDateValue,
-  };
-  console.log('Payload for save (AP Round Off):', payload.apRoundOff);
-  try {
-    setLoading(true);
-    const resultAction = await dispatch(updateItemDetails(payload));
-    if (updateItemDetails.fulfilled.match(resultAction)) {
-      setErrorMessage(null);
-      setDialogueViewOpen(false);
-      setIsConvertedToAP(true);
-      setSnackbarMessage('GRN successfully converted to AP and Outgoing.');
-      setSnackbarOpen(true);
-      dispatch(
-        fetchGrns({
-          page: newPage,
-          size: pageSize,
-        })
-      );
-      // Reset AP round off input after successful save
-      setApRoundOffInput('');
-      setApRoundOff(0);
-    } else {
-      const errorMessage = resultAction.payload || 'Please try again.';
-      setErrorMessage('Error converting GRN: ' + errorMessage);
-      setSnackbarMessage('Failed to convert GRN: ' + errorMessage);
-      setSnackbarOpen(true);
+    if (!selectedGrnId) {
+      setErrorMessage('No GRN selected to save.');
+      setLoading(false);
+      return;
     }
-  } catch (error) {
-    setErrorMessage('Error converting GRN. Please try again.');
-    setSnackbarMessage('Failed to convert GRN. Please try again.');
-    setSnackbarOpen(true);
-  } finally {
-    setLoading(false);
-  }
-};
+    // Validate AP Round Off before saving
+    if (apRoundOffError) {
+      setSnackbarMessage('Please fix AP Round Off errors before saving.');
+      setSnackbarOpen(true);
+      return;
+    }
+    // Additional validation
+    if (apRoundOff < -2 || apRoundOff > 2) {
+      setSnackbarMessage('AP Round Off must be between -2.00 and +2.00');
+      setSnackbarOpen(true);
+      return;
+    }
+    const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
+      itemId,
+      befTaxDiscount: itemData.befTaxDiscount,
+      afTaxDiscount: itemData.afTaxDiscount,
+      expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
+    }));
+    const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
+    const outgoingDateValue = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
+    // Use the parsed number directly without toFixed (passes exact value as typed, parsed to float)
+    const payload = {
+      grnId: selectedGrnId,
+      apRoundOff: apRoundOff, // Exact parsed value (e.g., 0.3 if typed 0.3)
+      itemUpdates,
+      apInvoiceDate: apInvoiceDateValue,
+      outgoingDate: outgoingDateValue,
+    };
+    console.log('Payload for save (AP Round Off):', payload.apRoundOff);
+    try {
+      setLoading(true);
+      const resultAction = await dispatch(updateItemDetails(payload));
+      if (updateItemDetails.fulfilled.match(resultAction)) {
+        setErrorMessage(null);
+        setDialogueViewOpen(false);
+        setIsConvertedToAP(true);
+        setSnackbarMessage('GRN successfully converted to AP and Outgoing.');
+        setSnackbarOpen(true);
+        dispatch(
+          fetchGrns({
+            page: newPage,
+            size: pageSize,
+          })
+        );
+        // Reset AP round off input after successful save
+        setApRoundOffInput('');
+        setApRoundOff(0);
+      } else {
+        const errorMessage = resultAction.payload || 'Please try again.';
+        setErrorMessage('Error converting GRN: ' + errorMessage);
+        setSnackbarMessage('Failed to convert GRN: ' + errorMessage);
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      setErrorMessage('Error converting GRN. Please try again.');
+      setSnackbarMessage('Failed to convert GRN. Please try again.');
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleRevertToPO = async (grnId: string) => {
     if (!grnId) {
       setSnackbarMessage('No GRN selected for reversion.');
@@ -883,6 +897,7 @@ const handleApRoundOffBlur = () => {
   const handleGrnSelect = (grnId: string) => {
     dispatch(setSelectedGrnId(grnId));
     const selectedGrn = grns.find((grn) => grn.grnId === grnId);
+
     if (selectedGrn && selectedGrn.itemDetails) {
       // Initialize editedItems with all items from the selected GRN
       const initialEditedItems = selectedGrn.itemDetails.reduce(
@@ -917,10 +932,19 @@ const handleApRoundOffBlur = () => {
         {}
       );
       setEditedItems(initialEditedItems);
+
       // Set apInvoiceDate and outgoingDate to current date if not set
-      setApInvoiceDate(new Date()); // Current date for AP Invoice
+      setApInvoiceDate(new Date());
       setOutgoingDate(new Date());
+
+      // Set minimum date based on PO date (or GRN date as fallback)
+      let poDate = selectedGrn.poDate ? new Date(selectedGrn.poDate) : null;
+      if (!poDate && selectedGrn.grnDate) {
+        poDate = new Date(selectedGrn.grnDate);
+      }
+      setMinDate(poDate);
     }
+
     setDialogueViewOpen(true);
   };
   const handleVerify = () => {
@@ -2093,17 +2117,18 @@ const handleApRoundOffBlur = () => {
               onChange={(e) => setInvoiceNo(e.target.value)}
               fullWidth
             />
-            <TextField
-              label="Invoice Date"
-              type="date"
-              value={invoiceDate ? invoiceDate.toLocaleDateString('en-CA') : ''} // Ensure the format is YYYY-MM-DD
-              onChange={(e) => {
-                const selectedDate = e.target.value;
-                setInvoiceDate(selectedDate ? new Date(selectedDate) : null); // Convert string back to Date or set to null
-              }}
-              fullWidth
-              sx={{ marginTop: 2 }}
-            />
+
+            {/* Replace the TextField with SmartDatePicker */}
+            <Box sx={{ mt: 2 }}>
+              <SmartDatePicker
+                label="Invoice Date"
+                value={invoiceDate}
+                onChange={setInvoiceDate}
+                minDate={minDate || undefined} // Minimum date is PO date
+                maxDate={new Date()} // Maximum date is today
+                disabled={false} // Enable editing
+              />
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setInvoiceOpen(false)} variant='contained' color="primary">Cancel</Button>

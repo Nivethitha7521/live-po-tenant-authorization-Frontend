@@ -5,6 +5,7 @@ import {
   Box, TextField, Button, Typography, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
   Autocomplete, Snackbar, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, RadioGroup,
   FormControlLabel, Radio, CircularProgress, Tooltip, Backdrop, Switch, FormControl, Select, MenuItem,
+  FormLabel,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -78,6 +79,7 @@ const formatDateForDisplay = (dateStr: string | null | undefined): string => {
     return 'N/A';
   }
 };
+
 // Simple unique ID generator
 const generateUniqueId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -231,6 +233,10 @@ const CreateServicePage: React.FC = () => {
   const [overallDiscountAppliedOn, setOverallDiscountAppliedOn] = useState<'before_tax' | 'after_tax'>('after_tax');
   const [roundOffValue, setRoundOffValue] = useState<number>(0);
 
+  // Description-wise discount states
+  const [descriptionDiscountMode, setDescriptionDiscountMode] = useState<'percentage' | 'amount'>('percentage');
+  const [descriptionDiscountAppliedOn, setDescriptionDiscountAppliedOn] = useState<'before_tax' | 'after_tax'>('before_tax');
+
   // UI states
   const descriptionRef = useRef<HTMLInputElement | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -303,41 +309,6 @@ const CreateServicePage: React.FC = () => {
     }
 
     try {
-      // Calculate local totals first for immediate UI update
-      let subTotal = 0;
-      let taxAmount = 0;
-      let discountAmount = 0;
-
-      descriptions.forEach(desc => {
-        const fee = desc.fee || 0;
-        const taxPercent = desc.tax_per || 0;
-
-        // Calculate taxable base from total including tax
-        let taxableBase = fee;
-        if (fee > 0 && taxPercent > 0) {
-          const taxRate = taxPercent / 100;
-          taxableBase = fee / (1 + taxRate);
-        }
-
-        subTotal += taxableBase;
-        taxAmount += (taxableBase * taxPercent) / 100;
-        discountAmount += desc.discountAmount || 0;
-      });
-
-      const localTotals = {
-        subTotal: Number(subTotal.toFixed(2)),
-        taxAmount: Number(taxAmount.toFixed(2)),
-        overallDiscountAmount: Number(discountAmount.toFixed(2)),
-        afterDiscount: Number((subTotal - discountAmount).toFixed(2)),
-        freightAmountTotal: Number(freightSubTotal.toFixed(2)),
-        freightTaxTotal: Number(freightTaxTotal.toFixed(2)),
-        roundedTotalTax: Number((taxAmount + freightTaxTotal).toFixed(2)),
-        roundedTotalDiscount: Number(discountAmount.toFixed(2)),
-        roundedTotalOrderAmount: Number((subTotal - discountAmount + taxAmount + freightGrandTotal).toFixed(2))
-      };
-
-      setTotals(localTotals);
-
       // Call backend for complex calculations
       const request: ServiceTotalsRequest = {
         descriptions: descriptions.map(desc => ({
@@ -401,7 +372,6 @@ const CreateServicePage: React.FC = () => {
     overallDiscountAppliedOn,
     roundOffValue,
     dispatch,
-    freightGrandTotal,
     freightSubTotal,
     freightTaxTotal,
     serviceData,
@@ -759,6 +729,41 @@ const CreateServicePage: React.FC = () => {
     }
   }, [dispatch, newDescription]);
 
+  // Description discount change handlers
+  const handleDescriptionDiscountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    if (name === 'discount_percentage' || name === 'discount_amount') {
+      // Clear the other discount field when one is entered
+      const updates: any = { 
+        [name]: value === '' ? 0 : parseFloat(value) || 0 
+      };
+      
+      if (name === 'discount_percentage') {
+        updates.discount_amount = 0;
+      } else {
+        updates.discount_percentage = 0;
+      }
+      
+      dispatch(setNewDescriptionData({
+        ...newDescription,
+        ...updates
+      }));
+    }
+  }, [dispatch, newDescription]);
+
+  // Description discount type change
+  const handleDescriptionDiscountTypeChange = useCallback((mode: 'percentage' | 'amount') => {
+    setDescriptionDiscountMode(mode);
+    
+    // Clear discount values when switching mode
+    dispatch(setNewDescriptionData({
+      ...newDescription,
+      discount_percentage: 0,
+      discount_amount: 0
+    }));
+  }, [dispatch, newDescription]);
+
   const handleDescriptionDateChange = useCallback((name: 'from_date' | 'to_date', date: Date | null) => {
     dispatch(setNewDescriptionData({
       ...newDescription,
@@ -804,7 +809,8 @@ const CreateServicePage: React.FC = () => {
         taxType: newDescription.tax_type,
         taxPer: newDescription.tax_per || 0,
         sacCode: newDescription.sacCode || '',
-        discount: 0,
+        discount: newDescription.discount_amount || 0,
+        discount_percentage: newDescription.discount_percentage || 0,
         quantity: newDescription.quantity || 1,
         remarks: newDescription.remarks || '',
       };
@@ -826,13 +832,13 @@ const CreateServicePage: React.FC = () => {
         igst: calcResult.igst || 0,
         total: calcResult.total || 0,
         taxAmount: calcResult.totalTax || 0,
-        totalFee: calcResult.fee || 0,
-        finalFee: calcResult.fee || 0,
-        discountAmount: 0,
-        discount_percentage: 0,
-        discount_amount: 0,
+        totalFee: calcResult.baseAmount || 0,
+        finalFee: calcResult.total || 0,
+        discountAmount: newDescription.discount_amount || 0,
+        discount_percentage: newDescription.discount_percentage || 0,
+        discount_amount: newDescription.discount_amount || 0,
         remarks: newDescription.remarks || '',
-        base_amount: newDescription.base_amount,
+        base_amount: calcResult.baseAmount || 0,
       };
 
       if (isCurrentlyEditing && editingIndex !== undefined) {
@@ -914,6 +920,14 @@ const CreateServicePage: React.FC = () => {
         const service = servicesList.find(s => s.saccode.toString() === desc.sacCode);
         setSelectedService(service || null);
       }
+      
+      // Set description discount mode based on what's present
+      if (desc.discount_percentage && desc.discount_percentage > 0) {
+        setDescriptionDiscountMode('percentage');
+      } else if (desc.discount_amount && desc.discount_amount > 0) {
+        setDescriptionDiscountMode('amount');
+      }
+      
       dispatch(setDescriptionForEditing({
         ...desc,
         index: index
@@ -1096,6 +1110,8 @@ const CreateServicePage: React.FC = () => {
       totalFee: 0,
       finalFee: 0,
       discountAmount: 0,
+      discount_percentage: 0,
+      discount_amount: 0,
       quantity: 1,
       remarks: '',
     }));
@@ -1345,19 +1361,19 @@ const CreateServicePage: React.FC = () => {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
       {/* Main Content */}
       <Box sx={{ flex: 1, p: 3, overflowY: 'auto', maxHeight: 'calc(100vh - 64px)' }}>
-      <Box sx={{
-  width: '100%',
-  maxWidth: {
-    xs: '100%',      // Mobile: full
-    sm: '100%',      // Tablets: full with padding
-    md: '1200px',    // Laptops (1366-1600px): comfortable fixed width
-    lg: '1400px',    // Large monitors: more space
-    xl: '1600px',    // XXL monitors (1920px+): max readable width
-  },
-  mx: 'auto',        // Centered
-  px: { xs: 2, sm: 3, md: 4 },  // Generous side padding on big screens
-  py: 3,
-}}>
+        <Box sx={{
+          width: '100%',
+          maxWidth: {
+            xs: '100%',
+            sm: '100%',
+            md: '1200px',
+            lg: '1400px',
+            xl: '1600px',
+          },
+          mx: 'auto',
+          px: { xs: 2, sm: 3, md: 4 },
+          py: 3,
+        }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Button variant="contained" color="primary" onClick={handleBackToService}>
               Back to Service Orders
@@ -1652,6 +1668,76 @@ const CreateServicePage: React.FC = () => {
                     <FormControlLabel value="cgst_sgst" control={<Radio size="small" />} label="CGST/SGST" />
                   </RadioGroup>
                 </Box>
+              </Grid>
+
+              {/* Description Discount Type */}
+              <Grid item xs={12} sm={2}>
+                <FormControl component="fieldset" size="small">
+                  <FormLabel component="legend">Discount Type</FormLabel>
+                  <RadioGroup
+                    row
+                    value={descriptionDiscountMode}
+                    onChange={(e) => handleDescriptionDiscountTypeChange(e.target.value as 'percentage' | 'amount')}
+                  >
+                    <FormControlLabel value="percentage" control={<Radio size="small" />} label="%" />
+                    <FormControlLabel value="amount" control={<Radio size="small" />} label="₹" />
+                  </RadioGroup>
+                </FormControl>
+              </Grid>
+
+              {/* Description Discount Fields */}
+              {descriptionDiscountMode === 'percentage' ? (
+                <Grid item xs={12} sm={1.5}>
+                  <TextField
+                    fullWidth
+                    label="Disc %"
+                    name="discount_percentage"
+                    type="number"
+                    value={newDescription.discount_percentage || ''}
+                    onChange={handleDescriptionDiscountChange}
+                    size="small"
+                    inputProps={{ 
+                      min: 0, 
+                      max: 100, 
+                      step: '0.01' 
+                    }}
+                    autoComplete="off"
+                    disabled={!!newDescription.discount_amount && newDescription.discount_amount > 0}
+                  />
+                </Grid>
+              ) : (
+                <Grid item xs={12} sm={1.5}>
+                  <TextField
+                    fullWidth
+                    label="Disc Amt (₹)"
+                    name="discount_amount"
+                    type="number"
+                    value={newDescription.discount_amount || ''}
+                    onChange={handleDescriptionDiscountChange}
+                    size="small"
+                    inputProps={{ 
+                      min: 0, 
+                      step: '0.01' 
+                    }}
+                    autoComplete="off"
+                    disabled={!!newDescription.discount_percentage && newDescription.discount_percentage > 0}
+                  />
+                </Grid>
+              )}
+
+              {/* Description Discount Applied On */}
+              <Grid item xs={12} sm={2}>
+                <FormControl component="fieldset" size="small">
+                  <FormLabel component="legend">Discount Applied On</FormLabel>
+                  <RadioGroup
+                    row
+                    value={descriptionDiscountAppliedOn}
+                    onChange={(e) => setDescriptionDiscountAppliedOn(e.target.value as 'before_tax' | 'after_tax')}
+                  >
+                    <FormControlLabel value="before_tax" control={<Radio size="small" />} label="Before Tax" />
+                    <FormControlLabel value="after_tax" control={<Radio size="small" />} label="On Total" />
+                  </RadioGroup>
+                </FormControl>
               </Grid>
 
               {/* Action Buttons */}

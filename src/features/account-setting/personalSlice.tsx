@@ -23,7 +23,7 @@ export const updatePersonal = createAsyncThunk<Personal, Personal>('personals/up
 });
 
 // Create slice for Personal slice
-const personalSlice = createSlice({
+const personalSlice = createSlice({ 
   name: 'personals',
   initialState,
   reducers: {

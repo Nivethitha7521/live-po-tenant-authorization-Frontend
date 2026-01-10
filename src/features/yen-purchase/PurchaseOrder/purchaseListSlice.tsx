@@ -612,9 +612,15 @@ const purchaseListSlice = createSlice({
         }
       }
     },
+    resetRandomIds: (state) => {
+      state.randomIds = [];
+      state.hasMore = true;
+      state.searchQuery = '';
+    },
     resetPurchaseOrderState: (state) => {
       return { ...initialState, previousSearches: state.previousSearches };
     },
+    
     setPoDialogOpen: (state, action) => {
       state.poDialogOpen = action.payload;
     },
@@ -869,36 +875,32 @@ const purchaseListSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch purchase orders';
       })
-      .addCase(fetchPurchaseOrderRandomIds.pending, (state) => {
+           .addCase(fetchPurchaseOrderRandomIds.pending, (state) => {
         state.error = null;
       })
       .addCase(fetchPurchaseOrderRandomIds.fulfilled, (state, action) => {
         const { data, skip, query } = action.payload;
 
-        // Only update if the current query matches the response query
-        // This prevents race conditions with multiple requests
-        if (query === state.searchQuery) {
-          // If we're loading the first page (skip=0), replace the list
-          // Otherwise, append the new items
-          if (skip === 0) {
-            state.randomIds = data;
-          } else {
-            // Append new items, avoiding duplicates by ID
-            const existingIds = new Set(state.randomIds.map(item => item.purchaseOrderId));
-            const newItems = data.filter(item => !existingIds.has(item.purchaseOrderId));
-            state.randomIds = [...state.randomIds, ...newItems];
-          }
+        state.loading = false;
+        state.searchQuery = query; // Store the current search query
 
-          // Update pagination state
-          state.hasMore = data.length >= LIMIT;
-          state.page = Math.floor(state.randomIds.length / LIMIT);
+        // If this is the first page (skip=0), replace all items
+        if (skip === 0) {
+          state.randomIds = data;
+        } else {
+          // Otherwise, append new items, avoiding duplicates
+          const existingIds = new Set(state.randomIds.map(item => item.purchaseOrderId));
+          const newItems = data.filter(item => !existingIds.has(item.purchaseOrderId));
+          state.randomIds = [...state.randomIds, ...newItems];
         }
 
-        state.loading = false;
+        // Update hasMore - if we got fewer items than LIMIT, no more items
+        state.hasMore = data.length >= LIMIT;
       })
       .addCase(fetchPurchaseOrderRandomIds.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        state.hasMore = false;
       })
      .addCase(fetchPoById.fulfilled, (state, action) => {
         state.loading = false;
@@ -919,7 +921,7 @@ const purchaseListSlice = createSlice({
   },
 });
 
-export const { setSearchQueryItem, setRandomQueryItem, resetPurchaseOrderState, setSelectedOrder, setOrderImageUrls, setPoRandomIds, clearSelectedOrder, setPagination, clearSnackbarMessage, addGrn, updateInvoiceDetails, setImageUrls,setPoDialogOpen,setSelectedPo
+export const { setSearchQueryItem, setRandomQueryItem, resetPurchaseOrderState, setSelectedOrder, setOrderImageUrls, setPoRandomIds, clearSelectedOrder,resetRandomIds,setPagination, clearSnackbarMessage, addGrn, updateInvoiceDetails, setImageUrls,setPoDialogOpen,setSelectedPo
 } = purchaseListSlice.actions;
 
 export const selectOrderImages = (purchaseOrderId: string) => (state: RootState) =>
