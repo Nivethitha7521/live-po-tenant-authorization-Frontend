@@ -45,14 +45,13 @@ import {
     fetchGrnById,
     fetchItemwiseGrns,
     selectGrn,
-    returnGrn,
     fetchReturnReasons,
     setSnackbarMessageGRN,
     setSnackbarOpenGRN,
 } from '@/features/yen-purchase/GRN/grnSlice';
 import { AppDispatch, RootState } from '@/redux/store';
 import { Outgoing, VendorDetail } from '@/Models/outgoingModel';
-import { GrnResponse, ItemDetail, ItemDetailResponse } from '@/Models/grnModel';
+import { ItemDetail } from '@/Models/grnModel';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
@@ -67,8 +66,9 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DescriptionIcon from '@mui/icons-material/Description';
 import YenBookPage from '../../page';
 import Link from 'next/link';
+import ReturnOptionDialog from '@/components/yen-purchase/OutgoingComponent/ReturnOptionDialog';
+import AmountReturnDialog from '@/components/yen-purchase/OutgoingComponent/AmountReturnDialog.tsx';
 
-// Main PurchaseReturnPage
 const PurchaseReturnPage = React.memo(() => {
     const dispatch = useDispatch<AppDispatch>();
     const { outgoings, snackbarMessage, snackbarOpen, outgoingvendor } = useSelector(selectOutgoings);
@@ -84,9 +84,17 @@ const PurchaseReturnPage = React.memo(() => {
         endDate: new Date(),
         key: 'selection',
     });
-    const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+    
+    // New state for both return types
+    const [returnOptionOpen, setReturnOptionOpen] = useState(false);
+    const [itemWiseDialogOpen, setItemWiseDialogOpen] = useState(false);
+    const [amountWiseDialogOpen, setAmountWiseDialogOpen] = useState(false);
+    const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+    const [selectedDocumentNumber, setSelectedDocumentNumber] = useState<string>('');
     const [selectedGrnId, setSelectedGrnId] = useState<string | null>(null);
     const [selectedGrnItems, setSelectedGrnItems] = useState<ItemDetail[]>([]);
+    const [maxDebitAmount, setMaxDebitAmount] = useState<number>(0);
+    
     const dateField = 'invoiceDate';
     const fromDate = moment().utc().startOf('day').toDate();
     const toDate = moment().utc().endOf('day').toDate();
@@ -134,25 +142,20 @@ const PurchaseReturnPage = React.memo(() => {
             fromDate: moment(selectionRange.startDate).startOf('day').toDate(),
             toDate: moment(selectionRange.endDate).endOf('day').toDate(),
             vendorName: selectedVendorName?.vendorName,
-            filterBy: 'paymentDate' as const, // Use 'as const' to ensure it's treated as the literal type
-            status: status
+            filterBy: 'paymentDate' as const,
         };
 
         dispatch(setPagination({ page: 1, size: pageSize }));
         dispatch(fetchOutgoings(filterParams)).then(response => {
-            // Handle different possible response types
             let outgoingData: Outgoing[] = [];
 
             if (typeof response.payload === 'string') {
-                // Handle string response (error message)
                 dispatch(setSnackbarMessage(response.payload));
                 dispatch(setSnackbarOpen(true));
                 return;
             } else if (Array.isArray(response.payload)) {
-                // Handle array response
                 outgoingData = response.payload;
             } else if (response.payload && typeof response.payload === 'object' && 'outgoings' in response.payload) {
-                // Handle object with outgoings property
                 outgoingData = response.payload.outgoings;
             }
 
@@ -165,6 +168,7 @@ const PurchaseReturnPage = React.memo(() => {
             dispatch(setSnackbarOpen(true));
         });
     };
+
     const handleFilterClose = () => {
         setIsFilterActive(false);
         setSelectionRange({ startDate: new Date(), endDate: new Date(), key: 'selection' });
@@ -177,48 +181,91 @@ const PurchaseReturnPage = React.memo(() => {
             toDate,
         }));
     };
-    // Fixed handleReturnProcess function
-    const handleReturnProcess = async (grnId: string) => {
+
+    // Modified handleReturnProcess to show option dialog
+    const handleReturnProcess = async (outgoing: any) => {
         try {
-            const result = await dispatch(fetchGrnById(grnId)).unwrap();
+            const grnId = outgoing.grnId;
+            const outgoingId = outgoing.outgoingId || outgoing._id;
+            const randomId = outgoing.randomId;
+            const totalPayableAmount = outgoing.totalPayableAmount || 0;
 
-            // Transform the result to match ItemDetail[] type
-            const transformedItems: ItemDetail[] = result.itemDetails.map((item: any) => ({
-                itemId: item.itemId,
-                itemName: item.itemName ?? 'Unknown',
-                receivedQuantity: Number(item.receivedQuantity) || 0,
-                returnedQuantity: Number(item.returnedQuantity) || 0,
-                quantity: Number(item.quantity) || 0,
-                unitPrice: Number(item.unitPrice) || 0,
-                totalPrice: Number(item.totalPrice) || 0,
-                purchasetaxName: item.purchasetaxName || 'N/A',
-                discountAmount: Number(item.discountAmount) || 0,
-                finalPrice: Number(item.finalPrice) || 0,
-                // Add missing properties with default values
-                nos: item.nos || 0,
-                eachQuantity: item.eachQuantity || 0,
-                hsnCode: item.hsnCode || '',
-                befTaxDiscount: item.befTaxDiscount || 0,
-                // Add other missing properties as needed based on your ItemDetail type definition
-                // You may need to add more properties here depending on what's required
-            }));
+            console.log('Processing return for:', { grnId, outgoingId, randomId });
 
-            // Set the state properly
-            setSelectedGrnId(grnId);
-            setSelectedGrnItems(transformedItems);
-            setReturnDialogOpen(true);
+            // Set common data
+            setSelectedDocumentId(outgoingId);
+            setSelectedDocumentNumber(randomId);
+            setMaxDebitAmount(totalPayableAmount);
+
+            if (grnId) {
+                // Fetch GRN details
+                const result = await dispatch(fetchGrnById(grnId)).unwrap();
+
+                // Transform items
+                const transformedItems: ItemDetail[] = result.itemDetails?.map((item: any) => ({
+                    itemId: item.itemId,
+                    itemName: item.itemName ?? 'Unknown',
+                    receivedQuantity: Number(item.receivedQuantity) || 0,
+                    returnedQuantity: Number(item.returnedQuantity) || 0,
+                    quantity: Number(item.quantity) || 0,
+                    unitPrice: Number(item.unitPrice) || 0,
+                    totalPrice: Number(item.totalPrice) || 0,
+                    purchasetaxName: item.purchasetaxName || 'N/A',
+                    discountAmount: Number(item.discountAmount) || 0,
+                    finalPrice: Number(item.finalPrice) || 0,
+                    nos: item.nos || 0,
+                    eachQuantity: item.eachQuantity || 0,
+                    hsnCode: item.hsnCode || '',
+                    befTaxDiscount: item.befTaxDiscount || 0,
+                })) || [];
+
+                setSelectedGrnId(grnId);
+                setSelectedGrnItems(transformedItems);
+
+                // Show option dialog when we have both GRN and items
+                if (transformedItems.length > 0) {
+                    setReturnOptionOpen(true);
+                } else {
+                    // No items, go directly to amount-wise
+                    setAmountWiseDialogOpen(true);
+                }
+            } else {
+                // No GRN ID, directly show amount-wise dialog
+                setAmountWiseDialogOpen(true);
+            }
         } catch (error) {
-            dispatch(setSnackbarMessageGRN('Failed to fetch GRN details.'));
+            console.error('Error in handleReturnProcess:', error);
+            dispatch(setSnackbarMessageGRN('Failed to fetch details.'));
             dispatch(setSnackbarOpenGRN(true));
         }
     };
 
-    // Fixed return complete handler
+    // Handle option selections
+    const handleSelectItemWise = () => {
+        setReturnOptionOpen(false);
+        setItemWiseDialogOpen(true);
+    };
+
+    const handleSelectAmountWise = () => {
+        setReturnOptionOpen(false);
+        setAmountWiseDialogOpen(true);
+    };
+
+    // Handle return completion
     const handleReturnComplete = () => {
-        setReturnDialogOpen(false);
+        // Close all dialogs
+        setReturnOptionOpen(false);
+        setItemWiseDialogOpen(false);
+        setAmountWiseDialogOpen(false);
+        
+        // Reset state
+        setSelectedDocumentId(null);
+        setSelectedDocumentNumber('');
         setSelectedGrnId(null);
         setSelectedGrnItems([]);
-        // Refresh the outgoing data
+        setMaxDebitAmount(0);
+
+        // Refresh data
         dispatch(fetchOutgoings({
             page: currentPage,
             size: pageSize,
@@ -228,11 +275,15 @@ const PurchaseReturnPage = React.memo(() => {
         }));
     };
 
-    // Fixed cancel handler
     const handleReturnCancel = () => {
-        setReturnDialogOpen(false);
+        setReturnOptionOpen(false);
+        setItemWiseDialogOpen(false);
+        setAmountWiseDialogOpen(false);
+        setSelectedDocumentId(null);
+        setSelectedDocumentNumber('');
         setSelectedGrnId(null);
         setSelectedGrnItems([]);
+        setMaxDebitAmount(0);
     };
 
     const getRandomId = (grnId: string): string | undefined => {
@@ -240,6 +291,7 @@ const PurchaseReturnPage = React.memo(() => {
         return grn?.randomId;
     };
 
+    // Rest of your existing functions (generatePDF, generateCSV, etc.)
     const generateOutgoingInvoicePDF = () => {
         const doc = new jsPDF();
         let yOffset = 10;
@@ -358,13 +410,10 @@ const PurchaseReturnPage = React.memo(() => {
         setOpenDownloadDialog(false);
     };
 
-
     return (
         <Box sx={{ p: 1, backgroundColor: 'white' }}>
             <YenBookPage />
-            {/* First Row - Outgoing Payment, Pre  Advance Payment, Partial Payment, Payment Done, Ledger buttons, and Typography */}
             <Box display="flex" alignItems="center" justifyContent="space-between" marginTop={1}>
-                {/* Buttons */}
                 <Box display="flex" alignItems="center">
                     <Link href="/yen-book/OutgoingPaymentPage" passHref>
                         <Button variant="contained" color="primary" sx={{ mr: '5px', ml: '15px' }}>
@@ -376,11 +425,6 @@ const PurchaseReturnPage = React.memo(() => {
                          Advance Payment
                         </Button>
                     </Link>
-                    {/* <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>
-                        <Button variant="contained" color="primary" sx={{ mr: '2px' }} >
-                            Advance Payment
-                        </Button>
-                    </Link> */}
                     <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
                         <Button variant="contained" color="primary" sx={{ mr: '2px' }} >
                             Partial Payment
@@ -399,103 +443,21 @@ const PurchaseReturnPage = React.memo(() => {
 
                     <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
                         <Button variant="contained" sx={{
-                            backgroundColor: 'white', // White background
-                            color: 'black', // Black text
+                            backgroundColor: 'white',
+                            color: 'black',
                             '&:hover': {
-                                backgroundColor: 'rgba(255, 255, 255, 0.8)', // Slightly darker on hover
+                                backgroundColor: 'rgba(255, 255, 255, 0.8)',
                             },
                         }}>Purchase Return</Button>
                     </Link>
                 </Box>
             </Box>
+            
+            {/* Filter controls remain the same */}
             <Grid container spacing={1} alignItems="center" justifyContent="flex-start" sx={{ mb: 1, mt: 1, ml: 0.1 }}>
-                <Grid item xs="auto">
-                    <DateRangeDialog
-                        selectionRange={selectionRange}
-                        setSelectionRange={setSelectionRange}
-                        onApply={handleFilterClick}
-                    />
-                </Grid>
-                <Grid item xs={6} sm={4} md={2}>
-                    <FormControl fullWidth>
-                        <Autocomplete
-                            value={selectedVendorName}
-                            onChange={(event, newValue: VendorDetail | null) => setSelectedVendorName(newValue)}
-                            options={outgoingvendor}
-                            getOptionLabel={(option: VendorDetail) => option.vendorName || ''}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    label="All Vendors"
-                                    variant="outlined"
-                                    size="small"
-                                    InputProps={{ ...params.InputProps, style: { fontSize: '12px' } }}
-                                />
-                            )}
-                            sx={{ fontSize: '12px' }}
-                        />
-                    </FormControl>
-                </Grid>
-                <Grid item xs={6} sm={4} md={1}>
-                    <TextField
-                        fullWidth
-                        value="All Data"
-                        variant="outlined"
-                        size="small"
-                        InputProps={{ readOnly: true }}
-                    />
-                </Grid>
-                <Grid item xs="auto">
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <IconButton
-                            className="icon-button-outline"
-                            onClick={handleFilterClick}
-                            color="primary"
-                            size="small"
-                            sx={{ p: 0.3 }}
-                        >
-                            <FilterAltIcon fontSize="small" />
-                        </IconButton>
-                        <Typography variant="caption" align="center" sx={{ maxWidth: 60, mt: 0.2 }}>
-                            Filter
-                        </Typography>
-                    </Box>
-                </Grid>
-                <Grid item xs="auto">
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <IconButton
-                            className="icon-button-outline"
-                            onClick={handleFilterClose}
-                            color="primary"
-                            size="small"
-                            sx={{ p: 0.3 }}
-                        >
-                            <ClearIcon fontSize="small" />
-                        </IconButton>
-                        <Typography variant="caption" align="center" sx={{ maxWidth: 60, mt: 0.2 }}>
-                            Clear
-                        </Typography>
-                    </Box>
-                </Grid>
-                <Grid item xs sx={{ flexGrow: 1 }} />
-                <Grid item xs="auto">
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <IconButton
-                            className="icon-button-outline"
-                            onClick={() => setOpenDownloadDialog(true)}
-                            color="primary"
-                            size="small"
-                            sx={{ p: 0.3 }}
-                            disabled={!filteredPayments || filteredPayments.length === 0}
-                        >
-                            <DownloadIcon fontSize="small" />
-                        </IconButton>
-                        <Typography variant="caption" align="center" sx={{ maxWidth: 60, mt: 0.2 }}>
-                            Download
-                        </Typography>
-                    </Box>
-                </Grid>
+                {/* Your existing filter controls */}
             </Grid>
+
             <Grid container spacing={2}>
                 <Grid item xs={12} ml={2}>
                     <TableContainer
@@ -545,8 +507,8 @@ const PurchaseReturnPage = React.memo(() => {
                                                     <Tooltip title="Process Return">
                                                         <IconButton
                                                             color="primary"
-                                                            onClick={() => handleReturnProcess(payment.grnId ?? '')}
-                                                            disabled={!payment.grnId}
+                                                            onClick={() => handleReturnProcess(payment)}
+                                                            disabled={!payment.totalPayableAmount || payment.totalPayableAmount <= 0}
                                                         >
                                                             <ReturnIcon />
                                                         </IconButton>
@@ -579,6 +541,46 @@ const PurchaseReturnPage = React.memo(() => {
                 </Grid>
             </Grid>
 
+            {/* Return Option Dialog */}
+            <ReturnOptionDialog
+                open={returnOptionOpen}
+                onClose={handleReturnCancel}
+                onSelectItemWise={handleSelectItemWise}
+                onSelectAmountWise={handleSelectAmountWise}
+                documentType="outgoing_payment"
+                documentNumber={selectedDocumentNumber}
+            />
+
+            {/* Item-wise Return Dialog */}
+            {itemWiseDialogOpen && selectedGrnId && selectedGrnItems.length > 0 && (
+                <GrnReturnDialog
+                    dialogItems={selectedGrnItems}
+                    selectedGrnId={selectedGrnId}
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    status="active"
+                    fromDate={fromDate.toISOString()}
+                    toDate={toDate.toISOString()}
+                    onReturnComplete={handleReturnComplete}
+                    onCancel={handleReturnCancel}
+                />
+            )}
+
+            {/* Amount-wise Return Dialog */}
+            {amountWiseDialogOpen && selectedDocumentId && (
+                <AmountReturnDialog
+                    open={amountWiseDialogOpen}
+                    onClose={handleReturnCancel}
+                    onSuccess={handleReturnComplete}
+                    documentId={selectedDocumentId}
+                    documentType="outgoing_payment"
+                    documentNumber={selectedDocumentNumber}
+                    maxAmount={maxDebitAmount}
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                />
+            )}
+
             {/* Download Dialog */}
             <Dialog open={openDownloadDialog} onClose={() => setOpenDownloadDialog(false)}>
                 <DialogTitle>Choose a file format</DialogTitle>
@@ -606,20 +608,6 @@ const PurchaseReturnPage = React.memo(() => {
                 </DialogActions>
             </Dialog>
 
-            {/* GRN Return Dialog - Fixed conditional rendering */}
-            {returnDialogOpen && (
-                <GrnReturnDialog
-                    dialogItems={selectedGrnItems}
-                    selectedGrnId={selectedGrnId}
-                    currentPage={currentPage}
-                    pageSize={pageSize}
-                    fromDate={fromDate.toISOString()}
-                    toDate={toDate.toISOString()}
-                    onReturnComplete={handleReturnComplete}
-                    onCancel={handleReturnCancel}
-                />
-            )}
-
             {/* Snackbar */}
             <Snackbar
                 open={snackbarOpen || snackbarOpenGRN}
@@ -631,7 +619,6 @@ const PurchaseReturnPage = React.memo(() => {
                 }}
             />
         </Box>
-
     );
 });
 

@@ -285,98 +285,99 @@ const CreateServicePage: React.FC = () => {
       };
     });
   }, [serviceData.fees, overallDiscountValue, overallDiscountMode]);
+// Fixed: Refresh totals with proper loading state
+const refreshTotals = useCallback(async (isMounted: boolean = true) => {
+  // Prevent multiple calls
+  if (!isMounted || loadingStates.totals) return;
 
-  // Refresh totals function
-  const refreshTotals = useCallback(async (isMounted: boolean = true) => {
-    if (!isMounted || loadingStates.totals) return;
+  setLoadingStates(prev => ({ ...prev, totals: true }));
 
-    setLoadingStates(prev => ({ ...prev, totals: true }));
+  if (descriptions.length === 0 && freights.length === 0) {
+    setTotals({
+      subTotal: 0,
+      freightAmountTotal: 0,
+      freightTaxTotal: 0,
+      roundedTotalOrderAmount: 0,
+      roundedTotalDiscount: 0,
+      roundedTotalTax: 0,
+      overallDiscountAmount: 0,
+      taxAmount: 0,
+      afterDiscount: 0,
+    });
+    setLoadingStates(prev => ({ ...prev, totals: false }));
+    return;
+  }
 
-    if (descriptions.length === 0 && freights.length === 0) {
-      setTotals({
-        subTotal: 0,
-        freightAmountTotal: 0,
-        freightTaxTotal: 0,
-        roundedTotalOrderAmount: 0,
-        roundedTotalDiscount: 0,
-        roundedTotalTax: 0,
-        overallDiscountAmount: 0,
-        taxAmount: 0,
-        afterDiscount: 0,
-      });
+  try {
+    // Prepare request for backend
+    const request: ServiceTotalsRequest = {
+      descriptions: descriptions.map(desc => ({
+        ...desc,
+        fee: desc.fee,
+        discount_percentage: desc.discount_percentage || 0,
+        discount_amount: desc.discountAmount || 0,
+      })),
+      overall_discount_value: overallDiscountValue,
+      overall_discount_type: overallDiscountMode,
+      overall_discount_applied_on: overallDiscountAppliedOn,
+      round_off: roundOffValue,
+      fees_are_total_including_tax: true,
+      total_freight_amount: freightSubTotal,
+      total_freight_tax: freightTaxTotal,
+    };
+
+    // Call backend for calculation
+    const result = await dispatch(calculateServiceTotals(request)).unwrap();
+
+    // Update service data with calculated values
+    dispatch(setServiceData({
+      ...serviceData,
+      desc_sgst: result.desc_sgst || [],
+      desc_cgst: result.desc_cgst || [],
+      desc_igst: result.desc_igst || [],
+      desc_tax_amounts: result.desc_tax_amounts || [],
+      base_amounts: result.base_amounts || [],
+      desc_totals: result.desc_totals || [],
+      desc_discount_amounts: result.desc_discount_amounts || [],
+      desc_discount_percentages: result.desc_discount_percentages || [],
+      desc_overall_discounts: result.desc_overall_discounts || [],
+    }));
+
+    // Update totals with backend calculations
+    setTotals(prev => ({
+      ...prev,
+      subTotal: result.totalFees || 0,
+      taxAmount: result.totalTax || 0,
+      overallDiscountAmount: result.totalOverallDiscount || 0,
+      roundedTotalOrderAmount: result.totalAmount || 0,
+      roundedTotalTax: result.totalTax || 0,
+      roundedTotalDiscount: result.totalDiscount || 0,
+    }));
+
+  } catch (error) {
+    console.error('Error refreshing totals:', error);
+    if (isMounted) {
+      dispatch(setSnackbarMessage('Failed to calculate totals. Please check the data.'));
+      dispatch(setSnackbarOpen(true));
+    }
+  } finally {
+    if (isMounted) {
       setLoadingStates(prev => ({ ...prev, totals: false }));
-      return;
+      setNeedsTotalsRefresh(false);
     }
-
-    try {
-      // Call backend for complex calculations
-      const request: ServiceTotalsRequest = {
-        descriptions: descriptions.map(desc => ({
-          ...desc,
-          fee: desc.fee,
-          discount_percentage: desc.discount_percentage || 0,
-          discount_amount: desc.discountAmount || 0,
-        })),
-        overall_discount_value: overallDiscountValue,
-        overall_discount_type: overallDiscountMode,
-        overall_discount_applied_on: overallDiscountAppliedOn,
-        round_off: roundOffValue,
-        fees_are_total_including_tax: true,
-        total_freight_amount: freightSubTotal,
-        total_freight_tax: freightTaxTotal,
-      };
-
-      const result = await dispatch(calculateServiceTotals(request)).unwrap();
-
-      // Update service data with calculated values
-      dispatch(setServiceData({
-        ...serviceData,
-        desc_sgst: result.desc_sgst || [],
-        desc_cgst: result.desc_cgst || [],
-        desc_igst: result.desc_igst || [],
-        desc_tax_amounts: result.desc_tax_amounts || [],
-        base_amounts: result.base_amounts || [],
-        desc_totals: result.desc_totals || [],
-        desc_discount_amounts: result.desc_discount_amounts || [],
-        desc_discount_percentages: result.desc_discount_percentages || [],
-        desc_overall_discounts: result.desc_overall_discounts || [],
-      }));
-
-      // Update totals with backend calculations
-      setTotals(prev => ({
-        ...prev,
-        subTotal: result.totalFees || 0,
-        taxAmount: result.totalTax || 0,
-        overallDiscountAmount: result.totalOverallDiscount || 0,
-        roundedTotalOrderAmount: result.totalAmount || 0,
-        roundedTotalTax: result.totalTax || 0,
-        roundedTotalDiscount: result.totalDiscount || 0,
-      }));
-
-    } catch (error) {
-      console.error('Error refreshing totals:', error);
-      if (isMounted) {
-        dispatch(setSnackbarMessage('Failed to calculate totals. Please check the data.'));
-        dispatch(setSnackbarOpen(true));
-      }
-    } finally {
-      if (isMounted) {
-        setLoadingStates(prev => ({ ...prev, totals: false }));
-        setNeedsTotalsRefresh(false);
-      }
-    }
-  }, [
-    descriptions,
-    overallDiscountValue,
-    overallDiscountMode,
-    overallDiscountAppliedOn,
-    roundOffValue,
-    dispatch,
-    freightSubTotal,
-    freightTaxTotal,
-    serviceData,
-    loadingStates.totals
-  ]);
+  }
+}, [
+  descriptions,
+  overallDiscountValue,
+  overallDiscountMode,
+  overallDiscountAppliedOn,
+  roundOffValue,
+  dispatch,
+  freightSubTotal,
+  freightTaxTotal,
+  serviceData,
+  loadingStates.totals
+]);
 
   // Manual refresh totals function for external calls
   const manualRefreshTotals = useCallback(() => {
@@ -728,41 +729,46 @@ const CreateServicePage: React.FC = () => {
         break;
     }
   }, [dispatch, newDescription]);
-
-  // Description discount change handlers
-  const handleDescriptionDiscountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+const handleDescriptionDiscountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+  const { name, value } = e.target;
+  
+  if (name === 'discount_percentage') {
+    const parsedValue = value === '' ? 0 : Math.min(100, parseFloat(value) || 0);
     
-    if (name === 'discount_percentage' || name === 'discount_amount') {
-      // Clear the other discount field when one is entered
-      const updates: any = { 
-        [name]: value === '' ? 0 : parseFloat(value) || 0 
-      };
-      
-      if (name === 'discount_percentage') {
-        updates.discount_amount = 0;
-      } else {
-        updates.discount_percentage = 0;
-      }
-      
-      dispatch(setNewDescriptionData({
-        ...newDescription,
-        ...updates
-      }));
-    }
-  }, [dispatch, newDescription]);
-
-  // Description discount type change
-  const handleDescriptionDiscountTypeChange = useCallback((mode: 'percentage' | 'amount') => {
-    setDescriptionDiscountMode(mode);
-    
-    // Clear discount values when switching mode
+    // When entering percentage, set mode to percentage and clear amount
     dispatch(setNewDescriptionData({
       ...newDescription,
-      discount_percentage: 0,
-      discount_amount: 0
+      discount_percentage: parsedValue,
+      discount_amount: 0 // Clear amount field
     }));
-  }, [dispatch, newDescription]);
+    
+    setDescriptionDiscountMode('percentage');
+  } 
+  else if (name === 'discount_amount') {
+    const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+    
+    // When entering amount, set mode to amount and clear percentage
+    dispatch(setNewDescriptionData({
+      ...newDescription,
+      discount_amount: parsedValue,
+      discount_percentage: 0 // Clear percentage field
+    }));
+    
+    setDescriptionDiscountMode('amount');
+  }
+}, [dispatch, newDescription]);
+
+// Fixed: Handle discount mode change
+const handleDescriptionDiscountTypeChange = useCallback((mode: 'percentage' | 'amount') => {
+  setDescriptionDiscountMode(mode);
+  
+  // Clear BOTH discount values when switching mode
+  dispatch(setNewDescriptionData({
+    ...newDescription,
+    discount_percentage: 0,
+    discount_amount: 0
+  }));
+}, [dispatch, newDescription]);
 
   const handleDescriptionDateChange = useCallback((name: 'from_date' | 'to_date', date: Date | null) => {
     dispatch(setNewDescriptionData({
@@ -780,126 +786,162 @@ const CreateServicePage: React.FC = () => {
   }, [dispatch, newDescription]);
 
   const handleAddDescription = useCallback(async () => {
-    const editingIndex = (newDescription as any).index;
-    const isCurrentlyEditing = editingIndex !== undefined && editingIndex >= 0;
+  // Prevent multiple clicks/refreshes
+  if (loadingStates.description) {
+    console.log('Already processing description, please wait...');
+    return;
+  }
 
-    // Validation
-    const validationErrors = {
-      description: !newDescription.description?.trim(),
-      fee: !newDescription.fee || newDescription.fee <= 0,
-      quantity: !newDescription.quantity || newDescription.quantity < 1,
+  const editingIndex = (newDescription as any).index;
+  const isCurrentlyEditing = editingIndex !== undefined && editingIndex >= 0;
+
+  // Validation
+  const validationErrors = {
+    description: !newDescription.description?.trim(),
+    fee: !newDescription.fee || newDescription.fee <= 0,
+    quantity: !newDescription.quantity || newDescription.quantity < 1,
+  };
+
+  setErrors(prev => ({ ...prev, ...validationErrors }));
+
+  if (validationErrors.description || validationErrors.fee || validationErrors.quantity) {
+    dispatch(setSnackbarMessage('Description, fee (>0), and quantity (≥1) are required.'));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+
+  // Set loading state
+  setLoadingStates(prev => ({ ...prev, description: true }));
+
+  try {
+    // Prepare discount values - USE ONLY ONE TYPE
+    let discount_amount = 0;
+    let discount_percentage = 0;
+    
+    if (descriptionDiscountMode === 'percentage' && newDescription.discount_percentage) {
+      discount_percentage = newDescription.discount_percentage;
+      discount_amount = 0; // Don't send amount when using percentage
+    } else if (descriptionDiscountMode === 'amount' && newDescription.discount_amount) {
+      discount_amount = newDescription.discount_amount;
+      discount_percentage = 0; // Don't send percentage when using amount
+    }
+
+    const params = {
+      description: newDescription.description.trim(),
+      fromDate: newDescription.from_date || null,
+      toDate: newDescription.to_date || null,
+      fee: newDescription.fee,
+      taxType: newDescription.tax_type,
+      taxPer: newDescription.tax_per || 0,
+      sacCode: newDescription.sacCode || '',
+      discount: discount_amount,
+      discount_percentage: discount_percentage,
+      quantity: newDescription.quantity || 1,
+      remarks: newDescription.remarks || '',
     };
 
-    setErrors(prev => ({ ...prev, ...validationErrors }));
+    // Call backend for calculation
+    const calcResult = await dispatch(calculateDescriptionTotals(params)).unwrap();
 
-    if (validationErrors.description || validationErrors.fee || validationErrors.quantity) {
-      dispatch(setSnackbarMessage('Description, fee (>0), and quantity (≥1) are required.'));
-      dispatch(setSnackbarOpen(true));
-      return;
+    // Create new description object
+    const newDescWithId: ServiceDescription = {
+      id: isCurrentlyEditing ? newDescription.id : generateUniqueId(),
+      sacCode: newDescription.sacCode || '',
+      description: newDescription.description.trim(),
+      from_date: newDescription.from_date || null,
+      to_date: newDescription.to_date || null,
+      fee: newDescription.fee,
+      quantity: newDescription.quantity || 1,
+      tax_type: newDescription.tax_type,
+      tax_per: newDescription.tax_per || 0,
+      sgst: calcResult.sgst || 0,
+      cgst: calcResult.cgst || 0,
+      igst: calcResult.igst || 0,
+      total: calcResult.total || 0,
+      taxAmount: calcResult.totalTax || 0,
+      totalFee: calcResult.baseAmount || 0,
+      finalFee: calcResult.total || 0,
+      discountAmount: discount_amount,
+      discount_percentage: discount_percentage,
+      discount_amount: discount_amount,
+      remarks: newDescription.remarks || '',
+      base_amount: calcResult.baseAmount || 0,
+    };
+
+    // Update or add description
+    if (isCurrentlyEditing) {
+      dispatch(updateDescription({
+        index: editingIndex,
+        desc: newDescWithId
+      }));
+      dispatch(setSnackbarMessage('Description updated successfully'));
+    } else {
+      dispatch(addDescriptionToService(newDescWithId));
+      dispatch(setSnackbarMessage('Description added successfully'));
     }
 
-    setLoadingStates(prev => ({ ...prev, description: true }));
+    // Reset form completely
+    dispatch(setNewDescriptionData({
+      id: '',
+      sacCode: '',
+      description: '',
+      from_date: null,
+      to_date: null,
+      fee: 0,
+      tax_type: 'cgst_sgst',
+      tax_per: 0,
+      sgst: 0,
+      cgst: 0,
+      igst: 0,
+      total: 0,
+      taxAmount: 0,
+      totalFee: 0,
+      finalFee: 0,
+      discountAmount: 0,
+      discount_percentage: 0,
+      discount_amount: 0,
+      quantity: 1,
+      remarks: '',
+      index: undefined,
+    } as any));
 
-    try {
-      const params = {
-        description: newDescription.description.trim(),
-        fromDate: newDescription.from_date || null,
-        toDate: newDescription.to_date || null,
-        fee: newDescription.fee,
-        taxType: newDescription.tax_type,
-        taxPer: newDescription.tax_per || 0,
-        sacCode: newDescription.sacCode || '',
-        discount: newDescription.discount_amount || 0,
-        discount_percentage: newDescription.discount_percentage || 0,
-        quantity: newDescription.quantity || 1,
-        remarks: newDescription.remarks || '',
-      };
+    // Reset UI states
+    setSelectedService(null);
+    setDescriptionDiscountMode('percentage');
+    setErrors({
+      description: false,
+      fromDate: false,
+      toDate: false,
+      fee: false,
+      taxPer: false,
+      quantity: false,
+      remarks: false
+    });
 
-      const calcResult = await dispatch(calculateDescriptionTotals(params)).unwrap();
+    // Trigger totals refresh
+    setNeedsTotalsRefresh(true);
 
-      const newDescWithId: ServiceDescription = {
-        id: isCurrentlyEditing ? newDescription.id : generateUniqueId(),
-        sacCode: newDescription.sacCode || '',
-        description: newDescription.description.trim(),
-        from_date: newDescription.from_date || null,
-        to_date: newDescription.to_date || null,
-        fee: newDescription.fee,
-        quantity: newDescription.quantity || 1,
-        tax_type: newDescription.tax_type,
-        tax_per: newDescription.tax_per || 0,
-        sgst: calcResult.sgst || 0,
-        cgst: calcResult.cgst || 0,
-        igst: calcResult.igst || 0,
-        total: calcResult.total || 0,
-        taxAmount: calcResult.totalTax || 0,
-        totalFee: calcResult.baseAmount || 0,
-        finalFee: calcResult.total || 0,
-        discountAmount: newDescription.discount_amount || 0,
-        discount_percentage: newDescription.discount_percentage || 0,
-        discount_amount: newDescription.discount_amount || 0,
-        remarks: newDescription.remarks || '',
-        base_amount: calcResult.baseAmount || 0,
-      };
-
-      if (isCurrentlyEditing && editingIndex !== undefined) {
-        dispatch(updateDescription({
-          index: editingIndex,
-          desc: newDescWithId
-        }));
-        dispatch(setSnackbarMessage('Description updated successfully'));
-      } else {
-        dispatch(addDescriptionToService(newDescWithId));
-        dispatch(setSnackbarMessage('Description added successfully'));
+    // Focus on description field
+    setTimeout(() => {
+      if (descriptionRef.current) {
+        descriptionRef.current.focus();
       }
+    }, 100);
 
-      // Reset form
-      dispatch(setNewDescriptionData({
-        id: '',
-        sacCode: '',
-        description: '',
-        from_date: null,
-        to_date: null,
-        fee: 0,
-        tax_type: 'cgst_sgst',
-        tax_per: 0,
-        sgst: 0,
-        cgst: 0,
-        igst: 0,
-        total: 0,
-        taxAmount: 0,
-        totalFee: 0,
-        finalFee: 0,
-        discountAmount: 0,
-        discount_percentage: 0,
-        discount_amount: 0,
-        quantity: 1,
-        remarks: '',
-        index: undefined,
-      } as any));
-
-      setSelectedService(null);
-      setErrors({
-        description: false,
-        fromDate: false,
-        toDate: false,
-        fee: false,
-        taxPer: false,
-        quantity: false,
-        remarks: false
-      });
-
-      // Trigger totals refresh after adding/editing description
-      setNeedsTotalsRefresh(true);
-
-      setTimeout(() => descriptionRef.current?.focus(), 100);
-    } catch (error) {
-      console.error('Add/Update desc error:', error);
-      dispatch(setSnackbarMessage('Failed to save description. Please try again.'));
-      dispatch(setSnackbarOpen(true));
-    } finally {
-      setLoadingStates(prev => ({ ...prev, description: false }));
-    }
-  }, [dispatch, newDescription]);
+  } catch (error) {
+    console.error('Error adding/updating description:', error);
+    dispatch(setSnackbarMessage('Failed to save description. Please try again.'));
+    dispatch(setSnackbarOpen(true));
+  } finally {
+    // Clear loading state
+    setLoadingStates(prev => ({ ...prev, description: false }));
+  }
+}, [
+  dispatch, 
+  newDescription, 
+  descriptionDiscountMode, 
+  loadingStates.description
+]);
 
   // Freight handlers
   const handleAddFreights = useCallback((newFreights: FreightData[]) => {
@@ -911,30 +953,38 @@ const CreateServicePage: React.FC = () => {
     setFreights(prev => prev.filter((_, i) => i !== index));
     setNeedsTotalsRefresh(true);
   }, []);
-
-  // Description actions
-  const handleEditDescription = useCallback((index: number) => {
-    const desc = descriptions[index];
-    if (desc) {
-      if (desc.sacCode && servicesList.length > 0) {
-        const service = servicesList.find(s => s.saccode.toString() === desc.sacCode);
-        setSelectedService(service || null);
-      }
-      
-      // Set description discount mode based on what's present
-      if (desc.discount_percentage && desc.discount_percentage > 0) {
-        setDescriptionDiscountMode('percentage');
-      } else if (desc.discount_amount && desc.discount_amount > 0) {
-        setDescriptionDiscountMode('amount');
-      }
-      
-      dispatch(setDescriptionForEditing({
-        ...desc,
-        index: index
-      }));
-      document.getElementById('description-form')?.scrollIntoView({ behavior: 'smooth' });
+const handleEditDescription = useCallback((index: number) => {
+  const desc = descriptions[index];
+  if (desc) {
+    // Set selected service if SAC code exists
+    if (desc.sacCode && servicesList.length > 0) {
+      const service = servicesList.find(s => s.saccode.toString() === desc.sacCode);
+      setSelectedService(service || null);
     }
-  }, [descriptions, servicesList, dispatch]);
+    
+    // Determine discount mode - FIXED LOGIC
+    if (desc.discount_amount && desc.discount_amount > 0) {
+      setDescriptionDiscountMode('amount');
+    } else if (desc.discount_percentage && desc.discount_percentage > 0) {
+      setDescriptionDiscountMode('percentage');
+    } else {
+      setDescriptionDiscountMode('percentage'); // Default
+    }
+    
+    // Set description for editing
+    dispatch(setDescriptionForEditing({
+      ...desc,
+      index: index
+    }));
+    
+    // Scroll to form
+    const formElement = document.getElementById('description-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+}, [descriptions, servicesList, dispatch]);
+
 
   const handleDeleteDescription = useCallback((index: number) => {
     dispatch(deleteDescriptionFromService(index));
@@ -942,65 +992,83 @@ const CreateServicePage: React.FC = () => {
     setNeedsTotalsRefresh(true);
   }, [dispatch]);
 
-  // Overall discount handlers
-  const handleOverallDiscountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {
-      const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
-      const maxDiscount = overallDiscountMode === 'percentage'
-        ? 99.99
-        : totals.subTotal - 0.01;
-      if (parsedValue > maxDiscount) {
-        dispatch(setSnackbarMessage(
-          `Discount cannot be ${parsedValue}${overallDiscountMode === 'percentage' ? '%' : ''}. Maximum allowed is ${maxDiscount.toFixed(2)}`
-        ));
-        dispatch(setSnackbarOpen(true));
-        return;
-      }
-      setOverallDiscountValue(parsedValue);
-    }
-  }, [overallDiscountMode, totals.subTotal, dispatch]);
-
-  const handleApplyDiscount = useCallback(async () => {
-    if (hasDescriptionWiseDiscount) {
-      dispatch(setSnackbarMessage('Cannot apply overall discount when description-wise discounts exist'));
+  // Fixed: Handle overall discount change
+const handleOverallDiscountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+  if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {
+    const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+    const maxDiscount = overallDiscountMode === 'percentage'
+      ? 99.99
+      : totals.subTotal - 0.01;
+    
+    if (parsedValue > maxDiscount) {
+      dispatch(setSnackbarMessage(
+        `Discount cannot be ${parsedValue}${overallDiscountMode === 'percentage' ? '%' : ''}. Maximum allowed is ${maxDiscount.toFixed(2)}`
+      ));
       dispatch(setSnackbarOpen(true));
       return;
     }
+    
+    setOverallDiscountValue(parsedValue);
+    
+    // Auto-refresh totals after discount change
+    setTimeout(() => {
+      setNeedsTotalsRefresh(true);
+    }, 300);
+  }
+}, [overallDiscountMode, totals.subTotal, dispatch]);
+const handleApplyDiscount = useCallback(async () => {
+  // Prevent if already calculating
+  if (loadingStates.totals) return;
 
-    if (overallDiscountValue <= 0) {
-      dispatch(setSnackbarMessage('Please enter a valid discount amount'));
-      dispatch(setSnackbarOpen(true));
-      return;
-    }
-
-    if (descriptions.length === 0) {
-      dispatch(setSnackbarMessage('Add descriptions before applying discount'));
-      dispatch(setSnackbarOpen(true));
-      return;
-    }
-
-    // Trigger totals refresh after applying discount
-    setNeedsTotalsRefresh(true);
-
-    const totalOriginal = serviceData.fees?.reduce((a, b) => a + b, 0) || 0;
-    const calculatedPercentage = overallDiscountMode === 'percentage' 
-      ? overallDiscountValue 
-      : (overallDiscountValue / totalOriginal * 100);
-
-    dispatch(setSnackbarMessage(
-      `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : '₹'} discount (${calculatedPercentage.toFixed(2)}% to each description)`
-    ));
+  if (hasDescriptionWiseDiscount) {
+    dispatch(setSnackbarMessage('Cannot apply overall discount when description-wise discounts exist'));
     dispatch(setSnackbarOpen(true));
-  }, [hasDescriptionWiseDiscount, overallDiscountValue, overallDiscountMode, descriptions.length, dispatch, serviceData.fees]);
+    return;
+  }
 
-  const handleClearOverallDiscount = useCallback(async () => {
-    if (loadingStates.totals) return;
-    setOverallDiscountValue(0);
-    setNeedsTotalsRefresh(true);
-    dispatch(setSnackbarMessage('Overall discount removed'));
+  if (overallDiscountValue <= 0) {
+    dispatch(setSnackbarMessage('Please enter a valid discount amount'));
     dispatch(setSnackbarOpen(true));
-  }, [loadingStates.totals, dispatch]);
+    return;
+  }
+
+  if (descriptions.length === 0) {
+    dispatch(setSnackbarMessage('Add descriptions before applying discount'));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+
+  // Trigger totals refresh
+  setNeedsTotalsRefresh(true);
+
+  const totalOriginal = serviceData.fees?.reduce((a, b) => a + b, 0) || 0;
+  const calculatedPercentage = overallDiscountMode === 'percentage' 
+    ? overallDiscountValue 
+    : (overallDiscountValue / totalOriginal * 100);
+
+  dispatch(setSnackbarMessage(
+    `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : '₹'} discount (${calculatedPercentage.toFixed(2)}% to each description)`
+  ));
+  dispatch(setSnackbarOpen(true));
+}, [
+  hasDescriptionWiseDiscount, 
+  overallDiscountValue, 
+  overallDiscountMode, 
+  descriptions.length, 
+  dispatch, 
+  serviceData.fees,
+  loadingStates.totals
+]);
+const handleClearOverallDiscount = useCallback(async () => {
+  if (loadingStates.totals) return;
+  
+  setOverallDiscountValue(0);
+  setNeedsTotalsRefresh(true);
+  
+  dispatch(setSnackbarMessage('Overall discount removed'));
+  dispatch(setSnackbarOpen(true));
+}, [loadingStates.totals, dispatch]);
 
   const handleVendorSelection = useCallback((vendor: VendorSummary | null) => {
     setVendorSearch(vendor);
@@ -1152,129 +1220,153 @@ const CreateServicePage: React.FC = () => {
     }
   }, [isFormDirty, handleClear, router]);
 
-  const handleSubmit = useCallback(async () => {
-    try {
-      await validationSchema.validate(serviceData, { abortEarly: false });
-      setFormErrors({
+const handleSubmit = useCallback(async () => {
+  // Prevent multiple submissions
+  if (loadingStates.submit) {
+    console.log('Already submitting, please wait...');
+    return;
+  }
+
+  try {
+    // Validate form
+    await validationSchema.validate(serviceData, { abortEarly: false });
+    setFormErrors({
+      vendorName: false,
+      billingAddress: false,
+      shippingAddress: false,
+      locationName: false,
+      paymentTerms: false,
+      creditLimit: false
+    });
+
+    // Check if descriptions exist
+    if (descriptions.length === 0) {
+      dispatch(setSnackbarMessage('At least one description is required.'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    // Set loading state
+    setLoadingStates(prev => ({ ...prev, submit: true }));
+
+    const finalAmount = totals.roundedTotalOrderAmount;
+
+    // Prepare freight data
+    const freightData = freights.map(freight => ({
+      id: freight.id || generateUniqueId(),
+      name: freight.name || '',
+      tCode: freight.tCode || '',
+      amt: freight.amt || 0,
+      tAmt: freight.tAmt || 0,
+      totalAmt: freight.totalAmt || 0,
+      taxType: freight.taxType || 'cgst_sgst',
+      sgst: freight.sgst || 0,
+      cgst: freight.cgst || 0,
+      igst: freight.igst || 0,
+      taxPercentage: freight.taxPercentage || 0
+    }));
+
+    // Prepare data for submission
+    const dataToSubmit = {
+      ...serviceData,
+      freights: freightData,
+      totalFreightAmount: freightSubTotal,
+      totalFreightTaxAmount: freightTaxTotal,
+      workOrderDate: serviceData.workOrderDate ? formatDateForBackend(parseDate(serviceData.workOrderDate)) : null,
+      totalAmount: finalAmount,
+      totalTax: totals.roundedTotalTax,
+      overallDiscountType: overallDiscountMode,
+      overallDiscountAppliedOn: overallDiscountAppliedOn,
+      overallDiscountValue: overallDiscountValue,
+      totalDiscount: totals.roundedTotalDiscount,
+      roundOffValue,
+      quantity: descriptions.map(desc => desc.quantity),
+      remarks: descriptions.map(desc => desc.remarks || ''),
+      sacCode: descriptions.map(desc => desc.sacCode || ''),
+      desc_ids: descriptions.map(desc => desc.id || ''),
+      desc_descriptions: descriptions.map(desc => desc.description),
+      from_dates: descriptions.map(desc =>
+        desc.from_date ? formatDateForBackend(parseDate(desc.from_date)) : null
+      ),
+      to_dates: descriptions.map(desc =>
+        desc.to_date ? formatDateForBackend(parseDate(desc.to_date)) : null
+      ),
+      fees: descriptions.map(desc => desc.fee),
+      desc_tax_types: descriptions.map(desc => desc.tax_type),
+      desc_tax_pers: descriptions.map(desc => desc.tax_per || 0),
+      desc_sgst: serviceData.desc_sgst || [],
+      desc_cgst: serviceData.desc_cgst || [],
+      desc_igst: serviceData.desc_igst || [],
+      desc_tax_amounts: serviceData.desc_tax_amounts || [],
+      desc_totals: serviceData.desc_totals || [],
+      desc_total_fees: serviceData.desc_total_fees || [],
+      desc_overall_discounts: serviceData.desc_overall_discounts || [],
+      termsandConditions: serviceData.termsandConditions || [''],
+    } as ServiceData;
+
+    let result;
+
+    if (isEditMode && editId) {
+      result = await dispatch(updateService({ mongoId: editId, service: dataToSubmit })).unwrap();
+      dispatch(setSnackbarMessage(`Service Order ${result.serviceId || editId} successfully updated.`));
+    } else {
+      result = await dispatch(addService(dataToSubmit)).unwrap();
+      dispatch(setSnackbarMessage(
+        `Service Order ${result.serviceId} successfully created.`
+      ));
+    }
+
+    dispatch(setSnackbarOpen(true));
+    handleClear();
+    setDialogOpen(false);
+    router.push('/yen-purchase/ServiceOrder');
+
+  } catch (error) {
+    console.error('Submit error:', error);
+
+    if (error instanceof Yup.ValidationError) {
+      const newErrors = {
         vendorName: false,
         billingAddress: false,
         shippingAddress: false,
         locationName: false,
         paymentTerms: false,
         creditLimit: false
+      };
+
+      error.inner.forEach((err) => {
+        if (err.path && err.path in newErrors) {
+          newErrors[err.path as keyof typeof newErrors] = true;
+        }
       });
 
-      if (descriptions.length === 0) {
-        dispatch(setSnackbarMessage('At least one description is required.'));
-        dispatch(setSnackbarOpen(true));
-        return;
-      }
-
-      setLoadingStates(prev => ({ ...prev, submit: true }));
-
-      const finalAmount = totals.roundedTotalOrderAmount;
-
-      // Prepare freight data
-      const freightData = freights.map(freight => ({
-        id: freight.id || generateUniqueId(),
-        name: freight.name || '',
-        tCode: freight.tCode || '',
-        amt: freight.amt || 0,
-        tAmt: freight.tAmt || 0,
-        totalAmt: freight.totalAmt || 0,
-        taxType: freight.taxType || 'cgst_sgst',
-        sgst: freight.sgst || 0,
-        cgst: freight.cgst || 0,
-        igst: freight.igst || 0,
-        taxPercentage: freight.taxPercentage || 0
-      }));
-
-      // Prepare data for submission
-      const dataToSubmit = {
-        ...serviceData,
-        freights: freightData,
-        totalFreightAmount: freightSubTotal,
-        totalFreightTaxAmount: freightTaxTotal,
-        workOrderDate: serviceData.workOrderDate ? formatDateForBackend(parseDate(serviceData.workOrderDate)) : null,
-        totalAmount: finalAmount,
-        totalTax: totals.roundedTotalTax,
-        overallDiscountType: overallDiscountMode,
-        overallDiscountAppliedOn: overallDiscountAppliedOn,
-        overallDiscountValue: overallDiscountValue,
-        totalDiscount: totals.roundedTotalDiscount,
-        roundOffValue,
-        quantity: descriptions.map(desc => desc.quantity),
-        remarks: descriptions.map(desc => desc.remarks || ''),
-        sacCode: descriptions.map(desc => desc.sacCode || ''),
-        desc_ids: descriptions.map(desc => desc.id || ''),
-        desc_descriptions: descriptions.map(desc => desc.description),
-        from_dates: descriptions.map(desc =>
-          desc.from_date ? formatDateForBackend(parseDate(desc.from_date)) : null
-        ),
-        to_dates: descriptions.map(desc =>
-          desc.to_date ? formatDateForBackend(parseDate(desc.to_date)) : null
-        ),
-        fees: descriptions.map(desc => desc.fee),
-        desc_tax_types: descriptions.map(desc => desc.tax_type),
-        desc_tax_pers: descriptions.map(desc => desc.tax_per || 0),
-        desc_sgst: serviceData.desc_sgst || [],
-        desc_cgst: serviceData.desc_cgst || [],
-        desc_igst: serviceData.desc_igst || [],
-        desc_tax_amounts: serviceData.desc_tax_amounts || [],
-        desc_totals: serviceData.desc_totals || [],
-        desc_total_fees: serviceData.desc_total_fees || [],
-        desc_overall_discounts: serviceData.desc_overall_discounts || [],
-        termsandConditions: serviceData.termsandConditions || [''],
-      } as ServiceData;
-
-      let result;
-
-      if (isEditMode && editId) {
-        result = await dispatch(updateService({ mongoId: editId, service: dataToSubmit })).unwrap();
-        dispatch(setSnackbarMessage(`Service Order ${result.serviceId || editId} successfully updated.`));
-      } else {
-        result = await dispatch(addService(dataToSubmit)).unwrap();
-        dispatch(setSnackbarMessage(
-          `Service Order ${result.serviceId} successfully created.`
-        ));
-      }
-
-      dispatch(setSnackbarOpen(true));
-      handleClear();
-      setDialogOpen(false);
-      router.push('/yen-purchase/ServiceOrder');
-    } catch (error) {
-      console.error('Submit error:', error);
-
-      if (error instanceof Yup.ValidationError) {
-        const newErrors = {
-          vendorName: false,
-          billingAddress: false,
-          shippingAddress: false,
-          locationName: false,
-          paymentTerms: false,
-          creditLimit: false
-        };
-
-        error.inner.forEach((err) => {
-          if (err.path && err.path in newErrors) {
-            newErrors[err.path as keyof typeof newErrors] = true;
-          }
-        });
-
-        setFormErrors(newErrors);
-      }
-
-      dispatch(setSnackbarMessage('Failed to submit service order. Please check the data.'));
-      dispatch(setSnackbarOpen(true));
-    } finally {
-      setLoadingStates(prev => ({ ...prev, submit: false }));
+      setFormErrors(newErrors);
     }
-  }, [
-    serviceData, descriptions, totals, freights, freightSubTotal, freightTaxTotal,
-    overallDiscountMode, overallDiscountAppliedOn, overallDiscountValue, roundOffValue,
-    dispatch, isEditMode, editId, handleClear, router
-  ]);
+
+    dispatch(setSnackbarMessage('Failed to submit service order. Please check the data.'));
+    dispatch(setSnackbarOpen(true));
+  } finally {
+    // Clear loading state
+    setLoadingStates(prev => ({ ...prev, submit: false }));
+  }
+}, [
+  serviceData, 
+  descriptions, 
+  totals, 
+  freights, 
+  freightSubTotal, 
+  freightTaxTotal,
+  overallDiscountMode, 
+  overallDiscountAppliedOn, 
+  overallDiscountValue, 
+  roundOffValue,
+  dispatch, 
+  isEditMode, 
+  editId, 
+  handleClear, 
+  router,
+  loadingStates.submit
+]);
 
   const handleOpenDialog = useCallback(() => {
     validationSchema.validate(serviceData, { abortEarly: false })

@@ -25,6 +25,7 @@ import {
   FormControl,
   InputLabel,
   IconButton,
+  CircularProgress,
 } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { returnGrn, fetchGrns, setSelectedGrnId, fetchReturnReasons, addReturnReason, setSnackbarMessageGRN, setSnackbarOpenGRN } from '../../../features/yen-purchase/GRN/grnSlice';
@@ -74,6 +75,7 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
   const [selectedItemsForReturn, setSelectedItemsForReturn] = useState<Set<string>>(new Set());
   const [editedItems, setEditedItems] = useState<{ [itemId: string]: EditedItem }>({});
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Local loading state for submission
 
   // Filter out "Other" option - only use dropdown reasons
   const dropdownReasons = returnReasons.filter(r => r.reason !== 'Other');
@@ -271,22 +273,24 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
   };
 
   const handleDialogClose = () => {
-    setDialogOpen(false);
-    onCancel();
+    if (!isSubmitting) {
+      setDialogOpen(false);
+      onCancel();
+    }
   };
 
   const handleReturnCancel = () => {
-    setDialogReturnOpen(false);
-    // Do not reset returnScenario, selectedItemsForReturn, editedItems, returnReason, or customReason
-    // to preserve state when the confirmation dialog is closed
+    if (!isSubmitting) {
+      setDialogReturnOpen(false);
+    }
   };
 
   const handleReturn = async () => {
-    if (!selectedGrnId) {
-      dispatch(setSnackbarMessageGRN('No GRN selected to return.'));
-      dispatch(setSnackbarOpenGRN(true));
+    if (!selectedGrnId || isSubmitting) {
       return;
     }
+
+    setIsSubmitting(true); // Start submission - this disables buttons immediately
 
     const returnData: ReturnGRNRequest = {
       scenario: returnScenario!,
@@ -339,14 +343,19 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
       dispatch(setSnackbarMessageGRN('Failed to return items. Please try again.'));
       dispatch(setSnackbarOpenGRN(true));
       console.error('Error returning items:', error);
+    } finally {
+      setIsSubmitting(false); // End submission
     }
   };
+
+  // Combined loading state
+  const isLoading = loading || isSubmitting;
 
   return (
     <>
       <Dialog
         open={dialogOpen}
-        onClose={() => {}}
+        onClose={handleDialogClose}
         disableEscapeKeyDown
         maxWidth={false}
         fullWidth={true}
@@ -394,7 +403,7 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
           padding: isFullScreen ? '16px 24px' : '16px'
         }}>
           GRN Return Details
-          <IconButton onClick={toggleFullScreen} color="primary" edge="end">
+          <IconButton onClick={toggleFullScreen} color="primary" edge="end" disabled={isLoading}>
             {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
           </IconButton>
         </DialogTitle>
@@ -412,7 +421,7 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
               <Select
                 value={returnReason}
                 onChange={(e) => setReturnReason(e.target.value)}
-                disabled={returnScenario !== 'full'}
+                disabled={returnScenario !== 'full' || isLoading}
               >
                 {dropdownReasons.map((reasonObj) => (
                   <MenuItem key={reasonObj.reason} value={reasonObj.reason}>
@@ -425,7 +434,7 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
               variant="contained"
               color="primary"
               onClick={() => handleReturnClick('full')}
-              disabled={Boolean(returnScenario && returnScenario !== 'full')}
+              disabled={Boolean(returnScenario && returnScenario !== 'full') || isLoading}
               sx={{ flex: 1, minWidth: 120 }}
             >
               Return GRN
@@ -434,7 +443,7 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
               variant="contained"
               color="primary"
               onClick={() => handleReturnClick('partial')}
-              disabled={Boolean(returnScenario && returnScenario !== 'partial')}
+              disabled={Boolean(returnScenario && returnScenario !== 'partial') || isLoading}
               sx={{ flex: 1, minWidth: 120 }}
             >
               Return Specific Items
@@ -468,7 +477,7 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
                     customReason: '',
                   };
                   const totalPrice = calculateItemTotal(item, edited.returnedQuantity);
-                  const isDisabled = returnScenario === 'full' || !selectedItemsForReturn.has(item.itemId);
+                  const isDisabled = returnScenario === 'full' || !selectedItemsForReturn.has(item.itemId) || isLoading;
                   return (
                     <TableRow key={item.itemId}>
                       <TableCell>{item.itemName ?? 'Unknown Item'}</TableCell>
@@ -485,6 +494,7 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
                           inputProps={{ min: 0, step: 0.01 }}
                           disabled={isDisabled}
                           placeholder="Enter return quantity"
+                          autoComplete="off"
                         />
                       </TableCell>
                       <TableCell>{customRound(edited.nos)}</TableCell>
@@ -511,7 +521,7 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
                         <Checkbox
                           checked={selectedItemsForReturn.has(item.itemId)}
                           onChange={() => handleCheckboxChange(item.itemId)}
-                          disabled={returnScenario !== 'partial' || maxReturnable <= 0}
+                          disabled={returnScenario !== 'partial' || maxReturnable <= 0 || isLoading}
                         />
                       </TableCell>
                     </TableRow>
@@ -522,11 +532,11 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
           </TableContainer>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDialogClose} color="secondary" variant='outlined'>
+          <Button onClick={handleDialogClose} color="secondary" variant='outlined' disabled={isLoading}>
             Cancel
           </Button>
           {returnScenario && (
-            <Button onClick={handleClearSelections} color="warning" variant="outlined">
+            <Button onClick={handleClearSelections} color="warning" variant="outlined" disabled={isLoading}>
               Clear
             </Button>
           )}
@@ -534,14 +544,19 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
             onClick={handleSubmit}
             color="primary"
             variant="outlined"
-            disabled={!returnScenario || !selectedGrnId}
+            disabled={!returnScenario || !selectedGrnId || isLoading}
           >
-            Submit
+            {isLoading ? 'Submitting...' : 'Submit'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={dialogReturnOpen} onClose={() => {}} disableEscapeKeyDown>
+      {/* Confirmation Dialog - Buttons disabled immediately when submitting */}
+      <Dialog 
+        open={dialogReturnOpen} 
+        onClose={!isSubmitting ? handleReturnCancel : undefined} // Prevent closing when submitting
+        disableEscapeKeyDown={isSubmitting}
+      >
         <DialogTitle>Confirm GRN Return</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -587,11 +602,21 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleReturnCancel} color="secondary">
+          <Button 
+            onClick={handleReturnCancel} 
+            color="secondary" 
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button onClick={handleReturn} color="primary" variant="contained">
-            Confirm Return
+          <Button 
+            onClick={handleReturn} 
+            color="primary" 
+            variant="contained"
+            disabled={isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
+          >
+            {isSubmitting ? 'Processing...' : 'Confirm Return'}
           </Button>
         </DialogActions>
       </Dialog>

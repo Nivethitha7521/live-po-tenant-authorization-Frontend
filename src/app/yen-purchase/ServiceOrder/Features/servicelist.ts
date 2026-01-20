@@ -1,7 +1,6 @@
 // features/yen-purchase/ServiceOrder/Features/servicepo.ts
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import axios from "axios";
-import { initialState } from "./servicepo";
 import { ServiceData } from "../Models/servicepo";
 
 // Interface for conversion request
@@ -87,7 +86,7 @@ export const convertServiceToAPOutgoing = createAsyncThunk(
       }
 
       const response = await axios.post<ServiceToAPResponse>(
-        `https://yenerp.com/purchaseapi/servicepo/convert-service-to-ap-outgoing/${service_id}`,
+        `http://192.168.29.116:8000/purchasetestapi/servicepo/convert-service-to-ap-outgoing/${service_id}`,
         null,
         {
           params: params,
@@ -138,7 +137,7 @@ export const deactivateServiceOrder = createAsyncThunk(
       if (!mongoId) throw new Error("Invalid service order ID");
 
       const response = await axios.patch(
-        `https://yenerp.com/purchaseapi/servicepo/deactivated/${mongoId}`
+        `http://192.168.29.116:8000/purchasetestapi/servicepo/deactivated/${mongoId}`
       );
       return response.data;
     } catch (error: any) {
@@ -153,7 +152,7 @@ export const updateServiceOrderStatusToPending = createAsyncThunk(
   async (mongoId: string, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        `https://yenerp.com/purchaseapi/servicepo/pending/${mongoId}`
+        `http://192.168.29.116:8000/purchasetestapi/servicepo/pending/${mongoId}`
       );
       return response.data;
     } catch (error: any) {
@@ -167,7 +166,7 @@ export const fetchServiceById = createAsyncThunk(
     try {
       // Use your actual backend base URL
       const response = await axios.get(
-        `https://yenerp.com/purchaseapi/servicepo/getOutgoing/${identifier}`
+        `http://192.168.29.116:8000/purchasetestapi/servicepo/getOutgoing/${identifier}`
         // or `/api/service/getOutgoing/${identifier}` if using proxy
       );
 

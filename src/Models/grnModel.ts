@@ -1,5 +1,6 @@
 import { Freight, PurchaseRandomId } from "./purchaseModel";
 
+// ====== CORE INTERFACES ======
 export interface ItemDetail {
   itemId: string;
   itemName?: string;
@@ -28,18 +29,18 @@ export interface ItemDetail {
   unitPrice: number;
   totalPrice: number;
   finalPrice: number;
-  grnPrice:number;
+  grnPrice: number;
   status?: string;
   barcode?: string;
   sgst: number;
   cgst: number;
-  returnedTotalPrice?:number;
+  returnedTotalPrice?: number;
   returnedTaxAmount?: number;
   returnedDiscountAmount?: number;
   returnedFinalPrice?: number;
-  returnedSgst?:number;
-  returnedCgst?:number;
-returnHistory?: ReturnHistory[];
+  returnedSgst?: number;
+  returnedCgst?: number;
+  returnHistory?: ReturnHistory[];
 }
 
 export interface GrnData {
@@ -48,7 +49,7 @@ export interface GrnData {
   poRandomID: string;
   vendorName: string;
   grnDate: Date;
-  grnAmount:number;
+  grnAmount: number;
   grnVerifiedDate: Date;
   grnReturnedDate: Date;
   agingDay: number;
@@ -81,16 +82,16 @@ export interface GrnData {
   contactpersonEmail: string;
   grnVerifiedPerson: string;
   grnReturnedPerson: string;
-  totalDebitAmount?: number; // Added
-  totalReturnedAmount?: number; // Added
-  totalReturnedTax?: number; // Added
-  totalReturnedDiscount?: number; // Added
-  hasDebitCreditNotes: boolean; // Ensure this field is present
-  apRoundOff:number;
-  grnRoundOffAmount:number;
-  totalFreightAmount:number;
-totalFreightTaxAmount:number;
-freights:Freight[];
+  totalDebitAmount?: number;
+  totalReturnedAmount?: number;
+  totalReturnedTax?: number;
+  totalReturnedDiscount?: number;
+  hasDebitCreditNotes: boolean;
+  apRoundOff: number;
+  grnRoundOffAmount: number;
+  totalFreightAmount: number;
+  totalFreightTaxAmount: number;
+  freights: Freight[];
 }
 
 export interface TaxDetails {
@@ -120,19 +121,23 @@ export interface GrnResponse {
   grnDate: Date;
   itemDetails: ItemDetailResponse[];
 }
+
+// ====== RETURN RELATED INTERFACES ======
 export interface ReturnItemDetail {
   itemId: string;
   nos?: number;
   eachQuantity?: number;
-  returnedQuantity:number;
+  returnedQuantity: number;
   returnReason?: string;
 }
+
 export interface ReturnHistory {
   date?: string;
   by?: string;
   totalUnits?: number;
   reason?: string;
 }
+
 export interface ReturnGRNRequest {
   scenario: 'full' | 'partial';
   returnedDate: string;
@@ -140,47 +145,97 @@ export interface ReturnGRNRequest {
   comments?: string;
   items?: ReturnItemDetail[];
 }
-export interface ReturnReason{
-reason:string;
-createdDate:Date | null;
+
+export interface ReturnReason {
+  reason: string;
+  createdDate: Date | null;
 }
 
-export interface GrnState {
-  grns: GrnData[];
-  itemwise: GrnData[];
-  itemDetails: ItemDetail[];
-  searchQuery: string;
-  selectedGrnId: string | null;
-  view: 'grn';
-  error: string | null;
-  newItem: ItemDetail;
-  vendors: Vendor[];
-  purchaseitems: PurchaseItem[];
-  purchaseorders: PurchaseRandomId[];
-  apinvoice: ApInvoice[];
-  loading: boolean;
-  updateStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
-  snackbarMessageGRN: string;
-  snackbarOpenGRN: boolean;
-  selectedHeaders: string[]; // Fixed: Use string[] instead of allHeaders
-  currentPage: number;
-  pageSize: number;
-  totalItems: number;
-  debitCreditNotes: DebitCreditNote[]; // Add this field
-  hasDebitCreditNotes: { [grnId: string]: boolean }; //
-  returnReasons: ReturnReason[];
-   // Revert-related state properties
-  revertLoading: boolean;
-  revertError: string | null;
-  revertedGrns: GrnData[]; // Store reverted GRNs separately if needed
-  revertHistory: Array<{
-    grnId: string;
-    purchaseOrderId: string;
-    revertedAt: string;
-    poAction: 'updated' | 'created';
-  }>;
+// ====== DEBIT/CREDIT NOTE INTERFACES ======
+export interface DebitCreditItemRequest {
+  itemId: string;
+  itemName?: string;
+  noteType: 'debit' | 'credit';
+  quantity: number;
+  reason?: string;
 }
 
+export interface CreateDebitNoteRequest {
+  documentId: string;
+  documentType: 'grn' | 'ap_invoice' | 'outgoing_payment';
+  items: DebitCreditItemRequest[];
+  createdBy: string;
+  comments?: string;
+}
+
+export interface DebitCreditNoteResponse {
+  noteId: string;
+  message: string;
+  totalDebitAmount: number;
+  totalCreditAmount: number;
+  netAmount: number;
+  itemsProcessed: number;
+  noteType?: 'quantity_based' | 'amount_only';
+  sourceDocument?: any;
+}
+
+export interface DebitCreditItemDetails {
+  itemId: string;
+  itemName: string;
+  noteType: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  taxAmount: number;
+  discountAmount: number;
+  finalPrice: number;
+  sgst: number;
+  cgst: number;
+  igst: number;
+  reason: string;
+  isAmountOnly?: boolean;
+}
+
+export interface DebitCreditNote {
+  noteId: string;
+  grnId: string;
+  randomId: string;
+  noteType?: 'quantity_based' | 'amount_only';
+  isAmountOnly?: boolean;
+  vendorName: string;
+  itemDetails: DebitCreditItemDetails[];
+  createdDate: Date;
+  createdBy: string;
+  lastUpdatedDate: string;
+}
+
+export interface AmountDebitNoteRequest {
+  documentId: string;
+  documentType: 'grn' | 'ap_invoice' | 'outgoing_payment';
+  totalAmount: number;  // Changed from 'amount' to 'totalAmount'
+  reason: string;
+  createdBy: string;
+  comments?: string;
+}
+
+export interface AmountDebitNoteResponse {
+  success?: boolean;  // Added success field
+  noteId: string;
+  message: string;
+  totalAmount?: number;  // Added for amount-only notes
+  totalDebitAmount?: number;  // Added ? for optional
+  totalCreditAmount?: number;  // Added ? for optional
+  netAmount: number;
+  itemsProcessed?: number;  // Added ? for optional
+  noteType: 'amount_only' | 'quantity_based';
+  sourceDocument?: any;
+  grnId?: string;
+  documentId?: string;
+  remainingPayableAmount?: number;  // Added for validation
+  createdAt?: string;  // Added for timestamp
+}
+
+// ====== OTHER INTERFACES ======
 export interface Vendor {
   vendorId: string;
   vendorName: string;
@@ -264,61 +319,38 @@ export interface ApInvoice {
   gstNumber: string;
   contactpersonEmail: string;
 }
+
 export interface ItemUpdate {
   itemId: string;
   befTaxDiscount?: number;
   afTaxDiscount?: number;
   expiryDate?: Date | null;
 }
+
 export interface RevertGrnToPOResponse {
   message: string;
   purchaseOrderId: string;
   grnId: string;
-  poStatus: string;  // Renamed from poAction (always 'updated' implicitly)
+  poStatus: string;
   itemStatus: string;
-  revertedItemsCount: number;  // Backend returns count instead of array
+  revertedItemsCount: number;
   pendingOrderAmount: number;
-  // Optional: Add totalOrderAmount if needed
   totalOrderAmount?: number;
 }
+
+// ====== FETCH INTERFACES ======
 export interface FetchGrnsReturnPayload {
   grns: GrnData[];
   totalItems: number;
-   hasDebitCreditNotes: Record<string, boolean>; 
+  hasDebitCreditNotes: Record<string, boolean>;
 }
+
 export interface FetchGrnsPayload {
   grns: GrnData[];
   totalItems: number;
   hasDebitCreditNotes: Record<string, boolean>;
-  
 }
-export interface ItemDetails {
-  itemId: string;
-  itemName: string;
-  noteType: string; // Change from string[] to string
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number; // Add this field
-  taxAmount: number;
-  discountAmount: number;
-  finalPrice: number;
-  sgst: number;
-  cgst: number;
-  igst: number; // Allow null as per API
-  reason: string;
-}
-  
-export interface DebitCreditNote{
-noteId:string;
-grnId:string;
-randomId:string;
-vendorName:string;
-itemDetails:ItemDetails[];
-createdDate:Date;
-createdBy:string;
-lastUpdatedDate:string;
-}
-  
+
 export interface FetchGrnsArgs {
   page: number;
   size: number;
@@ -330,6 +362,68 @@ export interface FetchGrnsArgs {
   daysFilterDate?: number;
 }
 
+// ====== GRN STATE INTERFACE ======
+export interface GrnState {
+  // Core data
+  grns: GrnData[];
+  itemwise: GrnData[];
+  itemDetails: ItemDetail[];
+  
+  // UI state
+  searchQuery: string;
+  selectedGrnId: string | null;
+  view: 'grn';
+  error: string | null;
+  newItem: ItemDetail;
+  
+  // Related data
+  vendors: Vendor[];
+  purchaseitems: PurchaseItem[];
+  purchaseorders: PurchaseRandomId[];
+  apinvoice: ApInvoice[];
+  
+  // Loading states
+  loading: boolean;
+  updateStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+  
+  // Notification
+  snackbarMessageGRN: string;
+  snackbarOpenGRN: boolean;
+  
+  // Table settings
+  selectedHeaders: string[];
+  
+  // Pagination
+  currentPage: number;
+  pageSize: number;
+  totalItems: number;
+  
+  // Debit/Credit notes
+  debitCreditNotes: DebitCreditNote[];
+  hasDebitCreditNotes: { [grnId: string]: boolean };
+  
+  // Return reasons
+  returnReasons: ReturnReason[];
+  
+  // Revert-related
+  revertLoading: boolean;
+  revertError: string | null;
+  revertedGrns: GrnData[];
+  revertHistory: Array<{
+    grnId: string;
+    purchaseOrderId: string;
+    revertedAt: string;
+    poAction: 'updated' | 'created';
+  }>;
+  
+  // Debit note loading states
+  amountDebitNoteLoading: boolean;
+  debitCreditNoteLoading: boolean;
+  amountDebitNoteError: string | null;
+  debitCreditNoteError: string | null;
+}
+
+// ====== INITIAL STATE ======
 export const initialState: GrnState = {
   grns: [],
   itemwise: [],
@@ -337,6 +431,7 @@ export const initialState: GrnState = {
   searchQuery: '',
   selectedGrnId: null,
   view: 'grn',
+  error: null,
   newItem: {
     itemId: '',
     itemName: '',
@@ -377,7 +472,6 @@ export const initialState: GrnState = {
     returnedCgst: 0,
     grnPrice: 0
   },
-  error: null,
   vendors: [],
   purchaseitems: [],
   purchaseorders: [],
@@ -397,9 +491,12 @@ export const initialState: GrnState = {
   debitCreditNotes: [],
   hasDebitCreditNotes: {},
   returnReasons: [],
-    // Revert-related initial state
   revertLoading: false,
   revertError: null,
   revertedGrns: [],
   revertHistory: [],
+  amountDebitNoteLoading: false,
+  debitCreditNoteLoading: false,
+  amountDebitNoteError: null,
+  debitCreditNoteError: null,
 };

@@ -318,7 +318,7 @@ export const initialState: ServiceState = {
   calculatedTotals: null,
 };
 
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://192.168.29.116:8000/purchasetestapi';
 
 // FIXED: Async thunk for calculateServiceTotals (sends nested ServiceDescription[])
 export const calculateServiceTotals = createAsyncThunk(

@@ -6,19 +6,19 @@ import { Personal,initialState } from '@/Models/personalModel';
 
 // Async thunk to fetch all Personal items
 export const fetchPersonals = createAsyncThunk('personals/fetchPersonals', async () => {
-  const response = await axios.get('https://yenerp.com/purchaseapi/popersonals/'); // Adjust API endpoint as needed
+  const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/popersonals/'); // Adjust API endpoint as needed
   return response.data;
 });
 
 // Async thunk to add a new Personal item
 export const addPersonal = createAsyncThunk<Personal, Personal>('personals/addPersonal', async (personalData) => {
-  const response = await axios.post('https://yenerp.com/purchaseapi/popersonals/', personalData); // Adjust API endpoint as needed
+  const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/popersonals/', personalData); // Adjust API endpoint as needed
   return response.data;
 });
 
 // Async thunk to update an existing Personal item
 export const updatePersonal = createAsyncThunk<Personal, Personal>('personals/updatePersonal', async (personalData) => {
-  const response = await axios.patch(`https://yenerp.com/purchaseapi/popersonals/${personalData.personalId}`, personalData); // Adjust API endpoint as needed
+  const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/popersonals/${personalData.personalId}`, personalData); // Adjust API endpoint as needed
   return response.data;
 });
 

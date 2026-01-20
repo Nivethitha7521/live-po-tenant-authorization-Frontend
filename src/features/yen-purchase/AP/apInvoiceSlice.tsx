@@ -4,7 +4,7 @@ import axios from 'axios';
 import { ApInvoice, ApInvoiceRandomId, ApInvoiceState, initialState } from '@/Models/apModel';
 
 
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://192.168.29.116:8000/purchasetestapi';
 // Fetch AP Invoices with pagination and advanced filtering
 // Add this async thunk for loading more statuses
 export const loadMoreStatuses = createAsyncThunk(
@@ -17,7 +17,7 @@ export const loadMoreStatuses = createAsyncThunk(
 
     dispatch(setStatusesLoading(true));
     try {
-      const response = await axios.get('https://yenerp.com/purchaseapi/apinvoices/statuses', {
+      const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/apinvoices/statuses', {
         params: {
           search: statusSearch || '',
           page: currentPage,
@@ -47,7 +47,7 @@ export const fetchApStatuses = createAsyncThunk(
   async ({ search = '', page = 1 }: { search?: string; page?: number }, { dispatch, rejectWithValue }) => {
     dispatch(setStatusesLoading(true));
     try {
-      const response = await axios.get('https://yenerp.com/purchaseapi/apinvoices/statuses', {
+      const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/apinvoices/statuses', {
         params: {
           search: search,
           page: page,
@@ -142,21 +142,56 @@ export const fetchApInvoices = createAsyncThunk(
         params: queryParams
       });
 
-      console.log('Backend response:', {
-        dataLength: response.data.data?.length,
-        total: response.data.total,
-        page: response.data.page,
-        totalPages: response.data.totalPages,
-        hasMore: response.data.hasMore
+      // CRITICAL: Check the actual response structure
+      console.log('Full backend response:', response.data);
+      console.log('Response keys:', Object.keys(response.data));
+
+      // Check if data is directly in response.data or in nested property
+      let invoiceData = [];
+      let totalCount = 0;
+      let totalPages = 1;
+
+      // Case 1: Data is directly in response.data (array)
+      if (Array.isArray(response.data)) {
+        invoiceData = response.data;
+        totalCount = response.data.length;
+        totalPages = Math.ceil(response.data.length / limit);
+      }
+      // Case 2: Data is in response.data.data (common pattern)
+      else if (response.data.data !== undefined) {
+        invoiceData = response.data.data || [];
+        totalCount = response.data.total || invoiceData.length;
+        totalPages = response.data.totalPages || Math.ceil(totalCount / limit);
+      }
+      // Case 3: Data might be in a different property
+      else {
+        // Try to find any array in the response
+        const keys = Object.keys(response.data);
+        for (const key of keys) {
+          if (Array.isArray(response.data[key])) {
+            invoiceData = response.data[key];
+            break;
+          }
+        }
+        totalCount = invoiceData.length;
+        totalPages = Math.ceil(invoiceData.length / limit);
+      }
+
+      console.log('Extracted data:', {
+        invoiceCount: invoiceData.length,
+        totalCount,
+        totalPages,
+        page,
+        limit
       });
 
       return {
-        data: response.data.data || [],
-        total: response.data.total || 0,
-        page: page, // Use the requested page, not response.page
+        data: invoiceData,
+        total: totalCount,
+        page: page,
         limit: limit,
-        totalPages: response.data.totalPages || 1,
-        hasMore: response.data.hasMore || false,
+        totalPages: totalPages,
+        hasMore: page < totalPages,
       };
     } catch (error: any) {
       console.error('Failed to fetch AP Invoices:', error);
@@ -447,28 +482,32 @@ const apInvoiceSlice = createSlice({
       })
       .addCase(fetchApInvoices.fulfilled, (state, action) => {
         state.loading = false;
+        state.error = null;
 
-        const { data, total, page, limit, totalPages, hasMore } = action.payload;
+        const { data, total, page, limit, totalPages } = action.payload;
 
-        console.log('Setting pagination state:', {
-          dataLength: data.length,
-          totalItems: total,
-          currentPage: page,
-          totalPages: totalPages,
-          hasMore: hasMore,
-          skip: (page - 1) * limit
+        console.log('Received from thunk:', {
+          dataLength: data?.length,
+          total,
+          page,
+          totalPages
         });
 
-        // Only update totalItems if it's a valid number
-        if (total > 0) {
-          state.totalItems = total;
-        }
+        // Ensure we have valid data
+        state.apInvoices = Array.isArray(data) ? data : [];
+        state.totalItems = typeof total === 'number' ? total : state.apInvoices.length;
+        state.currentPage = typeof page === 'number' ? page : 1;
+        state.pageSize = typeof limit === 'number' ? limit : 50;
+        state.totalPages = typeof totalPages === 'number' ? totalPages :
+          Math.ceil(state.totalItems / state.pageSize) || 1;
+        state.hasMore = state.currentPage < state.totalPages;
 
-        state.apInvoices = data;
-        state.currentPage = page;
-        state.pageSize = limit;
-        state.totalPages = totalPages;
-        state.hasMore = hasMore;
+        console.log('Final state:', {
+          invoicesCount: state.apInvoices.length,
+          totalItems: state.totalItems,
+          currentPage: state.currentPage,
+          totalPages: state.totalPages
+        });
       })
 
       .addCase(fetchApInvoices.rejected, (state, action) => {

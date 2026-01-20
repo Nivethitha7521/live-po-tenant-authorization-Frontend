@@ -315,6 +315,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
+  
   const handleQuantityBlur = useCallback(
     (itemId: string, field: "receivedQuantity", value: string | number) => {
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
@@ -1212,7 +1213,46 @@ const ApprovedPurchase: React.FC = () => {
       setIsInvoiceDuplicate(false);
     }
   }, [invoiceNumber, purchaseinvoice, selectedOrder]);
-  
+  const validateExpiryDates = useCallback((): boolean => {
+  let hasErrors = false;
+  const newErrors: Record<number, Record<string, string>> = {};
+
+  updatedItems.forEach((item, index) => {
+    const receivedQuantity = Number(item.receivedQuantity) || 0;
+    
+    // Only require expiry date if received quantity > 0
+    if (receivedQuantity > 0 && !item.expiryDate) {
+      hasErrors = true;
+      newErrors[index] = {
+        ...newErrors[index],
+        expiryDate: 'Required'
+      };
+    }
+  });
+
+  if (hasErrors) {
+    setErrors(prev => ({
+      ...prev,
+      ...newErrors
+    }));
+    
+    // Mark all fields as touched to show errors
+    const touchedFields: Record<number, Record<string, boolean>> = {};
+    Object.keys(newErrors).forEach(key => {
+      const index = parseInt(key);
+      touchedFields[index] = {
+        ...touched[index],
+        expiryDate: true
+      };
+    });
+    setTouched(prev => ({
+      ...prev,
+      ...touchedFields
+    }));
+  }
+
+  return !hasErrors;
+}, [updatedItems, touched]);
   const handleQuantityChange = useCallback(
     (itemId: string, field: "receivedQuantity", value: string | number) => {
       console.log("Quantity Change:", { itemId, field, value });
@@ -1360,173 +1400,264 @@ const ApprovedPurchase: React.FC = () => {
     },
     [updatedItems]
   );
-  // FULL: Updated handleSaveChanges function (with freights passed)
-  const handleSaveChanges = useCallback(async () => {
-    console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate, roundOffAmount, freights });
-    if (!selectedOrder?.purchaseOrderId) {
-      setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
+  // Update handleSaveChanges to include the validation
+const handleSaveChanges = useCallback(async () => {
+  console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate, roundOffAmount, freights });
+  
+  if (!selectedOrder?.purchaseOrderId) {
+    setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  if (!invoiceNumber.trim()) {
+    setSnackbarInvoiceMessage("Invoice number is required.");
+    setSnackbarInvoiceOpen(true);
+    setIsTouched(true);
+    return;
+  }
+
+  const finalInvoiceDate = invoiceDate || new Date();
+  if (!finalInvoiceDate) {
+    setSnackbarInvoiceMessage("Invoice date is required.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  if (isInvoiceDuplicate) {
+    setSnackbarInvoiceMessage("Duplicate invoice number detected. Please enter a unique invoice number.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  // Validate round off doesn't make total negative
+  const finalTotal = totalOrderAmount + roundOffAmount;
+  if (finalTotal < 0) {
+    setSnackbarInvoiceMessage(`Round off amount cannot make total negative. Current total: ${totalOrderAmount.toFixed(2)}`);
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  // NEW: Validate expiry dates for items with received quantity > 0
+  if (!validateExpiryDates()) {
+    setSnackbarInvoiceMessage("Please provide expiry dates for all items with received quantity greater than 0.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  const hasErrors = Object.values(errors).some((errorObj) =>
+    Object.values(errorObj).some((error) => error)
+  );
+  
+  if (hasErrors) {
+    setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
+    setSnackbarInvoiceOpen(true);
+    return;
+  }
+
+  // Rest of the handleSaveChanges code remains the same...
+  const validItems = updatedItems.filter((item) => {
+    const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+    const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+    const receivedQuantity = Number(item.receivedQuantity) || 0;
+    const befTaxDiscount = Number(item.befTaxDiscount) || 0;
+    const afTaxDiscount = Number(item.afTaxDiscount) || 0;
+    const grnPrice = item.grnPrice !== undefined ? item.grnPrice : undefined;
+
+    if (befTaxDiscount < 0 || befTaxDiscount > 100) {
+      setSnackbarInvoiceMessage(`Before-tax discount for item "${item.itemName}" must be between 0 and 100%.`);
       setSnackbarInvoiceOpen(true);
-      return;
-    }
-    if (!invoiceNumber.trim()) {
-      setSnackbarInvoiceMessage("Invoice number is required.");
-      setSnackbarInvoiceOpen(true);
-      setIsTouched(true);
-      return;
-    }
-    const finalInvoiceDate = invoiceDate || new Date();
-    if (!finalInvoiceDate) {
-      setSnackbarInvoiceMessage("Invoice date is required.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-    if (isInvoiceDuplicate) {
-      setSnackbarInvoiceMessage("Duplicate invoice number detected. Please enter a unique invoice number.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-    // Validate round off doesn't make total negative
-    const finalTotal = totalOrderAmount + roundOffAmount;
-    if (finalTotal < 0) {
-      setSnackbarInvoiceMessage(`Round off amount cannot make total negative. Current total: ${totalOrderAmount.toFixed(2)}`);
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-    const hasErrors = Object.values(errors).some((errorObj) =>
-      Object.values(errorObj).some((error) => error)
-    );
-    if (hasErrors) {
-      setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
-    const validItems = updatedItems.filter((item) => {
-      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
-      const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      const receivedQuantity = Number(item.receivedQuantity) || 0;
-      const befTaxDiscount = Number(item.befTaxDiscount) || 0;
-      const afTaxDiscount = Number(item.afTaxDiscount) || 0;
-      const grnPrice = item.grnPrice !== undefined ? item.grnPrice : undefined;
-      if (befTaxDiscount < 0 || befTaxDiscount > 100) {
-        setSnackbarInvoiceMessage(`Before-tax discount for item "${item.itemName}" must be between 0 and 100%.`);
-        setSnackbarInvoiceOpen(true);
-        return false;
-      }
-      if (afTaxDiscount < 0) {
-        setSnackbarInvoiceMessage(`After-tax discount for item "${item.itemName}" cannot be negative.`);
-        setSnackbarInvoiceOpen(true);
-        return false;
-      }
-      if (grnPrice !== undefined && (grnPrice < 0)) {
-        setSnackbarInvoiceMessage(`GRN price for item "${item.itemName}" cannot be negative.`);
-        setSnackbarInvoiceOpen(true);
-        return false;
-      }
-      return receivedQuantity > 0 && pendingTotalQuantity > 0;
-    });
-    if (validItems.length === 0) {
-      const hasPendingItems = updatedItems.some((item) => {
-        const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
-        return (originalItem?.pendingTotalQuantity || 0) > 0;
-      });
-      if (!hasPendingItems) {
-        setSnackbarInvoiceMessage("All items in this purchase order have already been fully received.");
-        setSnackbarInvoiceOpen(true);
-      } else {
-        setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0.");
-        setSnackbarInvoiceOpen(true);
-      }
-      return;
-    }
-    const hasExcessQuantity = validItems.some((item) => {
-      const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
-      const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-      const receivedQuantity = Number(item.receivedQuantity);
-      if (receivedQuantity > backendPendingTotalQuantity) {
-        setExcessDialogMessage(
-          `Received quantity for item "${item.itemName}" (${receivedQuantity}) exceeds the pending total quantity (${backendPendingTotalQuantity}).`
-        );
-        setExcessDialogOpen(true);
-        return true;
-      }
       return false;
+    }
+
+    if (afTaxDiscount < 0) {
+      setSnackbarInvoiceMessage(`After-tax discount for item "${item.itemName}" cannot be negative.`);
+      setSnackbarInvoiceOpen(true);
+      return false;
+    }
+
+    if (grnPrice !== undefined && (grnPrice < 0)) {
+      setSnackbarInvoiceMessage(`GRN price for item "${item.itemName}" cannot be negative.`);
+      setSnackbarInvoiceOpen(true);
+      return false;
+    }
+
+    return receivedQuantity > 0 && pendingTotalQuantity > 0;
+  });
+
+  if (validItems.length === 0) {
+    const hasPendingItems = updatedItems.some((item) => {
+      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+      return (originalItem?.pendingTotalQuantity || 0) > 0;
     });
-    if (hasExcessQuantity) return;
-    const items = validItems.map((item) => {
-      const receivedQuantity = Number(item.receivedQuantity);
-      const befTaxDiscount = Math.max(0, Math.min(100, Number(item.befTaxDiscount) || 0));
-      const afTaxDiscount = Math.max(0, Number(item.afTaxDiscount) || 0);
-      const grnPrice = item.grnPrice !== undefined ? item.grnPrice : undefined;
-      return {
-        itemId: item.itemId,
-        receivedQuantity: receivedQuantity,
-        grnPrice: grnPrice,
-        befTaxDiscount: befTaxDiscount,
-        afTaxDiscount: afTaxDiscount,
-        expiryDate: item.expiryDate ? item.expiryDate : null,
-      };
+
+    if (!hasPendingItems) {
+      setSnackbarInvoiceMessage("All items in this purchase order have already been fully received.");
+      setSnackbarInvoiceOpen(true);
+    } else {
+      setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0.");
+      setSnackbarInvoiceOpen(true);
+    }
+    return;
+  }
+
+  const hasExcessQuantity = validItems.some((item) => {
+    const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
+    const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+    const receivedQuantity = Number(item.receivedQuantity);
+
+    if (receivedQuantity > backendPendingTotalQuantity) {
+      setExcessDialogMessage(
+        `Received quantity for item "${item.itemName}" (${receivedQuantity}) exceeds the pending total quantity (${backendPendingTotalQuantity}).`
+      );
+      setExcessDialogOpen(true);
+      return true;
+    }
+    return false;
+  });
+
+  if (hasExcessQuantity) return;
+
+  const items = validItems.map((item) => {
+    const receivedQuantity = Number(item.receivedQuantity);
+    const befTaxDiscount = Math.max(0, Math.min(100, Number(item.befTaxDiscount) || 0));
+    const afTaxDiscount = Math.max(0, Number(item.afTaxDiscount) || 0);
+    const grnPrice = item.grnPrice !== undefined ? item.grnPrice : undefined;
+
+    return {
+      itemId: item.itemId,
+      receivedQuantity: receivedQuantity,
+      grnPrice: grnPrice,
+      befTaxDiscount: befTaxDiscount,
+      afTaxDiscount: afTaxDiscount,
+      expiryDate: item.expiryDate ? item.expiryDate : null,
+    };
+  });
+
+  console.log("Items being sent to backend:", items);
+  console.log("Freights being sent to backend:", freights);
+  console.log("Round off amount:", roundOffAmount);
+
+  try {
+    setIsProcessing(true);
+    const updateResult = await dispatch(
+      updateReceivedDamagedQuantities({
+        purchaseOrderId: selectedOrder.purchaseOrderId,
+        items,
+        invoiceNo: invoiceNumber.trim(),
+        invoiceDate: finalInvoiceDate,
+        grnDate: grnDate || new Date(),
+        discountPrice: 0,
+        grnRoundOffAmount: roundOffAmount,
+        freights,
+      })
+    ).unwrap();
+
+    console.log("Update Result:", updateResult);
+    setRoundOffAmount(0);
+
+    const updatedOrderItems = selectedOrder.items.map((originalItem) => {
+      const updatedItem = items.find((item) => item.itemId === originalItem.itemId);
+      if (updatedItem) {
+        const newPendingTotalQuantity = Math.max(
+          0,
+          (originalItem.pendingTotalQuantity || 0) - updatedItem.receivedQuantity
+        );
+        const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
+        const newPendingQuantity = newPendingTotalQuantity;
+        const grnPrice = updatedItem.grnPrice !== undefined ? updatedItem.grnPrice : originalItem.newPrice;
+
+        return {
+          ...originalItem,
+          pendingTotalQuantity: newPendingTotalQuantity,
+          pendingCount: newPendingCount,
+          pendingQuantity: newPendingQuantity,
+          status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
+          receivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+          totalReceivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+          grnPrice: grnPrice,
+          befTaxDiscount: updatedItem.befTaxDiscount,
+          afTaxDiscount: updatedItem.afTaxDiscount,
+          expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
+        };
+      }
+      return originalItem;
     });
-    console.log("Items being sent to backend:", items);
-    console.log("Freights being sent to backend:", freights);
-    console.log("Round off amount:", roundOffAmount);
-    try {
-      setIsProcessing(true);
-      const updateResult = await dispatch(
-        updateReceivedDamagedQuantities({
-          purchaseOrderId: selectedOrder.purchaseOrderId,
-          items,
-          invoiceNo: invoiceNumber.trim(),
-          invoiceDate: finalInvoiceDate,
-          grnDate: grnDate || new Date(),
-          discountPrice: 0,
-          grnRoundOffAmount: roundOffAmount,
-          freights, // Pass full edited freights for PO update and GRN
-        })
-      ).unwrap();
-      console.log("Update Result:", updateResult);
-      // Reset round off amount after successful save
-      setRoundOffAmount(0);
-      const updatedOrderItems = selectedOrder.items.map((originalItem) => {
-        const updatedItem = items.find((item) => item.itemId === originalItem.itemId);
-        if (updatedItem) {
-          const newPendingTotalQuantity = Math.max(
-            0,
-            (originalItem.pendingTotalQuantity || 0) - updatedItem.receivedQuantity
-          );
-          const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
-          const newPendingQuantity = newPendingTotalQuantity;
-          const grnPrice = updatedItem.grnPrice !== undefined ? updatedItem.grnPrice : originalItem.newPrice;
-          return {
-            ...originalItem,
-            pendingTotalQuantity: newPendingTotalQuantity,
-            pendingCount: newPendingCount,
-            pendingQuantity: newPendingQuantity,
-            status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
-            receivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
-            totalReceivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
-            grnPrice: grnPrice,
-            befTaxDiscount: updatedItem.befTaxDiscount,
-            afTaxDiscount: updatedItem.afTaxDiscount,
-            expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
-          };
-        }
-        return originalItem;
-      });
-      setSelectedOrder((prev) =>
-        prev
-          ? {
+
+    setSelectedOrder((prev) =>
+      prev
+        ? {
             ...prev,
             items: updatedOrderItems,
             pendingOrderAmount: updateResult.pendingOrderAmount || 0,
             totalOrderAmount: updateResult.totalOrderAmount || 0,
             invoiceNo: updateResult.invoiceNo,
             invoiceDate: updateResult.invoiceDate ? parseLocalDate(updateResult.invoiceDate) : null,
-            freights: updateResult.freights || prev.freights, // Update freights if backend returns
+            freights: updateResult.freights || prev.freights,
           }
-          : null
-      );
+        : null
+    );
+
+    setUpdatedItems(
+      updatedOrderItems.map((item) => ({
+        ...item,
+        receivedQuantity: item.pendingTotalQuantity || 0,
+        grnPrice: undefined,
+        befTaxDiscount: item.befTaxDiscount || 0,
+        afTaxDiscount: item.afTaxDiscount || 0,
+        expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime())
+          ? new Date(item.expiryDate)
+          : null,
+      }))
+    );
+
+    setTouched(
+      updatedOrderItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: { receivedQuantity: false, grnPrice: false, befTaxDiscount: false, afTaxDiscount: false },
+        }),
+        {}
+      )
+    );
+
+    setErrors(
+      updatedOrderItems.reduce(
+        (acc, _, index) => ({
+          ...acc,
+          [index]: { receivedQuantity: "", grnPrice: "", befTaxDiscount: "", afTaxDiscount: "" },
+        }),
+        {}
+      )
+    );
+
+    await dispatch(
+      fetchPurchaseOrders({
+        page: currentPage,
+        size: pageSize,
+        dateField: "approvedDate",
+      })
+    ).unwrap();
+
+    setSnackbarInvoiceMessage('Changes saved successfully!');
+    setSnackbarInvoiceOpen(true);
+    handleCloseDialogs();
+  } catch (error: any) {
+    console.error("Save Error:", error);
+    let errorMessage = "Failed to save changes. ";
+    if (error.message) {
+      errorMessage += error.message;
+    } else if (typeof error === 'string') {
+      errorMessage += error;
+    } else {
+      errorMessage += "Please check your inputs and try again.";
+    }
+    setSnackbarInvoiceMessage(errorMessage);
+    setSnackbarInvoiceOpen(true);
+
+    if (selectedOrder) {
       setUpdatedItems(
-        updatedOrderItems.map((item) => ({
+        selectedOrder.items.map((item) => ({
           ...item,
           receivedQuantity: item.pendingTotalQuantity || 0,
           grnPrice: undefined,
@@ -1538,7 +1669,7 @@ const ApprovedPurchase: React.FC = () => {
         }))
       );
       setTouched(
-        updatedOrderItems.reduce(
+        selectedOrder.items.reduce(
           (acc, _, index) => ({
             ...acc,
             [index]: { receivedQuantity: false, grnPrice: false, befTaxDiscount: false, afTaxDiscount: false },
@@ -1547,7 +1678,7 @@ const ApprovedPurchase: React.FC = () => {
         )
       );
       setErrors(
-        updatedOrderItems.reduce(
+        selectedOrder.items.reduce(
           (acc, _, index) => ({
             ...acc,
             [index]: { receivedQuantity: "", grnPrice: "", befTaxDiscount: "", afTaxDiscount: "" },
@@ -1555,84 +1686,32 @@ const ApprovedPurchase: React.FC = () => {
           {}
         )
       );
-      await dispatch(
-        fetchPurchaseOrders({
-          page: currentPage,
-          size: pageSize,
-          dateField: "approvedDate",
-        })
-      ).unwrap();
-      setSnackbarInvoiceMessage('Changes saved successfully!');
-      setSnackbarInvoiceOpen(true);
-      handleCloseDialogs();
-    } catch (error: any) {
-      console.error("Save Error:", error);
-      let errorMessage = "Failed to save changes. ";
-      if (error.message) {
-        errorMessage += error.message;
-      } else if (typeof error === 'string') {
-        errorMessage += error;
-      } else {
-        errorMessage += "Please check your inputs and try again.";
-      }
-      setSnackbarInvoiceMessage(errorMessage);
-      setSnackbarInvoiceOpen(true);
-      if (selectedOrder) {
-        setUpdatedItems(
-          selectedOrder.items.map((item) => ({
-            ...item,
-            receivedQuantity: item.pendingTotalQuantity || 0,
-            grnPrice: undefined,
-            befTaxDiscount: item.befTaxDiscount || 0,
-            afTaxDiscount: item.afTaxDiscount || 0,
-            expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime())
-              ? new Date(item.expiryDate)
-              : null,
-          }))
-        );
-        setTouched(
-          selectedOrder.items.reduce(
-            (acc, _, index) => ({
-              ...acc,
-              [index]: { receivedQuantity: false, grnPrice: false, befTaxDiscount: false, afTaxDiscount: false },
-            }),
-            {}
-          )
-        );
-        setErrors(
-          selectedOrder.items.reduce(
-            (acc, _, index) => ({
-              ...acc,
-              [index]: { receivedQuantity: "", grnPrice: "", befTaxDiscount: "", afTaxDiscount: "" },
-            }),
-            {}
-          )
-        );
-      }
-    } finally {
-      setIsProcessing(false);
     }
-  }, [
-    selectedOrder,
-    invoiceNumber,
-    isInvoiceDuplicate,
-    updatedItems,
-    invoiceDate,
-    grnDate,
-    roundOffAmount,
-    totalOrderAmount,
-    errors,
-    dispatch,
-    currentPage,
-    pageSize,
-    handleCloseDialogs,
-    setExcessDialogMessage,
-    setExcessDialogOpen,
-    setSnackbarInvoiceMessage,
-    setSnackbarInvoiceOpen,
-    setIsTouched,
-    freights, // NEW: Add freights dependency
-  ]);
+  } finally {
+    setIsProcessing(false);
+  }
+}, [
+  selectedOrder,
+  invoiceNumber,
+  isInvoiceDuplicate,
+  updatedItems,
+  invoiceDate,
+  grnDate,
+  roundOffAmount,
+  totalOrderAmount,
+  errors,
+  dispatch,
+  currentPage,
+  pageSize,
+  handleCloseDialogs,
+  setExcessDialogMessage,
+  setExcessDialogOpen,
+  setSnackbarInvoiceMessage,
+  setSnackbarInvoiceOpen,
+  setIsTouched,
+  freights,
+  validateExpiryDates, // Add this dependency
+]);
   // FIXED: Added null-check for order.items to prevent runtime error in some()
   const filteredOrders = useMemo(() =>
     purchaseList.filter((order) =>

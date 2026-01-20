@@ -172,6 +172,7 @@ export interface OutgoingState {
   vendorDebits: { [vendorName: string]: any[] }; // Added for debit notes per vendor
   advances: AdvancePayment[]; // NEW: Add advances to state
     selection: SelectionState;
+    selectedOutgoingId: string | null; // <-- ADD THIS
 }
 
 
@@ -238,6 +239,7 @@ export const initialState: OutgoingState = {
   vendorDebits: {},
   advances: [],
   totalPayableAmount: 0,
+    selectedOutgoingId: null, // <-- ADD THIS
     selection: {
       selectedOutgoingIds: [] as string[],
       selectedOutgoings: [] as Outgoing[], // Store full objects

@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { RootState } from '../../../redux/store';
-import { GrnData, GrnState, ItemDetail, ItemDetails, Vendor, PurchaseItem, PurchaseOrder, ApInvoice, ReturnGRNRequest, FetchGrnsPayload, FetchGrnsArgs, initialState, DebitCreditNote, FetchGrnsReturnPayload, ReturnReason, RevertGrnToPOResponse } from '@/Models/grnModel';
+import { GrnData, GrnState, ItemDetail, ItemDetails, Vendor, PurchaseItem, PurchaseOrder, ApInvoice, ReturnGRNRequest, FetchGrnsPayload, FetchGrnsArgs, initialState, DebitCreditNote, FetchGrnsReturnPayload, ReturnReason, RevertGrnToPOResponse, CreateDebitNoteRequest, DebitCreditNoteResponse, AmountDebitNoteResponse, AmountDebitNoteRequest } from '@/Models/grnModel';
 import { PurchaseRandomId } from '@/Models/purchaseModel';
 
 // Define a specific interface for item updates
@@ -12,7 +12,7 @@ export interface ItemUpdate {
   afTaxDiscount?: number;
   expiryDate?: Date | null;
 }
-const BASE_URL = 'https://yenerp.com/purchaseapi';
+const BASE_URL = 'http://192.168.29.116:8000/purchasetestapi';
 const customRoundOf = (value: number) => {
   return Math.round(value * 100) / 100; // Round to two decimal placeshttp://192.168.29.117:8000
 };
@@ -39,6 +39,71 @@ export const revertGrnToPO = createAsyncThunk<
   }
 );
 
+// Add these new thunks to your grnSlice.ts
+export const createQuantityBasedDebitNote = createAsyncThunk<
+  DebitCreditNoteResponse,
+  CreateDebitNoteRequest,
+  { rejectValue: string }
+>(
+  'grn/createQuantityBasedDebitNote',
+  async (debitNoteData: CreateDebitNoteRequest, { rejectWithValue }) => {
+    try {
+      console.log('Creating quantity-based debit note:', debitNoteData);
+      
+      // Quantity-based endpoint for item-wise returns
+      const response = await axios.post<DebitCreditNoteResponse>(
+        `${BASE_URL}/debitnote/returnprocess/DebitCreditNote/create`,
+        debitNoteData
+      );
+      
+      console.log('Quantity-based debit note created:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create quantity debit note error:', error);
+      return rejectWithValue(
+        error.response?.data?.detail || 
+        error.response?.data?.message || 
+        'Failed to create quantity-based debit note'
+      );
+    }
+  }
+);
+export const createAmountOnlyDebitNote = createAsyncThunk<
+  AmountDebitNoteResponse,
+  AmountDebitNoteRequest,
+  { rejectValue: string }
+>(
+  'grn/createAmountOnlyDebitNote',
+  async (debitNoteData: AmountDebitNoteRequest, { rejectWithValue }) => {
+    try {
+      console.log('Creating amount-only debit note with data:', debitNoteData);
+      console.log('Request URL:', `${BASE_URL}/grns/returnprocess/AmountDebitNote/create`);
+      
+      const response = await axios.post<AmountDebitNoteResponse>(
+        `${BASE_URL}/debitnote/returnprocess/AmountDebitNote/create`,
+        debitNoteData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      
+      console.log('Amount-only debit note created:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create amount debit note error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      return rejectWithValue(
+        error.response?.data?.detail || 
+        error.response?.data?.message || 
+        'Failed to create amount-only debit note'
+      );
+    }
+  }
+);
 
 export const fetchGrns = createAsyncThunk<FetchGrnsPayload, FetchGrnsArgs>(
   'grns/fetch',
@@ -274,7 +339,7 @@ export const fetchRandomNumbers = createAsyncThunk(
   'invoiceNumbers/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<PurchaseRandomId[]>('https://yenerp.com/purchaseapi/purchaseorders/getByRandomId');
+      const response = await axios.get<PurchaseRandomId[]>('http://192.168.29.116:8000/purchasetestapi/purchaseorders/getByRandomId');
       return response.data;  // List of invoice numbers
     } catch (error: any) {
       return rejectWithValue(error.response?.data || 'Failed to fetch invoice numbers');
@@ -286,7 +351,7 @@ export const fetchReturnReasons = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       console.log('Fetching return reasons...');
-      const response = await axios.get<ReturnReason[]>('https://yenerp.com/purchaseapi/grns/getgrn/return-reasons');
+      const response = await axios.get<ReturnReason[]>('http://192.168.29.116:8000/purchasetestapi/grns/getgrn/return-reasons');
       console.log('Return reasons fetched:', response.data);
       return response.data;
     } catch (error: any) {
@@ -299,7 +364,7 @@ export const addReturnReason = createAsyncThunk(
   'grn/addReturnReason',
   async (reason: string, { rejectWithValue }) => {
     try {
-      const response = await axios.post('https://yenerp.com/purchaseapi/grns/return-reasons', { reason });
+      const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/grns/return-reasons', { reason });
       return response.data.reason;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to add return reason');
@@ -311,7 +376,7 @@ export const returnGrn = createAsyncThunk(
   'grn/returnGrn',
   async (payload: { grnId: string; returnData: ReturnGRNRequest }, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`https://yenerp.com/purchaseapi/grns/${payload.grnId}/return`, payload.returnData);
+      const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/grns/${payload.grnId}/return`, payload.returnData);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to return GRN');
@@ -326,7 +391,7 @@ export const fetchDebitCreditNotesByGrn = createAsyncThunk<
   'grn/fetchDebitCreditNotesByGrn',
   async ({ grnId, page, size }, { rejectWithValue }) => {
     try {
-      const response = await axios.get<DebitCreditNote[]>(`https://yenerp.com/purchaseapi/grns/returnprocess/DebitNote/${grnId}`, {
+      const response = await axios.get<DebitCreditNote[]>(`http://192.168.29.116:8000/purchasetestapi/grns/returnprocess/DebitNote/${grnId}`, {
         params: { skip: (page - 1) * size, limit: size },
       });
       return response.data;
@@ -335,61 +400,96 @@ export const fetchDebitCreditNotesByGrn = createAsyncThunk<
     }
   }
 );
-// // Async thunk to fetch GRNs based on filters
-// export const fetchGrnFilter = createAsyncThunk(
-//   'grns/fetchGrnFilter',
-//   async (filters: { fromDate?: Date; toDate?: Date; vendorName?: string; status?: string }) => {
-//     const { fromDate, toDate, vendorName, status } = filters;
+// Add these thunks to your existing slice
+export const createAmountDebitNote = createAsyncThunk<
+  AmountDebitNoteResponse,
+  AmountDebitNoteRequest,
+  { rejectValue: string }
+>(
+  'grn/createAmountDebitNote',
+  async (debitNoteData: AmountDebitNoteRequest, { rejectWithValue }) => {
+    try {
+      console.log('Creating amount-only debit note:', debitNoteData);
+      
+      const response = await axios.post<AmountDebitNoteResponse>(
+        `${BASE_URL}/debitnote/returnprocess/AmountDebitNote/create`,
+        debitNoteData
+      );
+      
+      console.log('Amount-only debit note created:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create amount debit note error:', error);
+      return rejectWithValue(
+        error.response?.data?.detail || 
+        error.response?.data?.message || 
+        'Failed to create amount-only debit note'
+      );
+    }
+  }
+);
 
-//     // Convert Date objects to ISO string format (if they exist)
-//     const params: { fromDate?: string; toDate?: string; vendorName?: string; status?: string } = {};
+export const createDebitCreditNote = createAsyncThunk<
+  DebitCreditNoteResponse,
+  CreateDebitNoteRequest,
+  { rejectValue: string }
+>(
+  'grn/createDebitCreditNote',
+  async (debitNoteData: CreateDebitNoteRequest, { rejectWithValue }) => {
+    try {
+      console.log('Creating quantity-based debit note:', debitNoteData);
+      
+      const response = await axios.post<DebitCreditNoteResponse>(
+        `${BASE_URL}/debitnote/returnprocess/DebitCreditNote/create`,
+        debitNoteData
+      );
+      
+      console.log('Quantity-based debit note created:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create debit credit note error:', error);
+      return rejectWithValue(
+        error.response?.data?.detail || 
+        error.response?.data?.message || 
+        'Failed to create debit/credit note'
+      );
+    }
+  }
+);
 
-//     if (fromDate) {
-//       params.fromDate = fromDate.toISOString();  // Convert to ISO string format
-//     }
-
-//     if (toDate) {
-//       params.toDate = toDate.toISOString();  // Convert to ISO string format
-//     }
-
-//     if (vendorName) {
-//       params.vendorName = vendorName;
-//     }
-
-//     if (status) {
-//       params.status = status;
-//     }
-
-//     try {
-//       // Make the API request with the correctly formatted parameters
-//       const response = await axios.get('https://yenerp.com/purchaseapi/grns/from-date/', {
-//         params: params,
-//       });
-
-//       console.log(response.data);  // Log the response data for debugging
-//       return response.data;  // Return the data to be used in your Redux state
-//     } catch (error: any) {
-//       // Handle the error and return a custom error message
-//       if (error.response && error.response.status === 404) {
-//         return { errorMessage: 'No matching GRNs found.' };  // Intimation message for 404
-//       } else {
-//         return { errorMessage: 'Error fetching GRNs.' };  // Generic error message
-//       }
-//     }
-//   }
-// );
-
-// export const returnGrn = createAsyncThunk(
-//   'grn/returnGrn',
-//   async (payload: { grnId: string; returnData: ReturnGRNRequest }, { rejectWithValue }) => {
-//     try {
-//       const response = await axios.patch(`${BASE_URL}/grns/${payload.grnId}/return`, payload.returnData);
-//       return response.data; // Returns updated GrnData
-//     } catch (error: any) {
-//       return rejectWithValue(error.response?.data || 'Failed to return GRN');
-//     }
-//   }
-// );
+// Update your existing fetchDebitCreditNotesByGrn to handle both types
+export const fetchDebitCreditNotesByDocument = createAsyncThunk<
+  DebitCreditNote[],
+  { 
+    documentId: string; 
+    page: number; 
+    size: number;
+    documentType?: 'grn' | 'ap_invoice' | 'outgoing_payment';
+  },
+  { rejectValue: string }
+>(
+  'grn/fetchDebitCreditNotesByDocument',
+  async ({ documentId, page, size, documentType = 'grn' }, { rejectWithValue }) => {
+    try {
+      // This endpoint can fetch both types of notes
+      const response = await axios.get<DebitCreditNote[]>(
+        `${BASE_URL}/debitnote/returnprocess/DebitCreditNote/by-document/${documentId}`,
+        {
+          params: { 
+            skip: (page - 1) * size, 
+            limit: size 
+          },
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.detail || 
+        'Error fetching debit/credit notes'
+      );
+    }
+  }
+);
 
 
 export const updateGrnCancelStatus = createAsyncThunk(
@@ -397,7 +497,7 @@ export const updateGrnCancelStatus = createAsyncThunk(
   async (grnId: string, { rejectWithValue }) => {
     try {
       // Send the PATCH request to update the GRN status
-      const response = await axios.patch(`https://yenerp.com/purchaseapi/grns/${grnId}`, {
+      const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/grns/${grnId}`, {
         status: 'active',
       });
 
@@ -718,7 +818,28 @@ export const grnSlice = createSlice({
         state.revertError = action.payload as string;
         state.snackbarMessageGRN = action.payload as string || 'Failed to revert GRN to PO';
         state.snackbarOpenGRN = true;
-      });
+      })
+        .addCase(createAmountDebitNote.pending, (state) => {
+    state.loading = true;
+    state.error = null;
+  })
+  .addCase(createAmountDebitNote.fulfilled, (state, action: PayloadAction<AmountDebitNoteResponse>) => {
+    state.loading = false;
+    state.snackbarMessageGRN = 'Amount-only debit note created successfully';
+    state.snackbarOpenGRN = true;
+    
+    // Optionally update the GRN's hasDebitCreditNotes flag
+    const grnIndex = state.grns.findIndex(grn => grn.grnId === action.payload.grnId);
+    if (grnIndex !== -1) {
+      state.grns[grnIndex].hasDebitCreditNotes = true;
+    }
+  })
+  .addCase(createAmountDebitNote.rejected, (state, action) => {
+    state.loading = false;
+    state.error = action.payload as string;
+    state.snackbarMessageGRN = action.payload as string || 'Failed to create amount-only debit note';
+    state.snackbarOpenGRN = true;
+  });
   },
 });
 
