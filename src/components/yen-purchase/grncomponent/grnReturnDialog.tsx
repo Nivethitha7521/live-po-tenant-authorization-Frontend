@@ -67,6 +67,7 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { returnReasons, snackbarMessageGRN, snackbarOpenGRN, loading } = useSelector((state: RootState) => state.grn);
+  const { username } = useSelector((state: RootState) => state.auth);
   const [dialogOpen, setDialogOpen] = useState(true);
   const [dialogReturnOpen, setDialogReturnOpen] = useState(false);
   const [returnScenario, setReturnScenario] = useState<'full' | 'partial' | null>(null);
@@ -284,70 +285,94 @@ const GrnReturnDialog: React.FC<GrnReturnDialogProps> = ({
       setDialogReturnOpen(false);
     }
   };
+const handleReturn = async () => {
+  if (!selectedGrnId || isSubmitting) {
+    return;
+  }
 
-  const handleReturn = async () => {
-    if (!selectedGrnId || isSubmitting) {
-      return;
-    }
-
-    setIsSubmitting(true); // Start submission - this disables buttons immediately
-
-    const returnData: ReturnGRNRequest = {
-      scenario: returnScenario!,
-      returnedDate: new Date().toISOString(),
-      returnedBy: 'user123', // Replace with actual user ID
-      comments: returnReason,
-      items: returnScenario === 'partial'
-        ? Array.from(selectedItemsForReturn).map((itemId) => {
-            const edited = editedItems[itemId];
-            return {
-              itemId,
-              nos: edited.nos,
-              eachQuantity: edited.eachQuantity,
-              returnedQuantity: edited.returnedQuantity,
-              returnReason: edited.returnReason,
-            };
-          })
-        : dialogItems.map((item) => {
-            const maxReturnable = getMaxReturnable(item);
-            const { nos, eachQuantity } = calculateNosAndEachQuantity(item, maxReturnable);
-            return {
-              itemId: item.itemId,
-              nos,
-              eachQuantity,
-              returnedQuantity: maxReturnable,
-              returnReason: returnReason,
-            };
-          }),
-    };
-
-    try {
-      const resultAction = await dispatch(returnGrn({ grnId: selectedGrnId, returnData })).unwrap();
-      dispatch(setSnackbarMessageGRN('Items returned successfully.'));
-      dispatch(setSnackbarOpenGRN(true));
-      const fromDateObj = fromDate ? new Date(fromDate) : undefined;
-      const toDateObj = toDate ? new Date(toDate) : undefined;
-      await dispatch(
-        fetchGrns({ page: currentPage, size: pageSize, status, fromDate: fromDateObj, toDate: toDateObj })
-      );
-      setDialogOpen(false);
-      setDialogReturnOpen(false);
-      setSelectedItemsForReturn(new Set());
-      setReturnReason('');
-      setCustomReason('');
-      setEditedItems({});
-      setReturnScenario(null);
-      dispatch(setSelectedGrnId(null));
-      onReturnComplete();
-    } catch (error) {
-      dispatch(setSnackbarMessageGRN('Failed to return items. Please try again.'));
-      dispatch(setSnackbarOpenGRN(true));
-      console.error('Error returning items:', error);
-    } finally {
-      setIsSubmitting(false); // End submission
-    }
+  setIsSubmitting(true);
+  const returnedBy = username || 'unknown_user'; // Fallback to 'unknown_user' if username is null
+  const returnData: ReturnGRNRequest = {
+    scenario: returnScenario!,
+    returnedDate: new Date().toISOString(),
+    returnedBy: returnedBy, // Replace with actual user ID
+    comments: returnReason,
+    items: returnScenario === 'partial'
+      ? Array.from(selectedItemsForReturn).map((itemId) => {
+          const edited = editedItems[itemId];
+          return {
+            itemId,
+            nos: edited.nos,
+            eachQuantity: edited.eachQuantity,
+            returnedQuantity: edited.returnedQuantity,
+            returnReason: edited.returnReason,
+          };
+        })
+      : dialogItems.map((item) => {
+          const maxReturnable = getMaxReturnable(item);
+          const { nos, eachQuantity } = calculateNosAndEachQuantity(item, maxReturnable);
+          return {
+            itemId: item.itemId,
+            nos,
+            eachQuantity,
+            returnedQuantity: maxReturnable,
+            returnReason: returnReason,
+          };
+        }),
   };
 
+  try {
+    const resultAction = await dispatch(returnGrn({ grnId: selectedGrnId, returnData })).unwrap();
+    dispatch(setSnackbarMessageGRN('Items returned successfully.'));
+    dispatch(setSnackbarOpenGRN(true));
+    const fromDateObj = fromDate ? new Date(fromDate) : undefined;
+    const toDateObj = toDate ? new Date(toDate) : undefined;
+    await dispatch(
+      fetchGrns({ page: currentPage, size: pageSize, status, fromDate: fromDateObj, toDate: toDateObj })
+    );
+    setDialogOpen(false);
+    setDialogReturnOpen(false);
+    setSelectedItemsForReturn(new Set());
+    setReturnReason('');
+    setCustomReason('');
+    setEditedItems({});
+    setReturnScenario(null);
+    dispatch(setSelectedGrnId(null));
+    onReturnComplete();
+  } catch (error: any) {
+    // Enhanced error handling for API error responses
+    let errorMessage = 'Failed to return items. Please try again.';
+    
+    if (error?.detail) {
+      // Check if error.detail is a string or an object
+      if (typeof error.detail === 'string') {
+        errorMessage = error.detail;
+      } else if (error.detail.message) {
+        // This is the object format we're seeing in the error
+        errorMessage = error.detail.message;
+        
+        // You can add more details if needed
+        if (error.detail.available_amount !== undefined) {
+          errorMessage += ` Available amount: ${error.detail.available_amount}`;
+        }
+        if (error.detail.existing_notes_count !== undefined) {
+          errorMessage += ` (${error.detail.existing_notes_count} existing debit notes)`;
+        }
+      } else if (typeof error.detail === 'object') {
+        // Try to extract any message from the object
+        errorMessage = JSON.stringify(error.detail);
+      }
+    } else if (error?.message) {
+      errorMessage = error.message;
+    }
+    
+    dispatch(setSnackbarMessageGRN(errorMessage));
+    dispatch(setSnackbarOpenGRN(true));
+    console.error('Error returning items:', error);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   // Combined loading state
   const isLoading = loading || isSubmitting;
 

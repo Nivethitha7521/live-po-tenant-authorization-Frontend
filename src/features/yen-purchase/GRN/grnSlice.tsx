@@ -52,7 +52,7 @@ export const createQuantityBasedDebitNote = createAsyncThunk<
       
       // Quantity-based endpoint for item-wise returns
       const response = await axios.post<DebitCreditNoteResponse>(
-        `${BASE_URL}/debitnote/returnprocess/DebitCreditNote/create`,
+        `${BASE_URL}/grns/returnprocess/DebitCreditNote/create`,
         debitNoteData
       );
       
@@ -80,7 +80,7 @@ export const createAmountOnlyDebitNote = createAsyncThunk<
       console.log('Request URL:', `${BASE_URL}/grns/returnprocess/AmountDebitNote/create`);
       
       const response = await axios.post<AmountDebitNoteResponse>(
-        `${BASE_URL}/debitnote/returnprocess/AmountDebitNote/create`,
+        `${BASE_URL}/grns/returnprocess/AmountDebitNote/create`,
         debitNoteData,
         {
           headers: {
@@ -412,7 +412,7 @@ export const createAmountDebitNote = createAsyncThunk<
       console.log('Creating amount-only debit note:', debitNoteData);
       
       const response = await axios.post<AmountDebitNoteResponse>(
-        `${BASE_URL}/debitnote/returnprocess/AmountDebitNote/create`,
+        `${BASE_URL}/grns/returnprocess/AmountDebitNote/create`,
         debitNoteData
       );
       
@@ -440,7 +440,7 @@ export const createDebitCreditNote = createAsyncThunk<
       console.log('Creating quantity-based debit note:', debitNoteData);
       
       const response = await axios.post<DebitCreditNoteResponse>(
-        `${BASE_URL}/debitnote/returnprocess/DebitCreditNote/create`,
+        `${BASE_URL}/grns/returnprocess/DebitCreditNote/create`,
         debitNoteData
       );
       
@@ -473,7 +473,7 @@ export const fetchDebitCreditNotesByDocument = createAsyncThunk<
     try {
       // This endpoint can fetch both types of notes
       const response = await axios.get<DebitCreditNote[]>(
-        `${BASE_URL}/debitnote/returnprocess/DebitCreditNote/by-document/${documentId}`,
+        `${BASE_URL}/grns/returnprocess/DebitCreditNote/by-document/${documentId}`,
         {
           params: { 
             skip: (page - 1) * size, 

@@ -212,7 +212,7 @@ export interface DescriptionDetailResponseService {
   fee: number;
   tax_type: string;
   tax_per: number;
-  // Additional calculated fields if neededd
+  // Additional calculated fields if needed
   totalFee?: number;
   taxAmount?: number;
   discountAmount?: number;

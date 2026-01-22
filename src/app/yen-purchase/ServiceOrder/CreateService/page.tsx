@@ -5,7 +5,6 @@ import {
   Box, TextField, Button, Typography, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
   Autocomplete, Snackbar, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, RadioGroup,
   FormControlLabel, Radio, CircularProgress, Tooltip, Backdrop, Switch, FormControl, Select, MenuItem,
-  FormLabel,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -79,7 +78,6 @@ const formatDateForDisplay = (dateStr: string | null | undefined): string => {
     return 'N/A';
   }
 };
-
 // Simple unique ID generator
 const generateUniqueId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -227,15 +225,13 @@ const CreateServicePage: React.FC = () => {
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const [isHoldOrderDialog, setIsHoldOrderDialog] = useState(false);
 
-  // Discount states
-  const [overallDiscountValue, setOverallDiscountValue] = useState<number>(0);
+  const [overallDiscountValue, setOverallDiscountValue] = useState<number>(0); // Pending/input value
+  const [appliedOverallDiscount, setAppliedOverallDiscount] = useState<number>(0); // Applied value
   const [overallDiscountMode, setOverallDiscountMode] = useState<'percentage' | 'amount'>('percentage');
+  const [appliedOverallDiscountMode, setAppliedOverallDiscountMode] = useState<'percentage' | 'amount'>('percentage'); // Applied mode
   const [overallDiscountAppliedOn, setOverallDiscountAppliedOn] = useState<'before_tax' | 'after_tax'>('after_tax');
+  const [appliedOverallDiscountAppliedOn, setAppliedOverallDiscountAppliedOn] = useState<'before_tax' | 'after_tax'>('after_tax'); // Applied type
   const [roundOffValue, setRoundOffValue] = useState<number>(0);
-
-  // Description-wise discount states
-  const [descriptionDiscountMode, setDescriptionDiscountMode] = useState<'percentage' | 'amount'>('percentage');
-  const [descriptionDiscountAppliedOn, setDescriptionDiscountAppliedOn] = useState<'before_tax' | 'after_tax'>('before_tax');
 
   // UI states
   const descriptionRef = useRef<HTMLInputElement | null>(null);
@@ -258,24 +254,23 @@ const CreateServicePage: React.FC = () => {
   const freightGrandTotal = useMemo(() =>
     freightSubTotal + freightTaxTotal, [freightSubTotal, freightTaxTotal]
   );
-
-  // Calculate distributed discounts
+  // Update calculateDistributedDiscounts to use APPLIED values
   const calculateDistributedDiscounts = useCallback(() => {
     if (!serviceData.fees || serviceData.fees.length === 0) return [];
-    
+
     const totalFees = serviceData.fees.reduce((sum, fee) => sum + (fee || 0), 0);
     if (totalFees === 0) return [];
-    
+
     let discountPercentage = 0;
-    
-    // Calculate overall discount percentage
-    if (overallDiscountMode === 'percentage') {
-      discountPercentage = overallDiscountValue;
+
+    // Calculate overall discount percentage USING APPLIED VALUES
+    if (appliedOverallDiscountMode === 'percentage') {
+      discountPercentage = appliedOverallDiscount;
     } else {
       // Calculate percentage from amount
-      discountPercentage = (overallDiscountValue / totalFees) * 100;
+      discountPercentage = (appliedOverallDiscount / totalFees) * 100;
     }
-    
+
     // Apply same percentage to each description
     return serviceData.fees.map(fee => {
       const discountAmount = (fee * discountPercentage) / 100;
@@ -284,101 +279,102 @@ const CreateServicePage: React.FC = () => {
         percentage: discountPercentage
       };
     });
-  }, [serviceData.fees, overallDiscountValue, overallDiscountMode]);
-// Fixed: Refresh totals with proper loading state
-const refreshTotals = useCallback(async (isMounted: boolean = true) => {
-  // Prevent multiple calls
-  if (!isMounted || loadingStates.totals) return;
+  }, [serviceData.fees, appliedOverallDiscount, appliedOverallDiscountMode]); // Use APPLIED values
+  const refreshTotals = useCallback(async (isMounted: boolean = true) => {
+    if (!isMounted || loadingStates.totals) return;
+    setLoadingStates(prev => ({ ...prev, totals: true }));
 
-  setLoadingStates(prev => ({ ...prev, totals: true }));
-
-  if (descriptions.length === 0 && freights.length === 0) {
-    setTotals({
-      subTotal: 0,
-      freightAmountTotal: 0,
-      freightTaxTotal: 0,
-      roundedTotalOrderAmount: 0,
-      roundedTotalDiscount: 0,
-      roundedTotalTax: 0,
-      overallDiscountAmount: 0,
-      taxAmount: 0,
-      afterDiscount: 0,
-    });
-    setLoadingStates(prev => ({ ...prev, totals: false }));
-    return;
-  }
-
-  try {
-    // Prepare request for backend
-    const request: ServiceTotalsRequest = {
-      descriptions: descriptions.map(desc => ({
-        ...desc,
-        fee: desc.fee,
-        discount_percentage: desc.discount_percentage || 0,
-        discount_amount: desc.discountAmount || 0,
-      })),
-      overall_discount_value: overallDiscountValue,
-      overall_discount_type: overallDiscountMode,
-      overall_discount_applied_on: overallDiscountAppliedOn,
-      round_off: roundOffValue,
-      fees_are_total_including_tax: true,
-      total_freight_amount: freightSubTotal,
-      total_freight_tax: freightTaxTotal,
-    };
-
-    // Call backend for calculation
-    const result = await dispatch(calculateServiceTotals(request)).unwrap();
-
-    // Update service data with calculated values
-    dispatch(setServiceData({
-      ...serviceData,
-      desc_sgst: result.desc_sgst || [],
-      desc_cgst: result.desc_cgst || [],
-      desc_igst: result.desc_igst || [],
-      desc_tax_amounts: result.desc_tax_amounts || [],
-      base_amounts: result.base_amounts || [],
-      desc_totals: result.desc_totals || [],
-      desc_discount_amounts: result.desc_discount_amounts || [],
-      desc_discount_percentages: result.desc_discount_percentages || [],
-      desc_overall_discounts: result.desc_overall_discounts || [],
-    }));
-
-    // Update totals with backend calculations
-    setTotals(prev => ({
-      ...prev,
-      subTotal: result.totalFees || 0,
-      taxAmount: result.totalTax || 0,
-      overallDiscountAmount: result.totalOverallDiscount || 0,
-      roundedTotalOrderAmount: result.totalAmount || 0,
-      roundedTotalTax: result.totalTax || 0,
-      roundedTotalDiscount: result.totalDiscount || 0,
-    }));
-
-  } catch (error) {
-    console.error('Error refreshing totals:', error);
-    if (isMounted) {
-      dispatch(setSnackbarMessage('Failed to calculate totals. Please check the data.'));
-      dispatch(setSnackbarOpen(true));
-    }
-  } finally {
-    if (isMounted) {
+    if (descriptions.length === 0 && freights.length === 0) {
+      setTotals({
+        subTotal: 0,
+        freightAmountTotal: 0,
+        freightTaxTotal: 0,
+        roundedTotalOrderAmount: 0,
+        roundedTotalDiscount: 0,
+        roundedTotalTax: 0,
+        overallDiscountAmount: 0,
+        taxAmount: 0,
+        afterDiscount: 0,
+      });
       setLoadingStates(prev => ({ ...prev, totals: false }));
-      setNeedsTotalsRefresh(false);
+      return;
     }
-  }
-}, [
-  descriptions,
-  overallDiscountValue,
-  overallDiscountMode,
-  overallDiscountAppliedOn,
-  roundOffValue,
-  dispatch,
-  freightSubTotal,
-  freightTaxTotal,
-  serviceData,
-  loadingStates.totals
-]);
 
+    try {
+      // Use APPLIED values for calculations, not pending values
+      const discountToUse = appliedOverallDiscount;
+      const discountModeToUse = appliedOverallDiscountMode;
+      const discountAppliedOnToUse = appliedOverallDiscountAppliedOn;
+
+      // Call backend for complex calculations WITH APPLIED DISCOUNT VALUES
+      const request: ServiceTotalsRequest = {
+        descriptions: descriptions.map(desc => ({
+          ...desc,
+          fee: desc.fee,
+          discount_percentage: desc.discount_percentage || 0,
+          discount_amount: desc.discountAmount || 0,
+        })),
+        overall_discount_value: discountToUse, // USE APPLIED VALUE
+        overall_discount_type: discountModeToUse, // USE APPLIED MODE
+        overall_discount_applied_on: discountAppliedOnToUse, // USE APPLIED TYPE
+        round_off: roundOffValue,
+        fees_are_total_including_tax: true,
+        total_freight_amount: freightSubTotal,
+        total_freight_tax: freightTaxTotal,
+      };
+
+      const result = await dispatch(calculateServiceTotals(request)).unwrap();
+
+      // Update service data with calculated values
+      dispatch(setServiceData({
+        ...serviceData,
+        desc_sgst: result.desc_sgst || [],
+        desc_cgst: result.desc_cgst || [],
+        desc_igst: result.desc_igst || [],
+        desc_tax_amounts: result.desc_tax_amounts || [],
+        base_amounts: result.base_amounts || [],
+        desc_totals: result.desc_totals || [],
+        desc_discount_amounts: result.desc_discount_amounts || [],
+        desc_discount_percentages: result.desc_discount_percentages || [],
+        desc_overall_discounts: result.desc_overall_discounts || [],
+      }));
+
+      // Update totals with backend calculations
+      setTotals(prev => ({
+        ...prev,
+        subTotal: result.totalFees || 0,
+        taxAmount: result.totalTax || 0,
+        overallDiscountAmount: result.totalOverallDiscount || 0,
+        roundedTotalOrderAmount: result.totalAmount || 0,
+        roundedTotalTax: result.totalTax || 0,
+        roundedTotalDiscount: result.totalDiscount || 0,
+      }));
+
+    } catch (error) {
+      console.error('Error refreshing totals:', error);
+      if (isMounted) {
+        dispatch(setSnackbarMessage('Failed to calculate totals. Please check the data.'));
+        dispatch(setSnackbarOpen(true));
+      }
+    } finally {
+      if (isMounted) {
+        setLoadingStates(prev => ({ ...prev, totals: false }));
+        setNeedsTotalsRefresh(false);
+      }
+    }
+  }, [
+    descriptions,
+    appliedOverallDiscount, // USE APPLIED VALUE
+    appliedOverallDiscountMode, // USE APPLIED MODE
+    appliedOverallDiscountAppliedOn, // USE APPLIED TYPE
+    roundOffValue,
+    dispatch,
+    freightGrandTotal,
+    freightSubTotal,
+    freightTaxTotal,
+    serviceData,
+    loadingStates.totals
+  ]);
   // Manual refresh totals function for external calls
   const manualRefreshTotals = useCallback(() => {
     setNeedsTotalsRefresh(true);
@@ -405,20 +401,20 @@ const refreshTotals = useCallback(async (isMounted: boolean = true) => {
     };
   }, [needsTotalsRefresh, refreshTotals]);
 
-  // Trigger totals refresh when descriptions change (add/edit/delete)
-  useEffect(() => {
-    manualRefreshTotals();
-  }, [descriptions.length]);
+  // // Trigger totals refresh when descriptions change (add/edit/delete)
+  // useEffect(() => {
+  //   manualRefreshTotals();
+  // }, [descriptions.length]);
 
-  // Trigger totals refresh when freights change
-  useEffect(() => {
-    manualRefreshTotals();
-  }, [freights.length]);
+  // // Trigger totals refresh when freights change
+  // useEffect(() => {
+  //   manualRefreshTotals();
+  // }, [freights.length]);
 
-  // Trigger totals refresh when discount/roundoff changes
-  useEffect(() => {
-    manualRefreshTotals();
-  }, [overallDiscountValue, roundOffValue]);
+  // // Trigger totals refresh when discount/roundoff changes
+  // useEffect(() => {
+  //   manualRefreshTotals();
+  // }, [overallDiscountValue, roundOffValue]);
 
   // Load service data in edit mode
   useEffect(() => {
@@ -729,46 +725,6 @@ const refreshTotals = useCallback(async (isMounted: boolean = true) => {
         break;
     }
   }, [dispatch, newDescription]);
-const handleDescriptionDiscountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-  const { name, value } = e.target;
-  
-  if (name === 'discount_percentage') {
-    const parsedValue = value === '' ? 0 : Math.min(100, parseFloat(value) || 0);
-    
-    // When entering percentage, set mode to percentage and clear amount
-    dispatch(setNewDescriptionData({
-      ...newDescription,
-      discount_percentage: parsedValue,
-      discount_amount: 0 // Clear amount field
-    }));
-    
-    setDescriptionDiscountMode('percentage');
-  } 
-  else if (name === 'discount_amount') {
-    const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
-    
-    // When entering amount, set mode to amount and clear percentage
-    dispatch(setNewDescriptionData({
-      ...newDescription,
-      discount_amount: parsedValue,
-      discount_percentage: 0 // Clear percentage field
-    }));
-    
-    setDescriptionDiscountMode('amount');
-  }
-}, [dispatch, newDescription]);
-
-// Fixed: Handle discount mode change
-const handleDescriptionDiscountTypeChange = useCallback((mode: 'percentage' | 'amount') => {
-  setDescriptionDiscountMode(mode);
-  
-  // Clear BOTH discount values when switching mode
-  dispatch(setNewDescriptionData({
-    ...newDescription,
-    discount_percentage: 0,
-    discount_amount: 0
-  }));
-}, [dispatch, newDescription]);
 
   const handleDescriptionDateChange = useCallback((name: 'from_date' | 'to_date', date: Date | null) => {
     dispatch(setNewDescriptionData({
@@ -786,162 +742,125 @@ const handleDescriptionDiscountTypeChange = useCallback((mode: 'percentage' | 'a
   }, [dispatch, newDescription]);
 
   const handleAddDescription = useCallback(async () => {
-  // Prevent multiple clicks/refreshes
-  if (loadingStates.description) {
-    console.log('Already processing description, please wait...');
-    return;
-  }
+    const editingIndex = (newDescription as any).index;
+    const isCurrentlyEditing = editingIndex !== undefined && editingIndex >= 0;
 
-  const editingIndex = (newDescription as any).index;
-  const isCurrentlyEditing = editingIndex !== undefined && editingIndex >= 0;
-
-  // Validation
-  const validationErrors = {
-    description: !newDescription.description?.trim(),
-    fee: !newDescription.fee || newDescription.fee <= 0,
-    quantity: !newDescription.quantity || newDescription.quantity < 1,
-  };
-
-  setErrors(prev => ({ ...prev, ...validationErrors }));
-
-  if (validationErrors.description || validationErrors.fee || validationErrors.quantity) {
-    dispatch(setSnackbarMessage('Description, fee (>0), and quantity (≥1) are required.'));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-
-  // Set loading state
-  setLoadingStates(prev => ({ ...prev, description: true }));
-
-  try {
-    // Prepare discount values - USE ONLY ONE TYPE
-    let discount_amount = 0;
-    let discount_percentage = 0;
-    
-    if (descriptionDiscountMode === 'percentage' && newDescription.discount_percentage) {
-      discount_percentage = newDescription.discount_percentage;
-      discount_amount = 0; // Don't send amount when using percentage
-    } else if (descriptionDiscountMode === 'amount' && newDescription.discount_amount) {
-      discount_amount = newDescription.discount_amount;
-      discount_percentage = 0; // Don't send percentage when using amount
-    }
-
-    const params = {
-      description: newDescription.description.trim(),
-      fromDate: newDescription.from_date || null,
-      toDate: newDescription.to_date || null,
-      fee: newDescription.fee,
-      taxType: newDescription.tax_type,
-      taxPer: newDescription.tax_per || 0,
-      sacCode: newDescription.sacCode || '',
-      discount: discount_amount,
-      discount_percentage: discount_percentage,
-      quantity: newDescription.quantity || 1,
-      remarks: newDescription.remarks || '',
+    // Validation
+    const validationErrors = {
+      description: !newDescription.description?.trim(),
+      fee: !newDescription.fee || newDescription.fee <= 0,
+      quantity: !newDescription.quantity || newDescription.quantity < 1,
     };
 
-    // Call backend for calculation
-    const calcResult = await dispatch(calculateDescriptionTotals(params)).unwrap();
+    setErrors(prev => ({ ...prev, ...validationErrors }));
 
-    // Create new description object
-    const newDescWithId: ServiceDescription = {
-      id: isCurrentlyEditing ? newDescription.id : generateUniqueId(),
-      sacCode: newDescription.sacCode || '',
-      description: newDescription.description.trim(),
-      from_date: newDescription.from_date || null,
-      to_date: newDescription.to_date || null,
-      fee: newDescription.fee,
-      quantity: newDescription.quantity || 1,
-      tax_type: newDescription.tax_type,
-      tax_per: newDescription.tax_per || 0,
-      sgst: calcResult.sgst || 0,
-      cgst: calcResult.cgst || 0,
-      igst: calcResult.igst || 0,
-      total: calcResult.total || 0,
-      taxAmount: calcResult.totalTax || 0,
-      totalFee: calcResult.baseAmount || 0,
-      finalFee: calcResult.total || 0,
-      discountAmount: discount_amount,
-      discount_percentage: discount_percentage,
-      discount_amount: discount_amount,
-      remarks: newDescription.remarks || '',
-      base_amount: calcResult.baseAmount || 0,
-    };
-
-    // Update or add description
-    if (isCurrentlyEditing) {
-      dispatch(updateDescription({
-        index: editingIndex,
-        desc: newDescWithId
-      }));
-      dispatch(setSnackbarMessage('Description updated successfully'));
-    } else {
-      dispatch(addDescriptionToService(newDescWithId));
-      dispatch(setSnackbarMessage('Description added successfully'));
+    if (validationErrors.description || validationErrors.fee || validationErrors.quantity) {
+      dispatch(setSnackbarMessage('Description, fee (>0), and quantity (≥1) are required.'));
+      dispatch(setSnackbarOpen(true));
+      return;
     }
 
-    // Reset form completely
-    dispatch(setNewDescriptionData({
-      id: '',
-      sacCode: '',
-      description: '',
-      from_date: null,
-      to_date: null,
-      fee: 0,
-      tax_type: 'cgst_sgst',
-      tax_per: 0,
-      sgst: 0,
-      cgst: 0,
-      igst: 0,
-      total: 0,
-      taxAmount: 0,
-      totalFee: 0,
-      finalFee: 0,
-      discountAmount: 0,
-      discount_percentage: 0,
-      discount_amount: 0,
-      quantity: 1,
-      remarks: '',
-      index: undefined,
-    } as any));
+    setLoadingStates(prev => ({ ...prev, description: true }));
 
-    // Reset UI states
-    setSelectedService(null);
-    setDescriptionDiscountMode('percentage');
-    setErrors({
-      description: false,
-      fromDate: false,
-      toDate: false,
-      fee: false,
-      taxPer: false,
-      quantity: false,
-      remarks: false
-    });
+    try {
+      const params = {
+        description: newDescription.description.trim(),
+        fromDate: newDescription.from_date || null,
+        toDate: newDescription.to_date || null,
+        fee: newDescription.fee,
+        taxType: newDescription.tax_type,
+        taxPer: newDescription.tax_per || 0,
+        sacCode: newDescription.sacCode || '',
+        discount: 0,
+        quantity: newDescription.quantity || 1,
+        remarks: newDescription.remarks || '',
+      };
 
-    // Trigger totals refresh
-    setNeedsTotalsRefresh(true);
+      const calcResult = await dispatch(calculateDescriptionTotals(params)).unwrap();
 
-    // Focus on description field
-    setTimeout(() => {
-      if (descriptionRef.current) {
-        descriptionRef.current.focus();
+      const newDescWithId: ServiceDescription = {
+        id: isCurrentlyEditing ? newDescription.id : generateUniqueId(),
+        sacCode: newDescription.sacCode || '',
+        description: newDescription.description.trim(),
+        from_date: newDescription.from_date || null,
+        to_date: newDescription.to_date || null,
+        fee: newDescription.fee,
+        quantity: newDescription.quantity || 1,
+        tax_type: newDescription.tax_type,
+        tax_per: newDescription.tax_per || 0,
+        sgst: calcResult.sgst || 0,
+        cgst: calcResult.cgst || 0,
+        igst: calcResult.igst || 0,
+        total: calcResult.total || 0,
+        taxAmount: calcResult.totalTax || 0,
+        totalFee: calcResult.fee || 0,
+        finalFee: calcResult.fee || 0,
+        discountAmount: 0,
+        discount_percentage: 0,
+        discount_amount: 0,
+        remarks: newDescription.remarks || '',
+        base_amount: newDescription.base_amount,
+      };
+
+      if (isCurrentlyEditing && editingIndex !== undefined) {
+        dispatch(updateDescription({
+          index: editingIndex,
+          desc: newDescWithId
+        }));
+        dispatch(setSnackbarMessage('Description updated successfully'));
+      } else {
+        dispatch(addDescriptionToService(newDescWithId));
+        dispatch(setSnackbarMessage('Description added successfully'));
       }
-    }, 100);
 
-  } catch (error) {
-    console.error('Error adding/updating description:', error);
-    dispatch(setSnackbarMessage('Failed to save description. Please try again.'));
-    dispatch(setSnackbarOpen(true));
-  } finally {
-    // Clear loading state
-    setLoadingStates(prev => ({ ...prev, description: false }));
-  }
-}, [
-  dispatch, 
-  newDescription, 
-  descriptionDiscountMode, 
-  loadingStates.description
-]);
+      // Reset form
+      dispatch(setNewDescriptionData({
+        id: '',
+        sacCode: '',
+        description: '',
+        from_date: null,
+        to_date: null,
+        fee: 0,
+        tax_type: 'cgst_sgst',
+        tax_per: 0,
+        sgst: 0,
+        cgst: 0,
+        igst: 0,
+        total: 0,
+        taxAmount: 0,
+        totalFee: 0,
+        finalFee: 0,
+        discountAmount: 0,
+        discount_percentage: 0,
+        discount_amount: 0,
+        quantity: 1,
+        remarks: '',
+        index: undefined,
+      } as any));
+
+      setSelectedService(null);
+      setErrors({
+        description: false,
+        fromDate: false,
+        toDate: false,
+        fee: false,
+        taxPer: false,
+        quantity: false,
+        remarks: false
+      });
+
+      // Trigger totals refresh after adding/editing description
+      setNeedsTotalsRefresh(true);
+
+      setTimeout(() => descriptionRef.current?.focus(), 100);
+    } catch (error) {
+      console.error('Add/Update desc error:', error);
+      dispatch(setSnackbarMessage('Failed to save description. Please try again.'));
+      dispatch(setSnackbarOpen(true));
+    } finally {
+      setLoadingStates(prev => ({ ...prev, description: false }));
+    }
+  }, [dispatch, newDescription]);
 
   // Freight handlers
   const handleAddFreights = useCallback((newFreights: FreightData[]) => {
@@ -953,122 +872,103 @@ const handleDescriptionDiscountTypeChange = useCallback((mode: 'percentage' | 'a
     setFreights(prev => prev.filter((_, i) => i !== index));
     setNeedsTotalsRefresh(true);
   }, []);
-const handleEditDescription = useCallback((index: number) => {
-  const desc = descriptions[index];
-  if (desc) {
-    // Set selected service if SAC code exists
-    if (desc.sacCode && servicesList.length > 0) {
-      const service = servicesList.find(s => s.saccode.toString() === desc.sacCode);
-      setSelectedService(service || null);
-    }
-    
-    // Determine discount mode - FIXED LOGIC
-    if (desc.discount_amount && desc.discount_amount > 0) {
-      setDescriptionDiscountMode('amount');
-    } else if (desc.discount_percentage && desc.discount_percentage > 0) {
-      setDescriptionDiscountMode('percentage');
-    } else {
-      setDescriptionDiscountMode('percentage'); // Default
-    }
-    
-    // Set description for editing
-    dispatch(setDescriptionForEditing({
-      ...desc,
-      index: index
-    }));
-    
-    // Scroll to form
-    const formElement = document.getElementById('description-form');
-    if (formElement) {
-      formElement.scrollIntoView({ behavior: 'smooth' });
-    }
-  }
-}, [descriptions, servicesList, dispatch]);
 
+  // Description actions
+  const handleEditDescription = useCallback((index: number) => {
+    const desc = descriptions[index];
+    if (desc) {
+      if (desc.sacCode && servicesList.length > 0) {
+        const service = servicesList.find(s => s.saccode.toString() === desc.sacCode);
+        setSelectedService(service || null);
+      }
+      dispatch(setDescriptionForEditing({
+        ...desc,
+        index: index
+      }));
+      document.getElementById('description-form')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [descriptions, servicesList, dispatch]);
 
   const handleDeleteDescription = useCallback((index: number) => {
     dispatch(deleteDescriptionFromService(index));
     dispatch(clearDescriptionForEditing());
     setNeedsTotalsRefresh(true);
   }, [dispatch]);
+  const handleOverallDiscountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {
+      const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
+      const maxDiscount = overallDiscountMode === 'percentage'
+        ? 99.99
+        : totals.subTotal - 0.01;
 
-  // Fixed: Handle overall discount change
-const handleOverallDiscountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
-  if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {
-    const parsedValue = value === '' ? 0 : parseFloat(value) || 0;
-    const maxDiscount = overallDiscountMode === 'percentage'
-      ? 99.99
-      : totals.subTotal - 0.01;
-    
-    if (parsedValue > maxDiscount) {
-      dispatch(setSnackbarMessage(
-        `Discount cannot be ${parsedValue}${overallDiscountMode === 'percentage' ? '%' : ''}. Maximum allowed is ${maxDiscount.toFixed(2)}`
-      ));
+      if (parsedValue > maxDiscount) {
+        dispatch(setSnackbarMessage(
+          `Discount cannot be ${parsedValue}${overallDiscountMode === 'percentage' ? '%' : ''}. Maximum allowed is ${maxDiscount.toFixed(2)}`
+        ));
+        dispatch(setSnackbarOpen(true));
+        return;
+      }
+      // ONLY UPDATE THE PENDING VALUE, DON'T TRIGGER CALCULATIONS
+      setOverallDiscountValue(parsedValue);
+    }
+  }, [overallDiscountMode, totals.subTotal, dispatch]);
+  const handleApplyDiscount = useCallback(async () => {
+    if (hasDescriptionWiseDiscount) {
+      dispatch(setSnackbarMessage('Cannot apply overall discount when description-wise discounts exist'));
       dispatch(setSnackbarOpen(true));
       return;
     }
-    
-    setOverallDiscountValue(parsedValue);
-    
-    // Auto-refresh totals after discount change
-    setTimeout(() => {
-      setNeedsTotalsRefresh(true);
-    }, 300);
-  }
-}, [overallDiscountMode, totals.subTotal, dispatch]);
-const handleApplyDiscount = useCallback(async () => {
-  // Prevent if already calculating
-  if (loadingStates.totals) return;
 
-  if (hasDescriptionWiseDiscount) {
-    dispatch(setSnackbarMessage('Cannot apply overall discount when description-wise discounts exist'));
+    if (overallDiscountValue <= 0) {
+      dispatch(setSnackbarMessage('Please enter a valid discount amount'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    if (descriptions.length === 0) {
+      dispatch(setSnackbarMessage('Add descriptions before applying discount'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    // SET THE APPLIED VALUES HERE (only when Apply button is clicked)
+    setAppliedOverallDiscount(overallDiscountValue);
+    setAppliedOverallDiscountMode(overallDiscountMode);
+    setAppliedOverallDiscountAppliedOn(overallDiscountAppliedOn);
+
+    // Trigger totals refresh after applying discount
+    setNeedsTotalsRefresh(true);
+
+    const totalOriginal = serviceData.fees?.reduce((a, b) => a + b, 0) || 0;
+    const calculatedPercentage = overallDiscountMode === 'percentage'
+      ? overallDiscountValue
+      : (overallDiscountValue / totalOriginal * 100);
+
+    dispatch(setSnackbarMessage(
+      `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : '₹'} discount (${calculatedPercentage.toFixed(2)}% to each description)`
+    ));
     dispatch(setSnackbarOpen(true));
-    return;
-  }
+  }, [
+    hasDescriptionWiseDiscount,
+    overallDiscountValue,
+    overallDiscountMode,
+    overallDiscountAppliedOn,
+    descriptions.length,
+    dispatch,
+    serviceData.fees
+  ]);
+  const handleClearOverallDiscount = useCallback(async () => {
+    if (loadingStates.totals) return;
 
-  if (overallDiscountValue <= 0) {
-    dispatch(setSnackbarMessage('Please enter a valid discount amount'));
+    // Clear both pending and applied values
+    setOverallDiscountValue(0);
+    setAppliedOverallDiscount(0);
+    setNeedsTotalsRefresh(true);
+
+    dispatch(setSnackbarMessage('Overall discount removed'));
     dispatch(setSnackbarOpen(true));
-    return;
-  }
-
-  if (descriptions.length === 0) {
-    dispatch(setSnackbarMessage('Add descriptions before applying discount'));
-    dispatch(setSnackbarOpen(true));
-    return;
-  }
-
-  // Trigger totals refresh
-  setNeedsTotalsRefresh(true);
-
-  const totalOriginal = serviceData.fees?.reduce((a, b) => a + b, 0) || 0;
-  const calculatedPercentage = overallDiscountMode === 'percentage' 
-    ? overallDiscountValue 
-    : (overallDiscountValue / totalOriginal * 100);
-
-  dispatch(setSnackbarMessage(
-    `Successfully applied ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : '₹'} discount (${calculatedPercentage.toFixed(2)}% to each description)`
-  ));
-  dispatch(setSnackbarOpen(true));
-}, [
-  hasDescriptionWiseDiscount, 
-  overallDiscountValue, 
-  overallDiscountMode, 
-  descriptions.length, 
-  dispatch, 
-  serviceData.fees,
-  loadingStates.totals
-]);
-const handleClearOverallDiscount = useCallback(async () => {
-  if (loadingStates.totals) return;
-  
-  setOverallDiscountValue(0);
-  setNeedsTotalsRefresh(true);
-  
-  dispatch(setSnackbarMessage('Overall discount removed'));
-  dispatch(setSnackbarOpen(true));
-}, [loadingStates.totals, dispatch]);
+  }, [loadingStates.totals, dispatch]);
 
   const handleVendorSelection = useCallback((vendor: VendorSummary | null) => {
     setVendorSearch(vendor);
@@ -1112,11 +1012,9 @@ const handleClearOverallDiscount = useCallback(async () => {
       }));
     }
   }, [dispatch, serviceData, formErrors]);
-
   const handleClear = useCallback(() => {
     const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
-
     dispatch(setServiceData({
       serviceId: '',
       vendorName: '',
@@ -1160,7 +1058,6 @@ const handleClearOverallDiscount = useCallback(async () => {
       vendorId: '',
       freights: [],
     }));
-
     dispatch(setNewDescriptionData({
       id: '',
       sacCode: '',
@@ -1178,17 +1075,21 @@ const handleClearOverallDiscount = useCallback(async () => {
       totalFee: 0,
       finalFee: 0,
       discountAmount: 0,
-      discount_percentage: 0,
-      discount_amount: 0,
       quantity: 1,
       remarks: '',
     }));
-
     setVendorSearch(null);
     setLocationSearch(null);
     setSelectedService(null);
+
+    // Clear all discount states
     setOverallDiscountValue(0);
+    setAppliedOverallDiscount(0);
     setOverallDiscountMode('percentage');
+    setAppliedOverallDiscountMode('percentage');
+    setOverallDiscountAppliedOn('after_tax');
+    setAppliedOverallDiscountAppliedOn('after_tax');
+
     setRoundOffValue(0);
     setFreights([]);
     setIsFormDirty(false);
@@ -1201,7 +1102,6 @@ const handleClearOverallDiscount = useCallback(async () => {
       creditLimit: false
     });
     setNeedsTotalsRefresh(true);
-
     if (isEditMode) {
       router.push('/yen-purchase/ServiceOrder');
     }
@@ -1220,153 +1120,129 @@ const handleClearOverallDiscount = useCallback(async () => {
     }
   }, [isFormDirty, handleClear, router]);
 
-const handleSubmit = useCallback(async () => {
-  // Prevent multiple submissions
-  if (loadingStates.submit) {
-    console.log('Already submitting, please wait...');
-    return;
-  }
-
-  try {
-    // Validate form
-    await validationSchema.validate(serviceData, { abortEarly: false });
-    setFormErrors({
-      vendorName: false,
-      billingAddress: false,
-      shippingAddress: false,
-      locationName: false,
-      paymentTerms: false,
-      creditLimit: false
-    });
-
-    // Check if descriptions exist
-    if (descriptions.length === 0) {
-      dispatch(setSnackbarMessage('At least one description is required.'));
-      dispatch(setSnackbarOpen(true));
-      return;
-    }
-
-    // Set loading state
-    setLoadingStates(prev => ({ ...prev, submit: true }));
-
-    const finalAmount = totals.roundedTotalOrderAmount;
-
-    // Prepare freight data
-    const freightData = freights.map(freight => ({
-      id: freight.id || generateUniqueId(),
-      name: freight.name || '',
-      tCode: freight.tCode || '',
-      amt: freight.amt || 0,
-      tAmt: freight.tAmt || 0,
-      totalAmt: freight.totalAmt || 0,
-      taxType: freight.taxType || 'cgst_sgst',
-      sgst: freight.sgst || 0,
-      cgst: freight.cgst || 0,
-      igst: freight.igst || 0,
-      taxPercentage: freight.taxPercentage || 0
-    }));
-
-    // Prepare data for submission
-    const dataToSubmit = {
-      ...serviceData,
-      freights: freightData,
-      totalFreightAmount: freightSubTotal,
-      totalFreightTaxAmount: freightTaxTotal,
-      workOrderDate: serviceData.workOrderDate ? formatDateForBackend(parseDate(serviceData.workOrderDate)) : null,
-      totalAmount: finalAmount,
-      totalTax: totals.roundedTotalTax,
-      overallDiscountType: overallDiscountMode,
-      overallDiscountAppliedOn: overallDiscountAppliedOn,
-      overallDiscountValue: overallDiscountValue,
-      totalDiscount: totals.roundedTotalDiscount,
-      roundOffValue,
-      quantity: descriptions.map(desc => desc.quantity),
-      remarks: descriptions.map(desc => desc.remarks || ''),
-      sacCode: descriptions.map(desc => desc.sacCode || ''),
-      desc_ids: descriptions.map(desc => desc.id || ''),
-      desc_descriptions: descriptions.map(desc => desc.description),
-      from_dates: descriptions.map(desc =>
-        desc.from_date ? formatDateForBackend(parseDate(desc.from_date)) : null
-      ),
-      to_dates: descriptions.map(desc =>
-        desc.to_date ? formatDateForBackend(parseDate(desc.to_date)) : null
-      ),
-      fees: descriptions.map(desc => desc.fee),
-      desc_tax_types: descriptions.map(desc => desc.tax_type),
-      desc_tax_pers: descriptions.map(desc => desc.tax_per || 0),
-      desc_sgst: serviceData.desc_sgst || [],
-      desc_cgst: serviceData.desc_cgst || [],
-      desc_igst: serviceData.desc_igst || [],
-      desc_tax_amounts: serviceData.desc_tax_amounts || [],
-      desc_totals: serviceData.desc_totals || [],
-      desc_total_fees: serviceData.desc_total_fees || [],
-      desc_overall_discounts: serviceData.desc_overall_discounts || [],
-      termsandConditions: serviceData.termsandConditions || [''],
-    } as ServiceData;
-
-    let result;
-
-    if (isEditMode && editId) {
-      result = await dispatch(updateService({ mongoId: editId, service: dataToSubmit })).unwrap();
-      dispatch(setSnackbarMessage(`Service Order ${result.serviceId || editId} successfully updated.`));
-    } else {
-      result = await dispatch(addService(dataToSubmit)).unwrap();
-      dispatch(setSnackbarMessage(
-        `Service Order ${result.serviceId} successfully created.`
-      ));
-    }
-
-    dispatch(setSnackbarOpen(true));
-    handleClear();
-    setDialogOpen(false);
-    router.push('/yen-purchase/ServiceOrder');
-
-  } catch (error) {
-    console.error('Submit error:', error);
-
-    if (error instanceof Yup.ValidationError) {
-      const newErrors = {
+  const handleSubmit = useCallback(async () => {
+    try {
+      await validationSchema.validate(serviceData, { abortEarly: false });
+      setFormErrors({
         vendorName: false,
         billingAddress: false,
         shippingAddress: false,
         locationName: false,
         paymentTerms: false,
         creditLimit: false
-      };
-
-      error.inner.forEach((err) => {
-        if (err.path && err.path in newErrors) {
-          newErrors[err.path as keyof typeof newErrors] = true;
-        }
       });
 
-      setFormErrors(newErrors);
-    }
+      if (descriptions.length === 0) {
+        dispatch(setSnackbarMessage('At least one description is required.'));
+        dispatch(setSnackbarOpen(true));
+        return;
+      }
 
-    dispatch(setSnackbarMessage('Failed to submit service order. Please check the data.'));
-    dispatch(setSnackbarOpen(true));
-  } finally {
-    // Clear loading state
-    setLoadingStates(prev => ({ ...prev, submit: false }));
-  }
-}, [
-  serviceData, 
-  descriptions, 
-  totals, 
-  freights, 
-  freightSubTotal, 
-  freightTaxTotal,
-  overallDiscountMode, 
-  overallDiscountAppliedOn, 
-  overallDiscountValue, 
-  roundOffValue,
-  dispatch, 
-  isEditMode, 
-  editId, 
-  handleClear, 
-  router,
-  loadingStates.submit
-]);
+      setLoadingStates(prev => ({ ...prev, submit: true }));
+
+      const finalAmount = totals.roundedTotalOrderAmount;
+
+      // Prepare freight data
+      const freightData = freights.map(freight => ({
+        id: freight.id || generateUniqueId(),
+        name: freight.name || '',
+        tCode: freight.tCode || '',
+        amt: freight.amt || 0,
+        tAmt: freight.tAmt || 0,
+        totalAmt: freight.totalAmt || 0,
+        taxType: freight.taxType || 'cgst_sgst',
+        sgst: freight.sgst || 0,
+        cgst: freight.cgst || 0,
+        igst: freight.igst || 0,
+        taxPercentage: freight.taxPercentage || 0
+      }));
+
+      // Prepare data for submission
+      const dataToSubmit = {
+        ...serviceData,
+        freights: freightData,
+        totalFreightAmount: freightSubTotal,
+        totalFreightTaxAmount: freightTaxTotal,
+        workOrderDate: serviceData.workOrderDate ? formatDateForBackend(parseDate(serviceData.workOrderDate)) : null,
+        totalAmount: finalAmount,
+        totalTax: totals.roundedTotalTax,
+        overallDiscountType: overallDiscountMode,
+        overallDiscountAppliedOn: overallDiscountAppliedOn,
+        overallDiscountValue: overallDiscountValue,
+        totalDiscount: totals.roundedTotalDiscount,
+        roundOffValue,
+        quantity: descriptions.map(desc => desc.quantity),
+        remarks: descriptions.map(desc => desc.remarks || ''),
+        sacCode: descriptions.map(desc => desc.sacCode || ''),
+        desc_ids: descriptions.map(desc => desc.id || ''),
+        desc_descriptions: descriptions.map(desc => desc.description),
+        from_dates: descriptions.map(desc =>
+          desc.from_date ? formatDateForBackend(parseDate(desc.from_date)) : null
+        ),
+        to_dates: descriptions.map(desc =>
+          desc.to_date ? formatDateForBackend(parseDate(desc.to_date)) : null
+        ),
+        fees: descriptions.map(desc => desc.fee),
+        desc_tax_types: descriptions.map(desc => desc.tax_type),
+        desc_tax_pers: descriptions.map(desc => desc.tax_per || 0),
+        desc_sgst: serviceData.desc_sgst || [],
+        desc_cgst: serviceData.desc_cgst || [],
+        desc_igst: serviceData.desc_igst || [],
+        desc_tax_amounts: serviceData.desc_tax_amounts || [],
+        desc_totals: serviceData.desc_totals || [],
+        desc_total_fees: serviceData.desc_total_fees || [],
+        desc_overall_discounts: serviceData.desc_overall_discounts || [],
+        termsandConditions: serviceData.termsandConditions || [''],
+      } as ServiceData;
+
+      let result;
+
+      if (isEditMode && editId) {
+        result = await dispatch(updateService({ mongoId: editId, service: dataToSubmit })).unwrap();
+        dispatch(setSnackbarMessage(`Service Order ${result.serviceId || editId} successfully updated.`));
+      } else {
+        result = await dispatch(addService(dataToSubmit)).unwrap();
+        dispatch(setSnackbarMessage(
+          `Service Order ${result.serviceId} successfully created.`
+        ));
+      }
+
+      dispatch(setSnackbarOpen(true));
+      handleClear();
+      setDialogOpen(false);
+      router.push('/yen-purchase/ServiceOrder');
+    } catch (error) {
+      console.error('Submit error:', error);
+
+      if (error instanceof Yup.ValidationError) {
+        const newErrors = {
+          vendorName: false,
+          billingAddress: false,
+          shippingAddress: false,
+          locationName: false,
+          paymentTerms: false,
+          creditLimit: false
+        };
+
+        error.inner.forEach((err) => {
+          if (err.path && err.path in newErrors) {
+            newErrors[err.path as keyof typeof newErrors] = true;
+          }
+        });
+
+        setFormErrors(newErrors);
+      }
+
+      dispatch(setSnackbarMessage('Failed to submit service order. Please check the data.'));
+      dispatch(setSnackbarOpen(true));
+    } finally {
+      setLoadingStates(prev => ({ ...prev, submit: false }));
+    }
+  }, [
+    serviceData, descriptions, totals, freights, freightSubTotal, freightTaxTotal,
+    overallDiscountMode, overallDiscountAppliedOn, overallDiscountValue, roundOffValue,
+    dispatch, isEditMode, editId, handleClear, router
+  ]);
 
   const handleOpenDialog = useCallback(() => {
     validationSchema.validate(serviceData, { abortEarly: false })
@@ -1456,14 +1332,14 @@ const handleSubmit = useCallback(async () => {
         <Box sx={{
           width: '100%',
           maxWidth: {
-            xs: '100%',
-            sm: '100%',
-            md: '1200px',
-            lg: '1400px',
-            xl: '1600px',
+            xs: '100%',      // Mobile: full
+            sm: '100%',      // Tablets: full with padding
+            md: '1200px',    // Laptops (1366-1600px): comfortable fixed width
+            lg: '1400px',    // Large monitors: more space
+            xl: '1600px',    // XXL monitors (1920px+): max readable width
           },
-          mx: 'auto',
-          px: { xs: 2, sm: 3, md: 4 },
+          mx: 'auto',        // Centered
+          px: { xs: 2, sm: 3, md: 4 },  // Generous side padding on big screens
           py: 3,
         }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -1762,76 +1638,6 @@ const handleSubmit = useCallback(async () => {
                 </Box>
               </Grid>
 
-              {/* Description Discount Type */}
-              <Grid item xs={12} sm={2}>
-                <FormControl component="fieldset" size="small">
-                  <FormLabel component="legend">Discount Type</FormLabel>
-                  <RadioGroup
-                    row
-                    value={descriptionDiscountMode}
-                    onChange={(e) => handleDescriptionDiscountTypeChange(e.target.value as 'percentage' | 'amount')}
-                  >
-                    <FormControlLabel value="percentage" control={<Radio size="small" />} label="%" />
-                    <FormControlLabel value="amount" control={<Radio size="small" />} label="₹" />
-                  </RadioGroup>
-                </FormControl>
-              </Grid>
-
-              {/* Description Discount Fields */}
-              {descriptionDiscountMode === 'percentage' ? (
-                <Grid item xs={12} sm={1.5}>
-                  <TextField
-                    fullWidth
-                    label="Disc %"
-                    name="discount_percentage"
-                    type="number"
-                    value={newDescription.discount_percentage || ''}
-                    onChange={handleDescriptionDiscountChange}
-                    size="small"
-                    inputProps={{ 
-                      min: 0, 
-                      max: 100, 
-                      step: '0.01' 
-                    }}
-                    autoComplete="off"
-                    disabled={!!newDescription.discount_amount && newDescription.discount_amount > 0}
-                  />
-                </Grid>
-              ) : (
-                <Grid item xs={12} sm={1.5}>
-                  <TextField
-                    fullWidth
-                    label="Disc Amt (₹)"
-                    name="discount_amount"
-                    type="number"
-                    value={newDescription.discount_amount || ''}
-                    onChange={handleDescriptionDiscountChange}
-                    size="small"
-                    inputProps={{ 
-                      min: 0, 
-                      step: '0.01' 
-                    }}
-                    autoComplete="off"
-                    disabled={!!newDescription.discount_percentage && newDescription.discount_percentage > 0}
-                  />
-                </Grid>
-              )}
-
-              {/* Description Discount Applied On */}
-              <Grid item xs={12} sm={2}>
-                <FormControl component="fieldset" size="small">
-                  <FormLabel component="legend">Discount Applied On</FormLabel>
-                  <RadioGroup
-                    row
-                    value={descriptionDiscountAppliedOn}
-                    onChange={(e) => setDescriptionDiscountAppliedOn(e.target.value as 'before_tax' | 'after_tax')}
-                  >
-                    <FormControlLabel value="before_tax" control={<Radio size="small" />} label="Before Tax" />
-                    <FormControlLabel value="after_tax" control={<Radio size="small" />} label="On Total" />
-                  </RadioGroup>
-                </FormControl>
-              </Grid>
-
               {/* Action Buttons */}
               <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                 {isEditing && (
@@ -1891,47 +1697,47 @@ const handleSubmit = useCallback(async () => {
                     <TableCell align="right">SGST (₹)</TableCell>
                     <TableCell align="right">CGST (₹)</TableCell>
                     <TableCell align="right">IGST (₹)</TableCell>
-                    
+
                     {/* INDIVIDUAL DISCOUNT */}
                     <TableCell align="right">
                       <Tooltip title="Individual discount applied to this description">
                         <Typography variant="body2">Ind. Disc</Typography>
                       </Tooltip>
                     </TableCell>
-                    
+
                     {/* OVERALL DISCOUNT */}
                     <TableCell align="right">
                       <Box>
                         <Typography variant="body2">Overall Disc</Typography>
                         {overallDiscountValue > 0 && (
                           <Typography variant="caption" color="text.secondary" display="block">
-                            {overallDiscountMode === 'percentage' ? 
-                              `${overallDiscountValue}%` : 
+                            {overallDiscountMode === 'percentage' ?
+                              `${overallDiscountValue}%` :
                               `₹${overallDiscountValue}`
                             }
                           </Typography>
                         )}
                       </Box>
                     </TableCell>
-                    
+
                     {/* TOTAL DISCOUNT */}
                     <TableCell align="right">
                       <Tooltip title="Total discount (Individual + Overall)">
                         <Typography variant="body2">Total Disc</Typography>
                       </Tooltip>
                     </TableCell>
-                    
+
                     {/* FINAL AMOUNT */}
                     <TableCell align="right">
                       <Tooltip title="Final amount after all discounts">
                         <Typography variant="body2">Final Amt (₹)</Typography>
                       </Tooltip>
                     </TableCell>
-                    
+
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
-                
+
                 <TableBody>
                   {descriptions.length === 0 ? (
                     <TableRow>
@@ -1941,20 +1747,20 @@ const handleSubmit = useCallback(async () => {
                     descriptions.map((desc, index) => {
                       const originalAmount = serviceData.fees?.[index] || 0;
                       const finalAmount = serviceData.desc_totals?.[index] || 0;
-                      
+
                       // Get individual discount
                       const individualDiscountAmount = serviceData.desc_discount_amounts?.[index] || 0;
                       const individualDiscountPercentage = serviceData.desc_discount_percentages?.[index] || 0;
-                      
+
                       // Get overall discount (distributed)
                       const overallDiscountAmount = serviceData.desc_overall_discounts?.[index] || distributedDiscounts[index]?.amount || 0;
                       const overallDiscountPercentage = serviceData.desc_discount_percentages?.[index] || distributedDiscounts[index]?.percentage || 0;
-                      
+
                       // Calculate total discount
                       const totalDiscountAmount = individualDiscountAmount + overallDiscountAmount;
-                      const totalDiscountPercentage = originalAmount > 0 ? 
+                      const totalDiscountPercentage = originalAmount > 0 ?
                         (totalDiscountAmount / originalAmount * 100) : 0;
-                      
+
                       return (
                         <TableRow key={desc.id || index} hover>
                           <TableCell>{index + 1}</TableCell>
@@ -1972,14 +1778,14 @@ const handleSubmit = useCallback(async () => {
                           <TableCell>
                             {formatDateForDisplay(desc.to_date)}
                           </TableCell>
-                          
+
                           {/* ORIGINAL AMOUNT */}
                           <TableCell align="right">
                             <Typography variant="body2">
                               ₹{originalAmount.toFixed(2)}
                             </Typography>
                           </TableCell>
-                          
+
                           <TableCell align="center">
                             {desc.tax_type === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}
                           </TableCell>
@@ -1987,7 +1793,7 @@ const handleSubmit = useCallback(async () => {
                           <TableCell align="right">{desc.sgst?.toFixed(2)}</TableCell>
                           <TableCell align="right">{desc.cgst?.toFixed(2)}</TableCell>
                           <TableCell align="right">{desc.igst?.toFixed(2)}</TableCell>
-                          
+
                           {/* INDIVIDUAL DISCOUNT */}
                           <TableCell align="right">
                             {individualDiscountAmount > 0 ? (
@@ -2007,7 +1813,7 @@ const handleSubmit = useCallback(async () => {
                               </Typography>
                             )}
                           </TableCell>
-                          
+
                           {/* OVERALL DISCOUNT (Distributed) */}
                           <TableCell align="right">
                             {overallDiscountAmount > 0 ? (
@@ -2028,7 +1834,7 @@ const handleSubmit = useCallback(async () => {
                               </Typography>
                             )}
                           </TableCell>
-                          
+
                           {/* TOTAL DISCOUNT */}
                           <TableCell align="right">
                             <Box>
@@ -2040,7 +1846,7 @@ const handleSubmit = useCallback(async () => {
                               </Typography>
                             </Box>
                           </TableCell>
-                          
+
                           {/* FINAL AMOUNT */}
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="success.main">
@@ -2050,7 +1856,7 @@ const handleSubmit = useCallback(async () => {
                               {totalDiscountPercentage > 0 ? `-${totalDiscountPercentage.toFixed(2)}%` : ''}
                             </Typography>
                           </TableCell>
-                          
+
                           <TableCell align="right">
                             <IconButton onClick={() => handleEditDescription(index)} size="small">
                               <EditIcon />
@@ -2063,20 +1869,20 @@ const handleSubmit = useCallback(async () => {
                       );
                     })
                   )}
-                  
+
                   {/* TOTALS SECTION */}
                   <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
                     <TableCell colSpan={7} align="right">
                       <strong>Totals:</strong>
                     </TableCell>
-                    
+
                     {/* Original Amount Total */}
                     <TableCell align="right">
                       <strong>₹{totalOriginalAmount.toFixed(2)}</strong>
                     </TableCell>
-                    
+
                     <TableCell colSpan={4} />
-                    
+
                     {/* Individual Discount Total */}
                     <TableCell align="right">
                       <Box>
@@ -2085,7 +1891,7 @@ const handleSubmit = useCallback(async () => {
                         </Typography>
                       </Box>
                     </TableCell>
-                    
+
                     {/* Overall Discount Total */}
                     <TableCell align="right">
                       <Box>
@@ -2094,15 +1900,15 @@ const handleSubmit = useCallback(async () => {
                         </Typography>
                         {overallDiscountValue > 0 && (
                           <Typography variant="caption" color="text.secondary" display="block">
-                            {overallDiscountMode === 'percentage' ? 
-                              `${overallDiscountValue}%` : 
+                            {overallDiscountMode === 'percentage' ?
+                              `${overallDiscountValue}%` :
                               `${((overallDiscountValue / totalOriginalAmount) * 100 || 0).toFixed(2)}%`
                             }
                           </Typography>
                         )}
                       </Box>
                     </TableCell>
-                    
+
                     {/* Total Discount */}
                     <TableCell align="right">
                       <Box>
@@ -2111,17 +1917,17 @@ const handleSubmit = useCallback(async () => {
                         </Typography>
                       </Box>
                     </TableCell>
-                    
+
                     {/* Final Amount */}
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="bold" color="success.main">
                         ₹{totals.roundedTotalOrderAmount.toFixed(2)}
                       </Typography>
                     </TableCell>
-                    
+
                     <TableCell />
                   </TableRow>
-                  
+
                   {/* Service Totals Section */}
                   <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
                     <TableCell colSpan={15} align="right">
@@ -2165,7 +1971,7 @@ const handleSubmit = useCallback(async () => {
                           sx={{ width: 80 }}
                           disabled={hasDescriptionWiseDiscount || loadingStates.totals}
                         />
-                        
+
                         <FormControl size="small" sx={{ minWidth: 100 }}>
                           <Select
                             value={overallDiscountMode}
@@ -2176,7 +1982,7 @@ const handleSubmit = useCallback(async () => {
                             <MenuItem value="amount">Amount</MenuItem>
                           </Select>
                         </FormControl>
-                        
+
                         <FormControl size="small" sx={{ minWidth: 100 }}>
                           <Select
                             value={overallDiscountAppliedOn}
@@ -2189,7 +1995,7 @@ const handleSubmit = useCallback(async () => {
                             <MenuItem value="before_tax">Before Tax</MenuItem>
                           </Select>
                         </FormControl>
-                        
+
                         <Button
                           variant="contained"
                           size="small"
@@ -2199,12 +2005,12 @@ const handleSubmit = useCallback(async () => {
                         >
                           {loadingStates.description ? 'Applying...' : 'Apply'}
                         </Button>
-                        
+
                         <IconButton
                           onClick={handleClearOverallDiscount}
                           size="small"
                           color="error"
-                          disabled={overallDiscountValue === 0 || loadingStates.totals}
+                          disabled={appliedOverallDiscount === 0 || loadingStates.totals} // Check APPLIED value
                           title="Clear overall discount"
                         >
                           <ClearIcon />
@@ -2306,7 +2112,7 @@ const handleSubmit = useCallback(async () => {
                     </TableCell>
                     <TableCell colSpan={14} />
                   </TableRow>
-                  
+
                   {/* Verification Row */}
                   {overallDiscountValue > 0 && (
                     <TableRow sx={{ backgroundColor: '#f0f8ff' }}>
@@ -2323,8 +2129,8 @@ const handleSubmit = useCallback(async () => {
                           </Typography>
                           <br />
                           <Typography variant="caption">
-                            Applied as: {overallDiscountMode === 'amount' ? 
-                              `${((overallDiscountValue / totalOriginalAmount) * 100 || 0).toFixed(2)}%` : 
+                            Applied as: {overallDiscountMode === 'amount' ?
+                              `${((overallDiscountValue / totalOriginalAmount) * 100 || 0).toFixed(2)}%` :
                               `${overallDiscountValue}%`} to each description
                           </Typography>
                           <br />
