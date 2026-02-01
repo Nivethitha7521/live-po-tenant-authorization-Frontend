@@ -68,9 +68,21 @@ import YenBookPage from '../../page';
 import Link from 'next/link';
 import ReturnOptionDialog from '@/components/yen-purchase/OutgoingComponent/ReturnOptionDialog';
 import AmountReturnDialog from '@/components/yen-purchase/OutgoingComponent/AmountReturnDialog.tsx';
+import { usePermissions } from "@/hooks/usePermissions";
 
 const PurchaseReturnPage = React.memo(() => {
     const dispatch = useDispatch<AppDispatch>();
+     const { isModuleVisible, hasPermission } = usePermissions();
+  // 🔐 Purchase Return READ = OR condition
+  const canReadPurchaseReturn =
+    hasPermission("yenerp", "outgoingpayment", "read") ||
+    hasPermission("yenerp", "partialpayment", "read") ||
+    hasPermission("yenerp", "paymentdone", "read");
+
+  // 👁️ Purchase Return VISIBLE (hide = false)
+  const canShowPurchaseReturn =
+    isModuleVisible("yenerp", "purchasereturn") && canReadPurchaseReturn;
+
     const { outgoings, snackbarMessage, snackbarOpen, outgoingvendor } = useSelector(selectOutgoings);
     const { itemwise, snackbarMessageGRN, snackbarOpenGRN } = useSelector(selectGrn);
     const currentPage = useSelector(selectCurrentPage);
@@ -111,6 +123,7 @@ const PurchaseReturnPage = React.memo(() => {
     }, [outgoings]);
 
     useEffect(() => {
+         if (!canReadPurchaseReturn) return;
         dispatch(fetchOutgoings({
             page: currentPage,
             size: pageSize,
@@ -409,47 +422,88 @@ const PurchaseReturnPage = React.memo(() => {
         document.body.removeChild(link);
         setOpenDownloadDialog(false);
     };
+ // ⛔ HIDE true → page itself block
+  if (!isModuleVisible("yenerp", "purchasereturn")) {
+    return (
+      <Box p={3}>
+        <Typography color="error">
+          You do not have access to Purchase Return module.
+        </Typography>
+      </Box>
+    );
+  }
+
+  // ⛔ READ false → permission block
+  if (!canReadPurchaseReturn) {
+    return (
+      <Box p={3}>
+        <Typography color="warning">
+          You don’t have permission to view Purchase Returns.
+        </Typography>
+      </Box>
+    );
+  }
 
     return (
         <Box sx={{ p: 1, backgroundColor: 'white' }}>
             <YenBookPage />
             <Box display="flex" alignItems="center" justifyContent="space-between" marginTop={1}>
                 <Box display="flex" alignItems="center">
-                    <Link href="/yen-book/OutgoingPaymentPage" passHref>
-                        <Button variant="contained" color="primary" sx={{ mr: '5px', ml: '15px' }}>
-                            Outgoing Payment
-                        </Button>
-                    </Link>
-                    <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
-                        <Button variant="contained" color="primary" sx={{ mr: '2px' }}>
-                         Advance Payment
-                        </Button>
-                    </Link>
-                    <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
-                        <Button variant="contained" color="primary" sx={{ mr: '2px' }} >
-                            Partial Payment
-                        </Button>
-                    </Link>
-                    <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
-                        <Button variant="contained" color="primary" sx={{ mr: '2px' }} >
-                            Payment Done
-                        </Button>
-                    </Link>
-                    <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
-                        <Button variant="contained" color="primary" sx={{ mr: '2px' }} >
-                            Ledger
-                        </Button>
-                    </Link>
-
-                    <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
-                        <Button variant="contained" sx={{
-                            backgroundColor: 'white',
-                            color: 'black',
-                            '&:hover': {
-                                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                            },
-                        }}>Purchase Return</Button>
-                    </Link>
+                    {isModuleVisible("yenerp", "outgoingpayment") && (
+            <Link href="/yen-book/OutgoingPaymentPage" passHref>
+              <Button
+                variant="contained"
+                color="primary"
+                sx={{ mr: "5px", ml: "15px" }}
+              >
+                Outgoing Payment
+              </Button>
+            </Link>
+          )}
+                  {isModuleVisible("yenerp", "advancepayment") && (
+            <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
+              <Button variant="contained" color="primary" sx={{ mr: "2px" }}>
+                Advance Payment
+              </Button>
+            </Link>
+          )}
+                  {isModuleVisible("yenerp", "partialpayment") && (
+            <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
+              <Button variant="contained" color="primary" sx={{ mr: "2px" }}>
+                Partial Payment
+              </Button>
+            </Link>
+          )}
+                    {isModuleVisible("yenerp", "paymentdone") && (
+            <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
+              <Button variant="contained" color="primary" sx={{ mr: "2px" }}>
+                Payment Done
+              </Button>
+            </Link>
+          )}
+                     {isModuleVisible("yenerp", "ledger") && (
+            <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
+              <Button variant="contained" color="primary" sx={{ mr: "2px" }}>
+                Ledger
+              </Button>
+            </Link>
+          )}
+                      {canShowPurchaseReturn && (
+            <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: "white", // White background
+                  color: "black", // Black text
+                  "&:hover": {
+                    backgroundColor: "rgba(255, 255, 255, 0.8)", // Slightly darker on hover
+                  },
+                }}
+              >
+                Purchase Return
+              </Button>
+            </Link>
+          )}
                 </Box>
             </Box>
             
@@ -505,6 +559,7 @@ const PurchaseReturnPage = React.memo(() => {
                                             <TableCell>
                                                 <Box display="flex" alignItems="center">
                                                     <Tooltip title="Process Return">
+                                                        <span>
                                                         <IconButton
                                                             color="primary"
                                                             onClick={() => handleReturnProcess(payment)}
@@ -512,6 +567,7 @@ const PurchaseReturnPage = React.memo(() => {
                                                         >
                                                             <ReturnIcon />
                                                         </IconButton>
+                                                        </span>
                                                     </Tooltip>
                                                 </Box>
                                             </TableCell>

@@ -17,7 +17,6 @@ import {
   setShowDeactivated,
   setEditIndex,
   exportPurchaseUom,
-  importPurchaseUom,
   selectImportStatus,
   selectExportStatus,
   selectImportResult,
@@ -25,12 +24,12 @@ import {
   setShowImportResultDialog,
   resetImportResult,
 } from '../../../../features/yen-purchase/PurchaseMaster/PurchaseUomSlice';
-import { Box, Snackbar } from '@mui/material';
+import { Box, Snackbar,Typography, Paper } from '@mui/material';
 import UOMActions from '../../../../components/yen-purchase/purchasemaster/uom/uomActions';
 import UOMTable from '../../../../components/yen-purchase/purchasemaster/uom/uomTable';
 import UOMForm from '../../../../components/yen-purchase/purchasemaster/uom/uomForm';
 import { UOMItem } from '@/Models/uom';
-
+import { usePermissions } from '@/hooks/usePermissions';
 const normalizeUOMName = (name: string) => name.replace(/\s+/g, '').toLowerCase();
 
 const initialUOMData: UOMItem = {
@@ -42,7 +41,14 @@ const initialUOMData: UOMItem = {
 };
 
 const UOMPage: React.FC = () => {
+   
   const dispatch: AppDispatch = useDispatch();
+   const { hasPermission, isModuleVisible } = usePermissions(); 
+  const canAdd = hasPermission('yenerp', 'purchaseuom', 'add');
+  const canEdit = hasPermission('yenerp', 'purchaseuom', 'edit');
+  const canDelete = hasPermission('yenerp', 'purchaseuom','delete');
+
+
   const {
     items,
     deactivatedItems,
@@ -61,7 +67,17 @@ const UOMPage: React.FC = () => {
     dispatch(fetchUOMItems());
   }, [dispatch]);
 
-  const handleDialogOpen = () => {
+  const handleDialogOpen = (action: 'add' | 'edit' = 'add') => {
+    if (action === 'add' && !canAdd) {
+      dispatch(setSnackbarMessage('You do not have permission to add UOM'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    if (action === 'edit' && !canEdit) {
+      dispatch(setSnackbarMessage('You do not have permission to edit UOM'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     dispatch(setDialogOpen('edit'));
   };
 
@@ -72,6 +88,18 @@ const UOMPage: React.FC = () => {
   };
 
   const handleSubmit = (values: UOMItem) => {
+    
+    if (editIndex !== null && !canEdit) {
+      dispatch(setSnackbarMessage('You do not have permission to edit UOM'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    if (editIndex === null && !canAdd) {
+      dispatch(setSnackbarMessage('You do not have permission to add UOM'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
     const trimmedValues = {
       ...values,
       uom: values.uom.trim(),
@@ -127,17 +155,27 @@ const UOMPage: React.FC = () => {
   };
 
   const handleEdit = (id: string) => {
+     if (!canEdit) {
+      dispatch(setSnackbarMessage('You do not have permission to edit UOM'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     const item = items.find((item) => item.purchaseuomId === id);
     if (item) {
       dispatch(setUOMData({ ...item, precisionValue: String(item.precisionValue) }));
       dispatch(setEditIndex(id));
-      handleDialogOpen();
+      handleDialogOpen('edit');
     }
   };
 
   const handleDeactivate = async (purchaseuomId: string) => {
+     if (!canDelete) {
+      dispatch(setSnackbarMessage('You do not have permission to deactivate UOM'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }console.log('🎯 Starting deactivate for ID:', purchaseuomId);
     try {
-      await dispatch(deactivateUOMItem(purchaseuomId)).unwrap();
+       await dispatch(deactivateUOMItem(purchaseuomId)).unwrap();
       dispatch(setSnackbarMessage('UOM deactivated successfully'));
       dispatch(setSnackbarOpen(true));
       await dispatch(fetchUOMItems()).unwrap();
@@ -148,6 +186,11 @@ const UOMPage: React.FC = () => {
   };
 
   const handleActivate = async (purchaseuomId: string) => {
+    if (!canDelete) {
+      dispatch(setSnackbarMessage('You do not have permission to activate UOM'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     try {
       await dispatch(activateUOMItem(purchaseuomId)).unwrap();
       dispatch(setSnackbarMessage('UOM activated successfully'));
@@ -170,6 +213,17 @@ const UOMPage: React.FC = () => {
     );
     return [...filtered].reverse();
   }, [items, deactivatedItems, showDeactivated, searchQuery]);
+  // ✅ MODULE VISIBILITY CHECK
+if (!isModuleVisible("yenerp", "purchaseuom")) {
+  return null;
+  // or show Alert if you want:
+  // return (
+  //   <Box p={3}>
+  //     <Alert severity="error">No access to Purchase UOM module</Alert>
+  //   </Box>
+  // );
+}
+
 
   return (
     <Box>
@@ -179,6 +233,7 @@ const UOMPage: React.FC = () => {
         onDialogOpen={handleDialogOpen}
         showDeactivated={showDeactivated}
         onToggleShowDeactivated={toggleShowDeactivated}
+        permissions={{ add: canAdd, edit: canEdit, delete: canDelete }} 
       />
 
       <UOMTable
@@ -187,6 +242,8 @@ const UOMPage: React.FC = () => {
         handleEdit={handleEdit}
         handleDeactivate={handleDeactivate}
         handleActivate={handleActivate}
+        canEdit={canEdit} 
+        canDelete={canDelete} 
       />
 
       <UOMForm

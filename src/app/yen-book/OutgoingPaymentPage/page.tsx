@@ -59,7 +59,7 @@ import 'react-date-range/dist/theme/default.css'; // theme css file
 import { ClearIcon } from '@mui/x-date-pickers/icons';
 import moment from 'moment';
 import { fetchItemwiseAps, fetchRandomIDApInvoices, selectApinvoice, setApDialogOpen, setSelectedinvoiceId } from '@/features/yen-purchase/AP/apInvoiceSlice';
-import { fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
+import { clearDebitCreditNotes, fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
 import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import GrnDialog from '@/components/yen-purchase/OutgoingComponent/GRNDialog';
 import ApInvoiceDialog from '@/components/yen-purchase/OutgoingComponent/APDialog';
@@ -72,9 +72,13 @@ import SinglePaymentDialog from '@/components/yen-purchase/OutgoingComponent/Sin
 import { ServiceData } from '@/app/yen-purchase/ServiceOrder/Models/servicepo';
 import ServiceDialog from '@/app/yen-purchase/ServiceOrder/Components/ServiceDialog';
 import { fetchServiceById } from '@/app/yen-purchase/ServiceOrder/Features/servicelist';
-
+import { usePermissions } from "@/hooks/usePermissions";
+import { Alert } from "@mui/material";
 const OutgoingPaymentComponent = React.memo(() => {
   const dispatch = useDispatch<AppDispatch>();
+   const { hasPermission, isModuleVisible } = usePermissions();
+
+  const canRead = hasPermission("yenerp", "outgoingpayment", "read");
   const { outgoings, snackbarMessage, snackbarOpen, selection, outgoingvendor, banks // ADD THIS IF MISSING
   } = useSelector(selectOutgoings);
   const { itemwise } = useSelector(selectGrn);
@@ -137,6 +141,7 @@ const OutgoingPaymentComponent = React.memo(() => {
   }, [selectedinvoiceId, itemwiseap]);
   // Fix useEffect that fetches initial data to include default sorting
   useEffect(() => {
+     if (!canRead) return; 
     if (loadingState === 'idle') {
       // Set default sorting if not set
       const defaultSortBy = sortColumn ? sortColumn : 'createdDate';
@@ -164,6 +169,7 @@ const OutgoingPaymentComponent = React.memo(() => {
     }
   }, [dispatch, loadingState, dateField, newPage, pageSize, sortColumn, sortOrder]);
   useEffect(() => {
+     if (!canRead) return;
     if (loadingState === 'idle') {
       dispatch(fetchItemwiseGrns());
       dispatch(fetchRandomIDApInvoices());
@@ -276,12 +282,53 @@ const OutgoingPaymentComponent = React.memo(() => {
       console.error('Service fetch error:', error);
     }
   };
-  const handleViewCreditNotes = (outgoingId: string) => {
-    console.log('Opening DebitCreditNoteDialog for outgoingId:', outgoingId);
-    dispatch(setDebitCreditDocumentId(outgoingId)); // Set documentId
-    dispatch(setDebitCreditDocumentType('Outgoing Payment')); // Set documentType
-    dispatch(setDebitCreditDialogOpen(true)); // Open dialog
-    dispatch(fetchDebitCreditNotesByDocument({ documentId: outgoingId, page: 1, size: 50 }));
+  const handleViewCreditNotes = (outgoingId: string, grnId?: string, apInvoiceId?: string) => {
+    console.log('Opening DebitCreditNoteDialog:', {
+      outgoingId,
+      grnId,
+      apInvoiceId
+    });
+
+    // Clear any previous data first
+    dispatch(clearDebitCreditNotes());
+
+    // Determine which document ID to use
+    // Priority: GRN > AP Invoice > Outgoing Payment
+    let documentIdToUse = '';
+    let documentTypeToUse = '';
+
+    if (grnId) {
+      // Item-wise debit note for GRN
+      documentIdToUse = grnId;
+      documentTypeToUse = 'grn';
+    } else if (apInvoiceId) {
+      // Amount-wise debit note for AP Invoice
+      documentIdToUse = apInvoiceId;
+      documentTypeToUse = 'ap_invoice';
+    } else {
+      // Amount-wise debit note for Outgoing Payment
+      documentIdToUse = outgoingId;
+      documentTypeToUse = 'outgoing_payment';
+    }
+
+    console.log('Using document:', {
+      documentId: documentIdToUse,
+      documentType: documentTypeToUse
+    });
+
+    // Set document details
+    dispatch(setDebitCreditDocumentId(documentIdToUse));
+    dispatch(setDebitCreditDocumentType(documentTypeToUse));
+
+    // Open dialog
+    dispatch(setDebitCreditDialogOpen(true));
+
+    // Fetch data
+    dispatch(fetchDebitCreditNotesByDocument({
+      documentId: documentIdToUse,
+      page: 1,
+      size: 50
+    }));
   };
   // Precompute isDisabled and tooltipTitle based on hasDebitCreditNotes
   const outgoingCreditNoteStatus = useMemo(() => {
@@ -296,6 +343,7 @@ const OutgoingPaymentComponent = React.memo(() => {
     return statusMap;
   }, [outgoings, debitCreditNotes]);
   useEffect(() => {
+     if (!canRead) return; 
     dispatch(fetchBusinesses());
     dispatch(fetchBank());
   }, [dispatch]);
@@ -463,6 +511,8 @@ const OutgoingPaymentComponent = React.memo(() => {
       filterParams.status = status.trim();
     }
     console.log('Applying filters with sorting:', filterParams);
+        if (!canRead) return;
+
     dispatch(fetchOutgoings(filterParams));
   };
   // Update handleFilterClose to clear selection if needed
@@ -488,6 +538,8 @@ const OutgoingPaymentComponent = React.memo(() => {
       vendorName: 'vendorName'
     };
     const backendSortField = sortColumn ? sortFieldMap[sortColumn] : 'createdDate';
+        if (!canRead) return;
+
     dispatch(fetchOutgoings({
       page: currentPage,
       size: pageSize,
@@ -1060,58 +1112,83 @@ const OutgoingPaymentComponent = React.memo(() => {
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={1} ml={1}>
             {/* Buttons */}
             <Box display="flex" alignItems="center">
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage" passHref>
-                  <Button
-                    variant="contained"
-                    sx={{
-                      backgroundColor: 'white', // White background
-                      color: 'black', // Black text
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.8)', // Slightly darker on hover
-                      },
-                      mr: 1,
-                    }}
+             {isModuleVisible("yenerp", "outgoingpayment") && (
+                <Grid item>
+                  <Link href="/yen-book/OutgoingPaymentPage" passHref>
+                    <Button
+                      variant="contained"
+                      sx={{
+                        backgroundColor: "white",
+                        color: "black",
+                        mr: 1,
+                      }}
+                    >
+                      Outgoing Payment
+                    </Button>
+                  </Link>
+                </Grid>
+              )}
+              {isModuleVisible("yenerp", "advancepayment") && (
+                <Grid item>
+                  <Link
+                    href="/yen-book/OutgoingPaymentPage/PreOutgoing"
+                    passHref
                   >
-                    Outgoing Payment
-                  </Button>
-                </Link>
-              </Grid>
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
-                  <Button variant="contained" color="primary" sx={{ mr: 1 }}>
-                    Advance Payment
-                  </Button>
-                </Link>
-              </Grid>
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
-                  <Button variant="contained" color="primary" sx={{ mr: 1 }}>
-                    Partial Payment
-                  </Button>
-                </Link>
-              </Grid>
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
-                  <Button variant="contained" color="primary" sx={{ mr: 1 }}>
-                    Payment Done
-                  </Button>
-                </Link>
-              </Grid>
+                    <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+                      Advance Payment
+                    </Button>
+                  </Link>
+                </Grid>
+              )}
+             {isModuleVisible("yenerp", "partialpayment") && (
+                <Grid item>
+                  <Link
+                    href="/yen-book/OutgoingPaymentPage/PendingPayment"
+                    passHref
+                  >
+                    <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+                      Partial Payment
+                    </Button>
+                  </Link>
+                </Grid>
+              )}
+              {isModuleVisible("yenerp", "paymentdone") && (
+                <Grid item>
+                  <Link
+                    href="/yen-book/OutgoingPaymentPage/PaidPayment"
+                    passHref
+                  >
+                    <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+                      Payment Done
+                    </Button>
+                  </Link>
+                </Grid>
+              )}
               <Grid item>
                 <Link href="/yen-book/OutgoingPaymentPage/PaymentHistory" passHref>
                   <Button variant="contained" color="primary" sx={{ mr: 1 }}>Payment History</Button>
                 </Link>
               </Grid>
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
-                  <Button variant="contained" color="primary" sx={{ mr: 1 }}>Ledger</Button>
-                </Link>
-              </Grid>
-              <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
-                  <Button variant="contained" color="primary">Purchase Return</Button>
-                </Link>
+             {isModuleVisible("yenerp", "ledger") && (
+                <Grid item>
+                  <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
+                    <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+                      Ledger
+                    </Button>
+                  </Link>
+                </Grid>
+              )}
+               <Grid item>
+                {isModuleVisible("yenerp", "purchasereturn") && (
+                  <Link
+                    href="/yen-book/OutgoingPaymentPage/PurchaseReturn"
+                    passHref
+                  >
+                    <Button variant="contained" color="primary">
+                      Purchase Return
+                    </Button>
+                  </Link>
+                )}
               </Grid>
             </Box>
             {/* <Grid item justifyContent={'flex-end'}>
@@ -1364,7 +1441,6 @@ Description:<br />
                 <TableHead>
                   <TableRow>
                     <TableCell>No</TableCell>
-                    {/* NEW: Select All Checkbox for Current Page */}
                     <TableCell> Select
                       <Checkbox
                         indeterminate={isIndeterminate}
@@ -1405,7 +1481,7 @@ Description:<br />
                 <TableBody>
                   {filteredPayments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={18} style={{ textAlign: 'center' }}> {/* Update colSpan */}
+                      <TableCell colSpan={18} style={{ textAlign: 'center' }}> 
                         No data available
                       </TableCell>
                     </TableRow>
@@ -1417,7 +1493,7 @@ Description:<br />
                       };
                       return (
                         <TableRow key={payment.outgoingId || index}>
-                          <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell> {/* Fix serial number */}
+                          <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell> 
                           <TableCell>
                             <Checkbox
                               checked={selectedRows.includes(payment.outgoingId || '')}
@@ -1482,7 +1558,7 @@ Description:<br />
                           <TableCell>{(payment.totalPrice || 0).toFixed(2)}</TableCell>
                           <TableCell>
                             <Tooltip title={payment.taxDetails || 'N/A'} placement="top" arrow>
-                              <Typography variant="body2" sx={{ cursor: 'pointer', fontSize: '12px !important' }}>
+                              <Typography variant="body2" component="span" sx={{ cursor: 'pointer', fontSize: '12px !important' }}>
                                 {payment.taxDetails || 'N/A'}
                               </Typography>
                             </Tooltip>
@@ -1525,7 +1601,11 @@ Description:<br />
                                   <IconButton
                                     color="primary"
                                     sx={{ ml: 0.1 }}
-                                    onClick={() => handleViewCreditNotes(payment.outgoingId)}
+                                    onClick={() => handleViewCreditNotes(
+                                      payment.outgoingId,
+                                      payment.grnId,  // Pass GRN ID for item-wise notes
+                                      payment.invoiceId // Pass AP Invoice ID
+                                    )}
                                     disabled={isDisabled}
                                   >
                                     <DescriptionIcon />
@@ -1550,7 +1630,7 @@ Description:<br />
                 >
                   <ChevronLeft />
                 </IconButton>
-                <Typography variant="body1" sx={{ mx: 2 }}>
+                <Typography variant="body1" component="span" sx={{ mx: 2 }}>
                   Page {currentPage} of {totalPages} {/* Show total pages */}
                 </Typography>
                 <IconButton
@@ -1591,7 +1671,9 @@ Description:<br />
           <Dialog open={openDialog} onClose={handleCloseDialog}>
             <DialogTitle>Choose a file format</DialogTitle>
             <DialogContent>
-              <p>Select the file format you want to download:</p>
+              <Typography component="span">
+              Select the file format you want to download:
+              </Typography>
             </DialogContent>
             <DialogActions>
               {/* Button to download PDF */}
@@ -1639,6 +1721,7 @@ Description:<br />
             pageSize={pageSize}
             dateField={dateField}
             onPaymentSuccess={() => {
+               if (!canRead) return;
               dispatch(fetchOutgoings({
                 page: currentPage,
                 size: pageSize,

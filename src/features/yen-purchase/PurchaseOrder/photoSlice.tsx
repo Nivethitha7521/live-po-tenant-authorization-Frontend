@@ -37,7 +37,7 @@ export const fetchPhotosByOrderId = createAsyncThunk(
   'photos/fetchByOrderId',
   async (orderId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`http://192.168.29.116:8000/purchasetestapi/photos/${orderId}`);
+      const response = await axios.get(`http://127.0.0.1:8000/purchasetestapi/photos/${orderId}`);
       return { orderId, photos: response.data.photos };
     } catch (error: any) {   
       return rejectWithValue(error.response?.data || 'Failed to fetch photos');
@@ -55,7 +55,7 @@ export const uploadPhotos = createAsyncThunk(
       });
 
       const response = await axios.post(
-        `http://192.168.29.116:8000/purchasetestapi/photos/upload/${orderId}`,
+        `http://127.0.0.1:8000/purchasetestapi/photos/upload/${orderId}`,
         formData,
         {
           headers: {
@@ -79,7 +79,7 @@ export const editPhotoByIndex = createAsyncThunk(
       formData.append('file', file);
 
       const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/photos/edit/${orderId}/${index}`,
+        `http://127.0.0.1:8000/purchasetestapi/photos/edit/${orderId}/${index}`,
         formData,
         {
           headers: {
@@ -99,7 +99,7 @@ export const deletePhoto = createAsyncThunk(
   'photos/delete',
   async ({ orderId, index }: { orderId: string; index: number }, { rejectWithValue }) => {
     try {
-      await axios.delete(`http://192.168.29.116:8000/purchasetestapi/photos/${orderId}/${index}`);
+      await axios.delete(`http://127.0.0.1:8000/purchasetestapi/photos/${orderId}/${index}`);
       return { orderId, index };
     } catch (error: any) {
       return rejectWithValue(error.response?.data || 'Failed to delete photo');

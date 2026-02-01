@@ -14,10 +14,13 @@ interface ItemTypeTableProps {
   handleEdit: (index: string) => void;
   handleDeactivate: (id: string) => void;
   handleActivate: (id: string) => void;
+  canEdit: boolean;
+  canDelete: boolean;
+
 }
 
 const ItemTypeTable: React.FC<ItemTypeTableProps> = ({
-  items, showDeactivated, handleEdit, handleDeactivate, handleActivate
+  items, showDeactivated, handleEdit, handleDeactivate, handleActivate,canEdit,canDelete
 }) => {
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [dialogAction, setDialogAction] = useState<'deactivate' | 'activate' | null>(null);
@@ -81,21 +84,33 @@ const ItemTypeTable: React.FC<ItemTypeTableProps> = ({
                   <TableCell>{item.itemtypeName}</TableCell>
                   <TableCell>{item.status}</TableCell>
                   <TableCell>
-                    {!showDeactivated && item.status === 'active' && (
-                      <IconButton onClick={() => handleEdit(item.itemtypeId)}>
-                        <EditIcon />
-                      </IconButton>
-                    )}
-                    {item.status === 'active' && !showDeactivated ? (
-                      <IconButton onClick={() => handleOpenConfirmDialog(item.itemtypeId, 'deactivate')}>
-                        <DeleteIcon />
-                      </IconButton>
-                    ) : (
-                      <IconButton onClick={() => handleOpenConfirmDialog(item.itemtypeId, 'activate')}>
-                        <RefreshIcon />
-                      </IconButton>
-                    )}
-                  </TableCell>
+  {!showDeactivated && item.status === 'active' && (
+    <IconButton 
+      onClick={() => handleEdit(item.itemtypeId)}
+      disabled={!canEdit}
+      sx={{ opacity: canEdit ? 1 : 0.5 }}
+    >
+      <EditIcon />
+    </IconButton>
+  )}
+  {item.status === 'active' && !showDeactivated ? (
+    <IconButton 
+      onClick={() => handleOpenConfirmDialog(item.itemtypeId, 'deactivate')}
+      disabled={!canDelete}
+      sx={{ opacity: canDelete ? 1 : 0.5 }}
+    >
+      <DeleteIcon />
+    </IconButton>
+  ) : (
+    <IconButton 
+      onClick={() => handleOpenConfirmDialog(item.itemtypeId, 'activate')}
+      disabled={!canDelete}
+      sx={{ opacity: canDelete ? 1 : 0.5 }}
+    >
+      <RefreshIcon />
+    </IconButton>
+  )}
+</TableCell>
                 </TableRow>
               ))
             )}

@@ -12,7 +12,7 @@ import {
 interface PurchaseSubcategoryActionsProps {
   searchQuery: string;
   onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onDialogOpen: () => void;
+   onDialogOpen: (action?: 'add' | 'edit') => void; // ✅ ADD PARAMETER
   onSampleCSV: () => void;
   onImportCSV: (file: File) => Promise<any>;
   onExportCSV: () => void;
@@ -20,12 +20,18 @@ interface PurchaseSubcategoryActionsProps {
   onToggleShowDeactivated: () => void;
   importStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
   exportStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+   permissions?: { // ✅ ADD PERMISSIONS PROP
+    add?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+  };
 }
 
 const PurchaseSubcategoryActions: React.FC<PurchaseSubcategoryActionsProps> = ({
   searchQuery, onSearchChange, onDialogOpen, onSampleCSV, onImportCSV, onExportCSV,
-  showDeactivated, onToggleShowDeactivated, importStatus, exportStatus
+  showDeactivated, onToggleShowDeactivated, importStatus, exportStatus, permissions = { add: true, edit: true, delete: true } // ✅ DEFAULT PERMISSIONS
 }) => {
+  const { add = true } = permissions; // ✅ DESTRUCTURE PERMISSIONS
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
@@ -110,10 +116,17 @@ const PurchaseSubcategoryActions: React.FC<PurchaseSubcategoryActionsProps> = ({
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <IconButton
               color="primary"
-              onClick={onDialogOpen}
+              onClick={() => onDialogOpen('add')}
               className="icon-button-outline"
               size='small'
-              sx={{ p: 0.3 }}
+              sx={{ p: 0.3,
+                opacity: add ? 1 : 0.5,
+                '&.Mui-disabled': {
+                  opacity: 0.5,
+                  borderColor: 'grey.400 !important',
+                  color: 'grey.500 !important'
+                } }}
+                disabled={!add}
             >
               <AddIcon />
             </IconButton>
@@ -130,6 +143,7 @@ const PurchaseSubcategoryActions: React.FC<PurchaseSubcategoryActionsProps> = ({
                 textOverflow: 'ellipsis',
                 lineHeight: 1.1,
                 mt: 0.2,
+                color: add ? 'text.primary' : 'grey.500',
               }}
             >
               Add

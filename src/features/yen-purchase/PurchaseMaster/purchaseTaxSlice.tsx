@@ -1,28 +1,22 @@
-// purchaseTaxSlice.ts
+// purchaseTaxSlice.ts - UPDATED VERSION
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import purchaseApi from '@/utils/api'; // ✅ USE SAME purchaseApi
 import { RootState } from '../../../redux/store';
 import { initialState, PurchaseTax } from '@/Models/purchasetax';
 
+// ✅ NO NEED FOR getAuthHeaders - purchaseApi already handles headers
+
 export const fetchPurchaseTaxes = createAsyncThunk<PurchaseTax[]>('purchaseTaxes/fetch', async () => {
-  try {
-    const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/purchasetaxes/');
-    return response.data;
-  } catch (error: any) {
-    throw Error(`Failed to fetch purchase taxes: ${error.message}`);
-  }
+  const response = await purchaseApi.get('/purchasetaxes/'); // ✅ USE purchaseApi
+  return response.data;
 });
 
 export const addPurchaseTax = createAsyncThunk<PurchaseTax, Omit<PurchaseTax, 'purchasetaxId'>>(
   'purchaseTaxes/add',
   async (tax) => {
-    try {
-      const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/purchasetaxes', tax);
-      return response.data;
-    } catch (error: any) {
-      throw Error(`Failed to add purchase tax: ${error.message}`);
-    }
+    const response = await purchaseApi.post('/purchasetaxes', tax); // ✅ USE purchaseApi
+    return response.data;
   }
 );
 
@@ -30,10 +24,7 @@ export const updatePurchaseTax = createAsyncThunk<PurchaseTax, PurchaseTax>(
   'purchaseTaxes/update',
   async (tax, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/purchasetaxes/${tax.purchasetaxId}`,
-        tax
-      );
+      const response = await purchaseApi.patch(`/purchasetaxes/${tax.purchasetaxId}`, tax); // ✅ USE purchaseApi
       if (!response.data) {
         return rejectWithValue('Empty response from backend');
       }
@@ -44,27 +35,21 @@ export const updatePurchaseTax = createAsyncThunk<PurchaseTax, PurchaseTax>(
   }
 );
 
+// REPLACE THESE TWO FUNCTIONS:
+
 export const deactivatePurchaseTax = createAsyncThunk<PurchaseTax, string>(
   'purchaseTaxes/deactivate',
   async (id) => {
-    try {
-      const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/purchasetaxes/${id}`, { status: 'deactivated' });
-      return response.data;
-    } catch (error: any) {
-      throw Error(`Failed to deactivate purchase tax: ${error.message}`);
-    }
+    const response = await purchaseApi.patch(`/purchasetaxes/${id}/deactivate`, {}); // ✅ NEW ENDPOINT
+    return response.data;
   }
 );
 
 export const activatePurchaseTax = createAsyncThunk<PurchaseTax, string>(
   'purchaseTaxes/activate',
   async (id) => {
-    try {
-      const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/purchasetaxes/${id}`, { status: 'active' });
-      return response.data;
-    } catch (error: any) {
-      throw Error(`Failed to activate purchase tax: ${error.message}`);
-    }
+    const response = await purchaseApi.patch(`/purchasetaxes/${id}/activate`, {}); // ✅ NEW ENDPOINT
+    return response.data;
   }
 );
 
@@ -74,8 +59,8 @@ export const importPurchaseTaxes = createAsyncThunk(
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post(
-        'http://192.168.29.116:8000/purchasetestapi/purchasetaxes/import-csv',
+      const response = await purchaseApi.post(
+        '/purchasetaxes/import-csv',
         formData,
         {
           headers: {
@@ -83,12 +68,7 @@ export const importPurchaseTaxes = createAsyncThunk(
           },
         }
       );
-      console.log('Tax Import API response:', {
-        response: response.data,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-      });
+      console.log('Tax Import API response:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('Tax Import error:', error.response?.data || error.message);
@@ -101,8 +81,8 @@ export const exportPurchaseTaxes = createAsyncThunk(
   'purchaseTaxes/export',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
-        'http://192.168.29.116:8000/purchasetestapi/purchasetaxes/export-tax/export-csv',
+      const response = await purchaseApi.get(
+        '/purchasetaxes/export-tax/export-csv',
         {
           responseType: 'blob',
         }
@@ -122,6 +102,7 @@ export const exportPurchaseTaxes = createAsyncThunk(
   }
 );
 
+// ✅ KEEP THE REST OF YOUR SLICE EXACTLY THE SAME
 const purchaseTaxSlice = createSlice({
   name: 'purchaseTaxes',
   initialState,

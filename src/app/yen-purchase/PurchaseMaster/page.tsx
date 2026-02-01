@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import { Button, Box, Paper } from '@mui/material';
+import { Button, Box, Paper,Alert } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { setActiveSection, selectActiveSection } from '../../../features/yen-purchase/purchaseMasterSlice'; // Adjust the path based on your project structure
 import PurchaseCategoryPage from './PurchaseCategory/page';
@@ -13,46 +13,62 @@ import ItemTypePage from './ItemType/page';
 import YenPurchasePage from '../page';
 import FreightPage from './Freight/page';
 import ServicePage from './Service/page';
+import { usePermissions } from "../../../hooks/usePermissions";
 
 const PurchaseMasterItemPage: React.FC = () => {
   const dispatch = useDispatch();
+  const { isModuleVisible } = usePermissions();
+ const canShow = (module: string) => {
+  if (module === "service") return true;   // 👈 bypass
+  return isModuleVisible("yenerp", module);
+};
+
   const activeSection = useSelector(selectActiveSection);
 
   const handleSectionClick = (section: string) => {
     dispatch(setActiveSection(section)); // Dispatch action to update active section
   };
+ 
 
   // Function to render content based on active section
   const renderContent = () => {
-    switch (activeSection) {
-      case 'purchase-category':
-        return <PurchaseCategoryPage />;
-      case 'purchase-subcategory':
-        return <PurchaseSubCategoryPage />;
-      case 'uom':
-        return <PurchaseUOMPage />;
-      case 'group-master':
-        return <GroupMasterPage />;
-      case 'purchase-tax':
-        return <PurchaseTaxPage />;
-      case 'storage-location':
-        return <StorageLocationPage />;
-      case 'item-type':
-        return <ItemTypePage />;
-      case 'freight':
-        return <FreightPage />;
-      case 'service':
-        return <ServicePage />;
-      default:
-        return null;
-    }
+  if (!activeSection) return null;
+
+  const map: any = {
+    "purchase-category": { module: "purchasecategory", comp: <PurchaseCategoryPage /> },
+    "purchase-subcategory": { module: "purchasesubcategory", comp: <PurchaseSubCategoryPage /> },
+    "uom": { module: "purchaseuom", comp: <PurchaseUOMPage /> },
+    "group-master": { module: "itemgroup", comp: <GroupMasterPage /> },
+    "purchase-tax": { module: "purchasetax", comp: <PurchaseTaxPage /> },
+    "storage-location": { module: "storagelocation", comp: <StorageLocationPage /> },
+    "item-type": { module: "itemtype", comp: <ItemTypePage /> },
+    "freight": { module: "freight", comp: <FreightPage /> },
+    "service": { module: "service", comp: <ServicePage /> },
   };
+
+  const current = map[activeSection];
+  if (!current) return null;
+
+  if (!canShow(current.module)) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          You do not have access to this module
+        </Alert>
+      </Box>
+    );
+  }
+
+  return current.comp;
+};
+
 
   return (
     <Box sx={{ ml: 1.2 }}>
       <YenPurchasePage />
       <Box sx={{ px: 2, pt: 1 }}>
         <Box sx={{ mb: 0.5, display: 'flex', justifyContent: 'start' }}>
+         {canShow("purchasecategory") && (
           <Button
             onClick={() => handleSectionClick('purchase-category')}
             variant="contained"
@@ -68,7 +84,8 @@ const PurchaseMasterItemPage: React.FC = () => {
           >
             Purchase Category
           </Button>
-
+         )}
+         {canShow("purchasesubcategory") && (
           <Button
             onClick={() => handleSectionClick('purchase-subcategory')}
             variant="contained"
@@ -84,7 +101,8 @@ const PurchaseMasterItemPage: React.FC = () => {
           >
             Purchase SubCategory
           </Button>
-
+         )}
+         {canShow("purchaseuom") && (
           <Button
             onClick={() => handleSectionClick('uom')}
             variant="contained"
@@ -101,7 +119,8 @@ const PurchaseMasterItemPage: React.FC = () => {
           >
             Purchase UOM
           </Button>
-
+         )}
+         {canShow("itemgroup") && (
           <Button
             onClick={() => handleSectionClick('group-master')}
             variant="contained"
@@ -117,7 +136,8 @@ const PurchaseMasterItemPage: React.FC = () => {
           >
             Group Item
           </Button>
-
+         )}
+          {canShow("purchasetax") && (
           <Button
             onClick={() => handleSectionClick('purchase-tax')}
             variant="contained"
@@ -133,7 +153,8 @@ const PurchaseMasterItemPage: React.FC = () => {
           >
             Purchase Tax
           </Button>
-
+          )}
+           {canShow("storagelocation") && (
           <Button
             onClick={() => handleSectionClick('storage-location')}
             variant="contained"
@@ -149,7 +170,8 @@ const PurchaseMasterItemPage: React.FC = () => {
           >
             Storage Location
           </Button>
-
+           )}
+           {canShow("itemtype") && (
           <Button
             onClick={() => handleSectionClick('item-type')}
             variant="contained"
@@ -165,7 +187,8 @@ const PurchaseMasterItemPage: React.FC = () => {
           >
             Item Type
           </Button>
-
+           )}
+            {canShow("freight") && (
           <Button
             onClick={() => handleSectionClick('freight')}
             variant="contained"
@@ -181,6 +204,8 @@ const PurchaseMasterItemPage: React.FC = () => {
           >
             Freight
           </Button>
+            )}
+             {canShow("service") && (
           <Button
             onClick={() => handleSectionClick('service')}
             variant="contained"
@@ -195,7 +220,7 @@ const PurchaseMasterItemPage: React.FC = () => {
           >
             Service
           </Button>
-
+             )}
         </Box>
         <Paper sx={{ p: 1, mb: 1 }}>
           {renderContent()}

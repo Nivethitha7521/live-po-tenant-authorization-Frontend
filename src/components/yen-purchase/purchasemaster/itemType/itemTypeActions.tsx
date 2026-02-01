@@ -38,6 +38,7 @@ interface ItemTypeActionsProps {
   onToggleShowDeactivated: () => void;
   importStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
   exportStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+  canAdd: boolean;
 }
 
 const ItemTypeActions: React.FC<ItemTypeActionsProps> = ({
@@ -51,6 +52,7 @@ const ItemTypeActions: React.FC<ItemTypeActionsProps> = ({
   onToggleShowDeactivated,
   importStatus,
   exportStatus,
+  canAdd, 
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
@@ -125,7 +127,7 @@ const ItemTypeActions: React.FC<ItemTypeActionsProps> = ({
               size="small"
               className='icon-button-outline'
               sx={{ p: 0.3 }}
-              disabled={isLoading}
+              disabled={isLoading|| !canAdd}
             >
               <AddIcon fontSize="small" />
             </IconButton>

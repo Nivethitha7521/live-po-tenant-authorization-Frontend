@@ -10,6 +10,7 @@ import Image from 'next/image'; // Import the next/image component
 import { Add as AddIcon, GetApp as GetAppIcon, Upload as UploadIcon } from '@mui/icons-material';
 import FilterAltIcon from '@mui/icons-material/FilterAlt'; // Import the filter icon
 import ClearIcon from "@mui/icons-material/Clear"; // Clear icon
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   selectPurchaseListState, fetchImageByIndex,
   updateMultipleItemQuantities, approvePurchaseOrder, uploadPurchaseOrderPhotos, editPhotoByIndex,
@@ -86,7 +87,38 @@ const customRounddigit = (value: number): number => {
 const Polist: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  const { pendingPurchaseList, loading, error, randomIds, poRandomIds, snackbarMessage, snackbarOpen } = useSelector(selectPurchaseListState);
+  const { hasPermission, permissions } = usePermissions();
+  
+  const isPendingModuleVisible =
+    permissions?.yenerp?.purchaseorders_pending &&
+    !(
+      permissions?.yenerp?.purchaseorders_pending?.hide === true ||
+      permissions?.yenerp?.purchaseorders_pending?.hide === 1
+    );
+
+  // READ hide values for PO modules
+  const hidePending =
+    permissions?.yenerp?.purchaseorders_pending?.hide === true;
+
+  // CHECK PERMISSIONS
+  const canAdd = hasPermission("yenerp", "purchaseorders_pending", "add");
+  const canEdit = hasPermission("yenerp", "purchaseorders_pending", "edit");
+  const canApprove = hasPermission(
+    "yenerp",
+    "purchaseorders_pending",
+    "approve",
+  );
+  const canRead = hasPermission("yenerp", "purchaseorders_pending", "read");
+  const canDelete = hasPermission("yenerp", "purchaseorders_pending", "delete");
+
+  console.log("🔍 Purchase Order Permissions:", {
+    canAdd,
+    canEdit,
+    canApprove,
+    canRead,
+    canDelete,
+  });
+  const { purchaseList,pendingPurchaseList, loading, error, randomIds, poRandomIds, snackbarMessage, snackbarOpen } = useSelector(selectPurchaseListState);
   const { businesses } = useSelector(selectBusinesses);
   const [selectedOrder, setSelectedOrderState] = useState<any | null>(null);
   const [updatedItems, setUpdatedItems] = useState<any[]>([]);
@@ -296,6 +328,13 @@ useEffect(() => {
   const handleRandomIdChange = (randomId: string) => {
     setSelectedRandomId(randomId);
   };
+  const filteredOrders = purchaseList.filter(
+    (order) =>
+      (order.poStatus === "CreditLimit for Approve" ||
+        order.poStatus === "Pending for Approve" ||
+        (order.poStatus !== "Approved" && order.poStatus !== "Rejected")) &&
+      order.items.some((item) => item.pendingTotalQuantity > 0),
+  );
   // Removed client-side filteredOrders since backend hardcodes pending
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
@@ -937,6 +976,7 @@ useEffect(() => {
     setSearchQueryItem(item ? item.itemName : ''); // Update the search query with the item name
   };
   const handleConfirmSave = () => {
+     if (!canEdit) return; 
     if (updatedItems.length > 0) {
       console.log('Updated Items:', updatedItems);
       if (!selectedOrder?.purchaseOrderId) {
@@ -1062,6 +1102,7 @@ useEffect(() => {
     }));
   }
   const handleRejectOrder = async (orderId: string) => {
+     if (!canApprove) return; 
     const selectedOrder = (pendingPurchaseList || []).find(order => order.purchaseOrderId === orderId);
     if (selectedOrder) {
       try {
@@ -1076,6 +1117,7 @@ useEffect(() => {
     }
   };
  const handleApproveOrder = async (orderId: string, sendWhatsapp: boolean) => {
+   if (!canApprove) return; 
   const selectedOrder = (pendingPurchaseList || []).find(
     (order) => order.purchaseOrderId === orderId
   );
@@ -1120,6 +1162,15 @@ useEffect(() => {
     );
   }
 };
+
+if (!isPendingModuleVisible) {
+  return <Alert severity="error">Module Access Denied</Alert>;
+}
+
+if (!canRead) {
+  return <Alert severity="error">No Read Permission</Alert>;
+}
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -1305,8 +1356,21 @@ useEffect(() => {
                 className="icon-button-outline"
                 color="primary"
                 size="small"
-                sx={{ p: 0.3 }}
-                onClick={() => router.push('/yen-purchase/PurchaseOrder/Createpurchase')}
+                onClick={() =>
+                  canAdd &&
+                  router.push("/yen-purchase/PurchaseOrder/Createpurchase")
+                }
+                disabled={!canAdd}
+                sx={{
+                  p: 0.3,
+                  color: canAdd ? "primary.main" : "#6e6e6e !important",
+                  opacity: 1,
+                  cursor: canAdd ? "pointer" : "not-allowed",
+                  "&.Mui-disabled": {
+                    color: "#6e6e6e !important",
+                    opacity: 1,
+                  },
+                }}
               >
                 <AddIcon fontSize="small" />
               </IconButton>
@@ -1330,7 +1394,7 @@ useEffect(() => {
             </Box>
           </Grid>
           {/* Download Button */}
-          <Grid item xs="auto">
+       <Grid item xs="auto">
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <IconButton
                 onClick={handleClick}
@@ -1650,7 +1714,21 @@ useEffect(() => {
           </DialogContent>
           <DialogActions>
             <Button onClick={handleDialogClose} color="primary">Close</Button>
-            <Button onClick={handleSaveChanges} color="primary">Save Changes</Button>
+             <Button
+              onClick={canEdit ? handleSaveChanges : undefined}
+              disabled={!canEdit}
+              sx={{
+                color: canEdit ? "primary.main" : "#6e6e6e !important",
+                opacity: 1,
+                cursor: canEdit ? "pointer" : "not-allowed",
+                "&.Mui-disabled": {
+                  color: "#6e6e6e !important",
+                  opacity: 1,
+                },
+              }}
+            >
+              Save Changes
+            </Button>
           </DialogActions>
         </Dialog>{/* Pdf Excel */}
         <Dialog open={dialogDownloadOpen} onClose={() => setDialogDownloadOpen(false)}>
@@ -1811,38 +1889,70 @@ useEffect(() => {
                           {/* New Edit Button with Edit Icon */}
                           <Tooltip title="Edit Order">
                             <IconButton
-                              onClick={() => handleEditClick(order.purchaseOrderId)}
-                              color='primary'
-                              sx={{ mr: 1 }} // margin right to separate icons
-                            >
-                              <EditIcon />
-                            </IconButton>
+                            onClick={() =>
+                              canEdit && handleEditClick(order.purchaseOrderId)
+                            }
+                            disabled={!canEdit}
+                            sx={{
+                              color: canEdit
+                                ? "primary.main"
+                                : "#6e6e6e !important",
+                              opacity: 1,
+                              cursor: canEdit ? "pointer" : "not-allowed",
+                              "&.Mui-disabled": {
+                                color: "#6e6e6e !important",
+                                opacity: 1,
+                              },
+                            }}
+                          >
+                            <EditIcon />
+                          </IconButton>
                           </Tooltip>
                           {/* Approve Button with Check Icon */}
                           <Tooltip title="Approve Order">
                             <IconButton
-                              onClick={() => {
-                                setSelectedOrderId(order.purchaseOrderId);
-                                handleApproveDialogOpen();
-                              }}
-                              sx={{ mr: 1 }} // margin right to separate icons
-                              color='primary'
-                            >
-                              <CheckIcon />
-                            </IconButton>
+                            onClick={() =>
+                              canApprove &&
+                              (setSelectedOrderId(order.purchaseOrderId),
+                              handleApproveDialogOpen())
+                            }
+                            disabled={!canApprove}
+                            sx={{
+                              color: canApprove
+                                ? "primary.main"
+                                : "#6e6e6e !important",
+                              opacity: 1,
+                              "&.Mui-disabled": {
+                                color: "#6e6e6e !important",
+                                opacity: 1,
+                              },
+                            }}
+                          >
+                            <CheckIcon />
+                          </IconButton>
                           </Tooltip>
                           {/* Reject Button with Close (X) Icon */}
                           <Tooltip title="Reject Order">
-                            <IconButton
-                              onClick={() => {
-                                setSelectedOrderId(order.purchaseOrderId);
-                                handleRejectDialogOpen();
-                              }}
-                              sx={{ mr: 1 }} // margin right to separate icons
-                              color='primary'
-                            >
-                              <CloseIcon />
-                            </IconButton>
+                             <IconButton
+                            onClick={() =>
+                              canApprove &&
+                              (setSelectedOrderId(order.purchaseOrderId),
+                              handleRejectDialogOpen())
+                            }
+                            disabled={!canApprove}
+                            sx={{
+                              color: canApprove
+                                ? "primary.main"
+                                : "#6e6e6e !important",
+                              opacity: 1,
+                              "&.Mui-disabled": {
+                                color: "#6e6e6e !important",
+                                opacity: 1,
+                              },
+                            }}
+                          >
+                            <CloseIcon />
+                          </IconButton>
                           </Tooltip>
                           {/* Download Button with PDF Icon
                           <Tooltip title="Download PDF">

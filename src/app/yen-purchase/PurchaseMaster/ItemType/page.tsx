@@ -31,7 +31,7 @@ import ItemTypeActions from '../../../../components/yen-purchase/purchasemaster/
 import { PurchaseItemType } from '@/Models/itemType';
 import CommonImportResultDialog from '@/components/yen-purchase/CommonImportDialog';
 import { ImportResult } from '@/Models/importResult';
-
+import { usePermissions } from '../../../../hooks/usePermissions';
 const initialPurchaseItemState: PurchaseItemType = {
   itemtypeId: '',
   itemtypeName: '',
@@ -62,6 +62,12 @@ const ItemTypePage: React.FC = () => {
   const importStatus = useSelector(selectImportStatus);
   const exportStatus = useSelector(selectExportStatus);
   const [loading, setLoading] = useState(false);
+const { hasPermission, isModuleVisible } = usePermissions();
+
+const canAdd = hasPermission('yenerp', 'itemtype', 'add');
+const canEdit = hasPermission('yenerp', 'itemtype', 'edit');
+const canDelete = hasPermission('yenerp', 'itemtype', 'delete');
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -97,7 +103,9 @@ const ItemTypePage: React.FC = () => {
   }, [exportStatus, dispatch]);
 
   const handleDialogOpen = () => {
+    if (canAdd){
     dispatch(setDialogOpen('edit'));
+    }
   };
 
   const handleDialogClose = () => {
@@ -124,7 +132,7 @@ const ItemTypePage: React.FC = () => {
   const handleImportCSV = async (file: File) => {
     try {
       const result = await dispatch(importPurchaseTypeItem(file)).unwrap();
-      dispatch(setShowImportResultDialog(true)); // Show the dialog
+      dispatch(setShowImportResultDialog(true)); 
       dispatch(fetchPurchaseTypeItems());
       return result;
     } catch (error: any) {
@@ -221,6 +229,7 @@ const ItemTypePage: React.FC = () => {
   };
 
   const handleEditItemType = (id: string) => {
+     if (canEdit) {
     const item = purchaseItemTypes.find((item) => item.itemtypeId === id);
     if (item) {
       dispatch(setPurchaseTypeItemData({
@@ -230,9 +239,11 @@ const ItemTypePage: React.FC = () => {
       dispatch(setEditIndex(id));
       dispatch(setDialogOpen('edit'));
     }
+  }
   };
 
   const handleDeactivateItemType = (itemtypeId: string) => {
+     if (canDelete) { 
     dispatch(deactivatePurchaseTypeItem(itemtypeId))
       .unwrap()
       .then(() => {
@@ -244,9 +255,11 @@ const ItemTypePage: React.FC = () => {
         dispatch(setSnackbarMessage(`Failed to deactivate item type: ${error.message || error}`));
         dispatch(setSnackbarOpen(true));
       });
+    }
   };
 
   const handleActivateItemType = (itemtypeId: string) => {
+    if (canDelete) { 
     dispatch(activatePurchaseTypeItem(itemtypeId))
       .unwrap()
       .then(() => {
@@ -258,6 +271,7 @@ const ItemTypePage: React.FC = () => {
         dispatch(setSnackbarMessage(`Failed to activate item type: ${error.message || error}`));
         dispatch(setSnackbarOpen(true));
       });
+    }
   };
 
   const handleSnackbarClose = () => {
@@ -302,6 +316,8 @@ const ItemTypePage: React.FC = () => {
         onToggleShowDeactivated={toggleShowDeactivated}
         importStatus={importStatus}
         exportStatus={exportStatus}
+        canAdd={canAdd} 
+
       />
       <ItemTypeTable
         items={filteredItems}
@@ -309,6 +325,8 @@ const ItemTypePage: React.FC = () => {
         handleEdit={handleEditItemType}
         handleDeactivate={handleDeactivateItemType}
         handleActivate={handleActivateItemType}
+         canEdit={canEdit} 
+        canDelete={canDelete} 
       />
       <ItemTypeForm
         open={dialogOpen !== 'none'}

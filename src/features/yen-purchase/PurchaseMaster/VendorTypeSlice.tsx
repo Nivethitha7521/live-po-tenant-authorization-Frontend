@@ -3,6 +3,14 @@ import axios from 'axios';
 import { RootState } from '../../../redux/store';
 import { initialState, VendorTypeItem } from '@/Models/vendorType';
 
+// ✅ ADD HEADER FUNCTION
+export const getAuthHeaders = () => {
+  const token = sessionStorage.getItem("accessToken");
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+};
+
 // Fetch all vendor type items
 export const fetchVendorTypeItems = createAsyncThunk<VendorTypeItem[], { signal?: AbortSignal }>(
   'vendorTypes/fetch',
@@ -12,8 +20,9 @@ export const fetchVendorTypeItems = createAsyncThunk<VendorTypeItem[], { signal?
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/vendortypes/', {
+      const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/vendortypes/', {
         cancelToken: source.token,
+        headers: getAuthHeaders() // ✅ ADD HEADERS
       });
       return response.data;
     } catch (error: any) {
@@ -34,8 +43,9 @@ export const addVendorTypeItem = createAsyncThunk<VendorTypeItem, { data: Vendor
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/vendortypes', data, {
+      const response = await axios.post('http://127.0.0.1:8000/purchasetestapi/vendortypes', data, {
         cancelToken: source.token,
+        headers: getAuthHeaders() // ✅ ADD HEADERS
       });
       return response.data;
     } catch (error: any) {
@@ -59,8 +69,9 @@ export const updateVendorTypeItem = createAsyncThunk<
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/vendortypes/${vendortypeId}`, vendortype, {
+      const response = await axios.patch(`http://127.0.0.1:8000/purchasetestapi/vendortypes/${vendortypeId}`, vendortype, {
         cancelToken: source.token,
+        headers: getAuthHeaders() // ✅ ADD HEADERS
       });
       return response.data;
     } catch (error: any) {
@@ -81,10 +92,12 @@ export const deactivateVendorTypeItem = createAsyncThunk<VendorTypeItem, { vendo
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/vendortypes/${vendortypeId}`,
-        { status: 'deactivated' },
-        { cancelToken: source.token }
+       const response = await axios.patch(
+        `http://127.0.0.1:8000/purchasetestapi/vendortypes/${vendortypeId}/deactivate`,
+        {},
+        { cancelToken: source.token,
+          headers: getAuthHeaders() }
+        
       );
       return response.data;
     } catch (error: any) {
@@ -105,10 +118,11 @@ export const activateVendorTypeItem = createAsyncThunk<VendorTypeItem, { vendort
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/vendortypes/${vendortypeId}`,
-        { status: 'active' },
-        { cancelToken: source.token }
+       const response = await axios.patch(
+        `http://127.0.0.1:8000/purchasetestapi/vendortypes/${vendortypeId}/activate`,
+        {},
+        { cancelToken: source.token,
+          headers: getAuthHeaders() }
       );
       return response.data;
     } catch (error: any) {
@@ -203,3 +217,4 @@ export const {
 export const selectVendorTypeItems = (state: RootState) => state.vendorType;
 
 export default vendorTypeSlice.reducer;
+

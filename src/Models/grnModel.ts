@@ -80,7 +80,6 @@ export interface GrnData {
   paymentTerms: string;
   gstNumber: string;
   contactpersonEmail: string;
-  grnVerifiedPerson: string;
   grnReturnedPerson: string;
   totalDebitAmount?: number;
   totalReturnedAmount?: number;
@@ -217,22 +216,34 @@ export interface AmountDebitNoteRequest {
   createdBy: string;
   comments?: string;
 }
-
 export interface AmountDebitNoteResponse {
-  success?: boolean;  // Added success field
+  success: boolean;
   noteId: string;
+  mongoId: string;
   message: string;
-  totalAmount?: number;  // Added for amount-only notes
-  totalDebitAmount?: number;  // Added ? for optional
-  totalCreditAmount?: number;  // Added ? for optional
-  netAmount: number;
-  itemsProcessed?: number;  // Added ? for optional
-  noteType: 'amount_only' | 'quantity_based';
-  sourceDocument?: any;
-  grnId?: string;
-  documentId?: string;
-  remainingPayableAmount?: number;  // Added for validation
-  createdAt?: string;  // Added for timestamp
+  totalAmount: number;
+  grnId?: string;  // Make optional since it's only for GRN documents
+  finalAmount: number;
+  reason: string;
+  apInvoiceId?: string;  // For AP invoice documents
+  remainingPayableAmount: number;
+  createdAt: string;
+  noteNumber: string;
+  sourceDocument?: {
+    type: string;
+    id: string;
+    randomId: string;
+    available_before: number;
+    existing_notes_before: number;
+    original_totalPayableAmount: number;
+    original_payableAmount: number;
+  };
+  note?: string;
+  originalAmounts?: {
+    totalPayableAmount: number;
+    payableAmount: number;
+    totalPrice: number;
+  };
 }
 
 // ====== OTHER INTERFACES ======
@@ -368,43 +379,43 @@ export interface GrnState {
   grns: GrnData[];
   itemwise: GrnData[];
   itemDetails: ItemDetail[];
-  
+
   // UI state
   searchQuery: string;
   selectedGrnId: string | null;
   view: 'grn';
   error: string | null;
   newItem: ItemDetail;
-  
+
   // Related data
   vendors: Vendor[];
   purchaseitems: PurchaseItem[];
   purchaseorders: PurchaseRandomId[];
   apinvoice: ApInvoice[];
-  
+
   // Loading states
   loading: boolean;
   updateStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
-  
+
   // Notification
   snackbarMessageGRN: string;
   snackbarOpenGRN: boolean;
-  
+
   // Table settings
   selectedHeaders: string[];
-  
+
   // Pagination
   currentPage: number;
   pageSize: number;
   totalItems: number;
-  
+
   // Debit/Credit notes
   debitCreditNotes: DebitCreditNote[];
   hasDebitCreditNotes: { [grnId: string]: boolean };
-  
+
   // Return reasons
   returnReasons: ReturnReason[];
-  
+
   // Revert-related
   revertLoading: boolean;
   revertError: string | null;
@@ -415,7 +426,7 @@ export interface GrnState {
     revertedAt: string;
     poAction: 'updated' | 'created';
   }>;
-  
+
   // Debit note loading states
   amountDebitNoteLoading: boolean;
   debitCreditNoteLoading: boolean;

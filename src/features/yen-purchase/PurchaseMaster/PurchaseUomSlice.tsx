@@ -1,61 +1,56 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import purchaseApi from '@/utils/api'; // ✅ USE purchaseApi
 import { RootState } from '../../../redux/store';
 import { initialState, UOMItem } from '@/Models/uom';
 
+// ✅ REMOVE getAuthHeaders COMPLETELY - purchaseApi handles headers
+
+// ✅ UPDATE ALL API CALLS TO USE purchaseApi
 export const fetchUOMItems = createAsyncThunk<UOMItem[]>('uom/fetchUOMItems', async () => {
-  const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/purchaseuoms/');
+  const response = await purchaseApi.get('/purchaseuoms/'); // ✅ USE purchaseApi
   return response.data;
 });
 
-export const addUOMItem = createAsyncThunk<UOMItem, UOMItem>('uom/addUOMItem', async (uomData) => {
-  const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/purchaseuoms', uomData);
+export const addUOMItem = createAsyncThunk<UOMItem, any>('uom/addUOMItem', async (uomData) => {
+  const response = await purchaseApi.post('/purchaseuoms', uomData); // ✅ USE purchaseApi
   return response.data;
 });
 
-export const updateUOMItem = createAsyncThunk<UOMItem, UOMItem>('uom/updateUOMItem', async (uomData) => {
-  const response = await axios.put(`http://192.168.29.116:8000/purchasetestapi/purchaseuoms/${uomData.purchaseuomId}`, uomData);
+export const updateUOMItem = createAsyncThunk<UOMItem, any>('uom/updateUOMItem', async (uomData) => {
+  const response = await purchaseApi.put(`/purchaseuoms/${uomData.purchaseuomId}`, uomData); // ✅ USE purchaseApi
   return response.data;
 });
 
-export const deactivateUOMItem = createAsyncThunk<UOMItem, string>('uom/deactivateUOMItem', async (purchaseuomId) => {
-  const response = await axios.put(`http://192.168.29.116:8000/purchasetestapi/purchaseuoms/${purchaseuomId}`, { status: 'deactivated' });
-  return response.data;
-});
-
-export const activateUOMItem = createAsyncThunk<UOMItem, string>('uom/activateUOMItem', async (purchaseuomId) => {
-  const response = await axios.put(`http://192.168.29.116:8000/purchasetestapi/purchaseuoms/${purchaseuomId}`, { status: 'active' });
-  return response.data;
-});
-
-export const importPurchaseUom = createAsyncThunk(
-  'purchaseUoms/import',
-  async (file: File, { rejectWithValue }) => {
+export const deactivateUOMItem = createAsyncThunk<UOMItem, string>(
+  'uom/deactivateUOMItem', 
+  async (purchaseuomId, { rejectWithValue }) => {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const response = await axios.post(
-        'http://192.168.29.116:8000/purchasetestapi/purchaseuoms/import-csv',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-      console.log('UOM Import API response:', response.data); // Debug log
+      const response = await purchaseApi.patch(`/purchaseuoms/${purchaseuomId}/deactivate`, {}); // ✅ USE purchaseApi
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.message);
     }
-});
+  }
+);
+
+export const activateUOMItem = createAsyncThunk<UOMItem, string>(
+  'uom/activateUOMItem', 
+  async (purchaseuomId, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.patch(`/purchaseuoms/${purchaseuomId}/activate`, {}); // ✅ USE purchaseApi
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.detail || error.message);
+    }
+  }
+);
 
 export const exportPurchaseUom = createAsyncThunk(
   'purchaseUoms/export',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
-        'http://192.168.29.116:8000/purchasetestapi/purchaseuoms/export-uom/export-csv',
+      const response = await purchaseApi.get(
+        '/purchaseuoms/export-uom/export-csv',
         {
           responseType: 'blob',
         }
@@ -74,6 +69,30 @@ export const exportPurchaseUom = createAsyncThunk(
     }
 });
 
+export const importPurchaseUom = createAsyncThunk(
+  'purchaseUoms/import',
+  async (file: File, { rejectWithValue }) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await purchaseApi.post(
+        '/purchaseuoms/import-csv',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      console.log('UOM Import API response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.detail || error.message);
+    }
+});
+
+// ✅ KEEP THE REST OF YOUR SLICE EXACTLY THE SAME
 const purchaseUomSlice = createSlice({
   name: 'uom',
   initialState,
@@ -116,6 +135,7 @@ const purchaseUomSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
+    // ✅ KEEP ALL YOUR EXISTING extraReducers EXACTLY THE SAME
     builder
       .addCase(fetchUOMItems.pending, (state) => {
         state.loading = true;
@@ -188,6 +208,7 @@ const purchaseUomSlice = createSlice({
   },
 });
 
+// ✅ KEEP ALL YOUR EXPORTS EXACTLY THE SAME
 export const {
   setSearchQuery,
   setDialogOpen,

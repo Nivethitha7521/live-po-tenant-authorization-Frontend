@@ -18,9 +18,12 @@ import AddEditDialog from '../../../../components/yen-purchase/purchasemaster/ca
 import SearchToolbar from '../../../../components/yen-purchase/purchasemaster/category/toolbar';
 import { initialCategoryState } from '@/Models/purchasecategory';
 import CommonImportResultDialog from '@/components/yen-purchase/CommonImportDialog';
+import { usePermissions } from '../../../../hooks/usePermissions';
 
 const PurchaseCategory: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+    const { hasPermission, isModuleVisible } = usePermissions();  
+
   const {
     categories,
     error,
@@ -31,7 +34,9 @@ const PurchaseCategory: React.FC = () => {
     importResult,
     showImportResultDialog,
   } = useSelector((state: RootState) => state.purchaseCategory);
-
+ const canAdd = hasPermission('yenerp', 'purchasecategory', 'add');
+  const canEdit = hasPermission('yenerp', 'purchasecategory', 'edit');
+  const canDelete = hasPermission('yenerp', 'purchasecategory', 'delete');
   useEffect(() => {
     dispatch(fetchCategories());
     dispatch(fetchSubcategories());
@@ -42,10 +47,13 @@ const PurchaseCategory: React.FC = () => {
   };
 
   const handleAddCategory = () => {
+    if (canAdd) {
     dispatch(setDialogOpen('add'));
   };
+};
 
   const handleEditCategory = (categoryId: string) => {
+    if (canEdit) { 
     const categoryToEdit = categories.find(cat => cat.purchasecategoryId === categoryId);
     if (categoryToEdit) {
       dispatch(setCategoryData(initialCategoryState));
@@ -58,6 +66,7 @@ const PurchaseCategory: React.FC = () => {
       dispatch(setDialogOpen('edit'));
     }
   };
+};
 
   const handleCategoryAdded = () => {
     dispatch(fetchCategories());
@@ -70,11 +79,21 @@ const PurchaseCategory: React.FC = () => {
 
   if (loading) return <Typography>Loading...</Typography>;
   if (error) return <Alert severity="error">{error}</Alert>;
-
+if (!isModuleVisible('yenerp', 'purchasecategory')) {
+    return (
+        <Box p={3}>
+            <Alert severity="error">You do not have access to the Purchase Category module.</Alert>
+        </Box>
+    );
+}
   return (
     <Box>
-      <SearchToolbar />
-      <CategoryTable onEditClick={handleEditCategory} />
+      <SearchToolbar
+      onAddClick={canAdd ? handleAddCategory : undefined}
+        showAddButton={canAdd} />
+      <CategoryTable onEditClick={handleEditCategory}
+       canEdit={canEdit}
+        canDelete={canDelete} />
       <AddEditDialog
         open={dialogOpen === 'add' || dialogOpen === 'edit'}
         onClose={() => {

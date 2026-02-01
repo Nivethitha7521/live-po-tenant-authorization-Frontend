@@ -36,9 +36,17 @@ import ConfirmationDialog from '@/components/confirmationDialog';
 
 interface CategoryTableProps {
   onEditClick: (categoryId: string) => void;
+  onDeleteClick?: (categoryId: string) => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
+const CategoryTable: React.FC<CategoryTableProps> = ({ 
+  onEditClick,
+  onDeleteClick,
+  canEdit,
+  canDelete 
+}) => {
   const dispatch = useDispatch<AppDispatch>();
   const { categories, deactivatedItems, showDeactivated, searchQuery } = useSelector(
     (state: RootState) => state.purchaseCategory
@@ -53,6 +61,9 @@ const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
   const [currentCategoryId, setCurrentCategoryId] = useState<string | null>(null);
 
   const handleOpenConfirmDialog = (categoryId: string, action: 'deactivate' | 'activate') => {
+    if ((action === 'deactivate' && !canDelete) || (action === 'activate' && !canDelete)) {
+      return; // Prevent opening dialog if no permission
+    }
     setSelectedCategoryId(categoryId);
     setDialogAction(action);
     setOpenConfirmDialog(true);
@@ -66,7 +77,7 @@ const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
 
   const handleEdit = (categoryId: string) => {
     const category = categories.find((category) => category.purchasecategoryId === categoryId);
-    if (category) {
+    if (category && canEdit) {
       onEditClick(categoryId);
     }
   };
@@ -101,9 +112,8 @@ const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
     setCurrentCategoryId(null);
   };
 
-  // Updated handleRemoveSubcategory to use currentCategoryId
   const handleRemoveSubcategory = (subcategory: string) => {
-    if (currentCategoryId) {
+    if (currentCategoryId && canDelete) {
       console.log('Triggering removeSubcategory:', { categoryId: currentCategoryId, subcategory });
       dispatch(removeSubcategory({ categoryId: currentCategoryId, subcategory }));
       dispatch(fetchCategories());
@@ -159,7 +169,7 @@ const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
               </TableRow>
             ) : (
               displayedCategories.map((category, index) => (
-                <TableRow key={category.purchasecategoryId}>
+                <TableRow key={`${category.purchasecategoryId}-${category.randomId}-${index}`}>
                   <TableCell className='table-number-right'>{index + 1}</TableCell>
                   <TableCell>{category.randomId}</TableCell>
                   <TableCell>{category.purchasecategoryName}</TableCell>
@@ -180,16 +190,49 @@ const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
                   <TableCell>{category.status}</TableCell>
                   <TableCell>
                     {category.status === 'active' ? (
-                      <>
-                        <IconButton onClick={() => handleEdit(category.purchasecategoryId)}>
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        {/* ✅ EDIT BUTTON WITH DISABLED STYLING */}
+                        <IconButton 
+                          onClick={() => handleEdit(category.purchasecategoryId)}
+                          disabled={!canEdit}
+                          sx={{ 
+                            opacity: canEdit ? 1 : 0.5,
+                            '&.Mui-disabled': {
+                              opacity: 0.5,
+                              color: 'text.disabled'
+                            }
+                          }}
+                        >
                           <EditIcon />
                         </IconButton>
-                        <IconButton onClick={() => handleOpenConfirmDialog(category.purchasecategoryId, 'deactivate')}>
+                        
+                        {/* ✅ DELETE BUTTON WITH DISABLED STYLING */}
+                        <IconButton 
+                          onClick={() => handleOpenConfirmDialog(category.purchasecategoryId, 'deactivate')}
+                          disabled={!canDelete}
+                          sx={{ 
+                            opacity: canDelete ? 1 : 0.5,
+                            '&.Mui-disabled': {
+                              opacity: 0.5,
+                              color: 'text.disabled'
+                            }
+                          }}
+                        >
                           <DeleteIcon />
                         </IconButton>
-                      </>
+                      </Box>
                     ) : (
-                      <IconButton onClick={() => handleOpenConfirmDialog(category.purchasecategoryId, 'activate')}>
+                      <IconButton 
+                        onClick={() => handleOpenConfirmDialog(category.purchasecategoryId, 'activate')}
+                        disabled={!canDelete}
+                        sx={{ 
+                          opacity: canDelete ? 1 : 0.5,
+                          '&.Mui-disabled': {
+                            opacity: 0.5,
+                            color: 'text.disabled'
+                          }
+                        }}
+                      >
                         <RefreshIcon />
                       </IconButton>
                     )}
@@ -229,7 +272,7 @@ const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
                 justifyContent: 'flex-start',
               }}
             >
-              {viewingSubcategories.map((subcategory) => {
+              {viewingSubcategories.map((subcategory, subIndex) => {
                 const baseChipWidth = 100;
                 const chipWidth =
                   viewingSubcategories.length === 1
@@ -240,11 +283,12 @@ const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
 
                 return (
                   <Chip
-                    key={subcategory}
+                    key={`${subcategory}-${subIndex}`}
                     label={subcategory}
                     size="medium"
                     deleteIcon={<CloseIcon />}
-                    onDelete={() => handleRemoveSubcategory(subcategory)} // Pass subcategory only, categoryId is handled by currentCategoryId
+                    onDelete={() => handleRemoveSubcategory(subcategory)}
+                    disabled={!canDelete} // ✅ ADD DISABLED STATE FOR CHIP DELETE
                     sx={{
                       width: chipWidth,
                       minWidth: `${baseChipWidth}px`,
@@ -260,6 +304,10 @@ const CategoryTable: React.FC<CategoryTableProps> = ({ onEditClick }) => {
                       px: 0.2,
                       whiteSpace: 'normal',
                       wordBreak: 'break-word',
+                      opacity: canDelete ? 1 : 0.5,
+                      '& .MuiChip-deleteIcon': {
+                        opacity: canDelete ? 1 : 0.5
+                      }
                     }}
                   />
                 );

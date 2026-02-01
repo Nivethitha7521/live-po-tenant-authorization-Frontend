@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useRouter } from "next/navigation";
 import {
   Box, TextField, Button, Typography, Grid, Paper,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
@@ -30,6 +31,7 @@ import {
   selectTotalItems, setPagination, setSearchQueryItem,
   setRandomQueryItem
 } from '../../../../features/yen-purchase/PurchaseOrder/purchaseListSlice';
+import { usePermissions } from '../../../../hooks/usePermissions';
 import { AppDispatch } from '@/redux/store';
 import YenPurchasePage from '../../page';
 import Link from 'next/link';
@@ -76,6 +78,8 @@ const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
 
 const RejectedPo: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter(); // ADD THIS
+  const { hasPermission, permissions } = usePermissions(); 
   const { purchaseList, loading, error, snackbarMessage, snackbarOpen, searchQueryItem, randomIdSearch } = useSelector(selectPurchaseListState);
   const { businesses } = useSelector(selectBusinesses);
   const [selectedOrder, setSelectedOrderState] = useState<any | null>(null);
@@ -111,7 +115,34 @@ const RejectedPo: React.FC = () => {
   const [newItem, setNewItem] = useState<PurchaseItemSearch | null>(null);
   const [shouldFetch, setShouldFetch] = useState(true);
   const filteredOrders = purchaseList.filter(order => order.poStatus === 'Rejected');
-  
+  const canViewRejected = hasPermission(
+    "yenerp",
+    "purchaseorders_rejected",
+    "read",
+  );
+  const canEditRejected = hasPermission(
+    "yenerp",
+    "purchaseorders_rejected",
+    "edit",
+  );
+  const canDeleteRejected = hasPermission(
+    "yenerp",
+    "purchaseorders_rejected",
+    "delete",
+  );
+  const isRejectedHidden =
+    permissions?.yenerp?.purchaseorders_rejected?.hide === true;
+  const canViewApproved = hasPermission(
+    "yenerp",
+    "purchaseorders_approved",
+    "read",
+  );
+  const hasRejectedAccess = canViewRejected && !isRejectedHidden;
+  const isApprovedHidden =
+    permissions?.yenerp?.purchaseorders_approved?.hide === true;
+
+  const isPendingHidden =
+    permissions?.yenerp?.purchaseorders_pending?.hide === true;
   useEffect(() => {
     if (shouldFetch && !loading) {
       const action = fetchPurchaseOrders({ page: newPage, size: pageSize, dateField: dateField });
@@ -1100,7 +1131,32 @@ const RejectedPo: React.FC = () => {
   }
   
   if (error) return <Typography>Error: {error}</Typography>;
-  
+  if (!hasRejectedAccess) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+          ❌ Access Denied
+        </Typography>
+
+        <Typography sx={{ mb: 1 }}>
+          You don't have permission to view Rejected Purchase Orders.
+        </Typography>
+
+        <Typography variant="body2" sx={{ opacity: 0.8 }}>
+          Required: <b>purchaseorders_rejected.read</b> and module not hidden.
+        </Typography>
+
+        <Button
+          variant="contained"
+          sx={{ mt: 3 }}
+          onClick={() => router.push("/yen-purchase/PurchaseOrder")}
+        >
+          Back
+        </Button>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <YenPurchasePage />
@@ -1358,7 +1414,7 @@ const RejectedPo: React.FC = () => {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center">No Rejected Data</TableCell> {/* Span across all columns */}
+                  <TableCell colSpan={8} align="center">No Rejected Data</TableCell>
                 </TableRow>
               ) : (
                 filteredOrders.map((order, index) => { // Add the index parameter here
@@ -1375,23 +1431,32 @@ const RejectedPo: React.FC = () => {
                       <TableCell>
                         <Box display="flex" alignItems="center">
                           {/* View Button with Eye Icon - RESTORED */}
-                          <Tooltip title="View Details">
+                         <Tooltip title="View Details">
                             <IconButton
-                              onClick={() => handleViewDetailsClick(order.purchaseOrderId)}
+                              onClick={() =>
+                                canViewRejected &&
+                                handleViewDetailsClick(order.purchaseOrderId)
+                              }
                               color="primary"
-                              sx={{ mr: 1 }} // margin right to separate icons
+                              disabled={!canViewRejected}
                             >
                               <VisibilityIcon />
                             </IconButton>
                           </Tooltip>
+
                           <Tooltip title="Download">
                             <IconButton
                               color="primary"
-                              onClick={() => handleDownload(order.purchaseOrderId)}
+                              onClick={() =>
+                                handleDownload(order.purchaseOrderId)
+                              }
+                              disabled={!canViewRejected}
+                              // Can download if can view
                             >
                               <PictureAsPdfIcon />
                             </IconButton>
                           </Tooltip>
+
                         </Box>
                       </TableCell>
                     </TableRow>

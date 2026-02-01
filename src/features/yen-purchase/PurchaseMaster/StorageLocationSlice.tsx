@@ -3,70 +3,140 @@ import axios from 'axios';
 import { RootState } from '../../../redux/store';
 import { initialState, StorageLocationItem,Location } from '@/Models/storagelocation';
 import { ImportResult } from '@/Models/importResult';
+import purchaseApi from '@/utils/api';
 
-export const fetchStorageLocations = createAsyncThunk('storageLocations/fetchStorageLocations', async () => {
-  const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/storagelocations/');
-  return response.data;
-});
+export const fetchStorageLocations = createAsyncThunk(
+  'storageLocations/fetchStorageLocations',
+  async () => {
+    const response = await purchaseApi.get('/storagelocations/');
+    return response.data;
+  }
+);
+
 
 export const fetchLocations = createAsyncThunk('locations/fetchLocations', async () => {
   const response = await axios.get('https://yenerp.com/fastapi/branches/');
   return response.data;
 });
 
-export const addStorageLocation = createAsyncThunk<StorageLocationItem, StorageLocationItem>('storageLocations/addStorageLocation', async (locationData, { rejectWithValue }) => {
-  try {
-    const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/storagelocations/', locationData);
-    return response.data;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.detail || error.message);
+export const addStorageLocation = createAsyncThunk<
+  StorageLocationItem,
+  StorageLocationItem
+>(
+  'storageLocations/addStorageLocation',
+  async (locationData, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.post(
+        '/storagelocations/',
+        locationData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.detail || error.message
+      );
+    }
   }
-});
+);
 
-export const updateStorageLocation = createAsyncThunk<StorageLocationItem, StorageLocationItem>('storageLocations/updateStorageLocation', async (locationData, { rejectWithValue }) => {
-  try {
-    const response = await axios.put(`http://192.168.29.116:8000/purchasetestapi/storagelocations/${locationData.storageLocationId}`, locationData);
-    return response.data;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.detail || error.message);
-  }
-});
 
-export const deactivateStorageLocation = createAsyncThunk<StorageLocationItem, string>('storageLocations/deactivateStorageLocation', async (storageLocationId, { rejectWithValue }) => {
-  try {
-    const response = await axios.put(`http://192.168.29.116:8000/purchasetestapi/storagelocations/${storageLocationId}`, { status: 'deactivated' });
-    return response.data;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.detail || error.message);
+export const updateStorageLocation = createAsyncThunk<
+  StorageLocationItem,
+  StorageLocationItem
+>(
+  'storageLocations/updateStorageLocation',
+  async (locationData, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.put(
+        `/storagelocations/${locationData.storageLocationId}`,
+        locationData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.detail || error.message
+      );
+    }
   }
-});
+);
 
-export const activateStorageLocation = createAsyncThunk<StorageLocationItem, string>('storageLocations/activateStorageLocation', async (storageLocationId, { rejectWithValue }) => {
-  try {
-    const response = await axios.put(`http://192.168.29.116:8000/purchasetestapi/storagelocations/${storageLocationId}`, { status: 'active' });
-    return response.data;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.detail || error.message);
+
+export const deactivateStorageLocation = createAsyncThunk<
+  StorageLocationItem,
+  string
+>(
+  'storageLocations/deactivateStorageLocation',
+  async (storageLocationId, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.put(
+        `/storagelocations/${storageLocationId}`,
+        { status: 'deactivated' }
+      );
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.detail || error.message
+      );
+    }
   }
-});
-export const importStorageLocation = createAsyncThunk<ImportResult, File>(
+);
+
+
+export const activateStorageLocation = createAsyncThunk<
+  StorageLocationItem,
+  string
+>(
+  'storageLocations/activateStorageLocation',
+  async (storageLocationId, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.put(
+        `/storagelocations/${storageLocationId}`,
+        { status: 'active' }
+      );
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.detail || error.message
+      );
+    }
+  }
+);
+
+export const importStorageLocation = createAsyncThunk<
+  ImportResult,
+  File
+>(
   'storageLocations/importStorageLocation',
-  async (file: File, { rejectWithValue }) => {
-    if (!file || file.size === 0) {
-      return rejectWithValue({ detail: 'Please select a CSV file to import' });
-    }
-    if (!file.name.endsWith('.csv')) {
-      return rejectWithValue({ detail: 'Invalid file format. Please upload a CSV file' });
-    }
+  async (file, { rejectWithValue }) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/storagelocations/import-csv', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return response.data as ImportResult;
+
+      const response = await purchaseApi.post(
+        '/storagelocations/import-csv',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || { detail: 'Failed to import CSV' });
+      return rejectWithValue(
+        error.response?.data || { detail: 'Failed to import CSV' }
+      );
     }
   }
 );
@@ -75,21 +145,28 @@ export const exportStorageLocation = createAsyncThunk(
   'storageLocation/export',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
-        'http://192.168.29.116:8000/purchasetestapi/storagelocations/exportstoragelocation/export-csv',
+      const response = await purchaseApi.get(
+        '/storagelocations/exportstoragelocation/export-csv',
         { responseType: 'blob' }
       );
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data])
+      );
+
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', 'storagelocations.csv');
       document.body.appendChild(link);
       link.click();
-      link.parentNode?.removeChild(link);
+      link.remove();
       window.URL.revokeObjectURL(url);
+
       return { message: 'Export successful' };
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || error.message);
+      return rejectWithValue(
+        error.response?.data?.detail || error.message
+      );
     }
   }
 );
@@ -247,3 +324,5 @@ export const selectImportError = (state: RootState) => state.storageLocations.im
 export const selectExportError = (state: RootState) => state.storageLocations.exportError;
 
 export default storageLocationSlice.reducer;
+
+

@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const BASE_URL = 'http://192.168.29.116:8000/purchasetestapi';
+const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 
 interface DeviceFingerprint {
   userAgent: string;
@@ -13,31 +13,31 @@ interface DeviceFingerprint {
 interface AuthState {
   isLoggedIn: boolean;
   username: string | null;
+   role: string | null; 
   error: string | null;
   isInitialized: boolean;
   browserSessionId: string | null;
   tabId: string | null;
-  lastActivity: number | null;
-  sessionInfo: {
-    idleMinutes: number;
-    sessionMinutes: number;
-    willTimeoutIn: number;
-  } | null;
+   permissions: any;
+   snackbarOpen: boolean; // ✅ ADD THIS
+  snackbarMessage: string | null; // ✅ ADD THIS
 }
 
 const initialState: AuthState = {
   isLoggedIn: false,
   username: null,
+   role: null,
   error: null,
   isInitialized: false,
   browserSessionId: null,
   tabId: null,
-  lastActivity: null,
-  sessionInfo: null,
+   permissions: {},
+   snackbarOpen: false, // ✅ ADD THIS
+  snackbarMessage: null, // ✅ ADD THIS
 };
 
 // Generate unique IDs for browser session and tab
-export const generateBrowserSessionId = (): string => {
+const generateBrowserSessionId = () => {
   let browserSessionId = localStorage.getItem('browserSessionId');
   if (!browserSessionId) {
     browserSessionId = crypto.randomUUID();
@@ -46,7 +46,7 @@ export const generateBrowserSessionId = (): string => {
   return browserSessionId;
 };
 
-export const generateTabId = (): string => {
+const generateTabId = () => {
   let tabId = sessionStorage.getItem('tabId');
   if (!tabId) {
     tabId = crypto.randomUUID();
@@ -55,7 +55,7 @@ export const generateTabId = (): string => {
   return tabId;
 };
 
-export const getDeviceFingerprint = (): DeviceFingerprint => {
+const getDeviceFingerprint = (): DeviceFingerprint => {
   return {
     userAgent: navigator.userAgent,
     screenResolution: `${window.screen.width}x${window.screen.height}`,
@@ -64,77 +64,43 @@ export const getDeviceFingerprint = (): DeviceFingerprint => {
   };
 };
 
-// Activity monitoring setup
-let activityMonitorInterval: NodeJS.Timeout | null = null;
-let activityListenersCleanup: (() => void) | null = null;
-
-const setupActivityMonitoring = (dispatch: any) => {
-  // Clear any existing monitoring
-  if (activityMonitorInterval) {
-    clearInterval(activityMonitorInterval);
-  }
-  if (activityListenersCleanup) {
-    activityListenersCleanup();
-  }
-
-  // Function to update activity
-  const updateActivity = () => {
-    dispatch(updateLastActivity());
-  };
-
-  // Update activity on user interactions
-  const events = ['mousemove', 'keypress', 'click', 'scroll', 'touchstart'];
+// Track tab state to distinguish between reload and close
+const initializeTabTracking = () => {
+  const browserSessionId = generateBrowserSessionId();
+  const tabId = generateTabId();
   
-  const throttledUpdate = () => {
-    updateActivity();
-  };
-
-  // Add event listeners with throttling
-  let throttleTimer: NodeJS.Timeout | null = null;
-  const eventHandler = () => {
-    if (!throttleTimer) {
-      throttleTimer = setTimeout(() => {
-        updateActivity();
-        throttleTimer = null;
-      }, 10000); // Throttle to 10 seconds
+  // Mark this tab as active
+  let activeTabs = JSON.parse(localStorage.getItem(`activeTabs_${browserSessionId}`) || '[]');
+  if (!activeTabs.includes(tabId)) {
+    activeTabs.push(tabId);
+    localStorage.setItem(`activeTabs_${browserSessionId}`, JSON.stringify(activeTabs));
+  }
+  
+  // Set tab as reloading (not closing)
+  sessionStorage.setItem('isReloading', 'true');
+  
+  const cleanup = () => {
+    // Only remove tab if this is NOT a reload
+    if (sessionStorage.getItem('isReloading') !== 'true') {
+      let currentTabs = JSON.parse(localStorage.getItem(`activeTabs_${browserSessionId}`) || '[]');
+      currentTabs = currentTabs.filter((id: string) => id !== tabId);
+      localStorage.setItem(`activeTabs_${browserSessionId}`, JSON.stringify(currentTabs));
+      
+      // If this is the last tab, mark browser session for cleanup
+      if (currentTabs.length === 0) {
+        localStorage.setItem(`browser_${browserSessionId}_closed`, Date.now().toString());
+      }
     }
+    
+    // Clear reload flag
+    sessionStorage.removeItem('isReloading');
   };
-
-  events.forEach(event => {
-    window.addEventListener(event, eventHandler);
-  });
-
-  // Cleanup function
-  activityListenersCleanup = () => {
-    events.forEach(event => {
-      window.removeEventListener(event, eventHandler);
-    });
-    if (throttleTimer) {
-      clearTimeout(throttleTimer);
-    }
-  };
-
-  // Periodic activity check every 5 minutes
-  activityMonitorInterval = setInterval(() => {
-    updateActivity();
-  }, 5 * 60 * 1000);
-
-  // Initial activity update
-  updateActivity();
+  
+  window.addEventListener('beforeunload', cleanup);
+  
+  return cleanup;
 };
 
-const stopActivityMonitoring = () => {
-  if (activityMonitorInterval) {
-    clearInterval(activityMonitorInterval);
-    activityMonitorInterval = null;
-  }
-  if (activityListenersCleanup) {
-    activityListenersCleanup();
-    activityListenersCleanup = null;
-  }
-};
-
-// Async Thunks
 export const checkExistingSession = createAsyncThunk(
   'auth/checkExistingSession',
   async (username: string, { rejectWithValue }) => {
@@ -158,83 +124,28 @@ export const checkExistingSession = createAsyncThunk(
   }
 );
 
-export const login = createAsyncThunk(
-  'auth/login',
-  async (
-    {
-      username,
-      password,
-    }: {
-      username: string;
-      password: string;
-    },
-    { rejectWithValue, dispatch }
-  ) => {
-    try {
-      const browserSessionId = generateBrowserSessionId();
-      const tabId = generateTabId();
-      
-      // Clear any previous closed marks
-      localStorage.removeItem(`browser_${browserSessionId}_closed`);
-      
-      const authHeader = `Basic ${btoa(`${username}:${password}`)}`;
-      const response = await axios.post(
-        `${BASE_URL}/logincheck/login`,
-        {
-          browser_session_id: browserSessionId,
-          device_fingerprint: getDeviceFingerprint(),
-          tab_id: tabId,
-        },
-        {
-          headers: {
-            Authorization: authHeader,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      sessionStorage.setItem('accessToken', response.data.access_token);
-      sessionStorage.setItem('username', response.data.username);
-      sessionStorage.setItem('tabId', tabId);
-
-      // Setup activity monitoring after successful login
-      setupActivityMonitoring(dispatch);
-      
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Login failed');
-    }
-  }
-);
 
 export const validateToken = createAsyncThunk(
-  'auth/validateToken',
+  "auth/validateToken",
   async (_, { rejectWithValue }) => {
     try {
-      const token = sessionStorage.getItem('accessToken');
-      if (!token) {
-        throw new Error('No token found');
-      }
+      const token = sessionStorage.getItem("accessToken");
+      if (!token) return rejectWithValue("No token");
 
       const response = await axios.get(
-        `${BASE_URL}/logincheck/validate-token`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        `${BASE_URL}/validate-token?token=${token}`
       );
 
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Token validation failed');
+      return rejectWithValue(error.response?.data || "Token invalid");
     }
   }
 );
 
 export const addNewTab = createAsyncThunk(
   'auth/addNewTab',
-  async (newTabId: string, { rejectWithValue, dispatch }) => {
+  async (newTabId: string, { rejectWithValue }) => {
     try {
       const token = sessionStorage.getItem('accessToken');
       if (!token) {
@@ -257,8 +168,8 @@ export const addNewTab = createAsyncThunk(
       sessionStorage.setItem('accessToken', response.data.access_token);
       sessionStorage.setItem('tabId', newTabId);
 
-      // Setup activity monitoring for new tab
-      setupActivityMonitoring(dispatch);
+      // Initialize tab tracking for new tab
+      initializeTabTracking();
 
       return response.data;
     } catch (error: any) {
@@ -268,101 +179,38 @@ export const addNewTab = createAsyncThunk(
 );
 
 export const logout = createAsyncThunk(
-  'auth/logout',
-  async (logoutReason: string = 'manual', { rejectWithValue }) => {
+  "auth/logout",
+  async (logoutReason: string = "manual", { rejectWithValue }) => {
     try {
-      const token = sessionStorage.getItem('accessToken');
-      const browserSessionId = localStorage.getItem('browserSessionId');
-      const tabId = sessionStorage.getItem('tabId');
-      
-      // Mark this as NOT a reload (actual logout)
-      sessionStorage.setItem('isReloading', 'false');
-      
-      if (token && logoutReason !== 'page_reload') {
+      const token = sessionStorage.getItem("accessToken");
+      const sessionId = sessionStorage.getItem("session_id");
+
+      // Mark this as NOT reload
+      sessionStorage.setItem("isReloading", "false");
+
+      if (token && logoutReason !== "page_reload") {
         await axios.post(
-          `${BASE_URL}/logincheck/logout`,
-          { 
-            logout_reason: logoutReason,
-            browser_session_id: browserSessionId,
-            tab_id: tabId
-          },
+          `${BASE_URL}/logout?session_id=${sessionId}`,
+          {},
           {
             headers: {
               Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             timeout: 5000,
           }
         );
       }
     } catch (error: any) {
-      console.error('Logout API call failed:', error);
+      console.error("Logout API call failed:", error);
     } finally {
-      // Only clear data for actual logout, not page reload
-      if (logoutReason !== 'page_reload') {
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('username');
-        sessionStorage.removeItem('tabId');
-        
-        // Only remove browser session if it's browser closed or last tab
-        if (logoutReason === 'browser_closed') {
-          localStorage.removeItem('browserSessionId');
-        }
+      if (logoutReason !== "page_reload") {
+        sessionStorage.clear();
+        localStorage.removeItem("browserSessionId");
       }
     }
+
     return logoutReason;
-  }
-);
-
-export const updateLastActivity = createAsyncThunk(
-  'auth/updateLastActivity',
-  async (_, { rejectWithValue }) => {
-    try {
-      const token = sessionStorage.getItem('accessToken');
-      if (!token) {
-        return null;
-      }
-
-      const response = await axios.post(
-        `${BASE_URL}/logincheck/ping`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      return response.data;
-    } catch (error: any) {
-      console.error('Activity update failed:', error);
-      return null;
-    }
-  }
-);
-
-export const checkActivityStatus = createAsyncThunk(
-  'auth/checkActivityStatus',
-  async (_, { rejectWithValue }) => {
-    try {
-      const token = sessionStorage.getItem('accessToken');
-      if (!token) {
-        throw new Error('No token found');
-      }
-
-      const response = await axios.get(
-        `${BASE_URL}/logincheck/check-activity`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Activity check failed');
-    }
   }
 );
 
@@ -370,21 +218,49 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    initializeAuth(state) {
-      const token = sessionStorage.getItem('accessToken');
-      const username = sessionStorage.getItem('username');
-      const browserSessionId = localStorage.getItem('browserSessionId');
-      const tabId = sessionStorage.getItem('tabId');
-      
-      if (token && username && browserSessionId && tabId) {
-        state.isLoggedIn = true;
-        state.username = username;
-        state.browserSessionId = browserSessionId;
-        state.tabId = tabId;
-        state.lastActivity = Date.now();
-      }
-      state.isInitialized = true;
-    },
+initializeAuth(state) {
+  let token = sessionStorage.getItem("accessToken");
+  let username = sessionStorage.getItem("username");
+  // ✅ RESTORE ROLE
+  const storedRole = localStorage.getItem("userRole");
+  if (storedRole) {
+    state.role = storedRole;
+  }
+  let browserSessionId = localStorage.getItem("browserSessionId");
+  let tabId = sessionStorage.getItem("tabId");
+
+  // ⭐ Auto-create missing browserSessionId
+  if (!browserSessionId) {
+    browserSessionId = crypto.randomUUID();
+    localStorage.setItem("browserSessionId", browserSessionId);
+  }
+
+  // ⭐ Auto-create missing tabId
+  if (!tabId) {
+    tabId = crypto.randomUUID();
+    sessionStorage.setItem("tabId", tabId);
+  }
+
+  // 🔥🔥 MAIN FIX — RESTORE PERMISSIONS 🔥🔥
+  const storedPermissions = localStorage.getItem("userPermissions");
+  if (storedPermissions) {
+    state.permissions = JSON.parse(storedPermissions);
+  }
+
+  // ⭐ Set redux state only if logged in
+  if (token && username) {
+    state.isLoggedIn = true;
+    state.username = username;
+    state.browserSessionId = browserSessionId;
+    state.tabId = tabId;
+  }
+
+  state.isInitialized = true;
+
+  initializeTabTracking();
+},
+
+
     clearError(state) {
       state.error = null;
     },
@@ -394,26 +270,42 @@ const authSlice = createSlice({
       state.error = null;
       state.browserSessionId = null;
       state.tabId = null;
-      state.lastActivity = null;
-      state.sessionInfo = null;
       
       sessionStorage.clear();
       localStorage.removeItem('browserSessionId');
-      
-      // Stop activity monitoring
-      stopActivityMonitoring();
     },
     setTabSession(state, action) {
       state.isLoggedIn = true;
       state.username = action.payload.username;
       state.browserSessionId = action.payload.browserSessionId;
       state.tabId = action.payload.tabId;
-      state.lastActivity = Date.now();
       state.error = null;
+      
+      // Initialize tab tracking
+      initializeTabTracking();
     },
-    updateActivity(state) {
-      state.lastActivity = Date.now();
-    }
+      // ✅ ADD THESE NEW REDUCERS
+    setSnackbarOpen(state, action) {
+      state.snackbarOpen = action.payload;
+    },
+    setSnackbarMessage(state, action) {
+      state.snackbarMessage = action.payload;
+    },
+    clearSnackbar(state) {
+      state.snackbarOpen = false;
+      state.snackbarMessage = null;
+    },
+  jwtLoginSuccess(state, action) {
+  state.isLoggedIn = true;
+  state.username = action.payload.username;
+  state.permissions = action.payload.permissions;
+   state.role = action.payload.role; 
+  state.error = null;
+  state.isInitialized = true;
+},
+
+
+     
   },
   extraReducers: (builder) => {
     builder
@@ -423,37 +315,14 @@ const authSlice = createSlice({
           state.username = action.payload.username;
           state.browserSessionId = action.payload.browser_session_id;
           state.error = null;
-          state.lastActivity = Date.now();
         }
       })
-      .addCase(login.fulfilled, (state, action) => {
-        state.isLoggedIn = true;
-        state.username = action.payload.username;
-        state.browserSessionId = action.payload.browser_session_id;
-        state.tabId = action.payload.tab_id;
-        state.error = null;
-        state.lastActivity = Date.now();
-      })
-      .addCase(login.rejected, (state, action) => {
-        state.isLoggedIn = false;
-        state.username = null;
-        state.browserSessionId = null;
-        state.tabId = null;
-        state.error = action.payload as string;
-        state.lastActivity = null;
-      })
+     
+     
       .addCase(validateToken.fulfilled, (state, action) => {
         state.isLoggedIn = true;
         state.username = action.payload.username;
         state.error = null;
-        state.lastActivity = Date.now();
-        if (action.payload.session_info) {
-          state.sessionInfo = {
-            idleMinutes: action.payload.session_info.idle_minutes || 0,
-            sessionMinutes: action.payload.session_info.session_minutes || 0,
-            willTimeoutIn: action.payload.session_info.will_timeout_in || 60,
-          };
-        }
       })
       .addCase(validateToken.rejected, (state, action) => {
         state.isLoggedIn = false;
@@ -461,8 +330,6 @@ const authSlice = createSlice({
         state.browserSessionId = null;
         state.tabId = null;
         state.error = action.payload as string;
-        state.lastActivity = null;
-        state.sessionInfo = null;
       })
       .addCase(addNewTab.fulfilled, (state, action) => {
         state.isLoggedIn = true;
@@ -470,7 +337,6 @@ const authSlice = createSlice({
         state.browserSessionId = action.payload.browser_session_id;
         state.tabId = action.payload.tab_id;
         state.error = null;
-        state.lastActivity = Date.now();
       })
       .addCase(logout.fulfilled, (state) => {
         state.isLoggedIn = false;
@@ -478,49 +344,9 @@ const authSlice = createSlice({
         state.browserSessionId = null;
         state.tabId = null;
         state.error = null;
-        state.lastActivity = null;
-        state.sessionInfo = null;
-        
-        // Stop activity monitoring
-        stopActivityMonitoring();
-      })
-      .addCase(updateLastActivity.fulfilled, (state, action) => {
-        state.lastActivity = Date.now();
-      })
-      .addCase(checkActivityStatus.fulfilled, (state, action) => {
-        if (action.payload.should_logout) {
-          state.isLoggedIn = false;
-          state.username = null;
-          state.browserSessionId = null;
-          state.tabId = null;
-          state.lastActivity = null;
-          state.sessionInfo = null;
-          
-          // Stop activity monitoring
-          stopActivityMonitoring();
-        } else {
-          state.lastActivity = Date.now();
-          if (action.payload.inactive_minutes_left !== undefined) {
-            if (!state.sessionInfo) {
-              state.sessionInfo = {
-                idleMinutes: 0,
-                sessionMinutes: 0,
-                willTimeoutIn: 60,
-              };
-            }
-            state.sessionInfo.willTimeoutIn = action.payload.inactive_minutes_left;
-          }
-        }
       });
   },
 });
 
-export const { 
-  initializeAuth, 
-  clearError, 
-  forceLogout, 
-  setTabSession,
-  updateActivity 
-} = authSlice.actions;
-
+export const { initializeAuth, clearError, forceLogout, setTabSession,setSnackbarOpen, setSnackbarMessage,clearSnackbar,jwtLoginSuccess } = authSlice.actions;
 export default authSlice.reducer;

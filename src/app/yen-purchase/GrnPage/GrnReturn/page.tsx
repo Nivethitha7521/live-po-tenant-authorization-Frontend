@@ -47,9 +47,28 @@ import 'react-date-range/dist/theme/default.css';
 import { VendorSearch } from '@/Models/vendor';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
-
+export const getReturnGrnPermission = (permissions: any) => {
+  return (
+    permissions?.yenerp?.grns_return ?? {
+      read: false,
+      hide: true,
+    }
+  );
+};
 const GrnReturn: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+    const permissions = useSelector((state: RootState) => state.auth.permissions);
+  const returnGrnPermission = useMemo(
+    () => getReturnGrnPermission(permissions),
+    [permissions],
+  );
+  // 🔥 ADD THIS – GRN LIST permission
+  const grnsPermission = permissions?.yenerp?.grns ?? {
+    read: false,
+    hide: true,
+  };
+
+  const isGrnListHidden = grnsPermission.hide;
   const { purchaseorders, loading, error, snackbarOpenGRN, snackbarMessageGRN, itemwise } = useSelector(selectGrn);
   const { businesses } = useSelector(selectBusinesses);
   // const { vendors } = useSelector(selectPurchaseOrderState);
@@ -86,32 +105,28 @@ const GrnReturn: React.FC = () => {
   const memoizedFromDate = useMemo(() => fromDate, [fromDate]);
   const memoizedToDate = useMemo(() => toDate, [toDate]);
 
-  useEffect(() => {
-    console.log('useEffect triggered with:', {
-      newPage,
-      pageSize,
-      dateField,
-      loading,
-      shouldFetch,
-    });
-    if (shouldFetch && !loading) {
-      const action = fetchReturnedGrns({
+ useEffect(() => {
+  if (!returnGrnPermission.read) return;
+
+  if (shouldFetch && !loading) {
+    dispatch(
+      fetchReturnedGrns({
         page: newPage,
         size: pageSize,
         dateFilterField: dateField,
-      });
-      console.log('Action payload:', action);
-      dispatch(action);
-      setShouldFetch(false);
-    }
-  }, [
-    dispatch,
-    newPage,
-    pageSize,
-    dateField,
-    loading,
-    shouldFetch,
-  ]);
+      })
+    );
+    setShouldFetch(false);
+  }
+}, [
+  returnGrnPermission.read,
+  dispatch,
+  newPage,
+  pageSize,
+  dateField,
+  loading,
+  shouldFetch,
+]);
 
   useEffect(() => {
     dispatch(fetchRandomNumbers());
@@ -790,6 +805,17 @@ const generateSummaryPDF = () => {
     return <Typography>Error: {error}</Typography>;
   }
 
+ if (!returnGrnPermission.read) {
+    return (
+      <Box p={3}>
+        <Typography variant="h6" color="error">
+          You don’t have permission to view Returned GRNs
+        </Typography>
+      </Box>
+    );
+  }
+
+
   return (
     <Box>
       <YenPurchasePage />
@@ -797,26 +823,34 @@ const generateSummaryPDF = () => {
         <Box mb={1}>
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
             <Box display="flex" alignItems="center">
-              <Link href="/yen-purchase/GrnPage" passHref>
-                <Button variant="contained" color="primary" sx={{ mr: 1, ml: 1 }}>
-                  GRN List
-                </Button>
-              </Link>
-              <Link href="/yen-purchase/GrnPage/GrnReturn" passHref>
-                <Button
-                  variant="contained"
-                  sx={{
-                    backgroundColor: 'white',
-                    color: 'black',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                    },
-                    mr: 2,
-                  }}
-                >
-                  Return GRN
-                </Button>
-              </Link>
+              {!isGrnListHidden && (
+                <Link href="/yen-purchase/GrnPage" passHref>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    sx={{ mr: 1, ml: 1 }}
+                  >
+                    GRN List
+                  </Button>
+                </Link>
+              )}
+              {!returnGrnPermission.hide && (
+                <Link href="/yen-purchase/GrnPage/GrnReturn" passHref>
+                  <Button
+                    variant="contained"
+                    sx={{
+                      backgroundColor: "white",
+                      color: "black",
+                      "&:hover": {
+                        backgroundColor: "rgba(255, 255, 255, 0.8)",
+                      },
+                      mr: 2,
+                    }}
+                  >
+                    Return GRN
+                  </Button>
+                </Link>
+              )}
             </Box>
           </Box>
           <Grid container alignItems="center" spacing={0.5} wrap="nowrap" ml={0.5}>
@@ -936,7 +970,7 @@ const generateSummaryPDF = () => {
                 <TableCell>Total Quantity</TableCell>
                 <TableCell>Returned Quantity</TableCell>
                 <TableCell>Total Price</TableCell>
-                <TableCell>Actions</TableCell>
+               {!returnGrnPermission.hide && <TableCell>Actions</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>

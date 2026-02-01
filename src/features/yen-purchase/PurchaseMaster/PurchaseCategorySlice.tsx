@@ -1,15 +1,15 @@
 import { ImportResult } from '@/Models/importResult';
 import { Category,initialState, Subcategory } from '@/Models/purchasecategory';
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import purchaseApi from '@/utils/api';
 
 export const fetchCategories = createAsyncThunk<Category[]>('category/fetchCategories', async () => {
-  const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/purchasecategories/');
+  const response = await purchaseApi.get('/purchasecategories/');
   return response.data;
 });
 
 export const addCategory = createAsyncThunk<Category, Category>('category/addCategory', async (category) => {
-  const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/purchasecategories', category);
+  const response = await purchaseApi.post('/purchasecategories', category);
   return response.data;
 });
 export const removeSubcategory = createAsyncThunk<
@@ -19,8 +19,8 @@ export const removeSubcategory = createAsyncThunk<
   'category/removeSubcategory',
   async ({ categoryId, subcategory }, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/purchasecategories/${categoryId}/subcategories/remove`,
+      const response = await purchaseApi.patch(
+        `/purchasecategories/${categoryId}/subcategories/remove`,
         { subcategoryToRemove: subcategory },
         {
           headers: {
@@ -38,23 +38,30 @@ export const removeSubcategory = createAsyncThunk<
 export const updateCategory = createAsyncThunk<Category, { purchasecategoryId: string, category: Category }>(
   'category/updateCategory',
   async ({ purchasecategoryId, category }) => {
-    const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/purchasecategories/${purchasecategoryId}`, category);
+    const response = await purchaseApi.patch(`/purchasecategories/${purchasecategoryId}`, category);
     return response.data;
   }
 );
 
+// categorySlice.ts - USE DELETE ENDPOINT
 export const deactivateCategory = createAsyncThunk<Category, string>('category/deactivateCategory', async (purchasecategoryId) => {
-  const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/purchasecategories/${purchasecategoryId}`, { status: 'deactivated' });
+  const response = await purchaseApi.delete(`/purchasecategories/${purchasecategoryId}`); // ✅ USE DELETE
   return response.data;
 });
-
-export const activateCategory = createAsyncThunk<Category, string>('category/activateCategory', async (purchasecategoryId) => {
-  const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/purchasecategories/${purchasecategoryId}`, { status: 'active' });
-  return response.data;
-});
+export const activateCategory = createAsyncThunk<Category, string>(
+  'category/activateCategory', 
+  async (purchasecategoryId, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.patch(`/purchasecategories/${purchasecategoryId}/activate`);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.detail || 'Failed to activate category');
+    }
+  }
+);
 
 export const fetchSubcategories = createAsyncThunk<Subcategory[]>('subcategory/fetchSubcategories', async () => {
-  const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/purchasesubcategories/');
+  const response = await purchaseApi.get('/purchasesubcategories/');
   return response.data;
 });
 
@@ -64,8 +71,8 @@ export const importPurchaseCategoriesCSV = createAsyncThunk(
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post(
-        'http://192.168.29.116:8000/purchasetestapi/purchasecategories/import_csv',
+      const response = await purchaseApi.post(
+        '/purchasecategories/import_csv',
         formData,
         {
           headers: {
@@ -84,8 +91,8 @@ export const exportPurchaseCategoriesCSV = createAsyncThunk(
   'purchaseCategory/exportCSV',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
-        'http://192.168.29.116:8000/purchasetestapi/purchasecategories/exportcategory/export_csv',
+      const response = await purchaseApi.get(
+        '/purchasecategories/exportcategory/export_csv',
         {
           responseType: 'blob',
         }

@@ -39,7 +39,6 @@ export interface Outgoing {
   poCreatedPerson?: string;
   grnCreatedPerson?: string;
   apCreatedPerson?: string;
-  grnVerifiedPerson?: string;
   apVerifiedPerson?: string;
   intimationDays?: number;
   dueDays: number;  // Frontend name—mapped from backend 'intimationDays'

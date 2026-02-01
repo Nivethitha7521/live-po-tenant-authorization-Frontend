@@ -13,6 +13,8 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import ClearIcon from '@mui/icons-material/Clear';
+import { usePermissions } from "@/hooks/usePermissions";
+
 import {
   addPurchaseOrder, fetchPurchaseOrders, fetchAllVendors, selectPurchaseOrderState, setPurchaseOrderData,
   setNewItemData, addItemToPurchaseOrder, setSnackbarMessage, clearSnackbarMessage, setSnackbarOpen,
@@ -50,6 +52,8 @@ const validationSchema = Yup.object({
 // Rounding functions
 const roundPrice = (price: number): number => Math.round(price * 100) / 100;
 const CreatePurchasePage: React.FC = () => {
+  const { hasPermission } = usePermissions();
+  const canAdd = hasPermission("yenerp", "purchaseorders_pending", "add");
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1283,78 +1287,113 @@ const CreatePurchasePage: React.FC = () => {
   const handleSubmit = async () => {
     try {
       await validationSchema.validate(purchaseOrderData, { abortEarly: false });
-      setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
+      setFormErrors({
+        vendorName: false,
+        billingAddress: false,
+        shippingAddress: false,
+        locationName: false,
+        paymentTerms: false,
+        creditLimit: false,
+      });
+
+      const { roundedTotalOrderAmount, roundedTotalDiscount, roundedTotalTax } =
+        calculateTotals;
+
       if (!purchaseOrderData.items.length) {
-        dispatch(setSnackbarMessage('At least one item is required.'));
+        dispatch(setSnackbarMessage("At least one item is required."));
         dispatch(setSnackbarOpen(true));
         return;
       }
+
       const orderDate = purchaseOrderData.orderDate || new Date().toISOString();
-      const expectedDeliveryDate = purchaseOrderData.expectedDeliveryDate || new Date().toISOString();
-      // Use backend-calculated totals if available, otherwise use frontend
-      const finalAmount = calculatedTotals?.finalAmount || totals.roundedTotalOrderAmount;
-      const totalDiscount = calculatedTotals?.totalDiscount || totals.roundedTotalDiscount;
-      const totalTax = calculatedTotals?.totalTax || totals.roundedTotalTax;
-      const totalFreightAmount = calculatedTotals?.totalFreightAmount || totals.freightAmountTotal;
-      const totalFreightTaxAmount = calculatedTotals?.totalFreightTaxAmount || totals.freightTaxTotal;
+      const expectedDeliveryDate =
+        purchaseOrderData.expectedDeliveryDate || new Date().toISOString();
+
       const dataToSubmit = {
         ...purchaseOrderData,
         orderDate,
         expectedDeliveryDate,
-        pendingOrderAmount: finalAmount,
-        pendingDiscountAmount: totalDiscount,
-        pendingTaxAmount: totalTax,
-        totalTax: totalTax,
-        totalFreightAmount: totalFreightAmount,
-        totalFreightTaxAmount: totalFreightTaxAmount,
-        freights: freights,
-        isHoldOrder: finalAmount > purchaseOrderData.creditLimit,
+        pendingOrderAmount: roundedTotalOrderAmount,
+        pendingDiscountAmount: roundedTotalDiscount,
+        pendingTaxAmount: roundedTotalTax,
+        totalTax: roundedTotalTax,
+        isHoldOrder: roundedTotalOrderAmount > purchaseOrderData.creditLimit,
         overallDiscountType: overallDiscountMode,
         overallDiscountValue: overallDiscountValue,
-        discountPrice: totalDiscount,
-        totalDiscount: totalDiscount,
+        discountPrice: roundedTotalDiscount,
+        totalDiscount: roundedTotalDiscount,
         roundOffValue: roundOffValue,
-        items: purchaseOrderData.items.map(item => ({
+        items: purchaseOrderData.items.map((item) => ({
           ...item,
-          befTaxDiscountType: item.befTaxDiscountType || 'percentage',
-          afTaxDiscountType: item.afTaxDiscountType || 'percentage',
+          befTaxDiscountType: item.befTaxDiscountType || "percentage",
+          afTaxDiscountType: item.afTaxDiscountType || "percentage",
+          // Ensure PO quantity fields are included
           poQuantity: item.poQuantity || item.pendingTotalQuantity || 0,
-          poQuantitypendingTotalPrice: item.poQuantitypendingTotalPrice || item.pendingTotalPrice || 0,
-          poQuantitypendingFinalPrice: item.poQuantitypendingFinalPrice || item.pendingFinalPrice || 0,
-          poQuantityTaxAmount: item.poQuantityTaxAmount || item.pendingTaxAmount || 0,
-          poQuantityDiscountAmount: item.poQuantityDiscountAmount || item.pendingDiscountAmount || 0,
+          poQuantitypendingTotalPrice:
+            item.poQuantitypendingTotalPrice || item.pendingTotalPrice || 0,
+          poQuantitypendingFinalPrice:
+            item.poQuantitypendingFinalPrice || item.pendingFinalPrice || 0,
+          poQuantityTaxAmount:
+            item.poQuantityTaxAmount || item.pendingTaxAmount || 0,
+          poQuantityDiscountAmount:
+            item.poQuantityDiscountAmount || item.pendingDiscountAmount || 0,
           poQuantitysgst: item.poQuantitysgst || item.pendingSgst || 0,
           poQuantitycgst: item.poQuantitycgst || item.pendingCgst || 0,
           poQuantityigst: item.poQuantityigst || item.pendingIgst || 0,
         })),
       };
+
       let result;
       setSubmitLoading(true);
+
       if (isEditMode && editId) {
-        result = await dispatch(updatePurchaseOrder({ purchaseOrderId: editId, purchaseOrder: dataToSubmit })).unwrap();
-        dispatch(setSnackbarMessage(`Purchase Order ${result.randomId || editId} successfully updated.`));
+        result = await dispatch(
+          updatePurchaseOrder({
+            purchaseOrderId: editId,
+            purchaseOrder: dataToSubmit,
+          }),
+        ).unwrap();
+        dispatch(
+          setSnackbarMessage(
+            `Purchase Order ${result.randomId || editId} successfully updated.`,
+          ),
+        );
       } else {
         result = await dispatch(addPurchaseOrder(dataToSubmit)).unwrap();
-        dispatch(setSnackbarMessage(
-          dataToSubmit.isHoldOrder
-            ? `Purchase Order ${result.randomId || 'Unknown'} is on hold due to exceeding credit limit. Awaiting approval.`
-            : `Purchase Order ${result.randomId || 'Unknown'} successfully created.`
-        ));
+        dispatch(
+          setSnackbarMessage(
+            dataToSubmit.isHoldOrder
+              ? `Purchase Order ${result.randomId || "Unknown"} is on hold due to exceeding credit limit. Awaiting approval.`
+              : `Purchase Order ${result.randomId || "Unknown"} successfully created.`,
+          ),
+        );
       }
+
       dispatch(setSnackbarOpen(true));
       await dispatch(fetchPurchaseOrders());
       handleClear();
       setDialogOpen(false);
-      router.push('/yen-purchase/PurchaseOrder');
+      router.push("/yen-purchase/PurchaseOrder");
     } catch (error) {
       if (error instanceof Yup.ValidationError) {
-        const newErrors = { vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false };
+        const newErrors = {
+          vendorName: false,
+          billingAddress: false,
+          shippingAddress: false,
+          locationName: false,
+          paymentTerms: false,
+          creditLimit: false,
+        };
         error.inner.forEach((err) => {
           if (err.path) newErrors[err.path as keyof typeof newErrors] = true;
         });
         setFormErrors(newErrors);
       } else {
-        dispatch(setSnackbarMessage(`Failed to ${isEditMode ? 'update' : 'create'} purchase order: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        dispatch(
+          setSnackbarMessage(
+            `Failed to ${isEditMode ? "update" : "create"} purchase order: ${error instanceof Error ? error.message : "Unknown error"}`,
+          ),
+        );
       }
       dispatch(setSnackbarOpen(true));
     } finally {
@@ -1390,6 +1429,26 @@ const CreatePurchasePage: React.FC = () => {
         <Typography variant="h6" sx={{ mt: 2 }}>
           Loading purchase order data...
         </Typography>
+      </Box>
+    );
+  }
+   if (!canAdd) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+          ❌ Access Denied
+        </Typography>
+        <Typography>
+          You don&apos;t have permission to create purchase orders. Required
+          permission: <strong>purchaseorders_pending.add</strong>
+        </Typography>
+        <Button
+          variant="contained"
+          sx={{ mt: 2 }}
+          onClick={() => router.push("/yen-purchase/PurchaseOrder")}
+        >
+          Back to Purchase Orders
+        </Button>
       </Box>
     );
   }
@@ -2303,13 +2362,13 @@ const CreatePurchasePage: React.FC = () => {
             </Button>
           </Grid>
           <Grid item>
-            <Button
+             <Button
               variant="contained"
               color="primary"
               onClick={handleOpenDialog}
               disabled={submitLoading || loading}
             >
-              {isEditMode ? 'Update Purchase Order' : 'Submit Purchase Order'}
+              {isEditMode ? "Update Purchase Order" : "Submit Purchase Order"}
             </Button>
           </Grid>
         </Grid>
@@ -2327,14 +2386,20 @@ const CreatePurchasePage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button
+         <Button
             onClick={handleSubmit}
             color="primary"
             variant="contained"
             disabled={submitLoading}
             startIcon={submitLoading ? <CircularProgress size={20} /> : null}
           >
-            {submitLoading ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Confirm')}
+            {submitLoading
+              ? isEditMode
+                ? "Updating..."
+                : "Submitting..."
+              : isEditMode
+                ? "Update"
+                : "Confirm"}
           </Button>
         </DialogActions>
       </Dialog>

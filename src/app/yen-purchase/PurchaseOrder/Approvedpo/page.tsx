@@ -1,5 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
@@ -30,6 +31,7 @@ import {
   TablePagination,
 } from "@mui/material";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import { usePermissions } from "@/hooks/usePermissions";
 import ClearIcon from "@mui/icons-material/Clear";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -263,6 +265,8 @@ interface OrderDetailsDialogProps {
   // ADD THESE TWO LINES:
   freights?: FreightData[];
   onEditFreights?: (freights: FreightData[]) => void;
+  canEditApproved: boolean;
+
 }
 const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   open,
@@ -272,6 +276,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   setUpdatedItems,
   invoiceNumber,
   setInvoiceNumber,
+  handleOpenRevertDialog,
   invoiceDate,
   setInvoiceDate,
   grnDate,
@@ -283,7 +288,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   totalOrderAmount,
   totalDiscountAmount,
   handleSaveChanges,
-  handleOpenRevertDialog,
+  canEditApproved,
   isProcessing,
   isReceivedQuantityValid,
   touched,
@@ -887,7 +892,11 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
         </DialogContent>
         <DialogActions>
           <Box display="flex" justifyContent="flex-end" mt={2}>
-            <Button variant="contained" onClick={handleOpenRevertDialog} disabled={isProcessing} sx={{ mr: 2 }}>
+            <Button
+              variant="contained"
+              onClick={handleOpenRevertDialog}
+              disabled={!canEditApproved || isProcessing}
+            >
               Revert PO
             </Button>
             <Tooltip
@@ -905,6 +914,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                   color="success"
                   onClick={handleOpenConfirmDialog}
                   disabled={
+                    !canEditApproved ||
                     isProcessing ||
                     !isReceivedQuantityValid() ||
                     isInvoiceDuplicate ||
@@ -947,6 +957,35 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   );
 };
 const ApprovedPurchase: React.FC = () => {
+  
+    const { hasPermission, permissions } = usePermissions();
+    const router = useRouter();
+    const hidePending =
+    permissions?.yenerp?.purchaseorders_pending?.hide === true;
+  const hideApproved =
+    permissions?.yenerp?.purchaseorders_approved?.hide === true;
+  const hideRejected =
+    permissions?.yenerp?.purchaseorders_rejected?.hide === true;
+
+  // permission actions ✅
+  const canViewApproved = hasPermission(
+    "yenerp",
+    "purchaseorders_approved",
+    "read",
+  );
+  const canEditApproved = hasPermission(
+    "yenerp",
+    "purchaseorders_approved",
+    "edit",
+  );
+
+  const canViewRejected = hasPermission(
+    "yenerp",
+    "purchaseorders_rejected",
+    "read",
+  );
+  const hasApprovedAccess = !hideApproved && canViewApproved;
+
   const dispatch = useDispatch<AppDispatch>();
   const { purchaseList, purchaseinvoice, error, snackbarOpen, snackbarMessage, searchQueryItem, randomIdSearch } = useSelector(selectPurchaseListState);
   const { businesses } = useSelector(selectBusinesses);
@@ -2639,22 +2678,63 @@ const handleSaveChanges = useCallback(async () => {
     );
   }
   if (error) return <Typography>Error: {error}</Typography>;
+    if (!hasApprovedAccess) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+          ❌ Access Denied
+        </Typography>
+
+        <Typography sx={{ mb: 1 }}>
+          You don't have permission to view Approved Purchase Orders.
+        </Typography>
+
+        <Typography variant="body2" sx={{ opacity: 0.8 }}>
+          Required: <b>purchaseorders_approved.read</b>
+        </Typography>
+
+         <Button
+          variant="contained"
+          sx={{ mt: 3 }}
+          onClick={() => router.push("/yen-purchase/PurchaseOrder")}
+        >
+          Back
+        </Button>
+      </Box>
+    );
+  }
   return (
     <Box sx={{ pl: 0, py: 1 }}>
       <YenPurchasePage />
       <Box sx={{ display: "flex", flexDirection: "column", px: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 1 }}>
+            {!hidePending && (
           <Link href="/yen-purchase/PurchaseOrder" passHref>
-            <Button variant="contained" color="primary">Pending</Button>
-          </Link>
+           <Button variant="contained" color="primary">
+                Pending
+              </Button>
+            </Link>
+            )}
+
           <Link href="/yen-purchase/PurchaseOrder/Approvedpo" passHref>
-            <Button variant="contained" sx={{ backgroundColor: "white", color: "black", "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.8)" } }}>
+            <Button
+              variant="contained"
+              sx={{
+                backgroundColor: "white",
+                color: "black",
+                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.8)" },
+              }}
+            >
               Approved
             </Button>
           </Link>
-          <Link href="/yen-purchase/PurchaseOrder/RejectedPo" passHref>
-            <Button variant="contained" color="primary">Rejected</Button>
+          {!hideRejected && canViewRejected && (
+            <Link href="/yen-purchase/PurchaseOrder/RejectedPo" passHref>
+              <Button variant="contained" color="primary">
+                Rejected
+              </Button>
           </Link>
+          )}
         </Box>
         {/* Filter and search UI - keep as is */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap", width: "100%", mb: 1 }}>
@@ -2754,20 +2834,28 @@ const handleSaveChanges = useCallback(async () => {
                     <TableCell className='table-number-right'>{(order.pendingOrderAmount || 0).toFixed(2)}</TableCell>
                     <TableCell>{order.poStatus}</TableCell>
                     <TableCell>
-                      <Tooltip title="View Details">
-                        <span> {/* FIXED: Wrapper for safety, though IconButton isn't disabled */}
-                          <IconButton onClick={() => handleViewDetailsClick(order.purchaseOrderId)} color="primary" sx={{ mr: 1 }}>
-                            <VisibilityIcon />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title="Download">
-                        <span> {/* FIXED: Wrapper for safety */}
-                          <IconButton color="primary" onClick={() => handleDownload(order.purchaseOrderId)}>
-                            <PictureAsPdfIcon />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
+                     <Tooltip title="View Details">
+                      <IconButton
+                        onClick={() =>
+                          handleViewDetailsClick(order.purchaseOrderId)
+                        }
+                        disabled={!canViewApproved}
+                        sx={{
+                          color: canViewApproved ? "primary.main" : "gray",
+                          opacity: canViewApproved ? 1 : 0.4,
+                        }}
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Download">
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleDownload(order.purchaseOrderId)}
+                      >
+                        <PictureAsPdfIcon />
+                      </IconButton>
+                    </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))
@@ -2789,6 +2877,7 @@ const handleSaveChanges = useCallback(async () => {
           open={openDialog}
           onClose={handleCloseDialogs}
           selectedOrder={selectedOrder}
+          canEditApproved={canEditApproved}
           updatedItems={updatedItems}
           setUpdatedItems={setUpdatedItems}
           invoiceNumber={invoiceNumber}

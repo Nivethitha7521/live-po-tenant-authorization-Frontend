@@ -36,6 +36,8 @@ interface VendorTableProps {
   loading: boolean;
   currentPage: number;
   pageSize: number;
+   canEdit: boolean; // ✅ ADD PERMISSION PROP
+  canDelete: boolean; // ✅ ADD PERMISSION PROP
 }
 
 const headerNameMap: Record<string, string> = {
@@ -58,24 +60,32 @@ const VendorTable: React.FC<VendorTableProps> = ({
   loading,
   currentPage,
   pageSize,
+   canEdit, // ✅ RECEIVE PERMISSIONS
+  canDelete // ✅ RECEIVE PERMISSIONS
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const selectedHeaders = useSelector((state: RootState) => state.vendor.selectedHeaders);
 
   const handleEdit = (index: number) => {
+      if (canEdit) { 
     dispatch(setEditIndex(index));
     dispatch(setVendorData(items[index]));
     dispatch(setDialogOpen('edit'));
+      }
   };
 
   const handleActivateClick = (vendor: Vendor) => {
+     if (canDelete) { 
     dispatch(setItemToActivate(vendor));
     dispatch(setActivateDialogOpen(true));
+     }
   };
 
   const handleDeactivateClick = (vendor: Vendor) => {
+    if (canDelete) { 
     dispatch(setItemToDeactivate(vendor));
     dispatch(setDeactivateDialogOpen(true));
+    }
   };
 
   const currentData = showDeactivated ? deactivatedItems : items;
@@ -188,10 +198,28 @@ const VendorTable: React.FC<VendorTableProps> = ({
                         </IconButton>
                       ) : (
                         <>
-                          <IconButton onClick={() => handleEdit(index)}>
+                          <IconButton onClick={() => handleEdit(index)}
+                             disabled={!canEdit}
+                                                         sx={{ 
+                              opacity: canEdit ? 1 : 0.5,
+                              '&.Mui-disabled': {
+                                opacity: 0.5,
+                                color: 'text.disabled'
+                              }
+                            }}
+>
                             <Edit />
                           </IconButton>
-                          <IconButton onClick={() => handleDeactivateClick(vendor)}>
+                          <IconButton onClick={() => handleDeactivateClick(vendor)}
+                            disabled={!canDelete} // ✅ DISABLE IF NO PERMISSION
+                            sx={{ 
+                              opacity: canDelete ? 1 : 0.5,
+                              '&.Mui-disabled': {
+                                opacity: 0.5,
+                                color: 'text.disabled'
+                              }
+                            }}
+>
                             <Delete />
                           </IconButton>
                         </>
@@ -204,8 +232,8 @@ const VendorTable: React.FC<VendorTableProps> = ({
           </TableBody>
         </Table>
       </TableContainer>
-      <VendorDeactivateDialog />
-      <VendorActivateDialog />
+      <VendorDeactivateDialog canDelete={canDelete} />
+      <VendorActivateDialog canDelete={canDelete} />
     </Box>
   );
 };

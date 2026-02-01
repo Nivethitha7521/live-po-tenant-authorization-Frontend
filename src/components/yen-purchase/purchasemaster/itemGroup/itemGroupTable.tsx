@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
   IconButton, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button,
-  Box
+  Box,
+  Tooltip // ✅ ADD TOOLTIP
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { PurchaseGroupItem } from '@/Models/itemgroup';
@@ -14,14 +15,25 @@ interface ItemGroupTableProps {
   handleEdit: (id: string) => void;
   handleDeactivate: (id: string) => void;
   handleActivate: (id: string) => void;
+  permissions?: { // ✅ ADD PERMISSIONS PROP
+    canEdit: boolean;
+    canDelete: boolean;
+  }; // ✅ MISSING CLOSING BRACE AND SEMICOLON
 }
 
 const ItemGroupTable: React.FC<ItemGroupTableProps> = ({
-  items, loading, handleEdit, handleDeactivate, handleActivate
+  items, loading, handleEdit, handleDeactivate, handleActivate,
+  permissions = { // ✅ DEFAULT PERMISSIONS
+    canEdit: true,
+    canDelete: true
+  },
 }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [actionType, setActionType] = useState<'deactivate' | 'activate' | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+
+  // ✅ DESTRUCTURE PERMISSIONS
+  const { canEdit, canDelete } = permissions;
 
   const handleOpenDialog = (itemId: string, action: 'deactivate' | 'activate') => {
     setSelectedItemId(itemId);
@@ -46,7 +58,7 @@ const ItemGroupTable: React.FC<ItemGroupTableProps> = ({
 
   return (
     <Box>
-  <TableContainer
+      <TableContainer
         component={Paper}
         sx={{
           maxHeight: 'calc(100vh - 200px)', // Dynamic height based on viewport
@@ -54,7 +66,7 @@ const ItemGroupTable: React.FC<ItemGroupTableProps> = ({
           width: '100%',
         }}
       >       
-       <Table stickyHeader>
+        <Table stickyHeader>
           <TableHead>
             <TableRow>
               <TableCell className='table-number-right'>S.No</TableCell>
@@ -84,17 +96,63 @@ const ItemGroupTable: React.FC<ItemGroupTableProps> = ({
                   <TableCell>
                     {item.status === 'active' ? (
                       <>
-            <IconButton onClick={() => handleEdit(item.itemgroupId)}>
-            <EditIcon />
-                        </IconButton>
-                        <IconButton onClick={() => handleOpenDialog(item.itemgroupId, 'deactivate')}>
-                          <DeleteIcon />
-                        </IconButton>
+                        {/* Edit Button with Permission */}
+                        <Tooltip title={!canEdit ? "No permission to edit" : "Edit Item Group"}>
+                          <span>
+                            <IconButton 
+                              onClick={() => handleEdit(item.itemgroupId)}
+                              disabled={!canEdit}
+                              sx={{ 
+                                opacity: canEdit ? 1 : 0.5,
+                                '&.Mui-disabled': {
+                                  opacity: 0.5,
+                                  color: 'grey.500'
+                                }
+                              }}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        
+                        {/* Deactivate Button with Permission */}
+                        <Tooltip title={!canDelete ? "No permission to deactivate" : "Deactivate Item Group"}>
+                          <span>
+                            <IconButton 
+                              onClick={() => handleOpenDialog(item.itemgroupId, 'deactivate')}
+                              disabled={!canDelete}
+                              sx={{ 
+                                opacity: canDelete ? 1 : 0.5,
+                                '&.Mui-disabled': {
+                                  opacity: 0.5,
+                                  color: 'grey.500'
+                                }
+                              }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                       </>
                     ) : (
-                      <IconButton onClick={() => handleOpenDialog(item.itemgroupId, 'activate')}>
-                        <RefreshIcon />
-                      </IconButton>
+                      /* Activate Button with Permission */
+                      <Tooltip title={!canDelete ? "No permission to activate" : "Activate Item Group"}>
+                        <span>
+                          <IconButton 
+                            onClick={() => handleOpenDialog(item.itemgroupId, 'activate')}
+                            disabled={!canDelete}
+                            sx={{ 
+                              opacity: canDelete ? 1 : 0.5,
+                              '&.Mui-disabled': {
+                                opacity: 0.5,
+                                color: 'grey.500'
+                              }
+                            }}
+                          >
+                            <RefreshIcon />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     )}
                   </TableCell>
                 </TableRow>

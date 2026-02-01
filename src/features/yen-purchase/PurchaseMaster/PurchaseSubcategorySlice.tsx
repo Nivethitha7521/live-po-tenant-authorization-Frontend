@@ -2,13 +2,17 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
 import { PurchaseSubcategory, PurchaseSubcategoryState, ImportResult, initialState } from '@/Models/purchasesubcategory';
+const authHeader = () => ({
+  Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+});
 
-// Async thunks
+// Async thun
 export const fetchPurchaseSubcategories = createAsyncThunk<PurchaseSubcategory[]>(
   'purchaseSubcategory/fetch',
   async () => {
     try {
-      const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/purchasesubcategories/');
+      const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/purchasesubcategories/',
+  { headers: authHeader() });
       return response.data;
     } catch (error: any) {
       throw Error(`Failed to fetch purchase subcategories: ${error.message}`);
@@ -20,7 +24,8 @@ export const addPurchaseSubcategory = createAsyncThunk<PurchaseSubcategory, Purc
   'purchaseSubcategory/add',
   async (purchaseSubcategory) => {
     try {
-      const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/purchasesubcategories/', purchaseSubcategory);
+      const response = await axios.post('http://127.0.0.1:8000/purchasetestapi/purchasesubcategories/', purchaseSubcategory,
+  { headers: authHeader() });
       return response.data;
     } catch (error: any) {
       throw Error(`Failed to add purchase subcategory: ${error.message}`);
@@ -36,8 +41,9 @@ export const updatePurchaseSubcategory = createAsyncThunk<
   async ({ purchasesubcategoryId, purchasesubcategory }) => {
     try {
       const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/purchasesubcategories/${purchasesubcategoryId}`,
-        purchasesubcategory
+        `http://127.0.0.1:8000/purchasetestapi/purchasesubcategories/${purchasesubcategoryId}`,
+        purchasesubcategory,
+  { headers: authHeader() }
       );
       return response.data;
     } catch (error: any) {
@@ -51,8 +57,9 @@ export const deactivatePurchaseSubcategory = createAsyncThunk<PurchaseSubcategor
   async (purchasesubcategoryId) => {
     try {
       const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/purchasesubcategories/${purchasesubcategoryId}`,
-        { status: 'deactivated' }
+        `http://127.0.0.1:8000/purchasetestapi/purchasesubcategories/${purchasesubcategoryId}`,
+        { status: 'deactivated' },
+  { headers: authHeader() }
       );
       return response.data;
     } catch (error: any) {
@@ -66,8 +73,9 @@ export const activatePurchaseSubcategory = createAsyncThunk<PurchaseSubcategory,
   async (purchasesubcategoryId) => {
     try {
       const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/purchasesubcategories/${purchasesubcategoryId}`,
-        { status: 'active' }
+        `http://127.0.0.1:8000/purchasetestapi/purchasesubcategories/${purchasesubcategoryId}`,
+        { status: 'active' },
+  { headers: authHeader() }
       );
       return response.data;
     } catch (error: any) {
@@ -88,10 +96,10 @@ export const importPurchaseSubcategoriesCSV = createAsyncThunk<
       formData.append('file', file);
 
       const response = await axios.post(
-        'http://192.168.29.116:8000/purchasetestapi/purchasesubcategories/import-csv',
+      'http://127.0.0.1:8000/purchasetestapi/purchasesubcategories/import-csv',
         formData,
         {
-          headers: {
+          headers: { ...authHeader(),
             'Content-Type': 'multipart/form-data',
           },
         }
@@ -124,9 +132,10 @@ export const exportPurchaseSubcategoriesCSV = createAsyncThunk<
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        'http://192.168.29.116:8000/purchasetestapi/purchasesubcategories/exportsubcategory/export-csv',
+        'http://127.0.0.1:8000/purchasetestapi/purchasesubcategories/exportsubcategory/export-csv',
         {
           responseType: 'blob',
+           headers: authHeader()
         }
       );
 

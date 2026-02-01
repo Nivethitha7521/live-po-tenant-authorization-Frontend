@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../redux/store';
-import { logout, updateLastActivity } from '../features/authSlice';
+import { logout} from '../features/authSlice';
 import { fetchBusinesses, selectBusinesses, fetchPhoto } from '@/features/account-setting/businessSlice';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -22,11 +22,9 @@ const Navbar: React.FC<NavbarProps> = ({ moduleName, username, onToggleMenu }) =
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const { businesses } = useSelector(selectBusinesses);
-  const { sessionInfo } = useSelector((state: RootState) => state.auth);
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set<string>());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [sessionMinutesLeft, setSessionMinutesLeft] = useState(60);
-  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
+ 
 
   // Fetch businesses on mount
   useEffect(() => {
@@ -43,32 +41,8 @@ const Navbar: React.FC<NavbarProps> = ({ moduleName, username, onToggleMenu }) =
     });
   }, [businesses, fetchedBusinessIds, dispatch]);
 
-  // Monitor session timeout
-  useEffect(() => {
-    if (sessionInfo?.willTimeoutIn) {
-      const minutesLeft = Math.floor(sessionInfo.willTimeoutIn);
-      setSessionMinutesLeft(minutesLeft);
-      setShowTimeoutWarning(minutesLeft < 10);
-      
-      // Show warning toast when less than 5 minutes left
-      if (minutesLeft === 5) {
-        toast.warning(`Your session will expire in 5 minutes due to inactivity.`, {
-          autoClose: 10000,
-        });
-      }
-    }
-  }, [sessionInfo]);
 
-  // Periodic session check
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (sessionMinutesLeft > 0) {
-        setSessionMinutesLeft(prev => Math.max(0, prev - 1));
-      }
-    }, 60000); // Update every minute
 
-    return () => clearInterval(interval);
-  }, [sessionMinutesLeft]);
 
   const handleOpenDialog = () => {
     setIsDialogOpen(true);
@@ -78,16 +52,6 @@ const Navbar: React.FC<NavbarProps> = ({ moduleName, username, onToggleMenu }) =
     setIsDialogOpen(false);
   };
 
-  const handleExtendSession = async () => {
-    try {
-      await dispatch(updateLastActivity()).unwrap();
-      setShowTimeoutWarning(false);
-      toast.success('Session extended! You can continue working.');
-    } catch (error) {
-      console.error('Failed to extend session:', error);
-      toast.error('Failed to extend session. Please try again.');
-    }
-  };
 
   const handleConfirmLogout = async () => {
     setIsDialogOpen(false);
@@ -106,11 +70,7 @@ const Navbar: React.FC<NavbarProps> = ({ moduleName, username, onToggleMenu }) =
     }
   };
 
-  const getSessionTimerClass = () => {
-    if (sessionMinutesLeft > 30) return 'active';
-    if (sessionMinutesLeft > 10) return 'warning';
-    return 'danger';
-  };
+  
 
   return (
     <>
@@ -190,23 +150,7 @@ const Navbar: React.FC<NavbarProps> = ({ moduleName, username, onToggleMenu }) =
         </div>
       </header>
 
-      {/* Timeout Warning Modal */}
-      {showTimeoutWarning && (
-        <div className="timeout-warning-modal">
-          <div className="timeout-warning-content">
-            <h3>Session About to Expire</h3>
-            <p>Your session will expire in {sessionMinutesLeft} minutes due to inactivity.</p>
-            <div className="timeout-warning-actions">
-              <button onClick={handleExtendSession} className="extend-btn">
-                Stay Logged In
-              </button>
-              <button onClick={handleOpenDialog} className="logout-btn">
-                Logout Now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+   
 
       {/* Logout Confirmation Dialog */}
       <ConfirmationDialog

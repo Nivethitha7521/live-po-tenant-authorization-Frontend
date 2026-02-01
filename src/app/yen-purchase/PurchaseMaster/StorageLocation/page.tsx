@@ -1,4 +1,4 @@
-'use client';
+ 'use client';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/redux/store';
@@ -23,12 +23,13 @@ import {
   resetExportState,
   setShowImportResultDialog,
 } from '../../../../features/yen-purchase/PurchaseMaster/StorageLocationSlice';
-import { Box, Snackbar, Alert, Backdrop, CircularProgress } from '@mui/material';
+import { Box, Snackbar, Alert, Backdrop, CircularProgress,Typography } from '@mui/material';
 import StorageLocationActions from '../../../../components/yen-purchase/purchasemaster/storagelocation/searchtoolbar';
 import StorageLocationTable from '../../../../components/yen-purchase/purchasemaster/storagelocation/storagetable';
 import StorageLocationForm from '../../../../components/yen-purchase/purchasemaster/storagelocation/addeditdialog';
 import ImportResultDialog from '../../../../components/yen-purchase/CommonImportDialog';
 import { StorageLocationItem } from '@/Models/storagelocation';
+import { usePermissions } from '../../../../hooks/usePermissions';
 
 const initialStorageLocationState: StorageLocationItem = {
   storageLocationId: '',
@@ -46,6 +47,7 @@ const normalizeNameForComparison = (name: string | undefined | null): string => 
 
 const StorageLocationPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const { hasPermission, isModuleVisible } = usePermissions();
   const {
     items: storageLocations,
     deactivatedItems,
@@ -67,6 +69,13 @@ const StorageLocationPage: React.FC = () => {
     exportError,
   } = useSelector(selectStorageLocations);
   const [loading, setLoading] = useState(false);
+
+  const canAdd = hasPermission('yenerp', 'storagelocation', 'add');
+  const canEdit = hasPermission('yenerp', 'storagelocation', 'edit');
+  const canDelete = hasPermission('yenerp', 'storagelocation', 'delete');
+
+  console.log('🎯 Storage Location Action Permissions:', { canAdd, canEdit, canDelete });
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,10 +111,12 @@ const StorageLocationPage: React.FC = () => {
   }, [exportSuccess, exportError, dispatch]);
 
   const handleDialogOpen = () => {
+    if (canAdd) {
     dispatch(setStorageLocationData(initialStorageLocationState));
     dispatch(setEditIndex(null));
     dispatch(setDialogOpen('edit'));
     dispatch(setLocationNameTouched(false));
+    }
   };
 
   const handleDialogClose = () => {
@@ -218,6 +229,7 @@ const StorageLocationPage: React.FC = () => {
   };
 
   const handleEdit = (id: string) => {
+    if (canEdit) { 
     const storageLocation = storageLocations.find((location) => location.storageLocationId === id);
     if (storageLocation) {
       dispatch(setStorageLocationData({
@@ -227,9 +239,11 @@ const StorageLocationPage: React.FC = () => {
       dispatch(setEditIndex(id));
       dispatch(setDialogOpen('edit'));
     }
+  }
   };
 
   const handleDeactivate = (storageLocationId: string) => {
+    if (canDelete){
     dispatch(deactivateStorageLocation(storageLocationId))
       .unwrap()
       .then(() => {
@@ -241,9 +255,12 @@ const StorageLocationPage: React.FC = () => {
         dispatch(setSnackbarMessage(`Failed to deactivate storage location: ${error?.detail?.message || error?.detail || error}`));
         dispatch(setSnackbarOpen(true));
       });
+    }
   };
 
   const handleActivate = (storageLocationId: string) => {
+        if (canDelete) { 
+
     dispatch(activateStorageLocation(storageLocationId))
       .unwrap()
       .then(() => {
@@ -255,6 +272,7 @@ const StorageLocationPage: React.FC = () => {
         dispatch(setSnackbarMessage(`Failed to activate storage location: ${error?.detail?.message || error?.detail || error}`));
         dispatch(setSnackbarOpen(true));
       });
+    }
   };
 
   const handleSnackbarClose = () => {
@@ -283,6 +301,7 @@ const StorageLocationPage: React.FC = () => {
     }))
     .slice()
     .reverse();
+if (loading) return <Typography>Loading...</Typography>;
 
   return (
     <Box>
@@ -297,12 +316,15 @@ const StorageLocationPage: React.FC = () => {
         onToggleShowDeactivated={toggleShowDeactivated}
         importStatus={importing ? 'loading' : importSuccess ? 'succeeded' : importError ? 'failed' : 'idle'}
         exportStatus={exporting ? 'loading' : exportSuccess ? 'succeeded' : exportError ? 'failed' : 'idle'}
+        showAddButton={canAdd} 
       />
       <StorageLocationTable
         items={filteredStorageLocations}
         handleEdit={handleEdit}
         handleDeactivate={handleDeactivate}
         handleActivate={handleActivate}
+        canEdit={canEdit}
+        canDelete={canDelete}
       />
       <StorageLocationForm
         open={dialogOpen === 'edit'}

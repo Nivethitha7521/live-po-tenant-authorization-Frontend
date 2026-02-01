@@ -6,38 +6,44 @@ import { initialState, PhotoResponse, PhotosResponse, Item, PurchaseInvoice, Pur
 import { GrnData } from '@/Models/grnModel';
 import { OverallDiscountRequest, OverallDiscountResponse } from '@/app/yen-purchase/PurchaseOrder/Models/Itemcalculation';
 import { FreightData } from '@/app/yen-purchase/PurchaseOrder/Component/freightSelectionDialog';
+import purchaseApi from "@/utils/api";
 
 
 const LIMIT = 20;
-const API_BASE_URL = 'http://192.168.29.116:8000/purchasetestapi';
+const API_BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 
 export const fetchPurchaseOrderRandomIds = createAsyncThunk(
-  'purchaseOrder/fetchRandomIds',
-  async ({ skip, query }: { skip: number; query: string }, { rejectWithValue }) => {
+  "purchaseOrder/fetchRandomIds",
+  async (
+    { skip, query }: { skip: number; query: string },
+    { rejectWithValue },
+  ) => {
     try {
-      const response = await axios.get<PurchaseRandomId[]>(
-        `${API_BASE_URL}/purchaseorders/getRandomId`,
+      const response = await purchaseApi.get<PurchaseRandomId[]>(
+        "purchaseorders/getRandomId",
         {
           params: {
             random_id: query || undefined,
             skip,
-            limit: LIMIT
-          }
-        }
+            limit: LIMIT,
+          },
+        },
       );
 
       return {
         data: response.data,
         skip,
-        query
+        query,
       };
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to fetch purchase order random IDs');
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch purchase order random IDs",
+      );
     }
-  }
+  },
 );
 const formatDate = (date: Date): string => {
-  return format(date, 'dd/MM/yyyy');  // Format as day/month/year
+  return format(date, "dd/MM/yyyy"); // Format as day/month/year
 };
 const customRound = (value: number) => {
   return Math.round(value * 100) / 100; // Round to two decimal places
@@ -48,7 +54,7 @@ function customRoundOff(value: number): number {
 
   // If decimal part is 0.5 or above, round up; otherwise, round down
   if (decimalPart >= 0.5) {
-    return Math.ceil(value);  // Round up to the nearest whole number
+    return Math.ceil(value); // Round up to the nearest whole number
   } else {
     return Math.floor(value); // Round down to the nearest whole number
   }
@@ -82,66 +88,66 @@ export const fetchPurchaseOrders = createAsyncThunk(
     page: number;
     size: number;
     status?: string;
-    fromDate?: string | Date;  // Allow both string and Date
-    toDate?: string | Date;    // Allow both string and Date
+    fromDate?: string | Date;
+    toDate?: string | Date;
     vendorName?: string;
     itemName?: string;
     randomId?: string;
     dateField?: 'orderDate' | 'approvedDate' | 'rejectedDate';
   }) => {
-    const params: {
-      skip?: number;
-      limit?: number;
-      status?: string;
-      fromDate?: string;
-      toDate?: string;
-      vendorName?: string;
-      itemName?: string;
-      randomId?: string;
-      filterBy?: string;
-    } = {};
-
-    // Pagination
-    params.skip = (page - 1) * size;
-    params.limit = size;
-
-    // Filters
-    if (status) params.status = status;
-    if (vendorName) params.vendorName = vendorName;
-    if (itemName) params.itemName = itemName;
-    if (randomId) params.randomId = randomId;
-
-    // Handle date conversion - convert string dates to Date objects if needed
-    if (fromDate) {
-      const fromDateObj = typeof fromDate === 'string' ? new Date(fromDate) : fromDate;
-      params.fromDate = fromDateObj.toISOString();
-    }
-    
-    if (toDate) {
-      const toDateObj = typeof toDate === 'string' ? new Date(toDate) : toDate;
-      params.toDate = toDateObj.toISOString();
-    }
-
-    // Add the filterBy parameter to specify which date field to filter by
-    if (dateField) params.filterBy = dateField;
 
     try {
-      const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/purchaseorders/', {
-        params,
-      });
 
-      if (response.data.length === 0) {
-        return [];  // Return empty array if no data
+      const params: {
+        skip?: number;
+        limit?: number;
+        status?: string;
+        fromDate?: string;
+        toDate?: string;
+        vendorName?: string;
+        itemName?: string;
+        randomId?: string;
+        filterBy?: string;
+      } = {};
+
+      // Pagination
+      params.skip = (page - 1) * size;
+      params.limit = size;
+
+      // Filters
+      if (status) params.status = status;
+      if (vendorName) params.vendorName = vendorName;
+      if (itemName) params.itemName = itemName;
+      if (randomId) params.randomId = randomId;
+
+      // Date filters
+      if (fromDate) {
+        const fromDateObj =
+          typeof fromDate === 'string' ? new Date(fromDate) : fromDate;
+        params.fromDate = fromDateObj.toISOString();
       }
 
-      console.log('Fetched purchase orders:', response.data);
+      if (toDate) {
+        const toDateObj =
+          typeof toDate === 'string' ? new Date(toDate) : toDate;
+        params.toDate = toDateObj.toISOString();
+      }
+
+      // Filter field
+      if (dateField) params.filterBy = dateField;
+
+      const response = await purchaseApi.get("/purchaseorders/", { params });
       return response.data;
+
     } catch (error: any) {
+
       console.error('Error fetching purchase orders:', error);
-      return { errorMessage: 'Error fetching purchase orders. Please try again.' };
+      throw error;
+
     }
   }
 );
+
 export const fetchPendingPurchaseOrders = createAsyncThunk(
   'pendingPurchaseOrders/fetch',
   async ({
@@ -192,7 +198,7 @@ export const fetchPendingPurchaseOrders = createAsyncThunk(
     }
 
     try {
-      const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/purchaseorders/pending/purchase', {
+      const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/purchaseorders/pending/purchase', {
         params,
       });
 
@@ -210,81 +216,111 @@ export const fetchPendingPurchaseOrders = createAsyncThunk(
 );
 // Async thunk to fetch all purchase orders
 export const fetchAllPurchaseOrders = createAsyncThunk(
-  'purchaseOrder/fetchAll',
+  "purchaseOrders/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<PurchaseOrderData[]>('http://192.168.29.116:8000/purchasetestapi/purchaseorders/getAll');
-      return response.data;  // List of purchase orders
+      const response = await purchaseApi.get<PurchaseOrderData[]>(
+        "/purchaseorders/getAll",
+      );
+      return response.data; // List of purchase orders
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to fetch purchase orders');
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch purchase orders",
+      );
     }
-  }
+  },
 );
 export const fetchInvoiceNumbers = createAsyncThunk(
-  'invoiceNumbers/fetchAll',
+  "invoiceNumbers/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<PurchaseInvoice[]>('http://192.168.29.116:8000/purchasetestapi/purchaseorders/getByInvoiceNo');
-      return response.data;  // List of invoice numbers
+      const response = await purchaseApi.get<PurchaseInvoice[]>(
+        "/purchaseorders/getByInvoiceNo",
+      );
+      return response.data; // List of invoice numbers
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to fetch invoice numbers');
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch invoice numbers",
+      );
     }
-  }
+  },
 );
 
 // Define an async thunk to deactivate a purchase order
 export const deactivatePurchaseOrder = createAsyncThunk(
-  'purchaseList/deactivate',
+  "purchaseList/deactivate",
   async (purchaseOrderId: string, { rejectWithValue }) => {
     try {
       // Make sure that purchaseOrderId is a valid string
       if (!purchaseOrderId) throw new Error("Invalid purchase order ID");
 
       // Send a PATCH request to update the poStatus to "deactivated"
-      await axios.patch(`http://192.168.29.116:8000/purchasetestapi/purchaseorders/${purchaseOrderId}`, {
-        poStatus: 'deactivated' // or any other status you use to mark it as deactivated
-      });
+      await purchaseApi.patch(
+        `/purchaseorders/${purchaseOrderId}`,
+        { poStatus: "deactivated" },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      return purchaseOrderId;
     } catch (error: any) {
-      console.error('Error deactivating purchase order:', error);
-      return rejectWithValue('Failed to deactivate purchase order');
+      console.error("Error deactivating purchase order:", error);
+      return rejectWithValue("Failed to deactivate purchase order");
     }
-  }
+  },
 );
 
 export const updatePurchaseOrder = createAsyncThunk(
-  'purchaseOrders/update',
-  async ({ purchaseOrderId, purchaseOrder }: { purchaseOrderId: string; purchaseOrder: Partial<PurchaseOrderData> }) => {
+  "purchaseOrders/update",
+  async ({
+    purchaseOrderId,
+    purchaseOrder,
+  }: {
+    purchaseOrderId: string;
+    purchaseOrder: Partial<PurchaseOrderData>;
+  }) => {
     try {
-      const currentDate = new Date();
-      const formattedDate = formatDate(currentDate);
-      const purchaseOrderToUpdate = {
-        ...purchaseOrder,
+      const response = await purchaseApi.patch(
+        `/purchaseorders/${purchaseOrderId}`,
+        purchaseOrder,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      };
-      const response = await axios.patch<PurchaseOrderData>(`http://192.168.29.116:8000/purchasetestapi/purchaseorders/${purchaseOrderId}`, purchaseOrderToUpdate);
       return response.data;
+
     } catch (error: any) {
-      return Promise.reject(`Failed to update purchase order: ${error.response?.data?.message || error.message}`);
+      console.error("Failed to update purchase order:", error);
+      throw error;
     }
   }
 );
 
 export const updatePurchaseOrderStatusToPending = createAsyncThunk(
-  'purchaseOrders/updateStatusToPending',
+  "purchaseOrders/updateStatusToPending",
   async (purchaseOrderId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/purchaseorders/${purchaseOrderId}`, // Make sure the endpoint matches your backend structure
+      const response = await purchaseApi.patch(
+        `/purchaseorders/${purchaseOrderId}`,
+        { poStatus: "Pending" },
         {
-          poStatus: 'Pending',
-
-        }
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
       );
       return response.data; // Return the updated purchase order data
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to update purchase order status');
+      return rejectWithValue(
+        error.response?.data || "Failed to update purchase order status",
+      );
     }
-  }
+  },
 );
 export const approvePurchaseOrder = createAsyncThunk(
   'purchaseOrders/approve',
@@ -298,9 +334,17 @@ export const approvePurchaseOrder = createAsyncThunk(
       console.log(`[Thunk] Approving PO: ${purchaseOrderId}`);
 
       // Always use the SMS/WhatsApp endpoint
-      const url = `http://192.168.29.116:8000/purchasetestapi/purchaseorders/approved/${purchaseOrderId}`;
+      const url = `/purchaseorders/approved/${purchaseOrderId}`;
 
-      const response = await axios.patch(url);
+      const response = await purchaseApi.patch(
+        url,
+        {},
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       console.log("[Thunk] Approval response:", response.data);
       return response.data;
@@ -314,148 +358,185 @@ export const approvePurchaseOrder = createAsyncThunk(
     }
   }
 );
+
 export const rejectPurchaseOrder = createAsyncThunk(
-  'purchaseOrders/reject',
+  "purchaseOrders/reject",
   async (purchaseOrderId: string, { rejectWithValue }) => {
     try {
-
-      const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/purchaseorders/rejected/${purchaseOrderId}`
+      const response = await purchaseApi.patch(
+        `/purchaseorders/rejected/${purchaseOrderId}`,
+        {},
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
       );
-
-      return response.data; // Return the updated purchase order data
+      return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to reject purchase order');
+      return rejectWithValue(
+        error.response?.data || "Failed to reject purchase order",
+      );
     }
-  }
+  },
 );
 
 // Async thunk action to update multiple items
 export const updateMultipleItemQuantities = createAsyncThunk(
-  'purchaseOrders/updateMultipleItemQuantities',
-  async (params: { purchaseOrderId: string; updatedItems: { itemId: string; updatedItem: Partial<Item> }[] }, { rejectWithValue }) => {
+  "purchaseOrders/updateMultipleItemQuantities",
+  async (
+    params: {
+      purchaseOrderId: string;
+      updatedItems: { itemId: string; updatedItem: Partial<Item> }[];
+    },
+    { rejectWithValue },
+  ) => {
     try {
-      // Transform the data structure to match what the backend expects
-      const items = params.updatedItems.map(item => ({
+      const items = params.updatedItems.map((item) => ({
         itemId: item.itemId,
-        ...item.updatedItem  // Spread the updatedItem properties to the top level
+        ...item.updatedItem,
       }));
 
-      const response = await axios.patch<PurchaseOrderData>(
-        `http://192.168.29.116:8000/purchasetestapi/purchaseorders/${params.purchaseOrderId}/items`,
-        { items }
+      const response = await purchaseApi.patch(
+        `/purchaseorders/${params.purchaseOrderId}/items`,
+        { items },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
       );
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response.data || error.message);
+      return rejectWithValue(error.response?.data || "Failed to update items");
     }
-  }
+  },
 );
 
 export const fetchPoById = createAsyncThunk(
-  'po/fetchPoById',
-  async (poId: string) => {
+  "po/fetchPoById",
+  async (poId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`http://192.168.29.116:8000/purchasetestapi/poimport/getOutgoing/${poId}`);
+      const response = await purchaseApi.get(`/poimport/getOutgoing/${poId}`);
       const data = response.data;
-      console.log('API response:', data); // Debug: Verify orderDate is a string
       return {
         ...data,
-        orderDate: data.orderDate || null, // Keep as string or null
+        orderDate: data.orderDate || null,
       };
-    } catch (error) {
-      console.error('Failed to fetch PO details:', error);
-      throw new Error('Failed to fetch PO details');
+    } catch (error: any) {
+      console.error("Failed to fetch PO details:", error);
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch PO details",
+      );
     }
-  }
+  },
 );
+// In purchaseListSlice.ts - updateReceivedDamagedQuantities thunk
 export const updateReceivedDamagedQuantities = createAsyncThunk(
-  'purchaseOrder/updateReceivedDamagedQuantities',
-  async (params: {
-    purchaseOrderId: string;
-    items: Array<{
-      itemId: string;
-      receivedQuantity: number;
-      befTaxDiscount: number;
-      afTaxDiscount: number;
-      expiryDate: Date | null;
-      grnPrice?: number; // Make sure this is included
-    }>;
-    invoiceNo: string;
-    invoiceDate: Date | null;
-    grnDate: Date | null;
-    discountPrice: number;
-    grnRoundOffAmount?: number; // Change from roundOffAmount to grnRoundOffAmount
-    freights?: FreightData[]; // NEW: Include freights for current receipt
-  }, { rejectWithValue }) => {
+  "purchaseOrder/updateReceivedDamagedQuantities",
+  async (
+    params: {
+      purchaseOrderId: string;
+      items: Array<{
+        itemId: string;
+        receivedQuantity: number;
+        befTaxDiscount: number;
+        afTaxDiscount: number;
+        expiryDate: string | null; // Change to string
+        grnPrice?: number;
+      }>;
+      invoiceNo: string;
+      invoiceDate: Date | null;
+      grnDate: Date | null;
+      discountPrice: number;
+      grnRoundOffAmount?: number;
+      freights?: any[];
+    },
+    { rejectWithValue },
+  ) => {
     try {
-      // Validate purchaseOrderId before making the request
       if (!params.purchaseOrderId) {
-        throw new Error('purchaseOrderId is required');
+        throw new Error("purchaseOrderId is required");
       }
-     
-      // Prepare the data for the backend
+
+      // Format dates to ISO strings
       const requestData = {
-        grnDate: params.grnDate,
-        invoiceDate: params.invoiceDate,
+        grnDate: params.grnDate ? params.grnDate.toISOString() : null,
+        invoiceDate: params.invoiceDate ? params.invoiceDate.toISOString() : null,
         invoiceNo: params.invoiceNo,
         discountPrice: params.discountPrice,
-        grnRoundOffAmount: params.grnRoundOffAmount || 0, // Include round off amount
-        items: params.items.map(item => ({
+        grnRoundOffAmount: params.grnRoundOffAmount || 0,
+        items: params.items.map((item) => ({
           itemId: item.itemId,
           receivedQuantity: item.receivedQuantity,
-          damagedQuantity: 0, // Add if needed
+          damagedQuantity: 0,
           befTaxDiscount: item.befTaxDiscount,
           afTaxDiscount: item.afTaxDiscount,
-          expiryDate: item.expiryDate,
-          grnPrice: item.grnPrice // Include GRN price
+          expiryDate: item.expiryDate, // Already string
+          grnPrice: item.grnPrice,
         })),
-        freights: params.freights || [], // NEW: Include freights for current GRN/receipt
+        freights: params.freights || [], // Include freights array
       };
-      const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
-        requestData
+
+      console.log("Sending request data:", requestData); // Add logging
+
+      const response = await purchaseApi.patch(
+        `/purchaseorders/receivedupdates/${params.purchaseOrderId}`,
+        requestData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
       );
       return response.data;
     } catch (error: any) {
-      console.error('Error in updateReceivedDamagedQuantities:', error);
-      return rejectWithValue(error.message || 'Failed to update purchase order');
+      console.error("Error in updateReceivedDamagedQuantities:", error);
+      console.error("Error response:", error.response?.data);
+      return rejectWithValue(
+        error.response?.data || error.message || "Failed to update purchase order",
+      );
     }
-  }
+  },
 );
 // Updated async thunks
 export const uploadPurchaseOrderPhotos = createAsyncThunk<
   UploadResponse,
   { purchaseOrderId: string; files: File[]; index?: number }
 >(
-  'purchaseOrders/uploadPhotos',
+  "purchaseOrders/uploadPhotos",
   async ({ purchaseOrderId, files, index }, { rejectWithValue }) => {
     try {
       const formData = new FormData();
-      files.forEach((file) => formData.append('files', file));
-      if (index !== undefined) formData.append('index', index.toString());
+      files.forEach((file) => formData.append("files", file));
+      if (index !== undefined) formData.append("index", index.toString());
 
-      const response = await axios.post<UploadResponse>(
-        `${API_BASE_URL}/purchaseorders/upload/${purchaseOrderId}`,
+      const response = await purchaseApi.post<UploadResponse>(
+        `/purchaseorders/upload/${purchaseOrderId}`,
         formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
       );
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Upload failed');
+      return rejectWithValue(error.response?.data || "Upload failed");
     }
-  }
+  },
 );
 // Fetch a specific image by index
 export const fetchImageByIndex = createAsyncThunk(
-  'photos/fetchPhotoByIndex',
-  async ({ purchaseOrderId, index }: { purchaseOrderId: string, index: number }, { rejectWithValue }) => {
+  "photos/fetchPhotoByIndex",
+  async (
+    { purchaseOrderId, index }: { purchaseOrderId: string; index: number },
+    { rejectWithValue },
+  ) => {
     try {
-      // Convert frontend's 0-based index to backend's 1-based
       const backendIndex = index + 1;
-
-      const response = await axios.get<PhotoResponse>(
-        `${API_BASE_URL}/purchaseorders/view/${purchaseOrderId}/${backendIndex}`
+      const response = await purchaseApi.get<PhotoResponse>(
+        `/purchaseorders/view/${purchaseOrderId}/${backendIndex}`,
       );
 
       const timestamp = new Date().getTime();
@@ -464,61 +545,70 @@ export const fetchImageByIndex = createAsyncThunk(
       return {
         imageUrl,
         purchaseOrderId,
-        index // Return original 0-based index
+        index,
       };
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Error fetching photo');
+      return rejectWithValue(error.response?.data || "Error fetching photo");
     }
-  }
+  },
 );
-
 // Fetch all images for a purchase order
 export const fetchAllImages = createAsyncThunk(
-  'photos/fetchAllPhotos',
+  "photos/fetchAllPhotos",
   async (purchaseOrderId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get<PhotosResponse>(
-        `${API_BASE_URL}/purchaseorders/view-all/${purchaseOrderId}`
+      const response = await purchaseApi.get<PhotosResponse>(
+        `/purchaseorders/view-all/${purchaseOrderId}`,
       );
       return { purchaseOrderId, imageUrls: response.data.imageUrls };
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Fetch failed');
+      return rejectWithValue(error.response?.data || "Fetch failed");
     }
-  }
+  },
 );
 
 export const editPhotoByIndex = createAsyncThunk(
-  'purchaseOrders/editPhoto',
-  async ({ purchaseOrderId, index, file }: {
-    purchaseOrderId: string;
-    index: number; // 1-based from backend
-    file: File;
-  }, { rejectWithValue }) => {
+  "purchaseOrders/editPhoto",
+  async (
+    {
+      purchaseOrderId,
+      index,
+      file,
+    }: {
+      purchaseOrderId: string;
+      index: number;
+      file: File;
+    },
+    { rejectWithValue },
+  ) => {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
 
-      const response = await axios.patch(
-        `${API_BASE_URL}/purchaseorders/edit/${purchaseOrderId}/${index}`,
+      const response = await purchaseApi.patch(
+        `/purchaseorders/edit/${purchaseOrderId}/${index}`,
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
 
       return {
         message: response.data.message,
         purchaseOrderId,
         index: index - 1, // Convert to 0-based for frontend
-        imageUrl: response.data.imageUrl
+        imageUrl: response.data.imageUrl,
       };
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to edit the photo');
+      return rejectWithValue(
+        error.response?.data || "Failed to edit the photo",
+      );
     }
-  }
+  },
 );
+
 // New thunk for overall discount
 export const calculateOverallDiscount = createAsyncThunk<
   OverallDiscountResponse,  // Return type
@@ -528,8 +618,17 @@ export const calculateOverallDiscount = createAsyncThunk<
   'purchase/calculateOverallDiscount',
   async (request, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/purchaseorders/items/grn/calculate-overall-discount`, request);  // Your API call
-      return response.data;  // Assumes it matches OverallDiscountResponse
+       const response = await purchaseApi.post(
+        `/purchaseorders/items/grn/calculate-overall-discount`,
+        request,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || 'API Error');
     }

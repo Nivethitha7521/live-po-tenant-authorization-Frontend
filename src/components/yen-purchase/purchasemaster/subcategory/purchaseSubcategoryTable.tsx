@@ -14,10 +14,13 @@ interface PurchaseSubcategoryTableProps {
   handleEdit: (index: number) => void;
   handleDeactivate: (id: string) => void;
   handleActivate: (id: string) => void;
+  canEdit: boolean; // ✅ ADD PERMISSION PROP
+  canDelete: boolean; // ✅ ADD PERMISSION PROP
 }
 
 const PurchaseSubcategoryTable: React.FC<PurchaseSubcategoryTableProps> = ({
-  subcategories, showDeactivated, handleEdit, handleDeactivate, handleActivate
+  subcategories, showDeactivated, handleEdit, handleDeactivate, handleActivate,
+  canEdit, canDelete
 }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogAction, setDialogAction] = useState<'deactivate' | 'activate' | null>(null);
@@ -84,27 +87,71 @@ const PurchaseSubcategoryTable: React.FC<PurchaseSubcategoryTableProps> = ({
                   <TableCell>{subcategory.purchasesubcategoryName}</TableCell>
                   <TableCell>{subcategory.status}</TableCell>
                   <TableCell>
-                    {showDeactivated ? (
-                      <IconButton onClick={() => handleOpenDialog('activate', subcategory.purchasesubcategoryId)}>
-                        <RefreshIcon />
-                      </IconButton>
-                    ) : (
-                      <>
-                        <IconButton onClick={() => handleEdit(subcategories.indexOf(subcategory))}>
-                          <EditIcon />
-                        </IconButton>
-                        {subcategory.status === 'active' ? (
-                          <IconButton onClick={() => handleOpenDialog('deactivate', subcategory.purchasesubcategoryId)}>
-                            <DeleteIcon />
-                          </IconButton>
-                        ) : (
-                          <IconButton onClick={() => handleOpenDialog('activate', subcategory.purchasesubcategoryId)}>
-                            <RefreshIcon />
-                          </IconButton>
-                        )}
-                      </>
-                    )}
-                  </TableCell>
+  {showDeactivated ? (
+    <IconButton 
+      onClick={() => handleOpenDialog('activate', subcategory.purchasesubcategoryId)}
+      disabled={!canDelete}
+      sx={{ 
+        opacity: canDelete ? 1 : 0.5,
+        '&.Mui-disabled': {
+          opacity: 0.5,
+          color: 'grey.500'
+        }
+      }}
+    >
+      <RefreshIcon />
+    </IconButton>
+  ) : (
+    <>
+      <IconButton 
+  onClick={() => {
+    console.log('✏️ Edit clicked - original index:', subcategories.indexOf(subcategory));
+    console.log('✏️ Edit clicked - reversed index:', reversedSubcategories.indexOf(subcategory));
+    handleEdit(subcategories.indexOf(subcategory));
+  }}
+  disabled={!canEdit}
+  sx={{ 
+    opacity: canEdit ? 1 : 0.5,
+    '&.Mui-disabled': {
+      opacity: 0.5,
+      color: 'grey.500'
+    }
+  }}
+>
+  <EditIcon />
+</IconButton>
+      {subcategory.status === 'active' ? (
+        <IconButton 
+          onClick={() => handleOpenDialog('deactivate', subcategory.purchasesubcategoryId)}
+          disabled={!canDelete}
+          sx={{ 
+            opacity: canDelete ? 1 : 0.5,
+            '&.Mui-disabled': {
+              opacity: 0.5,
+              color: 'grey.500'
+            }
+          }}
+        >
+          <DeleteIcon />
+        </IconButton>
+      ) : (
+        <IconButton 
+          onClick={() => handleOpenDialog('activate', subcategory.purchasesubcategoryId)}
+          disabled={!canDelete}
+          sx={{ 
+            opacity: canDelete ? 1 : 0.5,
+            '&.Mui-disabled': {
+              opacity: 0.5,
+              color: 'grey.500'
+            }
+          }}
+        >
+          <RefreshIcon />
+        </IconButton>
+      )}
+    </>
+  )}
+</TableCell>
                 </TableRow>
               ))
             )}

@@ -1,9 +1,9 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
 import { RootState } from '@/redux/store';
 import { PurchaseOrderData, Item } from '@/Models/purchaseModel';
+import purchaseApi from "@/utils/api";
 
-const API_BASE_URL = 'http://192.168.29.116:8000/purchasetestapi';
+const API_BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 
 // Interface for item update payload
 interface ItemUpdate {
@@ -49,27 +49,23 @@ const initialState: PurchaseOrderItemState = {
   selectedOrder: null,
 };
 
-// Async thunk to manage items (add, edit, delete)
 export const managePurchaseOrderItems = createAsyncThunk(
-  'purchaseOrderItems/manage',
-  async (
-    { purchaseOrderId, updateData }: { purchaseOrderId: string; updateData: PurchaseOrderItemUpdate },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await axios.patch(
-        `${API_BASE_URL}/purchaseorders/${purchaseOrderId}/items/manage`,
-        updateData,
-        {
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to manage purchase order items');
-    }
-  }
+  "purchaseOrderItems/manage",
+  async ({
+    purchaseOrderId,
+    updateData,
+  }: {
+    purchaseOrderId: string;
+    updateData: PurchaseOrderItemUpdate;
+  }) => {
+    const response = await purchaseApi.patch(
+      `/purchaseorders/${purchaseOrderId}/items/manage`,
+      updateData,
+    );
+    return response.data;
+  },
 );
+
 
 // Create the slice
 const purchaseOrderItemSlice = createSlice({

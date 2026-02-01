@@ -46,7 +46,6 @@ export interface Outgoing {
   poCreatedPerson?: string;
   grnCreatedPerson?: string;
   apCreatedPerson?: string;
-  grnVerifiedPerson?: string;
   apVerifiedPerson?: string;
   paymentMethod?: string;
   chequeNo?: number;

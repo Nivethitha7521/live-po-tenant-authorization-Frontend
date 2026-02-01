@@ -166,7 +166,6 @@ export interface GrnData {
   paymentTerms: string;
   contactpersonEmail: string;
   grnPerson: string;
-  grnVerifiedPerson: string;
   grnReturnedPerson: string;
   freights:Freight[];
   totalFreightAmount:number;

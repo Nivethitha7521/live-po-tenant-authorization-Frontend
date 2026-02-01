@@ -15,10 +15,13 @@ interface UOMTableProps {
   handleEdit: (index: string) => void;
   handleDeactivate: (id: string) => void;
   handleActivate: (id: string) => void;
+   canEdit: boolean; // ✅ ADD PERMISSION PROP
+  canDelete: boolean; // ✅ ADD PERMISSION PROP
 }
 
 const UOMTable: React.FC<UOMTableProps> = ({
-  items, showDeactivated, handleEdit, handleDeactivate, handleActivate
+  items, showDeactivated, handleEdit, handleDeactivate, handleActivate,
+  canEdit, canDelete // ✅ ADD PERMISSION PROPS
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'deactivate' | 'activate' | null>(null);
@@ -93,8 +96,15 @@ const UOMTable: React.FC<UOMTableProps> = ({
                             <span>
                               <IconButton
                                 onClick={() => handleEdit(uom.purchaseuomId)}
-                                disabled={isFirstFive}
-                              >
+                                 disabled={isFirstFive || !canEdit} // ✅ ADD PERMISSION CHECK
+                                   sx={{ 
+                                  opacity: (isFirstFive || !canEdit) ? 0.5 : 1,
+                                  '&.Mui-disabled': {
+                                    opacity: 0.5,
+                                    color: 'grey.500'
+                                  }
+                                }}
+                            >
                                 <EditIcon />
                               </IconButton>
                             </span>
@@ -106,7 +116,14 @@ const UOMTable: React.FC<UOMTableProps> = ({
                             <span>
                               <IconButton
                                 onClick={() => handleOpenDialog('deactivate', uom.purchaseuomId)}
-                                disabled={isFirstFive}
+                                disabled={isFirstFive|| !canDelete}
+                                  sx={{ 
+                                  opacity: (isFirstFive || !canDelete) ? 0.5 : 1,
+                                  '&.Mui-disabled': {
+                                    opacity: 0.5,
+                                    color: 'grey.500'
+                                  }
+                                }}
                               >
                                 <DeleteIcon />
                               </IconButton>
@@ -115,7 +132,16 @@ const UOMTable: React.FC<UOMTableProps> = ({
                         </>
                       ) : (
                         <Tooltip title="Activate UOM" disableInteractive>
-                          <IconButton onClick={() => handleOpenDialog('activate', uom.purchaseuomId)}>
+                          <IconButton onClick={() => handleOpenDialog('activate', uom.purchaseuomId)}
+                           disabled={!canDelete} // ✅ ADD PERMISSION CHECK
+                            sx={{ 
+                              opacity: !canDelete ? 0.5 : 1,
+                              '&.Mui-disabled': {
+                                opacity: 0.5,
+                                color: 'grey.500'
+                              }
+                            }}
+                          >
                             <RefreshIcon />
                           </IconButton>
                         </Tooltip>

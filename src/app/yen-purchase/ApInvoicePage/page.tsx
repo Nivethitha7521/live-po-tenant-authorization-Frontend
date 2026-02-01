@@ -75,6 +75,7 @@ import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import { debounce } from 'lodash';
+import { usePathname } from "next/navigation";
 
 interface TaxAmounts {
   sgst: { [key: string]: number };
@@ -151,7 +152,29 @@ const initialApInvoiceState: ApInvoice = {
 
 const VerifiedApInvoicePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+    const pathname = usePathname() ?? "";
+  const isApListActive =
+    pathname.startsWith("/yen-purchase/ApInvoicePage") &&
+    !pathname.startsWith("/yen-purchase/ApInvoicePage/ReturnAp");
 
+  const isReturnApActive = pathname.startsWith(
+    "/yen-purchase/ApInvoicePage/ReturnAp",
+  );
+ const apPermission = useSelector(
+    (state: RootState) => state.auth.permissions?.yenerp?.apinvoices,
+  );
+
+  const canRead = apPermission?.read ?? false;
+  const canEdit = apPermission?.edit ?? false;
+  const isModuleHidden =
+    !apPermission ||
+    apPermission.hide === true ||
+    apPermission.hide === 1 ||
+    (!apPermission.read &&
+      !apPermission.add &&
+      !apPermission.edit &&
+      !apPermission.delete &&
+      !apPermission.approve);
   // State from Redux
   const {
     apInvoices,
@@ -181,6 +204,8 @@ const VerifiedApInvoicePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVendorName, setSelectedVendorName] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<VendorSearch | null>(null);
+    const [filteredAp, setFilteredAp] = useState<ApInvoice[]>([]); // Explicit type declaration
+
   const [dialogDownloadOpen, setDialogDownloadOpen] = useState(false);
   const [dialogSummaryOpen, setDialogSummaryOpen] = useState(false);
   const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<string>('all');
@@ -240,6 +265,7 @@ const isDateFilterActive = useMemo(() => {
 }, [selectionRange]);
 // Update the initial fetch in the useEffect
 useEffect(() => {
+   if (!canRead) return; 
   const initializeData = async () => {
     dispatch(fetchBusinesses());
     dispatch(fetchAllVendors());
@@ -312,10 +338,11 @@ useEffect(() => {
     setDetailsDialogOpen(true);
   };
 const refetchWithFilters = useCallback((
+  
   page: number = currentPage,
   fromDateOverride?: string,
   toDateOverride?: string
-) => {
+) => {if (!canRead) return; 
   const filters: any = {
     page,
     limit: pageSize,
@@ -344,6 +371,8 @@ const refetchWithFilters = useCallback((
   dispatch, pageSize, currentPage,
   selectionRange, selectedVendorName, invoiceTypeFilter, selectedStatus
 ]);
+
+if (!canRead) return; 
 const handlePageChange = useCallback((newPage: number) => {
   if (newPage < 1 || newPage > totalPages || loading) return;
   
@@ -443,6 +472,7 @@ const handleStatusChange = (event: React.SyntheticEvent, newValue: string | null
     setInvoiceTypeFilter(value);
   };
 const handleFilterClick = () => {
+  if (!canRead) return;  
   dispatch(setCurrentPage(1));
   
   const fromDate = selectionRange.startDate 
@@ -1354,29 +1384,44 @@ useEffect(() => {
     ...Object.keys(taxAmounts.cgst),
     ...Object.keys(taxAmounts.igst),
   ]);
+ const filterAp = filteredAp.length > 0 ? filteredAp : apInvoices;
+  /* ================= HIDE MODULE ================= */
+  if (isModuleHidden) return null;
+  /* =============================================== */
 
+  /* =============================================== */
+  const returnPermission = useSelector(
+    (state: RootState) => state.auth.permissions?.yenerp?.apinvoices_return,
+  );
+
+  const canReturnRead = returnPermission?.read ?? false;
+  const isReturnHidden = returnPermission?.hide ?? false;
   return (
     <Box>
       <YenPurchasePage />
       <Box sx={{ p: 1, backgroundColor: 'white' }}>
         {/* First Row - AP Invoice List, Returned AP buttons, and Typography */}
         <Box display="flex" alignItems="center" mb={1} ml={1}>
-          <Link href="/yen-purchase/ApInvoicePage" passHref>
-            <Button
-              variant="contained"
-              sx={{
-                backgroundColor: 'white',
-                color: 'black',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                },
-                mr: 1,
-                minWidth: '100px',
-              }}
-            >
-              AP List
-            </Button>
-          </Link>
+          {!isModuleHidden && (
+            <Link href="/yen-purchase/ApInvoicePage" passHref>
+              <Button
+                variant="contained"
+                sx={{
+                  mr: 1,
+                  minWidth: "100px",
+                  backgroundColor: isApListActive ? "white" : "primary.main",
+                  color: isApListActive ? "black" : "white",
+                  "&:hover": {
+                    backgroundColor: isApListActive
+                      ? "#f5f5f5"
+                      : "primary.dark",
+                  },
+                }}
+              >
+                AP List
+              </Button>
+            </Link>
+          )}
         </Box>
 
         {/* Second Row: Search Vendor, Date Range, Invoice Type Filter, Filter, Clear, and Download Icons */}
@@ -1638,6 +1683,7 @@ useEffect(() => {
                               <IconButton
                                 color="primary"
                                 onClick={() => handleViewDetails(invoice)}
+                                 disabled={!canRead}
                               >
                                 <VisibilityIcon />
                               </IconButton>
@@ -1646,6 +1692,7 @@ useEffect(() => {
                               <IconButton
                                 color="primary"
                                 onClick={() => handleDownload(invoice.invoiceId)}
+                                  disabled={!canRead}
                               >
                                 <PictureAsPdfIcon />
                               </IconButton>
@@ -1949,14 +1996,19 @@ useEffect(() => {
           <DialogActions>
             {selectedInvoice?.invoiceType === 'goods' &&
               selectedInvoice?.status === 'Outgoing Posted' && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={() => setReturnDialogOpen(true)}
-                  sx={{ minWidth: '150px' }}
-                >
-                  Return GRN
-                </Button>
+                <Tooltip title={canEdit ? "Return GRN" : "You don’t have permission"}>
+  <span>
+    <Button
+      variant="contained"
+      color="primary"
+      onClick={() => setReturnDialogOpen(true)}
+      sx={{ minWidth: '150px' }}
+      disabled={!canEdit}
+    >
+      Return GRN
+    </Button>
+  </span>
+</Tooltip>
               )}
             <Button variant="contained" onClick={handleCloseDetailsDialog}>Close</Button>
           </DialogActions>

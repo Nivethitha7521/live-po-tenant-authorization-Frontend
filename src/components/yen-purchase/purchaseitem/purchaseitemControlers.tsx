@@ -5,7 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button,
   Backdrop, CircularProgress, Table, TableBody, TableCell, TableHead, TableRow, Snackbar, Alert
 } from '@mui/material';
-import { Add as AddIcon, GetApp as GetAppIcon, Upload as UploadIcon } from '@mui/icons-material';
+import { Add as AddIcon, GetApp as GetAppIcon, Upload as UploadIcon,Refresh as RefreshIcon } from '@mui/icons-material';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -48,7 +48,7 @@ interface PurchaseControlsProps {
   setSubcategory: (value: string) => void;
   handleFilter: () => void;
   handleClearFilters: () => void;
-  handleDialogOpen: () => void;
+  handleDialogOpen?: () => void;
   handleDownloadSampleCSV: () => void;
   handleImportCSV: (file: File, mode: 'merge' | 'replace' | 'rollback') => Promise<any>;
   handleExportCSV: () => void;
@@ -56,6 +56,9 @@ interface PurchaseControlsProps {
   setShowDeactivated: (value: boolean) => void;
   loading: boolean;
   exportStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+  canAdd: boolean;
+    handleRefresh?: () => void;
+ 
 }
 
 const HEADER_MAPPING: { [key: string]: string } = {
@@ -94,13 +97,15 @@ const PurchaseControls: React.FC<PurchaseControlsProps> = ({
   handleFilter,
   handleClearFilters,
   handleDialogOpen,
+  canAdd,
   handleDownloadSampleCSV,
   handleImportCSV,
   handleExportCSV,
   showDeactivated,
   setShowDeactivated,
   loading,
-  exportStatus
+  exportStatus,
+  handleRefresh 
 }) => {
   const inputFileRef = useRef<HTMLInputElement | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -381,30 +386,39 @@ const PurchaseControls: React.FC<PurchaseControlsProps> = ({
         {/* Action Buttons and Toggle */}
         <Grid item xs={6} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
           <Grid container spacing={1} alignItems="center" justifyContent="flex-end" wrap="nowrap">
+           
+           {/* Add the Refresh button RIGHT HERE - after the Add button */}
+   
+           
             <Grid item>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <IconButton
-                  color="primary"
-                  onClick={handleDialogOpen}
-                  className="icon-button-outline"
-                  disabled={loading || importLoading || exportStatus === 'loading'}
-                  size="small"
-                  sx={{ p: 0.3 }}
-                >
-                  <AddIcon fontSize="small" />
-                </IconButton>
+               <IconButton
+              color="primary"
+              onClick={handleDialogOpen}
+              className="icon-button-outline"
+              disabled={!canAdd || loading || importLoading || exportStatus === 'loading'}
+              size="small"
+              sx={{ 
+                p: 0.3,
+                opacity: canAdd ? 1 : 0.5
+              }}
+            >
+              <AddIcon fontSize="small" />
+            </IconButton>
                 <Typography
-                  variant="caption"
-                  align="center"
-                  sx={{
-                    maxWidth: 40,
-                    wordBreak: 'break-word',
-                    lineHeight: 1.1,
-                    mt: 0.2,
-                  }}
-                >
-                  Add
-                </Typography>
+              variant="caption"
+              align="center"
+              sx={{
+                maxWidth: 40,
+                wordBreak: 'break-word',
+                lineHeight: 1.1,
+                mt: 0.2,
+                color: canAdd ? 'text.primary' : 'grey.500',
+                opacity: canAdd ? 1 : 0.7,
+              }}
+            >
+              Add
+            </Typography>
               </Box>
             </Grid>
             <Grid item>

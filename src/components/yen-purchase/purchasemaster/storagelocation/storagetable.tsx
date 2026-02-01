@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
-  IconButton
+  IconButton,Box
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import ConfirmationDialog from '@/components/confirmationDialog';
@@ -13,16 +13,22 @@ interface StorageLocationTableProps {
   handleEdit: (index: string) => void;
   handleDeactivate: (id: string) => void;
   handleActivate: (id: string) => void;
+   canEdit: boolean; // ✅ ADD PERMISSION PROP
+  canDelete: boolean; // ✅ ADD PERMISSION PROP
 }
 
 const StorageLocationTable: React.FC<StorageLocationTableProps> = ({
-  items, handleEdit, handleDeactivate, handleActivate
+  items, handleEdit, handleDeactivate, handleActivate,canEdit, // ✅ ADD THIS - DESTRUCTURE THE PROP
+  canDelete // ✅ ADD THIS - DESTRUCTURE THE PROP
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'deactivate' | 'activate' | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const handleOpenDialog = (action: 'deactivate' | 'activate', id: string) => {
+        if ((action === 'deactivate' && !canDelete) || (action === 'activate' && !canDelete)) {
+      return; // ✅ PREVENT OPENING DIALOG IF NO PERMISSION
+}
     setConfirmAction(action);
     setSelectedId(id);
     setConfirmOpen(true);  // Open dialog
@@ -86,17 +92,49 @@ const StorageLocationTable: React.FC<StorageLocationTableProps> = ({
                   <TableCell>
                     {loc.status === 'active' ? (
                       <>
-                        <IconButton onClick={() => handleEdit(loc.storageLocationId)}>
+                        <IconButton 
+                          onClick={() => handleEdit(loc.storageLocationId)}
+                          disabled={!canEdit}
+                          sx={{ 
+                            opacity: canEdit ? 1 : 0.5,
+                            '&.Mui-disabled': {
+                              opacity: 0.5,
+                              color: 'text.disabled'
+                            }
+                          }}
+                        >
                           <EditIcon />
                         </IconButton>
-                        <IconButton onClick={() => handleOpenDialog('deactivate', loc.storageLocationId)}>
+                        
+                         <IconButton 
+                          onClick={() => handleOpenDialog('deactivate', loc.storageLocationId)}
+                          disabled={!canDelete}
+                          sx={{ 
+                            opacity: canDelete ? 1 : 0.5,
+                            '&.Mui-disabled': {
+                              opacity: 0.5,
+                              color: 'text.disabled'
+                            }
+                          }}
+                        >
                           <DeleteIcon />
                         </IconButton>
                       </>
                     ) : (
-                      <IconButton onClick={() => handleOpenDialog('activate', loc.storageLocationId)}>
+                      <IconButton 
+                        onClick={() => handleOpenDialog('activate', loc.storageLocationId)}
+                        disabled={!canDelete}
+                        sx={{ 
+                          opacity: canDelete ? 1 : 0.5,
+                          '&.Mui-disabled': {
+                            opacity: 0.5,
+                            color: 'text.disabled'
+                          }
+                        }}
+                      >
                         <RefreshIcon />
                       </IconButton>
+
                     )}
                   </TableCell>
                 </TableRow>

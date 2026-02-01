@@ -56,6 +56,8 @@ import serviceReducer from '../app/yen-purchase/PurchaseMaster/Service/Features/
 // import warehouseReducer from '../features/masterAdminSlice/warehouseSlice';
 // import freetypeReducer from '@/features/yen-crm/freetypeSlice';
 
+import roleReducer from '@/features/account-setting/roleSlice';
+
 // import categoryReducer from '../features/masterAdminSlice/categorySlice';
 import uomReducer from '../features/uomSlice';
 import vendorMasterReducer from '../features/yen-purchase/PurchaseMaster/vendorMaster';
@@ -142,6 +144,7 @@ const store = configureStore({
     // role: roleReducer,
     userAccount: userAccountReducer,
     auth: authReducer,
+    role: roleReducer,
     purchaseSubcategory: purchaseSubcategoryReducer,
     purchaseCategory:PurchaseCategoryReducer,
     groupItems: groupMasterReducer,

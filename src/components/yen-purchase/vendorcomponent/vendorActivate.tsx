@@ -1,4 +1,3 @@
-// VendorActivateDialog.jsx - Confirmation dialog for activation
 'use client';
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -11,12 +10,17 @@ import {
 } from '../../../features/yen-purchase/PurchaseMaster/vendorSlice';
 import { AppDispatch } from '@/redux/store';
 
-const VendorActivateDialog = () => {
+interface VendorActivateDialogProps {
+  canDelete: boolean; // ✅ ADD PERMISSION PROP
+}
+
+// ✅ RECEIVE THE PROP IN COMPONENT PARAMETERS
+const VendorActivateDialog: React.FC<VendorActivateDialogProps> = ({ canDelete }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { activateDialogOpen, itemToActivate } = useSelector(selectVendorItems);
 
   const handleActivateConfirm = () => {
-    if (itemToActivate) {
+    if (itemToActivate && canDelete) { // ✅ NOW canDelete IS AVAILABLE
       dispatch(activateVendor(itemToActivate.vendorId));
     }
     dispatch(setActivateDialogOpen(false));
@@ -40,7 +44,11 @@ const VendorActivateDialog = () => {
         <Button onClick={handleActivateCancel} color="primary">
           Cancel
         </Button>
-        <Button onClick={handleActivateConfirm} color="primary">
+        <Button 
+          onClick={handleActivateConfirm} 
+          color="primary" 
+          disabled={!canDelete} // ✅ DISABLE IF NO PERMISSION
+        >
           Activate
         </Button>
       </DialogActions>

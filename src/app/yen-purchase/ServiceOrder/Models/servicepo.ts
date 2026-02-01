@@ -31,7 +31,7 @@ export interface ServiceData {
   // Use ONLY flat arrays (no nested objects)
   sacCode: string[];
   desc_ids: string[];
-  descriptions: string[]; // Renamed from 'descriptions'
+  descriptions: string[];
   from_dates: (string | null)[];
   to_dates: (string | null)[];
   fees: number[];
@@ -42,10 +42,19 @@ export interface ServiceData {
   desc_igst: number[];
   desc_tax_amounts: number[];
   desc_totals: number[];
-  desc_total_fees: number[]; // REMOVE THIS LINE - we're not using it anymore
-  desc_discount_amounts: number[];
-  desc_discount_percentages: number[];
-  desc_overall_discounts: number[];
+  desc_total_fees: number[]; // Base amounts WITHOUT tax
+  
+  // DISCOUNT FIELDS - ADDED MISSING INDIVIDUAL DISCOUNT PROPERTIES
+  desc_discount_amounts: number[]; // Individual discount amounts
+  desc_discount_percentages: number[]; // Individual discount percentages
+  desc_overall_discounts: number[]; // Overall discount amounts (distributed)
+  
+  // NEW: Added missing individual discount arrays
+  desc_individual_discount_amounts: number[];
+  desc_individual_discount_percentages: number[];
+  desc_total_discount_amounts: number[];
+  desc_total_discount_percentages: number[];
+  
   mongoId: string;
   totalAmount: number;
   paymentTerms: string;
@@ -77,12 +86,14 @@ export interface ServiceData {
   lastUpdatedDate?: string | null;
   lastUpdatedTime?: string | null;
   quantity: number[];
-  base_amounts: number[]; // ADD THIS: base amounts WITHOUT tax
+  base_amounts: number[]; // Base amounts WITHOUT tax
   remarks: string[];
   overallDiscountAppliedOn: string;
-  totalFees:number;
-  totalDiscount:number;
+  totalFees: number;
+  totalDiscount: number;
+  include_tax: boolean[]; // Array of include_tax flags for each description
 }
+
 // For the flat array response from backend
 export interface ServiceFlatResponse {
   serviceId: string;
@@ -112,8 +123,9 @@ export interface ServiceSearchAdd {
   hsnCode: string;
   randomId: string;
 }
+
 export interface ServiceTotalsResponse {
-  base_amounts: never[];
+  base_amounts: number[];
   totalFees: number;
   totalDiscount: number;
   totalTax: number;
@@ -131,16 +143,24 @@ export interface ServiceTotalsResponse {
   desc_totals: number[];
   desc_base_amounts: number[]; // CHANGE FROM desc_total_fees to desc_base_amounts
   desc_overall_discounts: number[];
-  desc_discount_amounts: number[];
-  desc_discount_percentages: number[];
+  desc_discount_amounts: number[]; // Individual discount amounts
+  desc_discount_percentages: number[]; // Individual discount percentages
+  
+  // ADDED: New discount arrays for clarity
+  desc_individual_discount_amounts: number[];
+  desc_individual_discount_percentages: number[];
+  desc_total_discount_amounts: number[];
+  desc_total_discount_percentages: number[];
+  
   sacCodes: string[];
   remarks: string[];
   quantity: number[];
   overall_discount_applied_on?: 'before_tax' | 'after_tax';
 }
+
 export interface ServiceState {
   serviceData: ServiceData;
-  newDescription: ServiceDescription; // ADD THIS BACK
+  newDescription: ServiceDescription;
   services: ServiceData[];
   vendors: VendorSummary[];
   loading: boolean;
@@ -192,7 +212,8 @@ export interface UploadResponse {
 export interface ImageUrlsState {
   [serviceId: string]: string[];
 }
-// Types for description calculation (analogous to item)
+
+// Types for description calculation
 export interface DescriptionCalculationRequest {
   description: string;
   fromDate: string | Date | null;
@@ -200,10 +221,11 @@ export interface DescriptionCalculationRequest {
   fee: number;
   taxType: 'cgst_sgst' | 'igst';
   taxPer?: number;
-  quantity?: number; // NEW: Optional
-  remarks?:string;
+  quantity?: number;
+  remarks?: string;
+  include_tax?: boolean; // NEW: Added include_tax flag
 }
-// Updated to match the ServiceDescription interface
+
 export interface DescriptionDetailResponseService {
   id?: string;
   description: string;
@@ -212,7 +234,7 @@ export interface DescriptionDetailResponseService {
   fee: number;
   tax_type: string;
   tax_per: number;
-  // Additional calculated fields if needed
+  // Additional calculated fields
   totalFee?: number;
   taxAmount?: number;
   discountAmount?: number;
@@ -221,6 +243,7 @@ export interface DescriptionDetailResponseService {
   cgst?: number;
   igst?: number;
   total?: number;
+  include_tax?: boolean; // NEW
 }
 
 export interface ServiceListState {
@@ -305,7 +328,7 @@ export const initialServiceListState: ServiceListState = {
   pendingTotalItems: 0
 };
 
-// Also update the ServiceDescription interface to include discount_percentage and discount_amount
+// Updated ServiceDescription interface with all discount properties
 export interface ServiceDescription {
   id?: string;
   sacCode: string;
@@ -320,26 +343,27 @@ export interface ServiceDescription {
   igst: number;
   total: number; // Total WITH tax
   taxAmount: number;
-  totalFee: number; // Base WITHOUT tax (rename this to base_amount for clarity)
+  totalFee: number; // Base WITHOUT tax
   finalFee: number;
-  base_amount: number; // ADD THIS: Base WITHOUT tax
-  discountAmount?: number;
-  discount_percentage?: number;
-  discount_amount?: number;
+  base_amount: number; // Base WITHOUT tax
+  
+  // DISCOUNT PROPERTIES - FIXED
+  discountAmount?: number; // Individual discount amount
+  discount_percentage?: number; // Individual discount percentage
+  discount_amount?: number; // Alias for discountAmount for consistency
+  
+  // NEW: Individual vs Overall distinction
+  individual_discount_amount?: number; // Explicit individual discount
+  individual_discount_percentage?: number; // Explicit individual discount percentage
+  overall_discount_amount?: number; // Overall discount distributed to this description
+  total_discount_amount?: number; // Sum of individual + overall discounts
+  total_discount_percentage?: number; // Total discount percentage
+  
   quantity: number;
   remarks: string;
-}
-export interface DescriptionCalculationResponse {
-  baseAmount: number; // First definition
-  totalFee: number;
-  sgst: number;
-  cgst: number;
-  igst: number;
-  totalTax: number;
-  total: number;
+  include_tax: boolean; // True if fee includes tax, False if fee excludes tax
 }
 
-// Replace the duplicate interfaces with this single correct one
 export interface DescriptionCalculationResponse {
   description: string;
   quantity: number;
@@ -351,25 +375,29 @@ export interface DescriptionCalculationResponse {
   igst: number;
   totalTax: number;
   total: number;
-  taxableBase?: number; // Optional: calculated taxable base
-  from_date?: string | null; // Optional: from date if provided
-  to_date?: string | null; // Optional: to date if provided
-  remarks?: string; // Optional: remarks if provided
+  taxableBase?: number;
+  from_date?: string | null;
+  to_date?: string | null;
+  remarks?: string;
+  
+  // DISCOUNTS - ADDED
+  discountAmount?: number;
+  discountPercentage?: number;
+  individualDiscountAmount?: number;
+  individualDiscountPercentage?: number;
 }
-// Update ServiceTotalsRequest to accept nested descriptions
+
 export interface ServiceTotalsRequest {
-  // Use nested descriptions
   descriptions: ServiceDescription[];
   overall_discount_value?: number;
   overall_discount_type?: 'percentage' | 'amount';
-  overall_discount_applied_on?: 'before_tax' | 'after_tax'; // ADD THIS
+  overall_discount_applied_on?: 'before_tax' | 'after_tax';
   round_off?: number;
-  total_freight_amount?: number;  // Add this
-  total_freight_tax?: number;     // Add this
-  fees_are_total_including_tax: true,  // ← ALWAYS TRUE
+  total_freight_amount?: number;
+  total_freight_tax?: number;
+  fees_are_total_including_tax?: boolean; // Deprecated, use include_tax per description
 }
 
-// Raw response type from backend (flat arrays)
 export interface RawServiceData {
   serviceId: string;
   vendorId?: string;
@@ -383,9 +411,9 @@ export interface RawServiceData {
   status: string;
   sacCode: string[];
   desc_ids?: string[];
-  remarks:string[];
-  quantity:number[];
-  descriptions?: string[]; // NEW: Handle if backend uses this
+  remarks: string[];
+  quantity: number[];
+  descriptions?: string[];
   from_dates: string[];
   to_dates: string[];
   fees: number[];
@@ -394,10 +422,17 @@ export interface RawServiceData {
   desc_sgst?: number[];
   desc_cgst?: number[];
   desc_igst?: number[];
-  base_amounts:number[];
-  desc_overall_discounts?: number[]; // NEW
-  desc_discount_percentages:number[];
+  base_amounts: number[];
+  desc_overall_discounts?: number[];
+  desc_discount_percentages: number[];
   desc_discount_amounts: number[];
+  
+  // ADDED: Individual discount arrays
+  desc_individual_discount_amounts: number[];
+  desc_individual_discount_percentages: number[];
+  desc_total_discount_amounts: number[];
+  desc_total_discount_percentages: number[];
+  
   totalAmount: number;
   paymentTerms: string;
   shippingAddress: string;
@@ -411,14 +446,14 @@ export interface RawServiceData {
   city: string;
   creditLimit: number;
   locationName: string;
-  vendorPhone:string;
+  vendorPhone: string;
   overallDiscountValue: number;
   overallDiscountType: 'percentage' | 'amount';
-  overallDiscountAppliedOn:string;
+  overallDiscountAppliedOn: string;
   roundOffValue: number;
   totalTax: number;
   mongoId: string;
-  imageUrl:string;
+  imageUrl: string;
   createdDate?: string | null;
   createdTime?: string | null;
   lastUpdatedDate?: string | null;
@@ -429,11 +464,11 @@ export interface RawServiceData {
   freights?: Freight[];
   totalFreightAmount?: number;
   totalFreightTaxAmount?: number;
-  totalDiscount?:number;
-  totalFees?:number;
+  totalDiscount?: number;
+  totalFees?: number;
+  include_tax?: boolean[];
 }
 
-// Add this interface to your Models/servicepo.ts
 export interface OverallDiscountServiceResponseDescription {
   id?: string;
   discountAmount?: number;
@@ -441,12 +476,14 @@ export interface OverallDiscountServiceResponseDescription {
   cgst?: number;
   igst?: number;
   total?: number;
-  // Add any other properties that might be returned
   fee?: number;
   taxAmount?: number;
+  base_amount?: number;
+  individual_discount_amount?: number;
+  individual_discount_percentage?: number;
+  overall_discount_amount?: number;
 }
 
-// Update your OverallDiscountServiceResponse interface
 export interface OverallDiscountServiceResponse {
   success: boolean;
   error?: string;

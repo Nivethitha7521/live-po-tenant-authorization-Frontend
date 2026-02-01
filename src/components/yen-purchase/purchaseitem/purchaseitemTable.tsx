@@ -14,6 +14,8 @@ interface PurchaseTableProps {
   handleEdit: (index: number) => void;
   handleDeactivate: (item: any) => void; // Changed to accept item object
   handleActivate: (item: any) => void; // Changed to accept item object
+  canEdit: boolean; // ✅ ADD PERMISSION PROP
+  canDelete: boolean;
 }
 
 const PurchaseTable: React.FC<PurchaseTableProps> = ({
@@ -22,7 +24,9 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   showDeactivated,
   handleEdit,
   handleDeactivate,
-  handleActivate
+  handleActivate,
+  canEdit, // ✅ RECEIVE PERMISSION
+  canDelete // ✅ RECEIVE PERMISSION
 }) => {
   return (
  <TableContainer
@@ -37,8 +41,8 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
         <TableHead>
           <TableRow>
             <TableCell className='table-number-right'>S.No</TableCell>
-            <TableCell className='table-number-right'>SAP Code</TableCell>
-            <TableCell>Item Code</TableCell>
+            <TableCell className='table-number-right'>Item Code</TableCell>
+            <TableCell>Item ID</TableCell>
             <TableCell>Item Name</TableCell>
             <TableCell>Category</TableCell>
             <TableCell>SubCategory</TableCell>
@@ -78,24 +82,51 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                 <TableCell>
                   {!showDeactivated && (
                     <>
-                      <Tooltip title="Edit">
-                        <IconButton onClick={() => handleEdit(index)}>
+                      <Tooltip title={canEdit ? "Edit" : "No edit permission"}>
+                      <span>
+                        <IconButton 
+                          onClick={() => handleEdit(index)}
+                          disabled={!canEdit}
+                          sx={{ 
+                            opacity: canEdit ? 1 : 0.5,
+                            '&.Mui-disabled': { opacity: 0.5 }
+                          }}
+                        >
                           <Edit />
                         </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Deactivate">
-                        <IconButton onClick={() => handleDeactivate(item)}>
+                      </span>
+                    </Tooltip>
+                        <Tooltip title={canDelete ? "Deactivate" : "No delete permission"}>
+                      <span>
+                        <IconButton 
+                          onClick={() => handleDeactivate(item)}
+                          disabled={!canDelete}
+                          sx={{ 
+                            opacity: canDelete ? 1 : 0.5,
+                            '&.Mui-disabled': { opacity: 0.5 }
+                          }}
+                        >
                           <Delete />
                         </IconButton>
-                      </Tooltip>
+                      </span>
+                    </Tooltip>
                     </>
                   )}
                   {showDeactivated && (
-                    <Tooltip title="Reactivate">
-                      <IconButton onClick={() => handleActivate(item)}>
+                      <Tooltip title={canDelete ? "Reactivate" : "No activate permission"}>
+                    <span>
+                      <IconButton 
+                        onClick={() => handleActivate(item)}
+                        disabled={!canDelete}
+                        sx={{ 
+                          opacity: canDelete ? 1 : 0.5,
+                          '&.Mui-disabled': { opacity: 0.5 }
+                        }}
+                      >
                         <Refresh />
                       </IconButton>
-                    </Tooltip>
+                    </span>
+                  </Tooltip>
                   )}
                 </TableCell>
               </TableRow>

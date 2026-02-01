@@ -2,6 +2,7 @@ import { createSlice, PayloadAction, createAsyncThunk, createAction } from '@red
 import axios from 'axios';
 import { RootState } from '@/redux/store';
 import { CalculateOverallDiscountPayload, Item, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor, Freight } from '../../../Models/purchaseModel'
+import purchaseApi from "@/utils/api";
 
 export interface PurchaseItemSearch {
   purchaseitemId: string;
@@ -178,7 +179,7 @@ export const initialState: PurchaseOrderState = {
 let purchaseItemsCache: Map<string, { data: PurchaseItemSearchAdd[], timestamp: number }> = new Map();
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
-const BASE_URL = 'http://192.168.29.116:8000/purchasetestapi';
+const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 
 // Async thunks for freight and PO calculations
 export const calculateFreightTotals = createAsyncThunk(
@@ -217,68 +218,81 @@ export const calculatePurchaseOrderTotals = createAsyncThunk(
     }
 
     const result = await response.json();
-    return result.totals;
+    return result.totals || result;
   }
 );
 
 export const fetchPurchaseOrders = createAsyncThunk(
-  'purchaseOrder/fetchPurchaseOrders',
+  "purchaseOrder/fetchPurchaseOrders",
   async () => {
-    const response = await axios.get<PurchaseOrderData[]>(`${BASE_URL}/purchaseorders/`);
+    const response = await axios.get<PurchaseOrderData[]>(
+      `${BASE_URL}/purchaseorders/`,
+    );
     return response.data;
-  }
+  },
 );
-
 export const fetchVendorByName = createAsyncThunk<Vendor | undefined, string>(
-  'vendors/fetchByName',
+  "vendors/fetchByName",
   async (vendorName: string) => {
     try {
-      const response = await axios.get<Vendor[]>(`${BASE_URL}/purchaseorders/vendors/`);
-      const vendor = response.data.find(v => v.vendorName === vendorName);
-      return vendor;
+      const response = await axios.get<Vendor[]>(
+        "http://127.0.0.1:8000/purchasetestapi/purchaseorders/vendors/",
+      );
+      const vendor = response.data.find((v) => v.vendorName === vendorName);
+      return vendor; // Return the vendor if found, otherwise undefined
     } catch (error) {
-      console.error('Failed to fetch vendor by name:', error);
-      return undefined;
+      console.error("Failed to fetch vendor by name:", error);
+      return undefined; // Return undefined in case of an error
     }
-  }
+  },
 );
-
 export const fetchAllVendors = createAsyncThunk(
-  'vendors/fetch',
+  "vendors/fetch",
   async (_, { getState }) => {
-    const localData = localStorage.getItem('vendors');
+    const localData = localStorage.getItem("vendors");
 
+    // If data exists in localStorage, return it
     if (localData) {
       const cachedVendors = JSON.parse(localData);
       return cachedVendors;
     }
 
-    const response = await axios.get<Vendor[]>(`${BASE_URL}/vendors/`);
-    localStorage.setItem('vendors', JSON.stringify(response.data));
-    return response.data;
-  }
-);
+    // If not, make the API request to fetch vendors
+    const response = await axios.get<Vendor[]>(
+      `http://127.0.0.1:8000/purchasetestapi/vendors/`,
+    );
 
+    // Store the fetched vendors in localStorage for future use
+    localStorage.setItem("vendors", JSON.stringify(response.data));
+
+    return response.data;
+  },
+);
 export const fetchPurchaseOrderById = createAsyncThunk(
-  'purchaseOrder/fetchPurchaseOrderById',
+  "purchaseOrder/fetchPurchaseOrderById",
   async (purchaseOrderId: string) => {
-    const response = await axios.get<PurchaseOrderData>(`${BASE_URL}/purchaseorders/${purchaseOrderId}`);
+    const response = await axios.get<PurchaseOrderData>(
+      `${BASE_URL}/purchaseorders/${purchaseOrderId}`,
+    );
     return response.data;
-  }
+  },
 );
-
+// Add a new function to invalidate cache when there are updates
 export const invalidatePurchaseItemsCache = () => {
   purchaseItemsCache.clear();
-  console.log('Purchase items cache invalidated');
+  console.log("Purchase items cache invalidated");
 };
 
-export const updatePurchaseItem = createAsyncThunk<PurchaseItemSearchAdd, { id: string; data: Partial<PurchaseItemSearch> }>(
-  'purchaseOrder/updatePurchaseItem',
-  async ({ id, data }) => {
-    const response = await axios.patch<PurchaseItemSearchAdd>(`${BASE_URL}/rawMaterials/${id}`, data);
-    return response.data;
-  }
-);
+export const updatePurchaseItem = createAsyncThunk<
+  PurchaseItemSearchAdd,
+  { id: string; data: Partial<PurchaseItemSearch> }
+>("purchaseOrder/updatePurchaseItem", async ({ id, data }) => {
+  const response = await axios.patch<PurchaseItemSearchAdd>(
+    `${BASE_URL}/rawMaterials/${id}`,
+    data,
+  );
+  return response.data;
+});
 
 export const calculateItemTotals = createAsyncThunk(
   'purchaseOrder/calculateItemTotals',
@@ -406,27 +420,31 @@ export const calculateOverallDiscountForAllItems = createAsyncThunk<
 );
 
 export const downloadCsvTemplate = createAsyncThunk(
-  'purchaseOrder/downloadCsvTemplate',
+  "purchaseOrder/downloadCsvTemplate",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${BASE_URL}/poimport/download-csv-template`, {
-        responseType: 'blob',
-      });
+      const response = await axios.get(
+        `${BASE_URL}/poimport/download-csv-template`,
+        {
+          responseType: "blob",
+        },
+      );
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', 'item_import_template.csv');
+      link.setAttribute("download", "item_import_template.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      return 'CSV template downloaded successfully';
+      return "CSV template downloaded successfully";
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to download CSV template');
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to download CSV template",
+      );
     }
-  }
+  },
 );
-
 export const importCsvItems = createAsyncThunk(
   'purchaseOrder/importCsvItems',
   async (file: File, { dispatch, rejectWithValue, getState }) => {
@@ -436,12 +454,18 @@ export const importCsvItems = createAsyncThunk(
 
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post(`${BASE_URL}/poimport/import-items-csv`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+   const response = await purchaseApi.post(
+        "/poimport/import-items-csv",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
       const { success, message, imported_items, duplicates_merged, errors, updated_items, warnings, success_messages } = response.data;
 
       if (success && imported_items.length > 0) {
+        const state = getState() as { purchaseOrder: PurchaseOrderState };
+        const currentPurchaseOrderData = state.purchaseOrder.purchaseOrderData;
         const mappedItems: Item[] = imported_items.map((item: any) => ({
           itemId: item.itemId || '',
           itemCode: item.itemCode || '',
@@ -510,36 +534,38 @@ export const importCsvItems = createAsyncThunk(
 );
 
 export const addPurchaseOrder = createAsyncThunk(
-  'purchaseOrders/add',
+  "purchaseOrders/add",
   async (
-    purchaseOrder: Omit<PurchaseOrderData, 'purchaseOrderId'> & { isHoldOrder?: boolean },
-    { dispatch }
+    purchaseOrder: Omit<PurchaseOrderData, "purchaseOrderId"> & {
+      isHoldOrder?: boolean;
+    },
   ) => {
-    const purchaseOrderToAdd = {
-      ...purchaseOrder,
-    };
-
-    const response = await axios.post<PurchaseOrderData>(`${BASE_URL}/purchaseorders/`, purchaseOrderToAdd);
-    dispatch(setSnackbarMessage('Purchase order processed'));
+    const response = await purchaseApi.post("/purchaseorders/", purchaseOrder);
     return response.data;
   }
 );
 
 export const updatePurchaseOrder = createAsyncThunk(
-  'purchaseOrders/update',
-  async ({ purchaseOrderId, purchaseOrder }: { purchaseOrderId: string; purchaseOrder: Partial<PurchaseOrderData> }) => {
-    const purchaseOrderToUpdate = {
-      ...purchaseOrder,
-    };
-    const response = await axios.patch<PurchaseOrderData>(`${BASE_URL}/purchaseorders/${purchaseOrderId}`, purchaseOrderToUpdate);
+  "purchaseOrders/update",
+  async ({
+    purchaseOrderId,
+    purchaseOrder,
+  }: {
+    purchaseOrderId: string;
+    purchaseOrder: Partial<PurchaseOrderData>;
+  }) => {
+    const response = await purchaseApi.patch(
+      `/purchaseorders/${purchaseOrderId}`,
+      purchaseOrder,
+    );
     return response.data;
-  }
+  },
 );
-
 export const setDiscountMode = createAction<{
-  mode: 'percentage' | 'amount';
-  recalculate?: boolean;
-}>('purchaseOrder/setDiscountMode');
+  mode: "percentage" | "amount";
+  recalculate?: boolean; // Optional flag to recalculate after mode change
+}>("purchaseOrder/setDiscountMode");
+
 
 const purchaseOrderSlice = createSlice({
   name: 'purchaseOrder',

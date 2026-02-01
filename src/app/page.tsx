@@ -1,12 +1,14 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { login, clearError, checkExistingSession } from '../features/authSlice';
+import { jwtLoginSuccess, initializeAuth } from '../features/authSlice';
 import { useRouter } from 'next/navigation';
 import { AppDispatch, RootState } from '@/redux/store';
 import { toast } from 'react-toastify';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import Image from 'next/image';
+import { setSnackbarMessage, setSnackbarOpen } from "../features/authSlice";
+
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -18,7 +20,7 @@ const Login: React.FC = () => {
   const [checkingImage, setCheckingImage] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
-  const { error, isLoggedIn } = useSelector((state: RootState) => state.auth);
+  const { isLoggedIn } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
 
   // Check if image exists on component mount
@@ -38,71 +40,88 @@ const Login: React.FC = () => {
     checkImage();
   }, []);
 
-  useEffect(() => {
-    const checkAutoLogin = async () => {
-      const storedUsername = sessionStorage.getItem('username');
-      
-      if (storedUsername) {
-        try {
-          const result = await dispatch(checkExistingSession(storedUsername)).unwrap();
-          
-          if (result.has_valid_session) {
-            // User has existing session - redirect to dashboard
-            router.replace('/yen-purchase');
-            return;
-          }
-        } catch (error) {
-          console.error('Auto-login check failed:', error);
-        }
-      }
-      
-      setIsCheckingSession(false);
-    };
+useEffect(() => {
+  setIsCheckingSession(false);
+}, []);
 
-    checkAutoLogin();
-  }, [dispatch, router]);
 
-  const handleLogin = async () => {
-    if (isLoggingIn) return;
+// In your login/page.tsx - SIMPLIFIED
+const handleLogin = async () => {
+  if (isLoggingIn) return;
 
-    const trimmedUsername = username.trim();
-    const trimmedPassword = password.trim();
+  const trimmedUsername = username.trim();
+  const trimmedPassword = password.trim();
 
-    if (!trimmedUsername || !trimmedPassword) {
-      toast.error('Please enter both username and password');
-      return;
-    }
+  if (!trimmedUsername || !trimmedPassword) {
+    toast.error('Please enter both username and password');
+    return;
+  }
 
-    setIsLoggingIn(true);
-    dispatch(clearError());
+  setIsLoggingIn(true);
 
-    try {
-      const result = await dispatch(
-        login({
-          username: trimmedUsername,
-          password: trimmedPassword,
-        })
-      );
+  try {
+    // ✅ CORRECT URL - Call your FastAPI backend on port 8000
+    const response = await fetch('http://127.0.0.1:8000/purchasetestapi/login', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${btoa(`${trimmedUsername}:${trimmedPassword}`)}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-      if (login.fulfilled.match(result)) {
-        toast.success('Login successful!');
-        router.push('/yen-purchase');
-      } else {
-        const errorMsg = result.payload as string;
-        toast.error(errorMsg);
-        
-        if (errorMsg.includes('already have an active session')) {
-          toast.info('Please logout from your other browser first, or use the same browser for multiple tabs.');
-        }
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error('Network or server error. Please check your connection and try again.');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
+  if (!response.ok) {
+  let msg = "Login failed";
 
+  try {
+    const errJson = await response.json();
+    msg = errJson.detail || msg;
+  } catch {
+    msg = await response.text();
+  }
+
+  toast.error(msg);
+  return;
+}
+
+
+const result = await response.json();
+
+// Save token
+localStorage.setItem("token", result.access_token);
+localStorage.setItem("username", result.username);
+localStorage.setItem("userPermissions", JSON.stringify(result.permissions));
+
+sessionStorage.setItem("accessToken", result.access_token);
+sessionStorage.setItem("username", result.username);
+localStorage.setItem("userRole", result.role_name);  
+// 🔥 NEW — TELL REDUX LOGIN SUCCESS
+dispatch(jwtLoginSuccess({
+  username: result.username,
+  permissions: result.permissions,
+   role: result.role_name
+}));
+
+// 🔥 This updates isLoggedIn in Redux
+dispatch(initializeAuth());
+
+
+// ⭐ SHOW ROLE-BASED SNACKBAR HERE
+dispatch(setSnackbarMessage(`LOGIN_SUCCESS: ${result.role_name || "User"} logged in successfully!`));
+dispatch(setSnackbarOpen(true));
+
+// Redirect
+toast.success("Login successful!");
+router.push("/yen-purchase");
+
+
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    toast.error('Network error. Please check if backend is running on port 8000.');
+  } finally {
+    setIsLoggingIn(false);
+  }
+};
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
@@ -110,12 +129,6 @@ const Login: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     handleLogin();
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isLoggingIn) {
-      handleLogin();
-    }
   };
 
   if (isCheckingSession) {
@@ -130,7 +143,7 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex" onKeyPress={handleKeyPress}>
+    <div className="min-h-screen flex">
       {/* Left Side - Image */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-500 to-blue-600 relative overflow-hidden">
         <div className="absolute inset-0 bg-black bg-opacity-20"></div>
@@ -145,7 +158,7 @@ const Login: React.FC = () => {
                 width={500}
                 height={400}
                 src="/images/purchaseimage.jpg"
-                priority
+                priority // This ensures the image loads first
               />
             ) : (
               <div className="max-w-md w-full h-80 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">

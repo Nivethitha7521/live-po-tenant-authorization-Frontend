@@ -21,14 +21,14 @@ import {
   exportCSV,
   setShowImportResultDialog,
 } from '../../../../features/yen-purchase/PurchaseMaster/FreightMasterSlice';
-import { Box, Snackbar, Backdrop, CircularProgress, Typography } from '@mui/material';
+import { Box, Snackbar, Backdrop, CircularProgress, Typography,Alert } from '@mui/material';
 import FreightActions from '../../../../components/yen-purchase/purchasemaster/freight/freightActions';
 import FreightForm from '../../../../components/yen-purchase/purchasemaster/freight/freightForm';
 import FreightTable from '../../../../components/yen-purchase/purchasemaster/freight/freightTable';
 import CommonImportResultDialog from '@/components/yen-purchase/CommonImportDialog';
 import { Freight } from '../../../../Models/freightModel';
 import { FormikHelpers } from 'formik';
-
+import { usePermissions } from '../../../../hooks/usePermissions'; // ✅ ADD PERMISSIONS HOOK
 const initialFreightState: Freight = {
   freightId: '',
   freightName: '',
@@ -62,6 +62,25 @@ const FreightPage: React.FC = () => {
     snackbarOpen,
     snackbarMessage,
   } = useSelector(selectFreightItems);
+   
+  const { hasPermission, isModuleVisible } = usePermissions();
+  const canAdd = hasPermission('yenerp', 'freight', 'add');
+  const canEdit = hasPermission('yenerp', 'freight', 'edit');
+  const canDelete = hasPermission('yenerp', 'freight', 'delete');
+  const canRead = hasPermission('yenerp', 'freight', 'read');
+
+
+
+  // ❌ READ permission – page blocked
+  if (!canRead) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          You do not have permission to view this page
+        </Alert>
+      </Box>
+    );
+  }
 
   useEffect(() => {
     dispatch(fetchFreightItems());
@@ -74,7 +93,9 @@ const FreightPage: React.FC = () => {
   }, [importSuccess, dispatch]);
 
   const handleDialogOpen = () => {
+    if (canAdd) {
     dispatch(setDialogOpen('edit'));
+    }
   };
 
   const handleDialogClose = () => {
@@ -175,6 +196,7 @@ const FreightPage: React.FC = () => {
   };
 
   const handleEditFreight = (id: string) => {
+    if (canEdit) {
     const item = freightItems.find((freight) => freight.freightId === id);
     if (item) {
       dispatch(
@@ -186,9 +208,12 @@ const FreightPage: React.FC = () => {
       dispatch(setEditIndex(0));
       dispatch(setDialogOpen('edit'));
     }
+  }
   };
 
   const handleDeactivateFreight = (id: string) => {
+        if (canDelete) { 
+
     dispatch(deactivateFreightItem(id))
       .unwrap()
       .then(() => {
@@ -200,9 +225,11 @@ const FreightPage: React.FC = () => {
         dispatch(setSnackbarMessage(`Failed to deactivate freight: ${error.message}`));
         dispatch(setSnackbarOpen(true));
       });
+    }
   };
 
   const handleActivateFreight = (id: string) => {
+    if (canDelete) {
     dispatch(activateFreightItem(id))
       .unwrap()
       .then(() => {
@@ -214,6 +241,7 @@ const FreightPage: React.FC = () => {
         dispatch(setSnackbarMessage(`Failed to activate freight: ${error.message}`));
         dispatch(setSnackbarOpen(true));
       });
+    }
   };
 
   const toggleShowDeactivated = () => {
@@ -235,6 +263,10 @@ const FreightPage: React.FC = () => {
           ...item,
           freightName: item.freightName ? item.freightName.trim().replace(/\s+/g, ' ') : '',
         }));
+// ❌ If module is hidden, do NOT render page
+if (!isModuleVisible('yenerp', 'freight')) {
+  return null;
+}
 
   return (
     <Box>
@@ -249,6 +281,7 @@ const FreightPage: React.FC = () => {
         onToggleShowDeactivated={toggleShowDeactivated}
         importing={importing}
         exporting={exporting}
+        canAdd={canAdd}
       />
       <FreightTable
         items={filteredItems}
@@ -256,6 +289,8 @@ const FreightPage: React.FC = () => {
         handleEdit={handleEditFreight}
         handleDeactivate={handleDeactivateFreight}
         handleActivate={handleActivateFreight}
+        canEdit={canEdit} 
+        canDelete={canDelete} 
       />
       <FreightForm
         open={dialogOpen !== 'none'}

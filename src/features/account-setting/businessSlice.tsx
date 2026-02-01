@@ -1,94 +1,191 @@
-import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-import { RootState } from '../../redux/store';
-import { Business, initialState, Photo, ShippingAddress } from '@/Models/businessModel';
+import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit";
+import purchaseApi from "@/utils/api";
+import { RootState } from "../../redux/store";
+import {
+  Business,
+  initialState,
+  ShippingAddress,
+} from "@/Models/businessModel";
 
-const API_BASE = 'http://192.168.29.116:8000/purchasetestapi';
-
-export const fetchBusinesses = createAsyncThunk('businesses/fetchBusinesses', async () => {
-  const response = await axios.get(`${API_BASE}/pobusiness/`);
-  return response.data;
-});
-
-export const addBusiness = createAsyncThunk<Business, Business>('businesses/addBusiness', async (businessData) => {
-  const response = await axios.post(`${API_BASE}/pobusiness/`, businessData);
-  return response.data;
-});
-
-export const updateBusiness = createAsyncThunk<Business, Business>('businesses/updateBusiness', async (businessData) => {
-  const response = await axios.patch(`${API_BASE}/pobusiness/${businessData.businessId}`, businessData);
-  return response.data;
-});
-
-export const uploadBusinessPhoto = createAsyncThunk<
-  { filename: string; id: string; imageUrl: string },  // Include imageUrl in response
-  { businessId: string; file: File }
->(
-  'business/uploadPhoto',
-  async ({ businessId, file }, { rejectWithValue }) => {
+export const fetchBusinesses = createAsyncThunk(
+  "businesses/fetchBusinesses",
+  async (_, { rejectWithValue }) => {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await axios.post(
-        `${API_BASE}/pobusiness/upload?custom_id=${businessId}`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-
+      const response = await purchaseApi.get("/pobusiness/");
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to upload the photo');
+      return rejectWithValue({
+        error: error.response?.data?.message || "Failed to fetch businesses",
+        details: error.response?.data,
+      });
     }
-  }
+  },
 );
-// Action to fetch the photo by ID
+
+export const addBusiness = createAsyncThunk<Business, Business>(
+  "businesses/addBusiness",
+  async (businessData, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.post("/pobusiness/", businessData);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue({
+        error: error.response?.data?.message || "Failed to add business",
+        details: error.response?.data,
+      });
+    }
+  },
+);
+
+export const updateBusiness = createAsyncThunk<Business, Business>(
+  "businesses/updateBusiness",
+  async (businessData, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.patch(
+        `/pobusiness/${businessData.businessId}/`,
+        businessData,
+      );
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue({
+        error: error.response?.data?.message || "Failed to update business",
+        details: error.response?.data,
+      });
+    }
+  },
+);
+
+export const uploadBusinessPhoto = createAsyncThunk<
+  { filename: string; id: string; imageUrl: string },
+  { businessId: string; file: File }
+>("business/uploadPhoto", async ({ businessId, file }, { rejectWithValue }) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await purchaseApi.post(
+      `/pobusiness/upload?custom_id=${businessId}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      },
+    );
+
+    return response.data;
+  } catch (error: any) {
+    return rejectWithValue({
+      error: error.response?.data?.message || "Failed to upload the photo",
+      details: error.response?.data,
+    });
+  }
+});
+
 export const fetchPhoto = createAsyncThunk(
-  'photos/fetchPhoto',
+  "business/fetchPhoto",
   async (businessId: string, { rejectWithValue }) => {
     try {
-      // Use the correct API base URL
-      const response = await axios.get(`${API_BASE}/pobusiness/view/${businessId}`, { 
-        responseType: 'blob' 
-      });
-      const imageUrl = URL.createObjectURL(response.data);
-      return { imageUrl, businessId };
+      const response = await purchaseApi.get(
+        `/pobusiness/${businessId}/photo`,
+        {
+          responseType: "blob",
+        },
+      );
+      return { businessId, imageUrl: URL.createObjectURL(response.data) };
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Error fetching photo');
+      let errorMessage = "Failed to fetch photo";
+
+      if (error.response?.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const errorData = JSON.parse(text);
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          errorMessage = "Photo not found or inaccessible";
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return rejectWithValue({
+        businessId,
+        error: errorMessage,
+        status: error.response?.status,
+      });
     }
-  }
+  },
 );
-// Async thunk to fetch all Business items
-export const fetchShipping = createAsyncThunk('shipping/fetchShipping', async () => {
-  const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/poshippingaddress/'); // Adjust API endpoint as needed
-  return response.data;
-});
 
-// Async thunk to add a new Business item
-export const addShipping = createAsyncThunk<ShippingAddress, ShippingAddress>('shipping/addShipping', async (shippingaddress) => {
-  const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/poshippingaddress/', shippingaddress); // Adjust API endpoint as needed
-  return response.data;
-});
+// Async thunk to fetch all shipping addresses
+export const fetchShipping = createAsyncThunk(
+  "shipping/fetchShipping",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.get("/poshippingaddress/");
+      return response.data;
+    } catch (error: any) {
+      console.error("Shipping fetch error:", error.response?.data);
+      return rejectWithValue({
+        error:
+          error.response?.data?.message || "Failed to fetch shipping addresses",
+        details: error.response?.data,
+      });
+    }
+  },
+);
 
-// Async thunk to update an existing Business item
-export const updateShipping = createAsyncThunk<ShippingAddress, ShippingAddress>('shipping/updateBusiness', async (shippingaddress) => {
-  const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/poshippingaddress/${shippingaddress.shippingId}`, shippingaddress); // Adjust API endpoint as needed
-  return response.data;
+// Async thunk to add a new shipping address
+export const addShipping = createAsyncThunk<ShippingAddress, ShippingAddress>(
+  "shipping/addShipping",
+  async (shippingaddress, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.post(
+        "/poshippingaddress/",
+        shippingaddress,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error("Add shipping error:", error.response?.data);
+      return rejectWithValue({
+        error:
+          error.response?.data?.message || "Failed to add shipping address",
+        details: error.response?.data,
+      });
+    }
+  },
+);
+
+// Async thunk to update an existing shipping address
+export const updateShipping = createAsyncThunk<
+  ShippingAddress,
+  ShippingAddress
+>("shipping/updateShipping", async (shippingaddress, { rejectWithValue }) => {
+  try {
+    const response = await purchaseApi.patch(
+      `/poshippingaddress/${shippingaddress.shippingId}/`,
+      shippingaddress,
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error("Update shipping error:", error.response?.data);
+    return rejectWithValue({
+      error:
+        error.response?.data?.message || "Failed to update shipping address",
+      details: error.response?.data,
+    });
+  }
 });
 
 // Create slice for Business slice
 const businessSlice = createSlice({
-  name: 'businesses',
+  name: "businesses",
   initialState,
   reducers: {
     setSearchQuery(state, action: PayloadAction<string>) {
       state.searchQuery = action.payload;
     },
-    setDialogOpen(state, action: PayloadAction<'none' | 'edit'>) {
+    setDialogOpen(state, action: PayloadAction<"none" | "edit">) {
       state.dialogOpen = action.payload;
     },
     setBusinessData(state, action: PayloadAction<Business>) {
@@ -104,106 +201,183 @@ const businessSlice = createSlice({
       state.editIndex = action.payload;
     },
     addBusinessdetail: (state, action) => {
-      state.businesses.push(action.payload); // Add new item to the list
+      state.businesses.push(action.payload);
     },
     updateBusinessdetail: (state, action) => {
-      const index = state.businesses.findIndex(business => business.businessId === action.payload.businessId);
+      const index = state.businesses.findIndex(
+        (business) => business.businessId === action.payload.businessId,
+      );
       if (index !== -1) {
-        state.businesses[index] = action.payload; // Update the existing personal data
+        state.businesses[index] = action.payload;
       }
     },
     addShippingdetail: (state, action) => {
-      state.shippingaddress.push(action.payload); // Add new item to the list
+      state.shippingaddress.push(action.payload);
     },
     updateShippingdetail: (state, action) => {
-      const index = state.shippingaddress.findIndex(shipping => shipping.shippingId === action.payload.shippingId);
+      const index = state.shippingaddress.findIndex(
+        (shipping) => shipping.shippingId === action.payload.shippingId,
+      );
       if (index !== -1) {
-        state.shippingaddress[index] = action.payload; // Update the existing personal data
+        state.shippingaddress[index] = action.payload;
       }
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+    clearUploadError: (state) => {
+      state.uploadError = null;
     },
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchBusinesses.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchBusinesses.fulfilled, (state, action) => {
         state.loading = false;
         state.businesses = action.payload;
+        state.error = null;
       })
-      .addCase(fetchBusinesses.rejected, (state) => {
+      .addCase(fetchBusinesses.rejected, (state, action) => {
         state.loading = false;
+        // Handle the rejected value properly
+        if (
+          action.payload &&
+          typeof action.payload === "object" &&
+          "error" in action.payload
+        ) {
+          state.error = (action.payload as any).error;
+        } else if (action.error.message) {
+          state.error = action.error.message;
+        } else {
+          state.error = "Failed to fetch businesses";
+        }
       })
       .addCase(addBusiness.fulfilled, (state, action) => {
         state.loading = false;
-
-        // Prevent duplicate by checking if the business already exists in the state
         const businessExists = state.businesses.some(
-          (business) => business.businessId === action.payload.businessId
+          (business) => business.businessId === action.payload.businessId,
         );
 
         if (!businessExists) {
-          // Add only if not already present
           state.businesses.push(action.payload);
         }
       })
+      .addCase(addBusiness.rejected, (state, action) => {
+        state.loading = false;
+        if (
+          action.payload &&
+          typeof action.payload === "object" &&
+          "error" in action.payload
+        ) {
+          state.error = (action.payload as any).error;
+        }
+      })
       .addCase(updateBusiness.fulfilled, (state, action) => {
-        const index = state.businesses.findIndex((item) => item.businessId === action.payload.businessId);
+        const index = state.businesses.findIndex(
+          (item) => item.businessId === action.payload.businessId,
+        );
         if (index !== -1) {
           state.businesses[index] = action.payload;
         }
       })
-      // Upload photo
+      .addCase(updateBusiness.rejected, (state, action) => {
+        if (
+          action.payload &&
+          typeof action.payload === "object" &&
+          "error" in action.payload
+        ) {
+          state.error = (action.payload as any).error;
+        }
+      })
       .addCase(uploadBusinessPhoto.pending, (state) => {
-        state.uploadStatus = 'loading';
+        state.uploadStatus = "loading";
         state.uploadError = null;
       })
-      // In your component, ensure the image URL is properly set after upload
-      .addCase(uploadBusinessPhoto.fulfilled, (state, action: PayloadAction<{ filename: string; id: string; imageUrl: string }>) => {
-        state.uploadStatus = 'succeeded';
+      .addCase(uploadBusinessPhoto.fulfilled, (state, action) => {
+        state.uploadStatus = "succeeded";
         state.uploadError = null;
-
-        // Update the business with the new image URL
         const { id, imageUrl } = action.payload;
-        const index = state.businesses.findIndex((business) => business.businessId === id);
+        const index = state.businesses.findIndex(
+          (business) => business.businessId === id,
+        );
         if (index !== -1) {
           state.businesses[index].imageUrl = imageUrl;
         }
       })
       .addCase(uploadBusinessPhoto.rejected, (state, action) => {
-        state.uploadStatus = 'failed';
-        state.uploadError = action.payload as string;
+        state.uploadStatus = "failed";
+        // Ensure we're assigning a string or null
+        if (
+          action.payload &&
+          typeof action.payload === "object" &&
+          "error" in action.payload
+        ) {
+          state.uploadError = (action.payload as any).error;
+        } else if (action.error.message) {
+          state.uploadError = action.error.message;
+        } else {
+          state.uploadError = "Failed to upload photo";
+        }
       })
       .addCase(fetchPhoto.fulfilled, (state, action) => {
         const { imageUrl, businessId } = action.payload;
-        const index = state.businesses.findIndex((business) => business.businessId === businessId);
+        const index = state.businesses.findIndex(
+          (business) => business.businessId === businessId,
+        );
         if (index !== -1) {
           state.businesses[index].imageUrl = imageUrl;
         }
       })
+      .addCase(fetchPhoto.rejected, (state, action) => {
+        console.warn("Failed to fetch photo:", action.payload);
+      })
       .addCase(fetchShipping.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchShipping.fulfilled, (state, action) => {
         state.loading = false;
         state.shippingaddress = action.payload;
+        state.error = null;
       })
-      .addCase(fetchShipping.rejected, (state) => {
+      .addCase(fetchShipping.rejected, (state, action) => {
         state.loading = false;
+        if (
+          action.payload &&
+          typeof action.payload === "object" &&
+          "error" in action.payload
+        ) {
+          state.error = (action.payload as any).error;
+        } else if (action.error.message) {
+          state.error = action.error.message;
+        } else {
+          state.error = "Failed to fetch shipping addresses";
+        }
       })
       .addCase(addShipping.fulfilled, (state, action) => {
         state.shippingaddress.push(action.payload);
       })
+      .addCase(addShipping.rejected, (state, action) => {
+        console.error("Failed to add shipping:", action.payload);
+      })
       .addCase(updateShipping.fulfilled, (state, action) => {
-        const index = state.shippingaddress.findIndex((shipping) => shipping.shippingId === action.payload.shippingId);
+        const index = state.shippingaddress.findIndex(
+          (shipping) => shipping.shippingId === action.payload.shippingId,
+        );
         if (index !== -1) {
           state.shippingaddress[index] = action.payload;
         }
+      })
+      .addCase(updateShipping.rejected, (state, action) => {
+        console.error("Failed to update shipping:", action.payload);
       });
   },
 });
 
-// Export actions from slice
+// Export actions
 export const {
   setSearchQuery,
   setDialogOpen,
@@ -214,11 +388,13 @@ export const {
   addBusinessdetail,
   updateBusinessdetail,
   addShippingdetail,
-  updateShippingdetail
+  updateShippingdetail,
+  clearError,
+  clearUploadError,
 } = businessSlice.actions;
 
-// Selector to get Business items from state
+// Selector
 export const selectBusinesses = (state: RootState) => state.business;
 
-// Export reducer from slice
+// Export reducer
 export default businessSlice.reducer;

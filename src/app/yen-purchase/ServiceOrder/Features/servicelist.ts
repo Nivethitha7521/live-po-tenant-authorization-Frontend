@@ -87,7 +87,7 @@ export const convertServiceToAPOutgoing = createAsyncThunk(
       }
 
       const response = await axios.post<ServiceToAPResponse>(
-        `http://192.168.29.116:8000/purchasetestapi/servicepo/convert-service-to-ap-outgoing/${service_id}`,
+        `http://127.0.0.1:8000/purchasetestapi/servicepo/convert-service-to-ap-outgoing/${service_id}`,
         null,
         {
           params: params,
@@ -116,7 +116,7 @@ export const getAPInvoiceWithServiceDetails = createAsyncThunk(
       if (!ap_id) throw new Error("AP Invoice ID is required");
 
       const response = await axios.get(
-        `http://192.168.29.116:8000/api/service-to-ap/ap-invoice/${ap_id}/service-details`
+        `http://127.0.0.1:8000/api/service-to-ap/ap-invoice/${ap_id}/service-details`
       );
       
       return response.data;
@@ -138,7 +138,7 @@ export const deactivateServiceOrder = createAsyncThunk(
       if (!mongoId) throw new Error("Invalid service order ID");
 
       const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/servicepo/deactivated/${mongoId}`
+        `http://127.0.0.1:8000/purchasetestapi/servicepo/deactivated/${mongoId}`
       );
       return response.data;
     } catch (error: any) {
@@ -153,7 +153,7 @@ export const updateServiceOrderStatusToPending = createAsyncThunk(
   async (mongoId: string, { rejectWithValue }) => {
     try {
       const response = await axios.patch(
-        `http://192.168.29.116:8000/purchasetestapi/servicepo/pending/${mongoId}`
+        `http://127.0.0.1:8000/purchasetestapi/servicepo/pending/${mongoId}`
       );
       return response.data;
     } catch (error: any) {
@@ -167,7 +167,7 @@ export const fetchServiceById = createAsyncThunk(
     try {
       // Use your actual backend base URL
       const response = await axios.get(
-        `http://192.168.29.116:8000/purchasetestapi/servicepo/getOutgoing/${identifier}`
+        `http://127.0.0.1:8000/purchasetestapi/servicepo/getOutgoing/${identifier}`
         // or `/api/service/getOutgoing/${identifier}` if using proxy
       );
 

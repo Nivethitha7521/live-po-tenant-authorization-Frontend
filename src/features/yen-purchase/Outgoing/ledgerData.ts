@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
+import purchaseApi from "@/utils/api";
 
 // Define interfaces matching your API response
 export interface Transaction {
@@ -73,27 +74,45 @@ const initialState: LedgerState = {
 };
 
 export const fetchLedgerData = createAsyncThunk(
-  'ledger/fetchLedgerData',
-  async ({ vendorName, startDate, endDate }: { vendorName: string; startDate?: string; endDate?: string }, { rejectWithValue }) => {
+  "ledger/fetchLedgerData",
+  async (
+    {
+      vendorName,
+      startDate,
+      endDate,
+    }: { vendorName: string; startDate?: string; endDate?: string },
+    { rejectWithValue },
+  ) => {
     try {
-      let url = `http://192.168.29.116:8000/purchasetestapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`;
-      
+      let url = `http://127.0.0.1:8000/purchasetestapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`;
+
       // Add date parameters if provided
       const params = new URLSearchParams();
-      if (startDate) params.append('start_date', startDate);
-      if (endDate) params.append('end_date', endDate);
-      
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
-      
-      const response = await axios.get(url);
+
+      const response = await purchaseApi.get(url);
       return response.data as VendorLedgerResponse;
     } catch (error: any) {
-      console.error('API Error:', error.response?.data || error.message);
-      return rejectWithValue(error.response?.data?.detail || error.message || 'Failed to fetch ledger data');
+      if (error.response?.status === 403) {
+        return rejectWithValue("You do not have permission to view Ledger");
+      }
+
+      if (error.response?.status === 401) {
+        return rejectWithValue("Session expired. Please login again");
+      }
+
+      return rejectWithValue(
+        error.response?.data?.detail ||
+          error.response?.data ||
+          "Failed to fetch ledger data",
+      );
     }
-  }
+  },
 );
 
 const ledgerSlice = createSlice({

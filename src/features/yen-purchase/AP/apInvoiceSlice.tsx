@@ -2,9 +2,10 @@ import { RootState } from '@/redux/store';
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { ApInvoice, ApInvoiceRandomId, ApInvoiceState, initialState } from '@/Models/apModel';
+import purchaseApi from "@/utils/api";
 
 
-const BASE_URL = 'http://192.168.29.116:8000/purchasetestapi';
+const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 // Fetch AP Invoices with pagination and advanced filtering
 // Add this async thunk for loading more statuses
 export const loadMoreStatuses = createAsyncThunk(
@@ -17,7 +18,7 @@ export const loadMoreStatuses = createAsyncThunk(
 
     dispatch(setStatusesLoading(true));
     try {
-      const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/apinvoices/statuses', {
+      const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/apinvoices/statuses', {
         params: {
           search: statusSearch || '',
           page: currentPage,
@@ -47,7 +48,7 @@ export const fetchApStatuses = createAsyncThunk(
   async ({ search = '', page = 1 }: { search?: string; page?: number }, { dispatch, rejectWithValue }) => {
     dispatch(setStatusesLoading(true));
     try {
-      const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/apinvoices/statuses', {
+      const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/apinvoices/statuses', {
         params: {
           search: search,
           page: page,
@@ -138,8 +139,8 @@ export const fetchApInvoices = createAsyncThunk(
         queryParams.status = params.status;
       }
 
-      const response = await axios.get(`${BASE_URL}/apinvoices/`, {
-        params: queryParams
+     const response = await purchaseApi.get(`/apinvoices/`, {
+        params: params,
       });
 
       // CRITICAL: Check the actual response structure
@@ -205,136 +206,174 @@ export const fetchApInvoices = createAsyncThunk(
 );
 // Add AP Invoice
 export const addApInvoice = createAsyncThunk(
-  'apinvoice/add',
+  "apinvoice/add",
   async (apInvoice: ApInvoice, { rejectWithValue }) => {
     try {
       const newApInvoice = { ...apInvoice };
-      const response = await axios.post(`${BASE_URL}/apinvoices/`, newApInvoice);
+      const response = await purchaseApi.post(`/apinvoices/`, newApInvoice);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to add AP Invoice');
+      return rejectWithValue(
+        error.response?.data || "Failed to add AP Invoice",
+      );
     }
-  }
+  },
 );
 export const fetchAllApInvoices = createAsyncThunk(
-  'apinvoice/fetchAll',
-  async (_, { rejectWithValue }) => { // No parameters needed here for fetching all
+  "apinvoice/fetchAll",
+  async (_, { rejectWithValue }) => {
+    // No parameters needed here for fetching all
     try {
-      const response = await axios.get(`${BASE_URL}/apinvoices/getAll`);
+      const response = await purchaseApi.get(`/apinvoices/getAll`);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to fetch AP Invoices');
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch AP Invoices",
+      );
     }
-  }
+  },
 );
 export const fetchRandomIDApInvoices = createAsyncThunk(
-  'apinvoice/fetchRandomId',
+  "apinvoice/fetchRandomId",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<ApInvoiceRandomId[]>(`${BASE_URL}/apinvoices/getInvoiceIds`);
+      const response = await purchaseApi.get<ApInvoiceRandomId[]>(
+        `/apinvoices/getInvoiceIds`,
+      );
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to fetch AP Invoices');
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch AP Invoices",
+      );
     }
-  }
+  },
 );
 
 // Update AP Invoice
 export const updateApInvoice = createAsyncThunk(
-  'apinvoice/updateap',
+  "apinvoice/updateap",
   async (apInvoice: ApInvoice, { rejectWithValue }) => {
     try {
       const updatedApInvoice = { ...apInvoice };
-      const response = await axios.patch(`${BASE_URL}/apinvoices/${apInvoice.invoiceId}`, updatedApInvoice);
+      const response = await purchaseApi.patch(
+        `/apinvoices/${apInvoice.invoiceId}`,
+        updatedApInvoice,
+      );
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to update AP Invoice');
+      return rejectWithValue(
+        error.response?.data || "Failed to update AP Invoice",
+      );
     }
-  }
+  },
 );
 export const cancelApInvoice = createAsyncThunk(
-  'apinvoice/cancel',
+  "apinvoice/cancel",
   async (invoiceId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`${BASE_URL}/apinvoices/${invoiceId}`, {
-        status: 'Canceled',
+      const response = await purchaseApi.patch(`/apinvoices/${invoiceId}`, {
+        status: "Canceled",
       });
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to cancel AP Invoice');
+      return rejectWithValue(
+        error.response?.data || "Failed to cancel AP Invoice",
+      );
     }
-  }
+  },
 );
 export const convertToGrnFromApReturned = createAsyncThunk(
-  'apinvoice/convertToGrnFromApReturned',
+  "apinvoice/convertToGrnFromApReturned",
   async (invoiceId: string, { rejectWithValue }) => {
     try {
-      console.log('Received invoiceId:', invoiceId);
+      console.log("Received invoiceId:", invoiceId);
 
       // Single API call to handle all updates
-      const response = await axios.patch(
-        `${BASE_URL}/apinvoices/convert-to-grn-from-returned/${invoiceId}`
+      const response = await purchaseApi.patch(
+        `/apinvoices/convert-to-grn-from-returned/${invoiceId}`,
       );
 
-      console.log('Conversion successful:', response.data);
+      console.log("Conversion successful:", response.data);
       return response.data;
-
     } catch (error: any) {
-      console.error('Error in convertToGrnFromApReturned:', error);
+      console.error("Error in convertToGrnFromApReturned:", error);
       return rejectWithValue(
         error.response?.data?.detail ||
-        error.response?.data?.message ||
-        error.message ||
-        'Failed to convert AP Returned to GRN'
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to convert AP Returned to GRN",
       );
     }
-  }
+  },
 );
 export const fetchItemwiseAps = createAsyncThunk(
-  'ap/fetchItemwiseAps',
+  "ap/fetchItemwiseAps",
   async () => {
     try {
-      const response = await axios.get(`${BASE_URL}/apinvoices/getOutgoing/apinvoice`);
-      return response.data;  // Returning the itemwise GRNs
+      const response = await purchaseApi.get(
+        `/apinvoices/getOutgoing/apinvoice`,
+      );
+      return response.data; // Returning the itemwise GRNs
     } catch (error) {
-      console.error('Failed to fetch itemwise Aps:', error);
-      throw new Error('Failed to fetch itemwise Aps');
+      console.error("Failed to fetch itemwise Aps:", error);
+      throw new Error("Failed to fetch itemwise Aps");
     }
-  }
+  },
 );
-
 export const postOutgoingAndUpdateDiscount = createAsyncThunk(
-  'apinvoice/postOutgoingAndUpdateDiscount',
+  "apinvoice/postOutgoingAndUpdateDiscount",
   async (
-    { invoiceId, apDiscountPrice, outgoingDate }: { invoiceId: string; apDiscountPrice: number; outgoingDate?: Date | null },
-    { rejectWithValue }
+    {
+      invoiceId,
+      apDiscountPrice,
+      outgoingDate,
+    }: {
+      invoiceId: string;
+      apDiscountPrice: number;
+      outgoingDate?: Date | null;
+    },
+    { rejectWithValue },
   ) => {
     try {
-      const effectiveDate = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
-      console.log('Sending payload:', { invoiceId, apDiscountPrice, outgoingDate: effectiveDate });
-      const response = await axios.patch(
-        `${BASE_URL}/apinvoices/${invoiceId}/convert-to-outgoing-and-discount`,
-        { invoiceId, apDiscountPrice, outgoingDate: effectiveDate }
+      const effectiveDate = outgoingDate
+        ? outgoingDate.toISOString()
+        : new Date().toISOString();
+      console.log("Sending payload:", {
+        invoiceId,
+        apDiscountPrice,
+        outgoingDate: effectiveDate,
+      });
+      const response = await purchaseApi.patch(
+        `/apinvoices/${invoiceId}/convert-to-outgoing-and-discount`,
+        { invoiceId, apDiscountPrice, outgoingDate: effectiveDate },
       );
-      console.log('Server response:', response.data);
+      console.log("Server response:", response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Error in postOutgoingAndUpdateDiscount:', error);
-      return rejectWithValue(error.response?.data || 'Failed to post outgoing and update discount');
+      console.error("Error in postOutgoingAndUpdateDiscount:", error);
+      return rejectWithValue(
+        error.response?.data || "Failed to post outgoing and update discount",
+      );
     }
-  }
+  },
 );
 export const updateApdiscountInvoice = createAsyncThunk(
-  'apinvoice/update',
-  async (payload: { invoiceId: string; apDiscountPrice: number }, { rejectWithValue }) => {
+  "apinvoice/update",
+  async (
+    payload: { invoiceId: string; apDiscountPrice: number },
+    { rejectWithValue },
+  ) => {
     try {
       const { invoiceId, apDiscountPrice } = payload;
 
       // Fetch the existing AP Invoice using the provided id
-      const { data: apInvoice } = await axios.get(`${BASE_URL}/apinvoices/${invoiceId}`);
+      const { data: apInvoice } = await purchaseApi.get(
+        `/apinvoices/${invoiceId}`,
+      );
 
       // Calculate new values
-      const newApDiscountPrice = (apInvoice.discountPrice || 0) + apDiscountPrice;
+      const newApDiscountPrice =
+        (apInvoice.discountPrice || 0) + apDiscountPrice;
       const discountDetails = apInvoice.discountDetails + apDiscountPrice;
       const totalPayableAmount = apInvoice.invoiceAmount - apDiscountPrice; // Adjusted
 
@@ -344,18 +383,22 @@ export const updateApdiscountInvoice = createAsyncThunk(
         discountPrice: newApDiscountPrice,
         invoiceAmount: totalPayableAmount,
         discountDetails: discountDetails, // Ensure to initialize correctly
-        apDiscountPrice: apDiscountPrice
+        apDiscountPrice: apDiscountPrice,
       };
 
       // Make the API call to update the invoice
-      const response = await axios.patch(`${BASE_URL}/apinvoices/${invoiceId}`, updatedApInvoice);
+      const response = await purchaseApi.patch(
+        `/apinvoices/${invoiceId}`,
+        updatedApInvoice,
+      );
       return response.data; // Return the updated invoice data
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to update AP Invoice');
+      return rejectWithValue(
+        error.response?.data || "Failed to update AP Invoice",
+      );
     }
-  }
+  },
 );
-
 const apInvoiceSlice = createSlice({
   name: 'apInvoice',
   initialState,

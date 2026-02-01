@@ -160,39 +160,60 @@ const BusinessPage = () => {
     setUpdatedShippingRow(shipping);
   };
 
-  const saveShippingAddress = (
-    values: ShippingAddress, 
-    { setFieldError }: FormikHelpers<ShippingAddress>
-  ) => {
-      // Check for duplicate shipping address
-    const isDuplicate = shippingaddress.some(
-      (item) => item.address.toLowerCase() === values.address.toLowerCase()
-    );
-  
-    if (isDuplicate) {
-      setFieldError('address', 'This shipping address already exists');
-      return; // Prevent form submission
-    }
-  
-    const newShippingData: ShippingAddress = {
-      shippingId: '', // Generate unique ID
-      address: values.address,
-      emailId: values.emailId,
-      phoneNo: values.phoneNo,
-      gstIn: values.gstIn,
-      randomId: '', // Assuming randomId logic is handled here
-    };
-    dispatch(addShipping(newShippingData))
-      .then(() => {
-        handleCloseShippingDialog();
-        // Fetch shipping addresses again to reflect the newly added data
-        dispatch(fetchShipping());
-      })
-      .catch((error) => {
-        console.error("Error adding shipping address:", error);
-      });
-  };
+// Update the saveShippingAddress function to match Formik's expected signature
+const saveShippingAddress = (
+  values: {
+    shippingId: string;
+    address: string;
+    phoneNo: string;
+    emailId: string;
+    gstIn: string;
+    randomId: string;
+  }, 
+  { setFieldError }: FormikHelpers<{
+    shippingId: string;
+    address: string;
+    phoneNo: string;
+    emailId: string;
+    gstIn: string;
+    randomId: string;
+  }>
+) => {
+  // Check for duplicate shipping address
+  const isDuplicate = shippingaddress.some(
+    (item) => item.address.toLowerCase() === values.address.toLowerCase()
+  );
 
+  if (isDuplicate) {
+    setFieldError('address', 'This shipping address already exists');
+    return; // Prevent form submission
+  }
+
+  // Create a ShippingAddress object from form values
+  const newShippingData: ShippingAddress = {
+    shippingId: values.shippingId || `SHIP_${Date.now()}`,
+    address: values.address,
+    emailId: values.emailId,
+    phoneNo: values.phoneNo,
+    gstIn: values.gstIn,
+    randomId: values.randomId || '',
+  };
+  
+  dispatch(addShipping(newShippingData))
+    .then(() => {
+      handleCloseShippingDialog();
+      dispatch(fetchShipping());
+    })
+    .catch((error) => {
+      console.error("Error adding shipping address:", error);
+      // You can set field errors based on the API response
+      if (error.response?.data?.errors) {
+        Object.entries(error.response.data.errors).forEach(([field, message]) => {
+          setFieldError(field, message as string);
+        });
+      }
+    });
+};
   const handleNewBusiness = () => {
     setUpdatedBusinessRow({
       businessId: '',
@@ -235,7 +256,7 @@ const BusinessPage = () => {
 
   return (
     <Box>
-      <AccountSettingsPage />
+      
         {/* Business Details Section */}
         <Box sx={{ ml: 2 }}>
           <Typography variant="h5">Business Information</Typography>
@@ -623,6 +644,7 @@ const BusinessPage = () => {
   <DialogTitle>Add New Shipping Address</DialogTitle>
   <Formik
     initialValues={{
+       shippingId: '',
       address: '',
       phoneNo: '',
       emailId: '',

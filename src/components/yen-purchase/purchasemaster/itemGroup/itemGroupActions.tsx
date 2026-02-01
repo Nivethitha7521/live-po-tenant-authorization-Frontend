@@ -13,6 +13,7 @@ import {
   DialogActions,
   Button,
   CircularProgress,
+  Tooltip,
 } from '@mui/material';
 import { Add as AddIcon, InsertDriveFile as InsertDriveFileIcon, GetApp as GetAppIcon, Upload as UploadIcon } from '@mui/icons-material';
 
@@ -27,6 +28,11 @@ interface ItemGroupActionsProps {
   onToggleShowDeactivated: () => void;
   importing?: boolean;
   exporting?: boolean;
+   permissions?: { // ✅ ADD PERMISSIONS PROP
+    canAdd: boolean;
+    canEdit: boolean;
+    canDelete: boolean;
+  };
 }
 
 const ItemGroupActions: React.FC<ItemGroupActionsProps> = ({
@@ -40,10 +46,18 @@ const ItemGroupActions: React.FC<ItemGroupActionsProps> = ({
   onToggleShowDeactivated,
   importing = false,
   exporting = false,
+   permissions = { // ✅ DEFAULT PERMISSIONS
+    canAdd: true,
+    canEdit: true,
+    canDelete: true,
+   
+  },
 }) => {
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+ // ✅ DESTRUCTURE PERMISSIONS
+  const { canAdd } = permissions;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -63,8 +77,10 @@ const ItemGroupActions: React.FC<ItemGroupActionsProps> = ({
       setConfirmationDialogOpen(false);
       try {
         await onImportCSV(selectedFile);
-      } catch (error) {
+      } catch (error:any) {
         // Errors handled by ItemGroupPage
+         const errorMessage = error?.detail || error?.message || 'Import failed';
+      console.error('Import error:', error);
       } finally {
         setSelectedFile(null);
       }
@@ -90,15 +106,28 @@ const ItemGroupActions: React.FC<ItemGroupActionsProps> = ({
         />
         <Box display="flex" alignItems="center" gap={1}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <IconButton
-              color="primary"
-            onClick={onDialogOpen}
-              className="icon-button-outline"
-              size="small"
-              sx={{ p: 0.3 }}
-            >
-              <AddIcon />
-            </IconButton>
+            <Tooltip title={!canAdd ? "No permission to add" : "Add Item Group"}>
+              <span>
+                <IconButton
+                  color="primary"
+                  onClick={onDialogOpen}
+                  className="icon-button-outline"
+                  size="small"
+                  sx={{ 
+                    p: 0.3,
+                    opacity: canAdd ? 1 : 0.5,
+                    '&.Mui-disabled': {
+                      opacity: 0.5,
+                      borderColor: 'grey.400 !important',
+                      color: 'grey.500 !important'
+                    }
+                  }}
+                  disabled={!canAdd}
+                >
+                  <AddIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
             <Typography
               variant="caption"
               align="center"
@@ -112,11 +141,14 @@ const ItemGroupActions: React.FC<ItemGroupActionsProps> = ({
                 textOverflow: 'ellipsis',
                 lineHeight: 1.1,
                 mt: 0.2,
+                color: canAdd ? 'text.primary' : 'grey.500',
               }}
             >
               Add
             </Typography>
           </Box>
+
+          {/* Sample CSV Button */}
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <IconButton
               color="primary"
@@ -145,8 +177,10 @@ const ItemGroupActions: React.FC<ItemGroupActionsProps> = ({
               Sample
             </Typography>
           </Box>
+
+          {/* Import Button with Permission */}
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <input
+             <input
               id="import-csv-file"
               type="file"
               accept=".csv"
@@ -185,8 +219,11 @@ const ItemGroupActions: React.FC<ItemGroupActionsProps> = ({
               Import
             </Typography>
           </Box>
+
+          {/* Export Button with Permission */}
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span>
+              <span>
+              
               <IconButton
                 color="primary"
                 onClick={onExportCSV}
@@ -216,6 +253,8 @@ const ItemGroupActions: React.FC<ItemGroupActionsProps> = ({
               Export
             </Typography>
           </Box>
+
+          {/* Show Deactivated Switch */}
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <Typography
               variant="caption"
@@ -244,6 +283,8 @@ const ItemGroupActions: React.FC<ItemGroupActionsProps> = ({
           </Box>
         </Box>
       </Box>
+
+      {/* Import Confirmation Dialog */}
       <Dialog
         open={confirmationDialogOpen}
         onClose={handleCancelImport}
@@ -270,3 +311,21 @@ const ItemGroupActions: React.FC<ItemGroupActionsProps> = ({
 };
 
 export default ItemGroupActions;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

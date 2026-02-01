@@ -115,6 +115,7 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 
     descriptions.push({
       id: service.desc_ids?.[i] || `desc-${i}`,
+      include_tax: service.include_tax?.[i] ?? true,   // ← decide default
       sacCode: service.sacCode?.[i] || '',
       description: descriptionText,
       from_date: service.from_dates?.[i],

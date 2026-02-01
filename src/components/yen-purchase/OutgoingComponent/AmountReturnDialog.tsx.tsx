@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -60,35 +59,45 @@ const AmountReturnDialog: React.FC<AmountReturnDialogProps> = ({
   const [createdBy] = useState<string>('system-user');
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+const isValidForm =
+  debitAmount > 0 &&
+  debitAmount <= maxAmount &&
+  reason.trim().length > 0;
 
-  const canSubmit = () => {
-    if (debitAmount <= 0) return false;
-    if (debitAmount > maxAmount) return false;
-    if (!reason.trim()) return false;
-    return true;
-  };
 
   const handleAmountChange = (value: number) => {
-    if (value > maxAmount) {
-      dispatch(setSnackbarMessageGRN(`Amount cannot exceed maximum: ₹${maxAmount.toFixed(2)}`));
-      dispatch(setSnackbarOpenGRN(true));
-      setDebitAmount(maxAmount);
+    const numValue = Number(value) || 0;
+    setDebitAmount(numValue);
+    
+    if (numValue > maxAmount) {
+      setErrorMessage(`Amount cannot exceed maximum: ₹${maxAmount.toFixed(2)}`);
     } else {
-      setDebitAmount(value);
+      setErrorMessage('');
     }
   };
 
-  const handleConfirmClick = () => {
-    if (canSubmit()) {
-      setConfirmDialogOpen(true);
+ const handleConfirmClick = () => {
+  if (!isValidForm) {
+    if (debitAmount <= 0) {
+      setErrorMessage('Amount must be greater than 0');
+    } else if (debitAmount > maxAmount) {
+      setErrorMessage(`Amount cannot exceed maximum: ₹${maxAmount.toFixed(2)}`);
+    } else if (!reason.trim()) {
+      setErrorMessage('Reason is required');
     }
-  };
+    return;
+  }
+
+  setErrorMessage('');
+  setConfirmDialogOpen(true);
+};
+
 
   const handleSubmit = async () => {
     try {
-      // Confirmation dialog closes immediately when OK is clicked
       setConfirmDialogOpen(false);
-      setIsSubmitting(true); // Disable the button immediately
+      setIsSubmitting(true);
       
       const payload = {
         documentId,
@@ -99,15 +108,37 @@ const AmountReturnDialog: React.FC<AmountReturnDialogProps> = ({
         comments: '',
       };
 
-      await dispatch(createAmountOnlyDebitNote(payload)).unwrap();
+      const result = await dispatch(createAmountOnlyDebitNote(payload)).unwrap();
+      
+      // Show success message from backend
+      dispatch(setSnackbarMessageGRN(result.message || 'Debit note created successfully'));
+      dispatch(setSnackbarOpenGRN(true));
       
       onSuccess();
       resetForm();
       setIsSubmitting(false);
-      onClose(); // Close the main dialog after success
+      onClose();
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create amount-only debit note:', error);
+      
+      // Handle validation errors from backend
+      let errorMsg = 'Failed to create debit note';
+      if (error.payload) {
+        try {
+          const errorData = JSON.parse(error.payload);
+          if (errorData.message) {
+            errorMsg = errorData.message;
+          } else if (errorData.available_amount !== undefined) {
+            errorMsg = `Cannot create debit note. Available amount: ₹${errorData.available_amount.toFixed(2)}`;
+          }
+        } catch {
+          errorMsg = error.payload || 'Failed to create debit note';
+        }
+      }
+      
+      dispatch(setSnackbarMessageGRN(errorMsg));
+      dispatch(setSnackbarOpenGRN(true));
       setIsSubmitting(false);
     }
   };
@@ -119,6 +150,7 @@ const AmountReturnDialog: React.FC<AmountReturnDialogProps> = ({
   const resetForm = () => {
     setDebitAmount(0);
     setReason('');
+    setErrorMessage('');
   };
 
   const handleClose = () => {
@@ -128,7 +160,6 @@ const AmountReturnDialog: React.FC<AmountReturnDialogProps> = ({
     }
   };
 
-  // Combine loading states - if either Redux loading or local submitting is true
   const isLoading = loading || isSubmitting;
 
   return (
@@ -168,6 +199,12 @@ const AmountReturnDialog: React.FC<AmountReturnDialogProps> = ({
               Maximum available amount: <strong>₹{maxAmount.toFixed(2)}</strong>
             </Typography>
           </Alert>
+
+          {errorMessage && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {errorMessage}
+            </Alert>
+          )}
 
           <Grid container spacing={3}>
             {/* Document Info */}
@@ -253,7 +290,7 @@ const AmountReturnDialog: React.FC<AmountReturnDialogProps> = ({
             variant="contained"
             color="error"
             onClick={handleConfirmClick}
-            disabled={!canSubmit() || isLoading}
+            disabled={!isValidForm || isLoading}
             startIcon={
               isLoading ? 
                 <CircularProgress size={20} color="inherit" /> : 
@@ -265,7 +302,7 @@ const AmountReturnDialog: React.FC<AmountReturnDialogProps> = ({
         </DialogActions>
       </Dialog>
 
-      {/* Confirmation Dialog - No loading prop needed */}
+      {/* Confirmation Dialog */}
       <ConfirmationDialog
         open={confirmDialogOpen}
         onClose={handleConfirmationClose}
@@ -280,6 +317,9 @@ const AmountReturnDialog: React.FC<AmountReturnDialogProps> = ({
               <Typography variant="body2"><strong>Document:</strong> {documentNumber}</Typography>
               <Typography variant="body2"><strong>Amount:</strong> ₹{debitAmount.toFixed(2)}</Typography>
               <Typography variant="body2"><strong>Reason:</strong> {reason}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Remaining available: ₹{(maxAmount - debitAmount).toFixed(2)}
+              </Typography>
             </Box>
           </Box>
         }

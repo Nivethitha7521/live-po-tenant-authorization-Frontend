@@ -44,7 +44,26 @@ interface SampleCategory {
   subcategoryList: string[];
 }
 
-const SearchToolbar: React.FC = () => {
+// ✅ UPDATED INTERFACE
+interface SearchToolbarProps {
+  onAddClick?: () => void;
+  showAddButton: boolean;
+  permissions?: {
+    add?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+  };
+}
+
+const SearchToolbar: React.FC<SearchToolbarProps> = ({ 
+  onAddClick, 
+  showAddButton = true,
+  permissions = {
+    add: true,
+    edit: true,
+    delete: true
+  }
+}) => {
   const dispatch = useDispatch<AppDispatch>();
   const {
     categories,
@@ -58,6 +77,13 @@ const SearchToolbar: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // ✅ DEFAULT PERMISSIONS IF NOT PROVIDED
+  const {
+    add = true,
+    edit = true,
+    delete: deletePerm = true
+  } = permissions || {};
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(setSearchQuery(e.target.value));
@@ -150,13 +176,18 @@ const SearchToolbar: React.FC = () => {
         sx={{ flex: 1 }}
       />
       <Box display="flex" alignItems="center" gap={1}>
+        {/* ✅ ADD BUTTON WITH COMPLETE GREY OUT STYLING - FIXED */}
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <IconButton
             color="primary"
-            onClick={() => dispatch(setDialogOpen('add'))}
+            onClick={onAddClick}
             className="icon-button-outline"
             size="small"
-            sx={{ p: 0.3 }}
+            sx={{ 
+              p: 0.3,
+  
+            }}
+            disabled={!showAddButton || !add}
           >
             <AddIcon fontSize="small" />
           </IconButton>
@@ -173,11 +204,15 @@ const SearchToolbar: React.FC = () => {
               textOverflow: 'ellipsis',
               lineHeight: 1.1,
               mt: 0.2,
+              color: (showAddButton && add) ? 'text.primary' : 'grey.500',
+              opacity: (showAddButton && add) ? 1 : 0.7,
             }}
           >
             Add
           </Typography>
         </Box>
+
+        {/* ✅ SAMPLE BUTTON */}
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <IconButton
             color="primary"
@@ -206,6 +241,8 @@ const SearchToolbar: React.FC = () => {
             Sample
           </Typography>
         </Box>
+
+        {/* ✅ IMPORT BUTTON */}
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <input
             id="import-csv-file"
@@ -245,6 +282,8 @@ const SearchToolbar: React.FC = () => {
             Import
           </Typography>
         </Box>
+
+        {/* ✅ EXPORT BUTTON */}
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <IconButton
             color="primary"
@@ -273,6 +312,8 @@ const SearchToolbar: React.FC = () => {
             Export
           </Typography>
         </Box>
+
+        {/* ✅ ACTIVATED/DEACTIVATED SWITCH */}
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <Typography
             variant="caption"
@@ -299,6 +340,8 @@ const SearchToolbar: React.FC = () => {
           />
         </Box>
       </Box>
+
+      {/* DIALOGS */}
       <Dialog
         open={confirmationDialogOpen}
         onClose={handleCancelImport}
@@ -325,6 +368,7 @@ const SearchToolbar: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
       <CommonImportResultDialog
         open={showImportResultDialog}
         onClose={handleImportResultsClose}

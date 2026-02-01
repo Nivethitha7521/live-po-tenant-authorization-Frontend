@@ -19,19 +19,26 @@ interface VendorTableProps {
   onEdit: (vendortypeId: string) => void;
   onDeactivate: (id: string) => void;
   onActivate: (id: string) => void;
+  canEdit: boolean; // ✅ ADD PERMISSION PROP
+  canDelete: boolean;
 }
 
 const VendorTable: React.FC<VendorTableProps> = ({ 
   vendorTypes, 
   onEdit, 
   onDeactivate, 
-  onActivate 
+  onActivate,
+  canEdit, // ✅ RECEIVE PERMISSION PROP
+  canDelete
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'deactivate' | 'activate' | null>(null);
   const [selectedVendorTypeId, setSelectedVendorTypeId] = useState<string | null>(null);
 
   const handleConfirmOpen = (action: 'deactivate' | 'activate', vendortypeId: string) => {
+     if (!canDelete) {
+      return;
+    }
     setConfirmAction(action);
     setSelectedVendorTypeId(vendortypeId);
     setConfirmOpen(true);
@@ -86,15 +93,45 @@ const VendorTable: React.FC<VendorTableProps> = ({
                   <TableCell>
                     {vendorType.status === 'active' ? (
                       <>
-                        <IconButton onClick={() => onEdit(vendorType.vendortypeId)}>
+                         <IconButton 
+                          onClick={() => onEdit(vendorType.vendortypeId)}
+                          disabled={!canEdit}
+                          sx={{ 
+                            opacity: canEdit ? 1 : 0.5,
+                            '&.Mui-disabled': {
+                              opacity: 0.5,
+                              color: 'text.disabled'
+                            }
+                          }}
+                        >
                           <EditIcon />
                         </IconButton>
-                        <IconButton onClick={() => handleConfirmOpen('deactivate', vendorType.vendortypeId)}>
+                         <IconButton 
+                          onClick={() => handleConfirmOpen('deactivate', vendorType.vendortypeId)}
+                          disabled={!canDelete}
+                          sx={{ 
+                            opacity: canDelete ? 1 : 0.5,
+                            '&.Mui-disabled': {
+                              opacity: 0.5,
+                              color: 'text.disabled'
+                            }
+                          }}
+                        >
                           <DeleteIcon />
                         </IconButton>
                       </>
                     ) : (
-                      <IconButton onClick={() => handleConfirmOpen('activate', vendorType.vendortypeId)}>
+                      <IconButton 
+                        onClick={() => handleConfirmOpen('activate', vendorType.vendortypeId)}
+                        disabled={!canDelete}
+                        sx={{ 
+                          opacity: canDelete ? 1 : 0.5,
+                          '&.Mui-disabled': {
+                            opacity: 0.5,
+                            color: 'text.disabled'
+                          }
+                        }}
+                      >
                         <RefreshIcon />
                       </IconButton>
                     )}

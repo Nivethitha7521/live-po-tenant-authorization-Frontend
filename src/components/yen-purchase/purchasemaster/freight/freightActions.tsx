@@ -27,6 +27,7 @@ interface FreightActionsProps {
   onToggleShowDeactivated: () => void;
   importing?: boolean;
   exporting?: boolean;
+  canAdd: boolean;
 }
 
 const FreightActions: React.FC<FreightActionsProps> = ({
@@ -40,6 +41,7 @@ const FreightActions: React.FC<FreightActionsProps> = ({
   onToggleShowDeactivated,
   importing = false,
   exporting = false,
+  canAdd, 
 }) => {
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -95,8 +97,10 @@ const FreightActions: React.FC<FreightActionsProps> = ({
               onClick={onDialogOpen}
               className="icon-button-outline"
               size="small"
-              sx={{ p: 0.3 }}
-            >
+              sx={{ p: 0.3,
+                opacity: canAdd ? 1 : 0.5, }}
+           disabled={!canAdd} 
+           >
               <AddIcon />
             </IconButton>
             <Typography
@@ -112,6 +116,7 @@ const FreightActions: React.FC<FreightActionsProps> = ({
                 textOverflow: 'ellipsis',
                 lineHeight: 1.1,
                 mt: 0.2,
+                 color: canAdd ? 'text.primary' : 'grey.500', // ✅ TEXT COLOR BASED ON PERMISS
               }}
             >
               Add

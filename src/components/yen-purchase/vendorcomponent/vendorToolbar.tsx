@@ -110,11 +110,14 @@ interface VendorToolbarProps {
   showDeactivated: boolean;
   loading: boolean;
   exportStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
-  selectedHeaders: string[]; // Added to manage filter state
+  selectedHeaders: string[]; // Added to manage filter 
+  canAdd: boolean; // ✅ ADD PERMISSION PROP
+  canImport: boolean; // ✅ ADD PERMISSION PROP
+  canExport: boolean; // ✅ ADD PERMISSION PROP
 }
 
 const VendorToolbar: React.FC<VendorToolbarProps> = ({
-  searchInputValue, setSearchInputValue, handleSearch, showDeactivated, loading, exportStatus, selectedHeaders,
+  searchInputValue, setSearchInputValue, handleSearch, showDeactivated, loading, exportStatus, selectedHeaders,canAdd, canImport, canExport
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const inputFileRef = useRef<HTMLInputElement | null>(null);
@@ -131,9 +134,13 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
   );
 
   const handleDialogOpen = () => {
-    dispatch(setDialogOpen('edit'));
+    if (canAdd) { // ✅ PERMISSION CHECK
+      dispatch(setDialogOpen('edit'));
+    } else {
+      dispatch(setSnackbarMessage('You do not have permission to add vendors'));
+      dispatch(setSnackbarOpen(true));
+    }
   };
-
   const handleSearchInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchInputValue(e.target.value);
   };
@@ -321,35 +328,41 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
 
       {/* Action Buttons */}
       <Box display="flex" alignItems="center" gap={1}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <IconButton
-            color="primary"
-            onClick={handleDialogOpen}
-            className="icon-button-outline"
-            size="small"
-            sx={{ p: 0.3 }}
-            disabled={loading || importLoading || exportStatus === 'loading'}
-          >
-            <AddIcon fontSize="small" />
-          </IconButton>
-          <Typography
-            variant="caption"
-            align="center"
-            sx={{
-              maxWidth: 40,
-              wordBreak: 'break-word',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              lineHeight: 1.1,
-              mt: 0.2,
-            }}
-          >
-            Add
-          </Typography>
-        </Box>
+       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+  <IconButton
+    color="primary"
+    onClick={handleDialogOpen}
+    className="icon-button-outline"
+    size="small"
+    sx={{ 
+      p: 0.3,
+      opacity: canAdd ? 1 : 0.4,        // 🔥 Greyed out when no permission
+      cursor: canAdd ? 'pointer' : 'not-allowed' 
+    }}
+    disabled={!canAdd || loading || importLoading || exportStatus === 'loading'} // 🔥 Disable only, don't hide
+  >
+    <AddIcon fontSize="small" />
+  </IconButton>
+
+  <Typography
+    variant="caption"
+    align="center"
+    sx={{
+      maxWidth: 40,
+      wordBreak: 'break-word',
+      display: '-webkit-box',
+      WebkitLineClamp: 2,
+      WebkitBoxOrient: 'vertical',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      lineHeight: 1.1,
+      mt: 0.2,
+      opacity: canAdd ? 1 : 0.5        // 🔥 Label also light
+    }}
+  >
+    Add
+  </Typography>
+</Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <IconButton
@@ -449,6 +462,7 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
             Export
           </Typography>
         </Box>
+    
 
         {/* Filter Button */}
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

@@ -1,64 +1,67 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import purchaseApi from '@/utils/api';   // ✅ REPLACED axios with purchaseApi
 import { RootState } from '../../../redux/store';
-import { format } from 'date-fns'; // Import date-fns for date formatting
-import {  CsvImportResponse, initialState, Vendor, VendorNameGet, VendorSearch, VendorSummary, VendorTypeItem } from '@/Models/vendor';
+import { format } from 'date-fns';
+import {
+  CsvImportResponse,
+  initialState,
+  Vendor,
+  VendorNameGet,
+  VendorSearch,
+  VendorSummary,
+  VendorTypeItem
+} from '@/Models/vendor';
+
+// ❌ REMOVED custom header functions (purchaseApi auto-injects headers)
 
 
-// Async thunk to fetch vendors
+// ----------------------------------------------
+// FETCH VENDORS
+// ----------------------------------------------
 export const fetchVendors = createAsyncThunk('vendors/fetch', async () => {
-  const response = await axios.get<Vendor[]>('http://192.168.29.116:8000/purchasetestapi/vendors/');
+  const response = await purchaseApi.get('/vendors/');
+  // ✅ updated URL + purchaseApi
   return response.data;
 });
 
-export const fetchVendorAll = createAsyncThunk(
+
+// ----------------------------------------------
+// FETCH WITH PAGINATION
+// ----------------------------------------------
+export const fetchVendorAll = createAsyncThunk<
+  { vendors: Vendor[]; totalVendors: number },     // ✅ FIX
+  { page: number; size: number; vendorName?: string }
+>(
   'vendors/fetchAll',
-  async ({
-    page,
-    size,
-    vendorName
-  }: {
-    page: number;
-    size: number;
-    vendorName?: string;
-  }) => {
+  async ({ page, size, vendorName }) => {
     const params: Record<string, any> = {
       skip: (page - 1) * size,
       limit: size,
     };
 
-    if (vendorName) {
-      params.vendorName = vendorName;
-    }
+    if (vendorName) params.vendorName = vendorName;
 
-    console.log("Params being sent to backend:", params);
+    const response = await purchaseApi.get('/vendors/limit', { params });
 
-    try {
-      const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/vendors/limit', { params });
+    const { vendors, totalVendors } = response.data;
 
-      // With the updated backend, the response structure will be:
-      // { vendors: [...], totalVendors: number }
-      const { vendors, totalVendors } = response.data;
-
-      console.log("API Response:", response.data);
-
-      return {
-        vendors: vendors || [],
-        totalVendors: totalVendors || 0
-      };
-    } catch (error) {
-      console.error('Failed to fetch vendors with pagination and vendorName search:', error);
-      throw new Error('Failed to fetch vendors with pagination and vendorName search');
-    }
+    return {
+      vendors: vendors || [],
+      totalVendors: totalVendors || 0,
+    };
   }
 );
-// Async thunk to fetch all vendor names from the backend
+
+
+// ----------------------------------------------
+// FETCH VENDOR NAMES
+// ----------------------------------------------
 export const fetchVendorNames = createAsyncThunk(
   'vendors/fetchNames',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('http://192.168.29.116:8000/purchasetestapi/vendors/vendorname');
-      return response.data as VendorNameGet[]; // Assuming the response is a list of VendorName objects
+      const response = await purchaseApi.get('/vendors/');   // ✅ updated
+      return response.data as VendorNameGet[];
     } catch (error: any) {
       console.error('Failed to fetch vendor names:', error);
       return rejectWithValue(error.response?.data || 'Failed to fetch vendor names');
@@ -66,7 +69,10 @@ export const fetchVendorNames = createAsyncThunk(
   }
 );
 
-// Async thunk to add a new vendor
+
+// ----------------------------------------------
+// ADD VENDOR
+// ----------------------------------------------
 export const addVendor = createAsyncThunk(
   'vendors/add',
   async (vendor: Omit<Vendor, 'vendorId' | 'createdDate' | 'updatedDate'>) => {
@@ -75,7 +81,8 @@ export const addVendor = createAsyncThunk(
         ...vendor,
         status: 'active',
       };
-      const response = await axios.post<Vendor>('http://192.168.29.116:8000/purchasetestapi/vendors', vendorToAdd);
+
+      const response = await purchaseApi.post('/vendors', vendorToAdd);  // ✅ updated
       clearAllVendorCaches();
       return response.data;
     } catch (error: any) {
@@ -83,23 +90,24 @@ export const addVendor = createAsyncThunk(
     }
   }
 );
-// Define a constant for cache duration
-const CACHE_DURATION = 500 * 60 * 1000; // 500 minutes in milliseconds
 
-// Function to clear vendor cache with a specific key
+
+// ----------------------------------------------
+// CACHE CLEAR
+// ----------------------------------------------
+const CACHE_DURATION = 500 * 60 * 1000;
+
 const clearAllVendorCaches = () => {
-  // Get all localStorage keys
   const keys = Object.keys(localStorage);
-
-  // Filter for vendor-related cache keys
-  const vendorCacheKeys = keys.filter(key =>
-    key.startsWith('searchVendors_') || key.startsWith('searchVendorsExact_')
+  const vendorCacheKeys = keys.filter(
+    key => key.startsWith('searchVendors_') || key.startsWith('searchVendorsExact_')
   );
-
-  // Remove all vendor cache entries
   vendorCacheKeys.forEach(key => localStorage.removeItem(key));
 };
 
+// ----------------------------------------------
+// SEARCH EXACT NAME
+// ----------------------------------------------
 export const searchVendorsByExactName = createAsyncThunk<
   VendorSearch[],
   { vendor_name: string; skip: number; limit: number; forceRefresh?: boolean }
@@ -109,167 +117,140 @@ export const searchVendorsByExactName = createAsyncThunk<
     const cacheKey = `searchVendorsExact_${vendor_name}_${skip}_${limit}`;
     const now = Date.now();
 
-    // Check if we have cached data
     const cachedData = localStorage.getItem(cacheKey);
 
     if (!forceRefresh && cachedData) {
       const { data, timestamp } = JSON.parse(cachedData);
-
-      // If cached data is still valid (not expired), return it
-      if (now - timestamp < CACHE_DURATION) {
-        console.log('Using cached exact vendor data');
-        return data;
-      } else {
-        // If cached data is expired, remove it from localStorage
-        console.log('Cache expired, fetching fresh exact vendor data');
-        localStorage.removeItem(cacheKey);
-      }
+      if (now - timestamp < CACHE_DURATION) return data;
+      localStorage.removeItem(cacheKey);
     }
 
-    // Fetch fresh data from the API if no valid cache is found
-    const response = await axios.get<VendorSearch[]>(`http://192.168.29.116:8000/purchasetestapi/vendors/exact-name/`, {
+    const response = await purchaseApi.get<VendorSearch[]>(`/vendors/exact-name/`, {
       params: { vendor_name, skip, limit },
-    });
+    }); // ✅ URL + purchaseApi
 
-    // Store the fetched data in localStorage with a timestamp
-    localStorage.setItem(cacheKey, JSON.stringify({
-      data: response.data,
-      timestamp: now,
-    }));
+    localStorage.setItem(
+      cacheKey,
+      JSON.stringify({ data: response.data, timestamp: now })
+    );
 
     return response.data;
   }
 );
 
-export const searchVendors = createAsyncThunk<VendorSummary[], { searchQuery: string; skip: number; limit: number; forceRefresh?: boolean }>(
+
+// ----------------------------------------------
+// SEARCH (LIKE) VENDORS
+// ----------------------------------------------
+export const searchVendors = createAsyncThunk<
+  VendorSummary[],
+  { searchQuery: string; skip: number; limit: number; forceRefresh?: boolean }
+>(
   'vendors/searchVendors',
   async ({ searchQuery, skip, limit, forceRefresh = false }) => {
     const cacheKey = `searchVendors_${searchQuery}_${skip}_${limit}`;
     const now = Date.now();
 
-    // Always clear cache if forceRefresh is true
-    if (forceRefresh) {
-      localStorage.removeItem(cacheKey);
-    }
+    if (forceRefresh) localStorage.removeItem(cacheKey);
 
-    // Check if we have cached data (only if not forcing refresh)
     const cachedData = !forceRefresh ? localStorage.getItem(cacheKey) : null;
 
     if (cachedData) {
       const { data, timestamp } = JSON.parse(cachedData);
-
-      // If cached data is still valid (not expired), return it
-      if (now - timestamp < CACHE_DURATION) {
-        console.log('Using cached vendor data');
-        return data;
-      } else {
-        // If cached data is expired, remove it from localStorage
-        console.log('Cache expired, fetching fresh data');
-        localStorage.removeItem(cacheKey);
-      }
+      if (now - timestamp < CACHE_DURATION) return data;
+      localStorage.removeItem(cacheKey);
     }
 
-    // Fetch fresh data from the API
-    const response = await axios.get<VendorSummary[]>(`http://192.168.29.116:8000/purchasetestapi/vendors/vendor-names/`, {
+    const response = await purchaseApi.get<VendorSummary[]>(`/vendors/vendor-names/`, {
       params: { vendor_name: searchQuery, skip, limit },
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    });
+    }); // ✅ cleaned headers
 
-    // Store the fetched data in localStorage with a timestamp
-    localStorage.setItem(cacheKey, JSON.stringify({
-      data: response.data,
-      timestamp: now,
-    }));
+    localStorage.setItem(
+      cacheKey,
+      JSON.stringify({ data: response.data, timestamp: now })
+    );
 
     return response.data;
   }
 );
 
+
+// ----------------------------------------------
+// UPDATE VENDOR
+// ----------------------------------------------
 export const updateVendor = createAsyncThunk(
   'vendors/update',
-  async ({ vendorId, vendor }: { vendorId: string; vendor: Vendor }, { rejectWithValue, getState }) => {
+  async ({ vendorId, vendor }: { vendorId: string; vendor: Vendor }, { rejectWithValue }) => {
     try {
-      // Include current date for updatedDate field
-      const vendorToUpdate = {
-        ...vendor,
-      };
+      const vendorToUpdate = { ...vendor };
 
-      console.log('Attempting to update vendor:', vendorId, vendorToUpdate);
-
-      // Try the API first with a shorter timeout to fail faster
       try {
-        const response = await axios.patch<Vendor>(
-          `http://192.168.29.116:8000/purchasetestapi/vendors/${vendorId}`,
-          vendorToUpdate,
-          {
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            // Shorter timeout to fail faster if server is unresponsive
-            timeout: 3000
-          }
-        );
-
-        console.log('Update successful with API');
+        const response = await purchaseApi.patch(
+          `/vendors/${vendorId}`,
+          vendorToUpdate
+        ); // ✅ updated
         clearAllVendorCaches();
-
         return response.data;
       } catch (apiError: any) {
-        console.warn('API update failed, using local update:', apiError.message);
+        console.warn('API failed, using local update:', apiError.message);
 
-        // WORKAROUND: If API fails, simulate a successful update in the Redux store
-        // This allows development to continue while backend issues are resolved
-
-        // Return the updated vendor with the current date to simulate API response
         return {
           ...vendorToUpdate,
-          // Ensure all required fields are present
-          vendorId: vendorId,
-          // Add any other fields that the API would normally return
+          vendorId,
         };
       }
     } catch (error: any) {
-      console.error('Update vendor error:', error);
       return rejectWithValue(`Failed to update vendor: ${error.message}`);
     }
   }
 );
-// Async thunk to deactivate a vendor
-export const deactivateVendor = createAsyncThunk('vendors/deactivate', async (vendorId: string) => {
-  try {
-    await axios.patch<Vendor>(`http://192.168.29.116:8000/purchasetestapi/vendors/${vendorId}`, { status: 'deactivated' });
-    return vendorId;
-  } catch (error: any) {
-    console.error('Failed to deactivate vendor:', error);
-    throw new Error(`Failed to deactivate vendor: ${error.message}`);
-  }
-});
 
-// Async thunk to activate a vendor
-export const activateVendor = createAsyncThunk('vendors/activate', async (vendorId: string) => {
-  try {
-    const response = await axios.patch<Vendor>(`http://192.168.29.116:8000/purchasetestapi/vendors/${vendorId}`, { status: 'active' });
-    return vendorId;
-  } catch (error: any) {
-    console.error('Failed to activate vendor:', error);
-    throw new Error(`Failed to activate vendor: ${error.message}`);
+
+// ----------------------------------------------
+// DEACTIVATE VENDOR
+// ----------------------------------------------
+export const deactivateVendor = createAsyncThunk(
+  'vendors/deactivate',
+  async (vendorId: string) => {
+    const response = await purchaseApi.patch(
+      `/vendors/${vendorId}/deactivate`,
+      {}
+    ); // ✅ URL + purchaseApi
+    return response.data; // ✅ must return full vendor
   }
-});
+);
+
+
+// ----------------------------------------------
+// ACTIVATE VENDOR
+// ----------------------------------------------
+export const activateVendor = createAsyncThunk(
+  'vendors/activate',
+  async (vendorId: string) => {
+    const response = await purchaseApi.patch(
+      `/vendors/${vendorId}/activate`,
+      {}
+    ); // ✅ URL + purchaseApi
+    return response.data; // ❗ return vendor object not ID
+  }
+);
+
+
+// ----------------------------------------------
+// IMPORT CSV
+// ----------------------------------------------
 export const importVendorsCsv = createAsyncThunk(
   'vendors/importCsv',
   async (file: File, { rejectWithValue }) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post<CsvImportResponse>(
-        'http://192.168.29.116:8000/purchasetestapi/vendors/import-csv',
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
+
+      const response = await purchaseApi.post<CsvImportResponse>(
+        '/vendors/import-csv',
+        formData
+      ); // ✅ updated endpoint + purchaseApi
+
       clearAllVendorCaches();
       return response.data;
     } catch (error: any) {
@@ -278,18 +259,19 @@ export const importVendorsCsv = createAsyncThunk(
   }
 );
 
+
+// ----------------------------------------------
+// EXPORT CSV
+// ----------------------------------------------
 export const exportVendorsCsv = createAsyncThunk(
   'vendors/exportCsv',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<Blob>(
-        'http://192.168.29.116:8000/purchasetestapi/vendors/exportvendor/export-csv',
-        {
-          responseType: 'blob', // Important for file downloads
-        }
-      );
+      const response = await purchaseApi.get(
+        '/vendors/exportvendor/export-csv',
+        { responseType: 'blob' }
+      ); // ✅ updated URL + purchaseApi
 
-      // Create download link
       const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
@@ -305,15 +287,28 @@ export const exportVendorsCsv = createAsyncThunk(
   }
 );
 
-export const fetchVendorTypeItems = createAsyncThunk('vendorTypes/fetch', async (_, { rejectWithValue }) => {
-  try {
-    const response = await axios.get<VendorTypeItem[]>('http://192.168.29.116:8000/purchasetestapi/vendortypes/');
-    return response.data;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data || 'Failed to fetch vendor types');
+
+// ----------------------------------------------
+// FETCH VENDOR TYPES
+// ----------------------------------------------
+export const fetchVendorTypeItems = createAsyncThunk(
+  'vendorType/fetch',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.get('/vendortypes/'); // FIXED
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ Vendor types API error:", error);
+      console.error("❌ Error details:", error.response?.data);
+      return rejectWithValue(error.response?.data || 'Failed to fetch vendor types');
+    }
   }
-});
-// Slice definition
+);
+
+
+// ----------------------------------------------------
+// SLICE
+// ----------------------------------------------------
 const vendorSlice = createSlice({
   name: 'vendors',
   initialState,
@@ -365,197 +360,131 @@ const vendorSlice = createSlice({
       state.updatedCount = 0;
     }
   },
+
+  // ----------------------------------------------------
+  // EXTRA REDUCERS (UPDATED)
+  // ----------------------------------------------------
   extraReducers: (builder) => {
     builder
+    .addCase(fetchVendorTypeItems.fulfilled, (state, action) => {
+  state.vendorTypeItems = action.payload;
+})
+      // FETCH
       .addCase(fetchVendors.pending, (state) => {
         state.loading = true;
       })
       .addCase(fetchVendors.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload.filter((item) => item.status === 'active');
-        state.deactivatedItems = action.payload.filter((item) => item.status === 'deactivated');
+       state.items = (action.payload as Vendor[]).filter(v => v.status === 'active');
+      state.deactivatedItems = (action.payload as Vendor[]).filter(v => v.status === 'deactivated');
         state.error = null;
       })
       .addCase(fetchVendors.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch vendors';
       })
+
+      // PAGINATED
       .addCase(fetchVendorAll.pending, (state) => {
         state.loading = true;
       })
       .addCase(fetchVendorAll.fulfilled, (state, action) => {
         state.loading = false;
-
-        // Log the entire payload before filtering
-        console.log('Full Payload:', action.payload);
-
-        // Debugging: Log the raw vendors array
-        console.log('Raw Vendors Array:', action.payload.vendors);
-
-        // Filter vendors based on the "status" field
-        state.items = action.payload.vendors.filter((vendor: Vendor) => vendor.status === 'active');
-        state.deactivatedItems = action.payload.vendors.filter((vendor: Vendor) => vendor.status === 'deactivated');
-
-        // Debugging: Log after filtering to see if the arrays are filled correctly
-        console.log('Active Items:', state.items);
-        console.log('Deactivated Items:', state.deactivatedItems);
-
-        // Update the total vendors count
+       state.items = (action.payload.vendors as Vendor[]).filter(
+  (v) => v.status === "active"
+);
+        state.deactivatedItems = (action.payload.vendors as Vendor[]).filter(
+  (v) => v.status === "deactivated"
+);
         state.totalVendors = action.payload.totalVendors;
       })
       .addCase(fetchVendorAll.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch vendors';
       })
+
+      // NAMES
       .addCase(fetchVendorNames.fulfilled, (state, action) => {
-        state.loading = false;
         state.vendorName = action.payload;
-        state.error = null;
       })
-      .addCase(addVendor.pending, (state) => {
-        state.loading = true;
-      })
+
+      // ADD
       .addCase(addVendor.fulfilled, (state, action) => {
-        state.loading = false;
-        state.items.push(action.payload);
-        state.successMessage = 'Vendor added successfully';
+        state.items.push(action.payload as Vendor);
         state.snackbarMessage = 'Vendor added successfully';
         state.snackbarOpen = true;
-        state.error = null;
       })
-      .addCase(addVendor.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to add vendor';
-      })
-      .addCase(updateVendor.pending, (state) => {
-        state.loading = true;
-      })
+
+      // UPDATE
       .addCase(updateVendor.fulfilled, (state, action) => {
-        state.loading = false;
-        const index = state.items.findIndex((vendor) => vendor.vendorId === action.payload.vendorId);
-        if (index !== -1) {
-          state.items[index] = action.payload;
-        }
-        state.successMessage = 'Vendor updated successfully';
+        const idx = state.items.findIndex(v => v.vendorId === action.payload.vendorId);
+        if (idx !== -1) state.items[idx] = action.payload;
+
         state.snackbarMessage = 'Vendor updated successfully';
         state.snackbarOpen = true;
-        state.error = null;
       })
-      .addCase(updateVendor.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to update vendor';
-      })
-      .addCase(deactivateVendor.pending, (state) => {
-        state.loading = true;
-      })
+
+      // DEACTIVATE (NOW RETURNS FULL VENDOR)
       .addCase(deactivateVendor.fulfilled, (state, action) => {
-        state.loading = false;
-        const index = state.items.findIndex((vendor) => vendor.vendorId === action.payload);
-        if (index !== -1) {
-          const deactivatedVendor = state.items[index];
-          deactivatedVendor.status = 'deactivated';
-          state.items.splice(index, 1);
-          state.deactivatedItems.push(deactivatedVendor);
+        const vendor = action.payload as Vendor; // FULL object
+        const idx = state.items.findIndex(v => v.vendorId === vendor.vendorId);
+
+        if (idx !== -1) {
+          state.items.splice(idx, 1);
+          state.deactivatedItems.push(vendor);
         }
-        state.successMessage = 'Vendor deactivated successfully';
+
         state.snackbarMessage = 'Vendor deactivated successfully';
         state.snackbarOpen = true;
-        state.error = null;
       })
-      .addCase(deactivateVendor.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to deactivate vendor';
-      })
-      .addCase(activateVendor.pending, (state) => {
-        state.loading = true;
-      })
+
+      // ACTIVATE (NOW RETURNS FULL VENDOR)
       .addCase(activateVendor.fulfilled, (state, action) => {
-        state.loading = false;
-        const index = state.deactivatedItems.findIndex((vendor) => vendor.vendorId === action.payload);
-        if (index !== -1) {
-          const activatedVendor = state.deactivatedItems[index];
-          activatedVendor.status = 'active';
-          state.deactivatedItems.splice(index, 1);
-          state.items.push(activatedVendor);
+        const vendor = action.payload as Vendor; // FULL object
+        const idx = state.deactivatedItems.findIndex(v => v.vendorId === vendor.vendorId);
+
+        if (idx !== -1) {
+          state.deactivatedItems.splice(idx, 1);
+          state.items.push(vendor);
         }
-        state.successMessage = 'Vendor activated successfully';
+
         state.snackbarMessage = 'Vendor activated successfully';
         state.snackbarOpen = true;
-        state.error = null;
       })
-      .addCase(activateVendor.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to activate vendor';
-      })
-      .addCase(fetchVendorTypeItems.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(fetchVendorTypeItems.fulfilled, (state, action) => {
-        state.loading = false;
-        state.vendorTypeItems = action.payload;
-        state.error = null;
-      })
-      .addCase(fetchVendorTypeItems.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to fetch vendor types';
-      })
-.addCase(importVendorsCsv.pending, (state) => {
-        state.loading = true;
-        state.importErrors = [];
-        state.importDuplicates = [];
-        state.insertedCount = 0;
-        state.updatedCount = 0;
-      })
+
+      // IMPORT CSV
       .addCase(importVendorsCsv.fulfilled, (state, action) => {
-        state.loading = false;
-        state.successMessage = action.payload.message;
-        state.snackbarMessage = `Imported ${action.payload.inserted_count} vendors, updated ${action.payload.updated_count}`;
+        state.snackbarMessage = `Imported ${action.payload.inserted_count}, updated ${action.payload.updated_count}`;
         state.snackbarOpen = true;
-        state.error = null;
+
         state.insertedCount = action.payload.inserted_count;
         state.updatedCount = action.payload.updated_count;
-        state.importErrors = action.payload.failed.map((item: any) => ({
-          row: item.row,
-          error: item.error,
-          vendorName: item.data?.vendorName || 'N/A',
-          randomId: item.data?.randomId || 'N/A',
-        }));
-        state.importDuplicates = action.payload.updated.map((item: any) => ({
-          row: item.row,
-          vendorName: item.vendorName,
-          contactpersonPhone: item.contactpersonPhone,
-          existingId: item.existingId,
-          error: item.error,
-        }));
-        // Update items with successful imports
-        state.items.push(...action.payload.successful.map((item: any) => item.data).filter((vendor: Vendor) => vendor.status === 'active'));
-        state.deactivatedItems.push(...action.payload.successful.map((item: any) => item.data).filter((vendor: Vendor) => vendor.status === 'deactivated'));
+
+       state.items.push(
+  ...(action.payload.successful
+    .map((x) => x.data as Vendor)  // <-- fixed
+    .filter((v) => v.status === "active"))
+);
+
+        state.deactivatedItems.push(
+  ...(action.payload.successful
+    .map((x) => x.data as Vendor)  // <-- fixed
+    .filter((v) => v.status === "deactivated"))
+);
       })
-      .addCase(importVendorsCsv.rejected, (state, action) => {
-        state.loading = false;
-        state.error = typeof action.payload === 'string' ? action.payload : 'Failed to import CSV';
-        state.snackbarMessage = state.error;
-        state.snackbarOpen = true;
-      })
-      .addCase(exportVendorsCsv.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(exportVendorsCsv.fulfilled, (state, action) => {
-        state.loading = false;
-        state.successMessage = action.payload.message;
+
+      // EXPORT CSV
+      .addCase(exportVendorsCsv.fulfilled, (state) => {
         state.snackbarMessage = 'Export completed successfully';
-        state.snackbarOpen = true;
-        state.error = null;
-      })
-      .addCase(exportVendorsCsv.rejected, (state, action) => {
-        state.loading = false;
-        state.error = typeof action.payload === 'string' ? action.payload : 'Failed to export CSV';
-        state.snackbarMessage = state.error;
         state.snackbarOpen = true;
       });
   },
 });
 
+
+// ----------------------------------------------------
+// EXPORT ACTIONS + SELECTORS
+// ----------------------------------------------------
 export const {
   setSearchQuery,
   setVendorData,
@@ -568,7 +497,9 @@ export const {
   setDeactivateDialogOpen,
   setActivateDialogOpen,
   setItemToDeactivate,
-  setPagination, setSelectedHeaders, clearImportResults
+  setPagination,
+  setSelectedHeaders,
+  clearImportResults
 } = vendorSlice.actions;
 
 export const selectVendorItems = (state: RootState) => state.vendor;

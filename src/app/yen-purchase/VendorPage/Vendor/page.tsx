@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useEffect, memo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,9 +16,28 @@ import VendorTable from '../../../../components/yen-purchase/vendorcomponent/ven
 import VendorDialog from '../../../../components/yen-purchase/vendorcomponent/vendorDialog';
 import VendorDeactivateDialog from '../../../../components/yen-purchase/vendorcomponent/vendorDeactivate';
 import VendorActivateDialog from '@/components/yen-purchase/vendorcomponent/vendorActivate';
-
+import { usePermissions } from '../../../../hooks/usePermissions'; 
 const Vendor = memo(() => {
   const dispatch = useDispatch<AppDispatch>();
+  const { hasPermission, isModuleVisible } = usePermissions(); 
+  const canAdd = hasPermission('yenerp', 'vendors', 'add');
+  const canEdit = hasPermission('yenerp', 'vendors', 'edit');
+  const canDelete = hasPermission('yenerp', 'vendors', 'delete');
+  const canImport = hasPermission('yenerp', 'vendors', 'import');
+  const canExport = hasPermission('yenerp', 'vendors', 'export');
+  // ✅ MODULE VISIBILITY CHECK
+if (!isModuleVisible("yenerp", "vendors")) {
+  return null;
+  // or show message:
+  // return (
+  //   <Box p={3}>
+  //     <Alert severity="error">You do not have access to Vendors module.</Alert>
+  //   </Box>
+  // );
+}
+
+
+  console.log('🎯 Vendor Action Permissions:', { canAdd, canEdit, canDelete, canImport, canExport });
   const {
     items, deactivatedItems, dialogOpen, vendorTypeItems,
     showDeactivated, snackbarMessage, snackbarOpen, exportStatus,
@@ -30,6 +50,7 @@ const Vendor = memo(() => {
   const [loading, setLoading] = useState(false);
   const [searchInputValue, setSearchInputValue] = useState('');
   const [vendorName, setVendorName] = useState('');
+  
 
   useEffect(() => {
     dispatch(fetchVendorTypeItems());
@@ -83,6 +104,9 @@ const Vendor = memo(() => {
           loading={loading}
           exportStatus={exportStatus}
           selectedHeaders={selectedHeaders} // Pass selectedHeaders
+          canAdd={canAdd} 
+          canImport={canImport}
+          canExport={canExport} 
         />
         <VendorTable
           items={items}
@@ -91,6 +115,8 @@ const Vendor = memo(() => {
           loading={loading}
           currentPage={currentPage}
           pageSize={pageSize}
+          canEdit={canEdit} 
+          canDelete={canDelete} 
         />
         <VendorPagination
           currentPage={currentPage}
@@ -99,8 +125,8 @@ const Vendor = memo(() => {
           handlePageChange={handlePageChange}
         />
         <VendorDialog loading={loading} setLoading={setLoading} />
-        <VendorDeactivateDialog />
-        <VendorActivateDialog />
+        <VendorDeactivateDialog canDelete={canDelete}/>
+        <VendorActivateDialog canDelete={canDelete} />
         <Snackbar
           open={snackbarOpen}
           autoHideDuration={6000}

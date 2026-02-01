@@ -1,3 +1,4 @@
+// vendordeactivate.tsx - Fixed with prop
 'use client';
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -10,12 +11,17 @@ import {
 } from '../../../features/yen-purchase/PurchaseMaster/vendorSlice';
 import { AppDispatch } from '@/redux/store';
 
-const VendorDeactivateDialog = () => {
+interface VendorDeactivateDialogProps {
+  canDelete: boolean; // ✅ ADD PERMISSION PROP
+}
+
+// ✅ RECEIVE THE PROP IN COMPONENT PARAMETERS
+const VendorDeactivateDialog: React.FC<VendorDeactivateDialogProps> = ({ canDelete }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { deactivateDialogOpen, itemToDeactivate } = useSelector(selectVendorItems);
 
   const handleDeactivateConfirm = () => {
-    if (itemToDeactivate) {
+    if (itemToDeactivate && canDelete) { // ✅ NOW canDelete IS AVAILABLE
       dispatch(deactivateVendor(itemToDeactivate.vendorId));
     }
     dispatch(setDeactivateDialogOpen(false));
@@ -39,7 +45,11 @@ const VendorDeactivateDialog = () => {
         <Button onClick={handleDeactivateCancel} color="primary">
           Cancel
         </Button>
-        <Button onClick={handleDeactivateConfirm} color="primary">
+        <Button 
+          onClick={handleDeactivateConfirm} 
+          color="primary"
+          disabled={!canDelete} // ✅ DISABLE IF NO PERMISSION
+        >
           Deactivate
         </Button>
       </DialogActions>

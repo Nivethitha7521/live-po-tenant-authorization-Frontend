@@ -9,6 +9,7 @@ interface VendorToolbarProps {
   onSearch: (query: string) => void;
   onAdd: () => void;
   onToggleDeactivated: () => void;
+  showAddButton: boolean;
 }
 
 const VendorToolbar: React.FC<VendorToolbarProps> = ({
@@ -17,6 +18,7 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
   onSearch,
   onAdd,
   onToggleDeactivated,
+  showAddButton = true,
 }) => {
   return (
     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
@@ -34,6 +36,7 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
 
       {/* Action Buttons */}
       <Box display="flex" alignItems="center" gap={1}>
+        {showAddButton && (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <IconButton
             color="primary"
@@ -62,7 +65,7 @@ const VendorToolbar: React.FC<VendorToolbarProps> = ({
             Add
           </Typography>
         </Box>
-
+        )}
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <Typography
             variant="caption"

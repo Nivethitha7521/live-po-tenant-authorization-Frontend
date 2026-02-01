@@ -21,13 +21,13 @@ import {
   setShowImportResultDialog,
   resetImportResult,
 } from '../../../../features/yen-purchase/PurchaseMaster/PurchaseSubcategorySlice';
-import { Box, Snackbar } from '@mui/material';
+import { Box, Snackbar,Alert } from '@mui/material';
 import PurchaseSubcategoryActions from '../../../../components/yen-purchase/purchasemaster/subcategory/purchaseSubcategoryActions';
 import PurchaseSubcategoryTable from '../../../../components/yen-purchase/purchasemaster/subcategory/purchaseSubcategoryTable';
 import PurchaseSubcategoryForm from '../../../../components/yen-purchase/purchasemaster/subcategory/purchaseSubcategoryForm';
 import { PurchaseSubcategory } from '@/Models/purchasesubcategory';
 import CommonImportResultDialog from '@/components/yen-purchase/CommonImportDialog';
-
+import { usePermissions } from '@/hooks/usePermissions';
 const initialSubcategoryState: PurchaseSubcategory = {
   purchasesubcategoryId: '',
   purchasesubcategoryName: '',
@@ -37,6 +37,7 @@ const initialSubcategoryState: PurchaseSubcategory = {
 
 const PurchaseSubcategoryPage: React.FC = () => {
   const dispatch: AppDispatch = useDispatch();
+  const { hasPermission, isModuleVisible } = usePermissions(); 
   const {
     items: purchaseSubcategories,
     deactivatedSubcategories,
@@ -55,6 +56,12 @@ const PurchaseSubcategoryPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const existingSubcategories = purchaseSubcategories.map((item) => item.purchasesubcategoryName);
 
+   
+  const canAdd = hasPermission('yenerp', 'purchasesubcategory', 'add');
+  const canEdit = hasPermission('yenerp', 'purchasesubcategory', 'edit');
+  const canDelete = hasPermission('yenerp', 'purchasesubcategory', 'delete');
+ 
+
   useEffect(() => {
     dispatch(fetchPurchaseSubcategories());
   }, [dispatch]);
@@ -67,9 +74,26 @@ const PurchaseSubcategoryPage: React.FC = () => {
     subcategory.purchasesubcategoryName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDialogOpen = () => {
-    dispatch(setDialogOpen('edit'));
-  };
+ const handleDialogOpen = (action: 'add' | 'edit' = 'add') => {
+  console.log('🟢 handleDialogOpen called with action:', action);
+  
+  if (action === 'add') {
+    if (!canAdd) {
+      console.log('❌ Add permission denied');
+      dispatch(setSnackbarMessage('You do not have permission to add subcategories'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+  } else if (action === 'edit') {
+    if (!canEdit) {
+      console.log('❌ Edit permission denied');
+      dispatch(setSnackbarMessage('You do not have permission to edit subcategories'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+  }
+  dispatch(setDialogOpen('edit'));
+};
 
   const handleDialogClose = () => {
     dispatch(setDialogOpen('none'));
@@ -104,6 +128,14 @@ const PurchaseSubcategoryPage: React.FC = () => {
     setLoading(true);
 
     if (editIndex !== null) {
+
+       if (!canEdit) { 
+        dispatch(setSnackbarMessage('You do not have permission to edit subcategories'));
+        dispatch(setSnackbarOpen(true));
+        setLoading(false);
+        return;
+      }
+
       dispatch(
         updatePurchaseSubcategory({
           purchasesubcategoryId: values.purchasesubcategoryId,
@@ -125,6 +157,13 @@ const PurchaseSubcategoryPage: React.FC = () => {
           setLoading(false);
         });
     } else {
+      if (!canAdd) { 
+        dispatch(setSnackbarMessage('You do not have permission to add subcategories'));
+        dispatch(setSnackbarOpen(true));
+        setLoading(false);
+        return;
+      }
+
       dispatch(addPurchaseSubcategory(values))
         .unwrap()
         .then(() => {
@@ -143,13 +182,24 @@ const PurchaseSubcategoryPage: React.FC = () => {
     }
   };
 
-  const handleEdit = (index: number) => {
-    dispatch(setEditIndex(index));
-    dispatch(setPurchaseSubcategoryData(purchaseSubcategories[index]));
-    handleDialogOpen();
-  };
+ const handleEdit = (index: number) => {
+    if (!canEdit) {
+    dispatch(setSnackbarMessage('You do not have permission to edit subcategories'));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+  
+  dispatch(setEditIndex(index));
+  dispatch(setPurchaseSubcategoryData(purchaseSubcategories[index]));
+  handleDialogOpen('edit');
+};
 
   const handleDeactivate = (purchasesubcategoryId: string) => {
+     if (!canDelete) { 
+      dispatch(setSnackbarMessage('You do not have permission to deactivate subcategories'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     dispatch(deactivatePurchaseSubcategory(purchasesubcategoryId))
       .then(() => {
         dispatch(setSnackbarMessage('Purchase subcategory deactivated successfully'));
@@ -163,6 +213,11 @@ const PurchaseSubcategoryPage: React.FC = () => {
   };
 
   const handleActivate = (purchasesubcategoryId: string) => {
+     if (!canDelete) { 
+            dispatch(setSnackbarMessage('You do not have permission to activate subcategories'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     dispatch(activatePurchaseSubcategory(purchasesubcategoryId))
       .then(() => {
         dispatch(setSnackbarMessage('Purchase subcategory activated successfully'));
@@ -243,6 +298,16 @@ const PurchaseSubcategoryPage: React.FC = () => {
         dispatch(setSnackbarOpen(true));
       });
   };
+// ✅ MODULE VISIBILITY CHECK
+if (!isModuleVisible("yenerp", "purchasesubcategory")) {
+  return (
+    <Box p={3}>
+      <Alert severity="error">
+        You do not have access to the Purchase Subcategory module.
+      </Alert>
+    </Box>
+  );
+}
 
   return (
     <Box>
@@ -257,6 +322,11 @@ const PurchaseSubcategoryPage: React.FC = () => {
         onToggleShowDeactivated={toggleShowDeactivated}
         importStatus={importStatus}
         exportStatus={exportStatus}
+        permissions={{ 
+          add: canAdd,
+          edit: canEdit, 
+          delete: canDelete
+        }}
       />
 
       <PurchaseSubcategoryTable
@@ -265,6 +335,8 @@ const PurchaseSubcategoryPage: React.FC = () => {
         handleEdit={handleEdit}
         handleDeactivate={handleDeactivate}
         handleActivate={handleActivate}
+        canEdit={canEdit}
+        canDelete={canDelete} 
       />
 
       <PurchaseSubcategoryForm

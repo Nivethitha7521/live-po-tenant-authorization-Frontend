@@ -15,7 +15,8 @@ import {
 } from '@mui/icons-material';
 import Image from 'next/image'; // Import Image from next/image
 import './SideMenu.css';
-
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
 const drawerWidth = 240;
 
 export interface MenuItem {
@@ -108,9 +109,15 @@ export const menuItems: MenuItem[] = [
 interface SideMenuProps {
   onMenuClick: (menuItem: { path: string; text: string }) => void;
   activePath: string;
+  hidePurchaseMenu?: boolean;
+  hideBookMenu?: boolean;
 }
 
-const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick }) => {
+const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick,hidePurchaseMenu,
+  hideBookMenu, }) => {
+    const role = useSelector((state: RootState) => state.auth.role);
+  const isAdmin = role === "Admin";
+
   const [open, setOpen] = useState(false);
   const [subMenuOpen, setSubMenuOpen] = useState<number | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -176,7 +183,25 @@ const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick }) => {
           </IconButton>
         </div>
         <List>
-          {menuItems.map((menuItem, index) => (
+          {menuItems
+           .filter((menuItem) => {
+              // ✅ hide YEN BOOK completely if no permission
+              if (menuItem.text === "YEN BOOK" && hideBookMenu) {
+                return false;
+              }
+              // ✅ hide YEN PURCHASE completely if no permission
+              if (menuItem.text === "YEN PURCHASE" && hidePurchaseMenu) {
+                return false;
+              }
+
+              // ❌ Non-admin ku Account Settings hide
+              if (menuItem.text === "ACCOUNT SETTINGS" && !isAdmin) {
+                return false;
+              }
+
+              return true;
+            })
+          .map((menuItem, index) => (
             <React.Fragment key={index}>
               <ListItem
                 button

@@ -21,9 +21,14 @@ import {
 interface UOMActionsProps {
   searchQuery: string;
   onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onDialogOpen: () => void;
+   onDialogOpen: (action?: 'add' | 'edit') => void; // ✅ UPDATE TYPE
   showDeactivated: boolean;
   onToggleShowDeactivated: () => void;
+   permissions?: { // ✅ ADD PERMISSIONS PROP
+    add?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+  };
 }
 
 const UOMActions: React.FC<UOMActionsProps> = ({
@@ -32,9 +37,10 @@ const UOMActions: React.FC<UOMActionsProps> = ({
   onDialogOpen,
   showDeactivated,
   onToggleShowDeactivated,
+  permissions = { add: true, edit: true, delete: true } // ✅ DEFAULT PERMISSIONS
 }) => {
   
-
+const { add = true } = permissions; // ✅ DESTRUCTURE PERMISSIONS
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} >
@@ -50,15 +56,22 @@ const UOMActions: React.FC<UOMActionsProps> = ({
 
         <Box display="flex" alignItems="center" gap={1} >
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <IconButton
-              color="primary"
-              onClick={onDialogOpen}
-              className="icon-button-outline"
-              size='small'
-              sx={{ p: 0.3 }}
-            >
-              <AddIcon />
-            </IconButton>
+           <IconButton
+  color="primary"
+  onClick={() => onDialogOpen('add')} // ✅ CORRECT - function reference
+  className="icon-button-outline"
+  size='small'
+  sx={{ p: 0.3,
+    opacity: add ? 1 : 0.5,
+    '&.Mui-disabled': {
+      opacity: 0.5,
+      borderColor: 'grey.400 !important',
+      color: 'grey.500 !important'
+    } }}
+  disabled={!add}
+>
+  <AddIcon />
+</IconButton>
             <Typography
               variant="caption"
               align="center"
@@ -72,6 +85,7 @@ const UOMActions: React.FC<UOMActionsProps> = ({
                 textOverflow: 'ellipsis',
                 lineHeight: 1.1,
                 mt: 0.2,
+                color: add ? 'text.primary' : 'grey.500', // ✅ ADD COLOR CHANGE
               }}
             >
               Add

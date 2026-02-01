@@ -28,6 +28,7 @@ interface StorageLocationActionsProps {
   onToggleShowDeactivated: () => void;
   importStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
   exportStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+  showAddButton: boolean; // ✅ ADD PERMISSION PROP
 }
 
 const StorageLocationActions: React.FC<StorageLocationActionsProps> = ({
@@ -41,6 +42,7 @@ const StorageLocationActions: React.FC<StorageLocationActionsProps> = ({
   onToggleShowDeactivated,
   importStatus,
   exportStatus,
+  showAddButton, 
 }) => {
   const [confirmationDialogOpen, setConfirmationDialogOpen] = React.useState(false);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
@@ -81,13 +83,21 @@ const StorageLocationActions: React.FC<StorageLocationActionsProps> = ({
         />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {/* Add Storage Location Button */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <IconButton
               color="primary"
               onClick={onDialogOpen}
               className="icon-button-outline"
               size="small"
-              sx={{ p: 0.3 }}
+              sx={{ 
+                p: 0.3,
+                opacity: showAddButton ? 1 : 0.5,
+                '&.Mui-disabled': {
+                  opacity: 0.5,
+                  color: 'text.disabled'
+                }
+              }}
+              disabled={!showAddButton}
             >
               <AddIcon fontSize="small" />
             </IconButton>
@@ -104,6 +114,8 @@ const StorageLocationActions: React.FC<StorageLocationActionsProps> = ({
                 textOverflow: 'ellipsis',
                 lineHeight: 1.2,
                 mt: 0.2,
+                color: showAddButton ? 'text.primary' : 'grey.500',
+                opacity: showAddButton ? 1 : 0.7,
               }}
             >
               Add

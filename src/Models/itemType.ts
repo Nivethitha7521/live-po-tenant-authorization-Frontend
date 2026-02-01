@@ -25,6 +25,8 @@ export interface PurchaseItemTypeState {
   exportError: string | null;
   importResult: ImportResult | null;
   showImportResultDialog: boolean;
+  error?: string | null; 
+
 }
 
 // Initial state for Purchase Group slice

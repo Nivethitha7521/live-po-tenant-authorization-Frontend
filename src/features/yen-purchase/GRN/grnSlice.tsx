@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { RootState } from '../../../redux/store';
 import { GrnData, GrnState, ItemDetail, ItemDetails, Vendor, PurchaseItem, PurchaseOrder, ApInvoice, ReturnGRNRequest, FetchGrnsPayload, FetchGrnsArgs, initialState, DebitCreditNote, FetchGrnsReturnPayload, ReturnReason, RevertGrnToPOResponse, CreateDebitNoteRequest, DebitCreditNoteResponse, AmountDebitNoteResponse, AmountDebitNoteRequest } from '@/Models/grnModel';
 import { PurchaseRandomId } from '@/Models/purchaseModel';
+import purchaseApi from "@/utils/api";
 
 // Define a specific interface for item updates
 export interface ItemUpdate {
@@ -12,7 +13,7 @@ export interface ItemUpdate {
   afTaxDiscount?: number;
   expiryDate?: Date | null;
 }
-const BASE_URL = 'http://192.168.29.116:8000/purchasetestapi';
+const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 const customRoundOf = (value: number) => {
   return Math.round(value * 100) / 100; // Round to two decimal placeshttp://192.168.29.117:8000
 };
@@ -49,25 +50,26 @@ export const createQuantityBasedDebitNote = createAsyncThunk<
   async (debitNoteData: CreateDebitNoteRequest, { rejectWithValue }) => {
     try {
       console.log('Creating quantity-based debit note:', debitNoteData);
-      
+
       // Quantity-based endpoint for item-wise returns
       const response = await axios.post<DebitCreditNoteResponse>(
         `${BASE_URL}/grns/returnprocess/DebitCreditNote/create`,
         debitNoteData
       );
-      
+
       console.log('Quantity-based debit note created:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('Create quantity debit note error:', error);
       return rejectWithValue(
-        error.response?.data?.detail || 
-        error.response?.data?.message || 
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
         'Failed to create quantity-based debit note'
       );
     }
   }
 );
+// Add this thunk to your existing slice
 export const createAmountOnlyDebitNote = createAsyncThunk<
   AmountDebitNoteResponse,
   AmountDebitNoteRequest,
@@ -78,7 +80,7 @@ export const createAmountOnlyDebitNote = createAsyncThunk<
     try {
       console.log('Creating amount-only debit note with data:', debitNoteData);
       console.log('Request URL:', `${BASE_URL}/grns/returnprocess/AmountDebitNote/create`);
-      
+
       const response = await axios.post<AmountDebitNoteResponse>(
         `${BASE_URL}/grns/returnprocess/AmountDebitNote/create`,
         debitNoteData,
@@ -88,17 +90,17 @@ export const createAmountOnlyDebitNote = createAsyncThunk<
           }
         }
       );
-      
+
       console.log('Amount-only debit note created:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('Create amount debit note error:', error);
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
-      
+
       return rejectWithValue(
-        error.response?.data?.detail || 
-        error.response?.data?.message || 
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
         'Failed to create amount-only debit note'
       );
     }
@@ -130,19 +132,28 @@ export const fetchGrns = createAsyncThunk<FetchGrnsPayload, FetchGrnsArgs>(
     if (daysFilterDate) params.daysFilterDate = daysFilterDate;
 
     try {
-      const response = await axios.get<GrnData[]>(`${BASE_URL}/grns/`, { params });
+      const response = await purchaseApi.get<GrnData[]>("/grns/", { params });
       return {
         grns: response.data,
-        totalItems: Number(response.headers['x-total-count'] ?? response.data.length),
-        hasDebitCreditNotes: response.data.reduce((acc, grn) => {
-          acc[grn.grnId] = grn.hasDebitCreditNotes ?? false;
-          return acc;
-        }, {} as Record<string, boolean>),
+        totalItems: Number(
+          response.headers["x-total-count"] ?? response.data.length,
+        ),
+        hasDebitCreditNotes: response.data.reduce(
+          (acc, grn) => {
+            acc[grn.grnId] = grn.hasDebitCreditNotes ?? false;
+            return acc;
+          },
+          {} as Record<string, boolean>,
+        ),
       };
     } catch (error: any) {
-      return Promise.reject(error.response?.data || 'Error fetching GRNs');
+      return Promise.reject(
+        error.response?.data?.detail ||
+          error.response?.data ||
+          "Error fetching GRNs",
+      );
     }
-  }
+  },
 );
 export const fetchReturnedGrns = createAsyncThunk<
   FetchGrnsReturnPayload,
@@ -170,95 +181,120 @@ export const fetchReturnedGrns = createAsyncThunk<
     if (dateFilterField) params.dateFilterField = dateFilterField;
     if (daysFilterDate) params.daysFilterDate = daysFilterDate;
 
-    try {
-      const response = await axios.get<GrnData[]>(`${BASE_URL}/grns/returnprocess/Grnwise`, { params });
+     try {
+      const response = await purchaseApi.get<GrnData[]>(
+        `/grns/returnprocess/Grnwise`,
+        { params },
+      );
       return {
         grns: response.data,
-        totalItems: Number(response.headers['x-total-count'] ?? response.data.length),
-        hasDebitCreditNotes: response.data.reduce((acc, grn) => {
-          acc[grn.grnId] = grn.hasDebitCreditNotes ?? (grn.totalDebitAmount != null && grn.totalDebitAmount > 0);
-          return acc;
-        }, {} as Record<string, boolean>),
+        totalItems: Number(
+          response.headers["x-total-count"] ?? response.data.length,
+        ),
+        hasDebitCreditNotes: response.data.reduce(
+          (acc, grn) => {
+            acc[grn.grnId] =
+              grn.hasDebitCreditNotes ??
+              (grn.totalDebitAmount != null && grn.totalDebitAmount > 0);
+            return acc;
+          },
+          {} as Record<string, boolean>,
+        ),
       };
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Error fetching returned GRNs');
+      return rejectWithValue(
+        error.response?.data?.detail || "Error fetching returned GRNs",
+      );
     }
-  }
+  },
 );
 
 export const fetchItemwiseGrns = createAsyncThunk(
   'grn/fetchItemwiseGrns',
   async () => {
-    try {
-      const response = await axios.get(`${BASE_URL}/grns/getOutgoing/itemwise`);
-      return response.data;  // Returning the itemwise GRNs
+     try {
+      const response = await purchaseApi.get(`/grns/getOutgoing/itemwise`);
+      return response.data; // Returning the itemwise GRNs
     } catch (error) {
-      console.error('Failed to fetch itemwise GRNs:', error);
-      throw new Error('Failed to fetch itemwise GRNs');
+      console.error("Failed to fetch itemwise GRNs:", error);
+      throw new Error("Failed to fetch itemwise GRNs");
     }
-  }
+  },
 );
 export const fetchGrnById = createAsyncThunk(
-  'grn/fetchById',
+  "grn/fetchById",
   async (grnId: string) => {
-    const response = await axios.get(`${BASE_URL}/grns/${grnId}`);
+    const response = await purchaseApi.get(`/grns/${grnId}`);
     return response.data; // Returning the GRN details
-  }
+  },
 );
 export const addGrn = createAsyncThunk(
-  'grn/addGrn',
+  "grn/addGrn",
   async (grn: GrnData, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${BASE_URL}/grns`, grn);
+      const response = await purchaseApi.post(`/grns`, grn);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to add GRN');
+      return rejectWithValue(error.response?.data || "Failed to add GRN");
     }
-  }
+  },
 );
 
 export const updateGrn = createAsyncThunk(
-  'grn/updateGrn',
+  "grn/updateGrn",
   async (grn: GrnData, { rejectWithValue }) => {
     try {
       const updatedGrn = { ...grn };
-      const response = await axios.patch(`${BASE_URL}/grns/${grn.grnId}`, updatedGrn);
+      const response = await purchaseApi.patch(
+        `/grns/${grn.grnId}`,
+        updatedGrn,
+      );
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to update GRN');
+      return rejectWithValue(error.response?.data || "Failed to update GRN");
     }
-  }
+  },
 );
 // Thunk to update the invoice details
 export const updateInvoiceDetails = createAsyncThunk(
-  'grn/updateInvoiceDetails',
-  async (payload: { grnId: string; invoiceDate?: string; invoiceNo?: string }, { rejectWithValue }) => {
+  "grn/updateInvoiceDetails",
+  async (
+    payload: { grnId: string; invoiceDate?: string; invoiceNo?: string },
+    { rejectWithValue },
+  ) => {
     try {
-      // Construct the URL with query parameters
-      const url = `${BASE_URL}/grns/invoiceupdate/${payload.grnId}?invoiceNo=${payload.invoiceNo}&invoiceDate=${payload.invoiceDate}`;
-
-      // Make the PATCH request
-      const response = await axios.patch(url);
-
-      // Return the updated data from the response
+      const response = await purchaseApi.patch(
+        `/grns/invoiceupdate/${payload.grnId}`,
+        null,
+        {
+          params: {
+            invoiceNo: payload.invoiceNo,
+            invoiceDate: payload.invoiceDate,
+          },
+        },
+      );
       return response.data;
     } catch (error: any) {
       // Handle errors and return the error response data
       return rejectWithValue(error.response?.data || error.message);
     }
-  }
+  },
 );
 
+
 export const updateGrnStatus = createAsyncThunk(
-  'grn/updateGrnStatus',
-  async ({ grnId, status }: { grnId: string, status: string }, { rejectWithValue }) => {
+  "grn/updateGrnStatus",
+  async (
+    { grnId, status }: { grnId: string; status: string },
+    { rejectWithValue },
+  ) => {
     try {
-      const response = await axios.patch(`${BASE_URL}/grns/${grnId}`, { status });
+      const response = await purchaseApi.patch(`/grns/${grnId}`, { status });
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to update GRN');
+      return rejectWithValue(error.response?.data || "Failed to update GRN");
     }
-  }
+  },
 );
 
 // // Define a utility function to calculate discount
@@ -268,138 +304,168 @@ export const updateGrnStatus = createAsyncThunk(
 
 // In your grnSlice.ts
 export const updateItemDetails = createAsyncThunk(
-  'grn/updateItemDetails',
+  "grn/updateItemDetails",
   async (
     {
       grnId,
-      apRoundOff, // REPLACED discountPrice with apRoundOff
+      apRoundOff,
       itemUpdates,
       apInvoiceDate,
       outgoingDate,
     }: {
       grnId: string;
-      apRoundOff: number; // CHANGED from discountPrice to apRoundOff
+      apRoundOff: number;
       itemUpdates: ItemUpdate[];
       apInvoiceDate?: string;
       outgoingDate?: string;
     },
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
-      const url = new URL(`${BASE_URL}/grns/convert-to-ap/ap-to-outgoing/${grnId}`);
-      url.searchParams.append('apRoundOff', apRoundOff.toFixed(2)); // FIXED: Use toFixed(2) to preserve trailing zeros (e.g., "0.30")
-      if (apInvoiceDate) {
-        url.searchParams.append('apInvoiceDate', apInvoiceDate);
-      }
-      if (outgoingDate) {
-        url.searchParams.append('outgoingDate', outgoingDate);
-      }
-
-      const response = await axios.patch(url.toString(), itemUpdates);
+      const response = await purchaseApi.patch(
+        `/grns/convert-to-ap/ap-to-outgoing/${grnId}`,
+        itemUpdates,
+        {
+          params: {
+            apRoundOff,
+            apInvoiceDate,
+            outgoingDate,
+          },
+        },
+      );
 
       return {
         grnId,
         itemUpdates: response.data.updatedItems,
-        apRoundOff, // CHANGED from discountPrice to apRoundOff
+        apRoundOff,
         success: true,
         apInvoiceConverted: response.data.apInvoiceConverted,
         apInvoiceDetails: response.data.apInvoiceDetails,
         outgoingConverted: response.data.outgoingConverted,
         outgoingDetails: response.data.outgoingDetails,
-        grnTotalReceivedAmount: response.data.grnTotalReceivedAmount, // NEW
-        apInvoiceAmount: response.data.apInvoiceAmount, // NEW
-        apRoundOffApplied: response.data.apRoundOffApplied, // NEW
+        totalReceivedAmount: response.data.totalReceivedAmount,
         totalDiscount: response.data.totalDiscount,
         totalTax: response.data.totalTax,
         grnStatus: response.data.grnStatus,
       };
     } catch (error: any) {
-      console.error('Update item details error:', error);
-      return rejectWithValue(error.response?.data || 'Failed to update item details');
+      console.error("Update item details error:", error);
+      return rejectWithValue(
+        error.response?.data || "Failed to update item details",
+      );
     }
-  }
+  },
 );
 export const fetchGrnsWithItemStatus = createAsyncThunk<
   GrnData[],
   string, // status
   { rejectValue: string }
->(
-  'grn/fetchGrnsWithItemStatus',
-  async (status, { rejectWithValue }) => {
-    try {
-      const response = await axios.get(`${BASE_URL}/grns/items/status/${status}`);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue('Failed to fetch GRNs with the specified item status.');
-    }
+>("grn/fetchGrnsWithItemStatus", async (status, { rejectWithValue }) => {
+  try {
+    const response = await purchaseApi.get(`/api/grns/items/status/${status}`);
+    return response.data;
+  } catch (error) {
+    return rejectWithValue(
+      "Failed to fetch GRNs with the specified item status.",
+    );
   }
-);
+});
 
 export const fetchRandomNumbers = createAsyncThunk(
-  'invoiceNumbers/fetchAll',
+  "invoiceNumbers/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get<PurchaseRandomId[]>('http://192.168.29.116:8000/purchasetestapi/purchaseorders/getByRandomId');
-      return response.data;  // List of invoice numbers
+      const response = await purchaseApi.get<PurchaseRandomId[]>(
+        "/purchaseorders/getByRandomId",
+      );
+      return response.data; // List of invoice numbers
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to fetch invoice numbers');
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch invoice numbers",
+      );
     }
-  }
+  },
 );
 export const fetchReturnReasons = createAsyncThunk(
-  'grn/fetchReturnReasons',
+  "grn/fetchReturnReasons",
   async (_, { rejectWithValue }) => {
     try {
-      console.log('Fetching return reasons...');
-      const response = await axios.get<ReturnReason[]>('http://192.168.29.116:8000/purchasetestapi/grns/getgrn/return-reasons');
-      console.log('Return reasons fetched:', response.data);
+      console.log("Fetching return reasons...");
+      const response = await purchaseApi.get<ReturnReason[]>(
+        "/grns/getgrn/return-reasons",
+      );
+      console.log("Return reasons fetched:", response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Fetch return reasons error:', error);
-      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch return reasons');
+      console.error("Fetch return reasons error:", error);
+      return rejectWithValue(
+        error.response?.data?.detail || "Failed to fetch return reasons",
+      );
     }
-  }
+  },
 );
 export const addReturnReason = createAsyncThunk(
-  'grn/addReturnReason',
+  "grn/addReturnReason",
   async (reason: string, { rejectWithValue }) => {
     try {
-      const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/grns/return-reasons', { reason });
+      const response = await purchaseApi.post(
+        "/purchaseapi/grns/return-reasons",
+        { reason },
+      );
       return response.data.reason;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Failed to add return reason');
+      return rejectWithValue(
+        error.response?.data?.detail || "Failed to add return reason",
+      );
     }
-  }
+  },
 );
-
 export const returnGrn = createAsyncThunk(
-  'grn/returnGrn',
-  async (payload: { grnId: string; returnData: ReturnGRNRequest }, { rejectWithValue }) => {
+  "grn/returnGrn",
+  async (
+    payload: { grnId: string; returnData: ReturnGRNRequest },
+    { rejectWithValue },
+  ) => {
     try {
-      const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/grns/${payload.grnId}/return`, payload.returnData);
+      const response = await purchaseApi.patch(
+        `/grns/${payload.grnId}/return`,
+        payload.returnData,
+      );
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Failed to return GRN');
+      return rejectWithValue(
+        error.response?.data?.detail || "Failed to return GRN",
+      );
     }
-  }
+  },
 );
+
 export const fetchDebitCreditNotesByGrn = createAsyncThunk<
   DebitCreditNote[],
   { grnId: string; page: number; size: number },
   { rejectValue: string }
 >(
-  'grn/fetchDebitCreditNotesByGrn',
+  "grn/fetchDebitCreditNotesByGrn",
   async ({ grnId, page, size }, { rejectWithValue }) => {
     try {
-      const response = await axios.get<DebitCreditNote[]>(`http://192.168.29.116:8000/purchasetestapi/grns/returnprocess/DebitNote/${grnId}`, {
-        params: { skip: (page - 1) * size, limit: size },
-      });
+      const response = await purchaseApi.get<DebitCreditNote[]>(
+        `/grns/returnprocess/DebitCreditNote/by-document/${grnId}`,
+        {
+          params: {
+            skip: (page - 1) * size,
+            limit: size,
+          },
+        },
+      );
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Error fetching DebitCreditNotes');
+      return rejectWithValue(
+        error.response?.data?.detail || "Error fetching Debit/Credit Notes",
+      );
     }
-  }
+  },
 );
+
 // Add these thunks to your existing slice
 export const createAmountDebitNote = createAsyncThunk<
   AmountDebitNoteResponse,
@@ -410,19 +476,19 @@ export const createAmountDebitNote = createAsyncThunk<
   async (debitNoteData: AmountDebitNoteRequest, { rejectWithValue }) => {
     try {
       console.log('Creating amount-only debit note:', debitNoteData);
-      
+
       const response = await axios.post<AmountDebitNoteResponse>(
         `${BASE_URL}/grns/returnprocess/AmountDebitNote/create`,
         debitNoteData
       );
-      
+
       console.log('Amount-only debit note created:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('Create amount debit note error:', error);
       return rejectWithValue(
-        error.response?.data?.detail || 
-        error.response?.data?.message || 
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
         'Failed to create amount-only debit note'
       );
     }
@@ -438,19 +504,19 @@ export const createDebitCreditNote = createAsyncThunk<
   async (debitNoteData: CreateDebitNoteRequest, { rejectWithValue }) => {
     try {
       console.log('Creating quantity-based debit note:', debitNoteData);
-      
+
       const response = await axios.post<DebitCreditNoteResponse>(
         `${BASE_URL}/grns/returnprocess/DebitCreditNote/create`,
         debitNoteData
       );
-      
+
       console.log('Quantity-based debit note created:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('Create debit credit note error:', error);
       return rejectWithValue(
-        error.response?.data?.detail || 
-        error.response?.data?.message || 
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
         'Failed to create debit/credit note'
       );
     }
@@ -460,9 +526,9 @@ export const createDebitCreditNote = createAsyncThunk<
 // Update your existing fetchDebitCreditNotesByGrn to handle both types
 export const fetchDebitCreditNotesByDocument = createAsyncThunk<
   DebitCreditNote[],
-  { 
-    documentId: string; 
-    page: number; 
+  {
+    documentId: string;
+    page: number;
     size: number;
     documentType?: 'grn' | 'ap_invoice' | 'outgoing_payment';
   },
@@ -475,16 +541,16 @@ export const fetchDebitCreditNotesByDocument = createAsyncThunk<
       const response = await axios.get<DebitCreditNote[]>(
         `${BASE_URL}/grns/returnprocess/DebitCreditNote/by-document/${documentId}`,
         {
-          params: { 
-            skip: (page - 1) * size, 
-            limit: size 
+          params: {
+            skip: (page - 1) * size,
+            limit: size
           },
         }
       );
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.detail || 
+        error.response?.data?.detail ||
         'Error fetching debit/credit notes'
       );
     }
@@ -493,42 +559,55 @@ export const fetchDebitCreditNotesByDocument = createAsyncThunk<
 
 
 export const updateGrnCancelStatus = createAsyncThunk(
-  'grns/updateStatus',
+  "grns/updateStatus",
   async (grnId: string, { rejectWithValue }) => {
     try {
       // Send the PATCH request to update the GRN status
-      const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/grns/${grnId}`, {
-        status: 'active',
+      const response = await purchaseApi.patch(`/purchaseapi/grns/${grnId}`, {
+        status: "active",
       });
 
       return response.data; // Ensure this contains the updated GRN object
     } catch (error: any) {
       // Handle error by returning a rejected value with an error message
-      return rejectWithValue(error.response?.data || 'Failed to update status');
+      return rejectWithValue(error.response?.data || "Failed to update status");
     }
-  }
+  },
 );
 export const updateItemStatus = createAsyncThunk(
-  'itemStatus/updateItemStatus',
-  async ({ grnId, items }: { grnId: string; items: { itemId: string; status: string }[] }, { rejectWithValue }) => {
+  "itemStatus/updateItemStatus",
+  async (
+    {
+      grnId,
+      items,
+    }: { grnId: string; items: { itemId: string; status: string }[] },
+    { rejectWithValue },
+  ) => {
     try {
       // Create an object mapping item IDs to their statuses
-      const statusUpdateObject = items.reduce((acc, { itemId, status }) => {
-        acc[itemId] = status; // Add itemId as key and status as value
-        return acc;
-      }, {} as Record<string, string>);
+      const statusUpdateObject = items.reduce(
+        (acc, { itemId, status }) => {
+          acc[itemId] = status; // Add itemId as key and status as value
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
 
       // Send the object in the request body
-      const response = await axios.patch(`${BASE_URL}/grns/${grnId}/items/status`, statusUpdateObject, {
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await purchaseApi.patch(
+        `/grns/${grnId}/items/status`,
+        statusUpdateObject,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
       return response.data; // Return the response data upon success
     } catch (err: any) {
       return rejectWithValue(err.response.data); // Handle errors
     }
-  }
+  },
 );
 
 export const grnSlice = createSlice({
@@ -655,7 +734,7 @@ export const grnSlice = createSlice({
         state.error = action.payload as string; // Set error message from API
         state.loading = false;
       })
-  
+
       .addCase(fetchRandomNumbers.pending, (state) => {
         state.error = null;
       })
@@ -794,23 +873,23 @@ export const grnSlice = createSlice({
         state.snackbarMessageGRN = action.payload as string;
         state.snackbarOpenGRN = true;
       })
-        .addCase(revertGrnToPO.pending, (state) => {
+      .addCase(revertGrnToPO.pending, (state) => {
         state.revertLoading = true;
         state.revertError = null;
       })
       .addCase(revertGrnToPO.fulfilled, (state, action: PayloadAction<RevertGrnToPOResponse>) => {
         state.revertLoading = false;
         state.revertError = null;
-        
+
         // Update the GRN status in the local state
         const grnIndex = state.grns.findIndex(grn => grn.grnId === action.payload.grnId);
         if (grnIndex !== -1) {
           state.grns[grnIndex].status = 'ReturnedPO';
         }
-        
+
         state.snackbarMessageGRN = action.payload.message;
         state.snackbarOpenGRN = true;
-        
+
         console.log('GRN reverted to PO:', action.payload);
       })
       .addCase(revertGrnToPO.rejected, (state, action) => {
@@ -819,27 +898,58 @@ export const grnSlice = createSlice({
         state.snackbarMessageGRN = action.payload as string || 'Failed to revert GRN to PO';
         state.snackbarOpenGRN = true;
       })
-        .addCase(createAmountDebitNote.pending, (state) => {
-    state.loading = true;
-    state.error = null;
-  })
-  .addCase(createAmountDebitNote.fulfilled, (state, action: PayloadAction<AmountDebitNoteResponse>) => {
-    state.loading = false;
-    state.snackbarMessageGRN = 'Amount-only debit note created successfully';
-    state.snackbarOpenGRN = true;
-    
-    // Optionally update the GRN's hasDebitCreditNotes flag
-    const grnIndex = state.grns.findIndex(grn => grn.grnId === action.payload.grnId);
-    if (grnIndex !== -1) {
-      state.grns[grnIndex].hasDebitCreditNotes = true;
-    }
-  })
-  .addCase(createAmountDebitNote.rejected, (state, action) => {
-    state.loading = false;
-    state.error = action.payload as string;
-    state.snackbarMessageGRN = action.payload as string || 'Failed to create amount-only debit note';
-    state.snackbarOpenGRN = true;
-  });
+      .addCase(createAmountDebitNote.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createAmountDebitNote.fulfilled, (state, action: PayloadAction<AmountDebitNoteResponse>) => {
+        state.loading = false;
+        state.snackbarMessageGRN = 'Amount-only debit note created successfully';
+        state.snackbarOpenGRN = true;
+
+        // Optionally update the GRN's hasDebitCreditNotes flag
+        const grnIndex = state.grns.findIndex(grn => grn.grnId === action.payload.grnId);
+        if (grnIndex !== -1) {
+          state.grns[grnIndex].hasDebitCreditNotes = true;
+        }
+      })
+      .addCase(createAmountDebitNote.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+        state.snackbarMessageGRN = action.payload as string || 'Failed to create amount-only debit note';
+        state.snackbarOpenGRN = true;
+      })
+
+      .addCase(createAmountOnlyDebitNote.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createAmountOnlyDebitNote.fulfilled, (state, action: PayloadAction<AmountDebitNoteResponse>) => {
+        state.loading = false;
+        state.snackbarMessageGRN = action.payload.message;
+        state.snackbarOpenGRN = true;
+
+        console.log('Amount debit note created:', action.payload);
+      })
+      .addCase(createAmountOnlyDebitNote.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+
+        // Handle validation errors
+        const errorData = action.payload;
+        if (typeof errorData === 'string') {
+          try {
+            // Try to parse as JSON if it contains structured error
+            const parsedError = JSON.parse(errorData);
+            state.snackbarMessageGRN = parsedError.message || 'Failed to create amount-only debit note';
+          } catch {
+            state.snackbarMessageGRN = errorData;
+          }
+        } else {
+          state.snackbarMessageGRN = 'Failed to create amount-only debit note';
+        }
+        state.snackbarOpenGRN = true;
+      });
   },
 });
 

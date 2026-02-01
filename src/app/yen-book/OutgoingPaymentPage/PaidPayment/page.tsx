@@ -24,6 +24,8 @@ import {
   Autocomplete,
   TextField,
 } from "@mui/material";
+import { usePermissions } from "@/hooks/usePermissions";
+
 import {
   fetchOutgoings,
   selectOutgoings,
@@ -62,6 +64,18 @@ import { AutocompleteChangeReason } from "@mui/material/Autocomplete";
 
 const PaidPaymentComponent = () => {
   const dispatch = useDispatch<AppDispatch>();
+   const { hasPermission, isModuleVisible } = usePermissions();
+  const canReadpaymentdone = hasPermission("yenerp", "paymentdone", "read");
+
+  if (!canReadpaymentdone) {
+    return (
+      <Box p={2}>
+        <Typography color="error">
+          You do not have access to the Payment Done module.
+        </Typography>
+      </Box>
+    );
+  }
   const { outgoings, loading, snackbarOpen, snackbarMessage, outgoingvendor } = useSelector(selectOutgoings);
   const { itemwise } = useSelector(selectGrn);
   const { businesses } = useSelector(selectBusinesses);
@@ -565,43 +579,75 @@ const handleDownload = async (outgoingId: string) => {
       <Box sx={{ p: 1, backgroundColor: "white", mx: 1 }}>
         <Box display="flex" flexDirection="column" alignItems="start" mb={1}>
           <Grid container spacing={1} alignItems="center">
+            {isModuleVisible("yenerp", "outgoingpayment") && (
+              <Grid item>
+                <Link href="/yen-book/OutgoingPaymentPage" passHref>
+                  <Button variant="contained" color="primary">
+                    Outgoing Payment
+                  </Button>
+                </Link>
+              </Grid>
+            )}
             <Grid item>
-              <Link href="/yen-book/OutgoingPaymentPage" passHref>
-                <Button variant="contained" color="primary">Outgoing Payment</Button>
-              </Link>
+              {isModuleVisible("yenerp", "advancepayment") && (
+                <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
+                  <Button variant="contained" color="primary">
+                    Advance Payment
+                  </Button>
+                </Link>
+              )}
             </Grid>
+           
+          {isModuleVisible("yenerp", "partialpayment") && (
+              <Grid item>
+                <Link
+                  href="/yen-book/OutgoingPaymentPage/PendingPayment"
+                  passHref
+                >
+                  <Button variant="contained" color="primary">
+                    Partial Payment
+                  </Button>
+                </Link>
+              </Grid>
+            )}
+           {isModuleVisible("yenerp", "paymentdone") && (
+              <Grid item>
+                <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
+                  <Button
+                    variant="contained"
+                    sx={{
+                      backgroundColor: "white",
+                      color: "black",
+                      "&:hover": {
+                        backgroundColor: "rgba(255, 255, 255, 0.8)",
+                      },
+                    }}
+                  >
+                    Payment Done
+                  </Button>
+                </Link>
+              </Grid>
+            )}
+             {isModuleVisible("yenerp", "ledger") && (
+              <Grid item>
+                <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
+                  <Button variant="contained" color="primary">
+                    Ledger
+                  </Button>
+                </Link>
+              </Grid>
+            )}
             <Grid item>
-              <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
-                <Button variant="contained" color="primary">Advance Payment</Button>
-              </Link>
-            </Grid>
-            <Grid item>
-              <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
-                <Button variant="contained" color="primary">Partial Payment</Button>
-              </Link>
-            </Grid>
-            <Grid item>
-              <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
-                <Button variant="contained" sx={{
-                  backgroundColor: 'white',
-                  color: 'black',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                  },
-                }}>
-                  Payment Done
-                </Button>
-              </Link>
-            </Grid>
-            <Grid item>
-              <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
-                <Button variant="contained" color="primary">Ledger</Button>
-              </Link>
-            </Grid>
-            <Grid item>
-              <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
-                <Button variant="contained" color="primary">Purchase Return</Button>
-              </Link>
+              {isModuleVisible("yenerp", "purchasereturn") && (
+                <Link
+                  href="/yen-book/OutgoingPaymentPage/PurchaseReturn"
+                  passHref
+                >
+                  <Button variant="contained" color="primary">
+                    Purchase Return
+                  </Button>
+                </Link>
+              )}
             </Grid>
           </Grid>
 

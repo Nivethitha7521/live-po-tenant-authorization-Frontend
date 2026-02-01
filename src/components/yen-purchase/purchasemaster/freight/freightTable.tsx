@@ -14,16 +14,22 @@ interface FreightTableProps {
   handleEdit: (id: string) => void;
   handleDeactivate: (id: string) => void;
   handleActivate: (id: string) => void;
+  canEdit: boolean; // ✅ ADD PERMISSION PROP
+  canDelete: boolean; // ✅ ADD PERMISSION PROP
 }
 
 const FreightTable: React.FC<FreightTableProps> = ({
-  items, loading, handleEdit, handleDeactivate, handleActivate
+  items, loading, handleEdit, handleDeactivate, handleActivate,canEdit, // ✅ RECEIVE PERMISSION PROP
+  canDelete // ✅ RECEIVE PERMISSION PROP
 }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [actionType, setActionType] = useState<'deactivate' | 'activate' | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
-  const handleOpenDialog = (itemId: string, action: 'deactivate' | 'activate') => {
+ const handleOpenDialog = (itemId: string, action: 'deactivate' | 'activate') => {
+    if ((action === 'deactivate' && !canDelete) || (action === 'activate' && !canDelete)) {
+      return; // ✅ PREVENT OPENING DIALOG IF NO PERMISSION
+    }
     setSelectedItemId(itemId);
     setActionType(action);
     setOpenDialog(true);
@@ -84,15 +90,46 @@ const FreightTable: React.FC<FreightTableProps> = ({
                   <TableCell>
                     {item.status === 'active' ? (
                       <>
-                        <IconButton onClick={() => handleEdit(item.freightId)}>
+                        <IconButton 
+                          onClick={() => handleEdit(item.freightId)}
+                          disabled={!canEdit}
+                          sx={{ 
+                            opacity: canEdit ? 1 : 0.5,
+                            '&.Mui-disabled': {
+                              opacity: 0.5,
+                              color: 'text.disabled'
+                            }
+                          }}
+                        >
                           <EditIcon />
                         </IconButton>
-                        <IconButton onClick={() => handleOpenDialog(item.freightId, 'deactivate')}>
+                        <IconButton 
+                          onClick={() => handleOpenDialog(item.freightId, 'deactivate')}
+                          disabled={!canDelete}
+                          sx={{ 
+                            opacity: canDelete ? 1 : 0.5,
+                            '&.Mui-disabled': {
+                              opacity: 0.5,
+                              color: 'text.disabled'
+                            }
+                          }}
+                        >
                           <DeleteIcon />
                         </IconButton>
+
                       </>
                     ) : (
-                      <IconButton onClick={() => handleOpenDialog(item.freightId, 'activate')}>
+                      <IconButton 
+                        onClick={() => handleOpenDialog(item.freightId, 'activate')}
+                        disabled={!canDelete}
+                        sx={{ 
+                          opacity: canDelete ? 1 : 0.5,
+                          '&.Mui-disabled': {
+                            opacity: 0.5,
+                            color: 'text.disabled'
+                          }
+                        }}
+                      >
                         <RefreshIcon />
                       </IconButton>
                     )}

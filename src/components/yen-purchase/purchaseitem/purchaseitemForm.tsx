@@ -57,7 +57,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
   validationSchema,
   onSubmit,
   editIndex,
-categories: propCategories,
+  categories: propCategories,
   uoms,
   groupitems,
   taxes,
@@ -78,7 +78,18 @@ categories: propCategories,
   const existingSubcategories = purchaseSubcategories.map(item => item.purchasesubcategoryName);
   const totalSteps = steps.length;
   const inputRef = useRef<HTMLInputElement>(null);
-  const [localCategories, setLocalCategories] = useState(propCategories); // Local state for categories
+  const [localCategories, setLocalCategories] = useState(propCategories);
+  
+  // ✅ GET ALL SUBCATEGORIES FROM CATEGORIES WITH UNIQUE KEYS
+  const allSubcategories = localCategories.flatMap(category => 
+    (category.subcategories || []).map((subcategoryName: string) => ({
+      name: subcategoryName,
+      category: category.purchasecategoryName,
+      categoryId: category.purchasecategoryId,
+      uniqueKey: `${category.purchasecategoryId}-${subcategoryName}`
+    }))
+  );
+
   const handleDialogClose = (forceClose = false) => {
     if (isDirty && !forceClose) {
       setShowCloseConfirm(true);
@@ -89,10 +100,12 @@ categories: propCategories,
     setIsDirty(false);
     setShowDuplicateDialog(false);
   };
-// Sync localCategories with propCategories when propCategories changes
+
+  // Sync localCategories with propCategories when propCategories changes
   useEffect(() => {
     setLocalCategories(propCategories);
   }, [propCategories]);
+
   // Handle browser reload prevention
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -119,19 +132,18 @@ categories: propCategories,
 
   const handleCategoryAdded = () => {
     setCategoryDialogOpen(false);
+    dispatch(fetchCategories());
   };
+
   useEffect(() => {
     if (open) {
-      // Double focus approach for maximum reliability
       const timer = setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
-          // Move cursor to end if there's text
           const length = inputRef.current.value.length;
           inputRef.current.setSelectionRange(length, length);
         }
       }, 100);
-
       return () => clearTimeout(timer);
     }
   }, [open]);
@@ -148,7 +160,6 @@ categories: propCategories,
     if (formRef.current) {
       const formik = formRef.current;
 
-      // Define fields to validate for each step
       const stepFields: { [key: number]: string[] } = {
         0: ['itemName', 'purchasesubcategoryName', 'purchasecategoryName', 'itemgroupName', 'itemType', 'supplier'],
         1: ['uom', 'purchasePrice', 'purchasetaxName', 'stockQuantity'],
@@ -156,26 +167,21 @@ categories: propCategories,
         3: ['barcode', 'description'],
       };
 
-      // Set touched for current step's fields
       const touchedFields = stepFields[activeStep].reduce((acc, field) => ({
         ...acc,
         [field]: true,
       }), {});
       formik.setTouched({ ...formik.touched, ...touchedFields });
 
-      // Validate form
       const errors = await formik.validateForm();
-
-      // Check for errors in current step's fields
       const hasErrors = stepFields[activeStep].some((field) => errors[field]);
 
-      // Duplicate item name check for Step 0
       let duplicateError = false;
       if (activeStep === 0 && formik.values.itemName) {
         const normalizedInputName = formik.values.itemName
           .trim()
           .toLowerCase()
-          .replace(/\s+/g, ''); // Remove extra spaces
+          .replace(/\s+/g, '');
         const existingItem = existingItems.find(
           (item) =>
             item.itemName
@@ -319,8 +325,8 @@ categories: propCategories,
 
       <Box sx={{ px: 3, pt: 2 }}>
         <Stepper activeStep={activeStep} alternativeLabel>
-          {steps.map((label) => (
-            <Step key={label}>
+          {steps.map((label, index) => (
+            <Step key={`step-${index}`}> {/* ✅ FIXED: Add key to Step */}
               <StepLabel>{label}</StepLabel>
             </Step>
           ))}
@@ -340,6 +346,7 @@ categories: propCategories,
             <DialogContent>
               {activeStep === 0 && (
                 <Grid container spacing={2}>
+                  {/* Item Name */}
                   <Grid item xs={12} sm={6} md={3}>
                     <TextField
                       inputRef={inputRef}
@@ -375,7 +382,9 @@ categories: propCategories,
                       required
                     />
                   </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+
+                  {/* ✅ PURCHASE SUBCATEGORY DROPDOWN - FIXED KEYS */}
+                  <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.purchasesubcategoryName && Boolean(errors.purchasesubcategoryName)}>
                       <InputLabel>Purchase Subcategory*</InputLabel>
                       <Select
@@ -385,11 +394,12 @@ categories: propCategories,
                         onChange={(event) => {
                           const selectedSubcategory = event.target.value as string;
                           setFieldValue('purchasesubcategoryName', selectedSubcategory);
-                          const category = localCategories.find(cat =>
-                            cat.subcategories?.includes(selectedSubcategory)
+                          
+                          const foundCategory = allSubcategories.find(
+                            sub => sub.name === selectedSubcategory
                           );
-                          if (category) {
-                            setFieldValue('purchasecategoryName', category.purchasecategoryName);
+                          if (foundCategory) {
+                            setFieldValue('purchasecategoryName', foundCategory.category);
                           }
                         }}
                         endAdornment={
@@ -405,19 +415,17 @@ categories: propCategories,
                         }
                         required
                       >
-                        {localCategories.length ? (
-                          localCategories.flatMap(category =>
-                            (category.subcategories || []).map((subcategoryName: string) => (
-                              <MenuItem
-                                key={`${category.purchasecategoryId}-${subcategoryName}`}
-                                value={subcategoryName}
-                              >
-                                {subcategoryName}
-                              </MenuItem>
-                            ))
-                          )
+                        {allSubcategories.length > 0 ? (
+                          allSubcategories.map((subcategory) => (
+                            <MenuItem
+                              key={subcategory.uniqueKey} 
+                              value={subcategory.name}
+                            >
+                              {subcategory.name}
+                            </MenuItem>
+                          ))
                         ) : (
-                          <MenuItem disabled>No subcategories available</MenuItem>
+                          <MenuItem key="no-subcategories" disabled>No subcategories available</MenuItem>
                         )}
                       </Select>
                       <FormHelperText>
@@ -427,17 +435,21 @@ categories: propCategories,
                       </FormHelperText>
                     </FormControl>
                   </Grid>
+
+                  {/* ✅ PURCHASE CATEGORY DROPDOWN - FIXED KEYS */}
                   <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      label="Purchase Category*"
-                      name="purchasecategoryName"
-                      value={values.purchasecategoryName}
-                      onChange={handleChange}
-                      error={touched.purchasecategoryName && Boolean(errors.purchasecategoryName)}
-                      helperText={touched.purchasecategoryName && errors.purchasecategoryName ? String(errors.purchasecategoryName) : ''}
-                      fullWidth
-                      InputProps={{
-                        endAdornment: (
+                    <FormControl fullWidth error={touched.purchasecategoryName && Boolean(errors.purchasecategoryName)}>
+                      <InputLabel>Purchase Category*</InputLabel>
+                      <Select
+                        label="Purchase Category*"
+                        name="purchasecategoryName"
+                        value={values.purchasecategoryName}
+                        onChange={(event) => {
+                          const selectedCategory = event.target.value as string;
+                          setFieldValue('purchasecategoryName', selectedCategory);
+                          setFieldValue('purchasesubcategoryName', '');
+                        }}
+                        endAdornment={
                           <InputAdornment position="end">
                             <IconButton
                               onClick={() => setCategoryDialogOpen(true)}
@@ -447,58 +459,96 @@ categories: propCategories,
                               <AddIcon />
                             </IconButton>
                           </InputAdornment>
-                        )
-                      }}
-                      required
-                    />
+                        }
+                        required
+                      >
+                        {localCategories.length > 0 ? (
+                          localCategories.map((category) => (
+                            <MenuItem
+                              key={category.purchasecategoryId} 
+                              value={category.purchasecategoryName}
+                            >
+                              {category.purchasecategoryName}
+                            </MenuItem>
+                          ))
+                        ) : (
+                          <MenuItem key="no-categories" disabled>No categories available</MenuItem>
+                        )}
+                      </Select>
+                      <FormHelperText>
+                        {touched.purchasecategoryName && errors.purchasecategoryName
+                          ? String(errors.purchasecategoryName)
+                          : ''}
+                      </FormHelperText>
+                    </FormControl>
                   </Grid>
+
+                  {/* ✅ ITEM GROUP DROPDOWN - FIXED KEYS */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.itemgroupName && Boolean(errors.itemgroupName)}>
                       <InputLabel>Item Group*</InputLabel>
                       <Select
-                        label="Item Group"
+                        label="Item Group*"
                         name="itemgroupName"
                         value={values.itemgroupName}
                         onChange={handleChange}
                         required
                       >
-                        {groupitems.map((groupitem) => (
-                          <MenuItem key={groupitem.itemgroupName} value={groupitem.itemgroupName}>
-                            {groupitem.itemgroupName}
-                          </MenuItem>
-                        ))}
+                        {groupitems.length > 0 ? (
+                          groupitems.map((groupitem, index) => (
+                            <MenuItem 
+                              key={groupitem.itemgroupId || `group-${index}`} 
+                              value={groupitem.itemgroupName}
+                            >
+                              {groupitem.itemgroupName}
+                            </MenuItem>
+                          ))
+                        ) : (
+                          <MenuItem key="no-groups" disabled>No item groups available</MenuItem>
+                        )}
                       </Select>
                       <FormHelperText>
                         {touched.itemgroupName && errors.itemgroupName ? String(errors.itemgroupName) : ''}
                       </FormHelperText>
                     </FormControl>
                   </Grid>
+
+                  {/* ✅ ITEM TYPE DROPDOWN - FIXED KEYS */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.itemType && Boolean(errors.itemType)}>
                       <InputLabel id="itemType-label">Item Type*</InputLabel>
                       <Select
                         labelId="itemType-label"
-                        label="Item Type"
+                        label="Item Type*"
                         name="itemType"
                         value={values.itemType}
                         onChange={handleChange}
                         required
                       >
-                        {itemtypes.map((type) => (
-                          <MenuItem key={type.itemtypeName} value={type.itemtypeName}>
-                            {type.itemtypeName}
-                          </MenuItem>
-                        ))}
+                        {itemtypes.length > 0 ? (
+                          itemtypes.map((type, index) => (
+                            <MenuItem 
+                              key={type.itemtypeId || `type-${index}`}
+                              value={type.itemtypeName}
+                            >
+                              {type.itemtypeName}
+                            </MenuItem>
+                          ))
+                        ) : (
+                          <MenuItem key="no-types" disabled>No item types available</MenuItem>
+                        )}
                       </Select>
                       <FormHelperText>
                         {touched.itemType && errors.itemType ? String(errors.itemType) : ''}
                       </FormHelperText>
                     </FormControl>
                   </Grid>
+
+                  {/* Supplier */}
                   <Grid item xs={12} sm={6} md={3}>
                     <TextField
                       fullWidth
-                      label="Supplier"
+                      label="Supplier*"
                       name="supplier"
                       value={values.supplier}
                       onChange={handleChange}
@@ -512,31 +562,40 @@ categories: propCategories,
 
               {activeStep === 1 && (
                 <Grid container spacing={2}>
+                  {/* ✅ UOM DROPDOWN - FIXED KEYS */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.uom && Boolean(errors.uom)}>
                       <InputLabel>UOM*</InputLabel>
                       <Select
-                        label="UOM"
+                        label="UOM*"
                         name="uom"
                         value={values.uom}
                         onChange={handleChange}
                         required
                       >
-                        {uoms.map((uom) => (
-                          <MenuItem key={uom.uom} value={uom.uom}>
-                            {uom.uom}
-                          </MenuItem>
-                        ))}
+                        {uoms.length > 0 ? (
+                          uoms.map((uom, index) => (
+                            <MenuItem 
+                              key={uom.uomId || `uom-${index}`} 
+                              value={uom.uom}
+                            >
+                              {uom.uom}
+                            </MenuItem>
+                          ))
+                        ) : (
+                          <MenuItem key="no-uoms" disabled>No UOMs available</MenuItem>
+                        )}
                       </Select>
                       <FormHelperText>
                         {touched.uom && errors.uom ? String(errors.uom) : ''}
                       </FormHelperText>
                     </FormControl>
                   </Grid>
+
                   <Grid item xs={12} sm={6} md={3}>
                     <TextField
                       fullWidth
-                      label='Purchase Price'
+                      label='Purchase Price*'
                       name="purchasePrice"
                       value={values.purchasePrice}
                       onChange={handleChange}
@@ -547,30 +606,40 @@ categories: propCategories,
                       required
                     />
                   </Grid>
+
+                  {/* ✅ TAX PERCENTAGE DROPDOWN - FIXED KEYS */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.purchasetaxName && Boolean(errors.purchasetaxName)}>
                       <InputLabel>Tax Percentage*</InputLabel>
                       <Select
-                        label="Tax Percentage"
+                        label="Tax Percentage*"
                         name="purchasetaxName"
                         value={values.purchasetaxName}
                         onChange={handleChange}
                         required
                       >
-                        {taxes.map((tax) => (
-                          <MenuItem key={tax.purchasetaxPercentage} value={tax.purchasetaxPercentage}>
-                            {`${tax.purchasetaxPercentage}%`}
-                          </MenuItem>
-                        ))}
+                        {taxes.length > 0 ? (
+                          taxes.map((tax, index) => (
+                            <MenuItem 
+                              key={tax.purchasetaxId || `tax-${index}`} 
+                              value={tax.purchasetaxPercentage}
+                            >
+                              {`${tax.purchasetaxPercentage}%`}
+                            </MenuItem>
+                          ))
+                        ) : (
+                          <MenuItem key="no-taxes" disabled>No taxes available</MenuItem>
+                        )}
                       </Select>
                       <FormHelperText>
                         {touched.purchasetaxName && errors.purchasetaxName ? String(errors.purchasetaxName) : ''}
                       </FormHelperText>
                     </FormControl>
                   </Grid>
+
                   <Grid item xs={12} sm={6} md={3}>
                     <TextField
-                      label="Stock Quantity"
+                      label="Stock Quantity*"
                       name="stockQuantity"
                       value={values.stockQuantity}
                       onChange={handleChange}
@@ -589,7 +658,7 @@ categories: propCategories,
                   <Grid item xs={12} sm={6} md={3}>
                     <TextField
                       fullWidth
-                      label='Reorder Level'
+                      label='Reorder Level*'
                       name="reorderLevel"
                       value={values.reorderLevel}
                       onChange={handleChange}
@@ -603,7 +672,7 @@ categories: propCategories,
                   <Grid item xs={12} sm={6} md={3}>
                     <TextField
                       fullWidth
-                      label='HSN Code'
+                      label='HSN Code*'
                       name="hsnCode"
                       value={values.hsnCode}
                       onChange={handleChange}
@@ -612,31 +681,41 @@ categories: propCategories,
                       required
                     />
                   </Grid>
+
+                  {/* ✅ STORAGE LOCATION DROPDOWN - FIXED KEYS */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.locationName && Boolean(errors.locationName)}>
-                      <InputLabel>Storage Location</InputLabel>
+                      <InputLabel>Storage Location*</InputLabel>
                       <Select
-                        label="Storage Location"
+                        label="Storage Location*"
                         name="locationName"
                         value={values.locationName || ''}
                         onChange={handleChange}
                         required
                       >
-                        {locations.map(location => (
-                          <MenuItem key={location.locationName} value={location.locationName}>
-                            {location.locationName}
-                          </MenuItem>
-                        ))}
+                        {locations.length > 0 ? (
+                          locations.map((location, index) => (
+                            <MenuItem 
+                              key={location.locationId || `location-${index}`} 
+                              value={location.locationName}
+                            >
+                              {location.locationName}
+                            </MenuItem>
+                          ))
+                        ) : (
+                          <MenuItem key="no-locations" disabled>No locations available</MenuItem>
+                        )}
                       </Select>
                       <FormHelperText>
                         {touched.locationName && errors.locationName ? String(errors.locationName) : ''}
                       </FormHelperText>
                     </FormControl>
                   </Grid>
+
                   <Grid item xs={12} sm={6} md={3}>
                     <TextField
                       fullWidth
-                      label="Shelf Life"
+                      label="Shelf Life*"
                       name="shelfLife"
                       value={values.shelfLife}
                       onChange={handleChange}
@@ -653,7 +732,7 @@ categories: propCategories,
                   <Grid item xs={12} sm={6} md={3}>
                     <TextField
                       fullWidth
-                      label='Barcode'
+                      label='Barcode*'
                       name="barcode"
                       value={values.barcode}
                       onChange={handleChange}
@@ -665,7 +744,7 @@ categories: propCategories,
                   <Grid item xs={12} sm={6} md={9}>
                     <TextField
                       fullWidth
-                      label='Description'
+                      label='Description*'
                       rows={4}
                       name="description"
                       value={values.description}
@@ -715,6 +794,8 @@ categories: propCategories,
           </Form>
         )}
       </Formik>
+
+      {/* Confirmation Dialogs */}
       <ConfirmationDialog
         open={showCloseConfirm}
         title="Unsaved Changes"
@@ -724,6 +805,7 @@ categories: propCategories,
         confirmText="Confirm"
         cancelText="Cancel"
       />
+      
       <ConfirmationDialog
         open={showDuplicateDialog}
         title="Duplicate Item Name"
@@ -733,11 +815,15 @@ categories: propCategories,
         confirmText="OK"
         cancelText=""
       />
+
+      {/* Add Category Dialog */}
       <AddEditDialog
         open={categoryDialogOpen}
         onClose={() => setCategoryDialogOpen(false)}
         onCategoryAdded={handleCategoryAdded}
       />
+
+      {/* Add Subcategory Dialog */}
       <PurchaseSubcategoryForm
         open={subcategoryDialogOpen}
         onClose={() => setSubcategoryDialogOpen(false)}
@@ -745,14 +831,12 @@ categories: propCategories,
           try {
             await dispatch(addPurchaseSubcategory(newSubcategory));
             await dispatch(fetchCategories());
-            // Update the parent form's subcategory field
             if (formRef.current) {
               formRef.current.setFieldValue(
                 'purchasesubcategoryName',
                 newSubcategory.purchasesubcategoryName
               );
             }
-
           } catch (error) {
             // Handle error
           }

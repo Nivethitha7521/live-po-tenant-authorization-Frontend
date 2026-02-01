@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { AdvancePayment, VendorDetail, AdvanceState } from '@/Models/advanceModel';
+import purchaseApi from "@/utils/api";
 
 const initialState: AdvanceState = {
   advances: [],
@@ -37,8 +38,9 @@ export const fetchAdvances = createAsyncThunk<
         ...(vendorName && { vendorName }),
       });
 
-      const response = await axios.get(`http://192.168.29.116:8000/purchasetestapi/advancevendor/vendorwise/advance?${params}`);
-      return {
+  const response = await purchaseApi.get(
+        `/advancevendor/vendorwise/advance?${params}`,
+      );      return {
         data: response.data.data || [],
         totalItems: response.data.totalItems || 0,
       };
@@ -48,66 +50,75 @@ export const fetchAdvances = createAsyncThunk<
     }
   }
 );
-export const fetchVendorDetails = createAsyncThunk<VendorDetail[], { status?: string }, { rejectValue: string }>(
-  'advances/fetchVendorDetails',
-  async ({ status }, { rejectWithValue }) => {
-    try {
-      const params = new URLSearchParams();
-      if (status) params.append('status', status);
-      const response = await axios.get(`http://192.168.29.116:8000/purchasetestapi/advancevendor/vendors`, { params });
-      return response.data || [];
-    } catch (error: any) {
-      console.error('Error in fetchVendorDetails:', error);
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch vendor details');
-    }
+export const fetchVendorDetails = createAsyncThunk<
+  VendorDetail[],
+  { status?: string },
+  { rejectValue: string }
+>("advances/fetchVendorDetails", async ({ status }, { rejectWithValue }) => {
+  try {
+    const params = new URLSearchParams();
+    if (status) params.append("status", status);
+    const response = await purchaseApi.get(`/advancevendor/vendors`, {
+      params,
+    });
+    return response.data || [];
+  } catch (error: any) {
+    console.error("Error in fetchVendorDetails:", error);
+    return rejectWithValue(
+      error.response?.data?.message || "Failed to fetch vendor details",
+    );
   }
-);
+});
 
 export const createAdvancePayment = createAsyncThunk<
   AdvancePayment,
   Partial<AdvancePayment>,
   { rejectValue: string }
->(
-  'advances/createAdvancePayment',
-  async (payment, { rejectWithValue }) => {
-    try {
-      const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/advancevendor/advance', payment);
-      return response.data;
-    } catch (error: any) {
-      console.error('Error in createAdvancePayment:', error);
-      return rejectWithValue(error.response?.data?.detail || 'Failed to create advance payment');
-    }
+>("advances/createAdvancePayment", async (payment, { rejectWithValue }) => {
+  try {
+    const response = await purchaseApi.post("/advancevendor/advance", payment);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error in createAdvancePayment:", error);
+    return rejectWithValue(
+      error.response?.data?.detail || "Failed to create advance payment",
+    );
   }
-);
+});
 export const fetchActiveAdvancesVendor = createAsyncThunk(
-  'outgoings/fetchActiveAdvancesVendor',
+  "outgoings/fetchActiveAdvancesVendor",
   async (vendorId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
-        `http://192.168.29.116:8000/purchasetestapi/advancevendor/vendor/${vendorId}/advance-payments`
+      const response = await purchaseApi.get(
+        `/advancevendor/vendor/${vendorId}/advance-payments`,
       );
       return response.data.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch advance payments');
+      return rejectWithValue(
+        error.response?.data?.detail || "Failed to fetch advance payments",
+      );
     }
-  }
+  },
 );
 export const fetchActiveAdvancesVendorByName = createAsyncThunk(
-  'outgoings/fetchActiveAdvancesVendorByName',
+  "outgoings/fetchActiveAdvancesVendorByName",
   async (vendorName: string, { rejectWithValue }) => {
     try {
-      if (!vendorName || vendorName.trim() === '') {
-        return rejectWithValue('Vendor name is required');
+      if (!vendorName || vendorName.trim() === "") {
+        return rejectWithValue("Vendor name is required");
       }
       const encodedVendorName = encodeURIComponent(vendorName);
-      const response = await axios.get(
-        `http://192.168.29.116:8000/purchasetestapi/advancevendor/vendorname/${encodedVendorName}/advance-payments`
+      const response = await purchaseApi.get(
+        `/advancevendor/vendorname/${encodedVendorName}/advance-payments`,
       );
       return response.data.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch advance payments by vendor name');
+      return rejectWithValue(
+        error.response?.data?.detail ||
+          "Failed to fetch advance payments by vendor name",
+      );
     }
-  }
+  },
 );
 // Add these new async thunks for fetching advances
 export const fetchActiveAdvancesMultipleVendor = createAsyncThunk<
@@ -117,23 +128,28 @@ export const fetchActiveAdvancesMultipleVendor = createAsyncThunk<
     rejectValue: string;
   }
 >(
-  'advancePayments/fetchActiveAdvancesMultipleVendor',
+  "advancePayments/fetchActiveAdvancesMultipleVendor",
   async (vendorNames, { rejectWithValue }) => {
     try {
       if (vendorNames.length === 0) {
         return [];
       }
 
-      const vendorNamesStr = vendorNames.join(',');
-      const response = await axios.get(
-        `http://192.168.29.116:8000/purchasetestapi/advancevendor/vendors/active-advances?vendorNames=${encodeURIComponent(vendorNamesStr)}`
+      const vendorNamesStr = vendorNames.join(",");
+      const response = await purchaseApi.get(
+        `/advancevendor/vendors/active-advances?vendorNames=${encodeURIComponent(vendorNamesStr)}`,
       );
       return response.data.advances || [];
     } catch (error: any) {
-      console.error('Failed to fetch active advances for multiple vendors:', error);
-      return rejectWithValue(error.message || 'Failed to fetch active advances');
+      console.error(
+        "Failed to fetch active advances for multiple vendors:",
+        error,
+      );
+      return rejectWithValue(
+        error.message || "Failed to fetch active advances",
+      );
     }
-  }
+  },
 );
 const advancePaymentSlice = createSlice({
   name: 'advances',

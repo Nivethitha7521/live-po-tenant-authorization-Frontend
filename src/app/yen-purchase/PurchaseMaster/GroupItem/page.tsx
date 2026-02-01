@@ -28,7 +28,7 @@ import ItemGroupTable from '../../../../components/yen-purchase/purchasemaster/i
 import CommonImportResultDialog from '@/components/yen-purchase/CommonImportDialog';
 import { PurchaseGroupItem } from '@/Models/itemgroup';
 import { FormikHelpers } from 'formik';
-
+import { usePermissions } from '@/hooks/usePermissions'; 
 const initialPurchaseGroupItemState: PurchaseGroupItem = {
   itemgroupId: '',
   itemgroupName: '',
@@ -39,9 +39,9 @@ const initialPurchaseGroupItemState: PurchaseGroupItem = {
 const normalizeNameForComparison = (name: string | undefined | null): string => {
   if (!name) return '';
   return name
-    .trim() // Remove leading/trailing spaces
-    .replace(/\s+/g, '') // Remove ALL whitespace between words
-    .toLowerCase(); // Convert to lowercase
+    .trim() 
+    .replace(/\s+/g, '') 
+    .toLowerCase(); 
 };
 
 const ItemGroupPage: React.FC = () => {
@@ -63,6 +63,14 @@ const ItemGroupPage: React.FC = () => {
     snackbarMessage,
   } = useSelector(selectPurchaseGroupItems);
 
+  const { hasPermission, isModuleVisible } = usePermissions();
+  
+ 
+  const canAdd = hasPermission('yenerp', 'itemgroup', 'add');
+  const canEdit = hasPermission('yenerp', 'itemgroup', 'edit');
+  const canDelete = hasPermission('yenerp', 'itemgroup', 'delete');
+
+
   useEffect(() => {
     dispatch(fetchPurchaseGroupItems());
   }, [dispatch, showDeactivated]);
@@ -73,7 +81,12 @@ const ItemGroupPage: React.FC = () => {
     }
   }, [importSuccess, dispatch]);
 
-  const handleDialogOpen = () => {
+ const handleDialogOpen = () => {
+    if (!canAdd) {
+      dispatch(setSnackbarMessage('You do not have permission to add item groups'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     dispatch(setDialogOpen('edit'));
   };
 
@@ -86,6 +99,7 @@ const ItemGroupPage: React.FC = () => {
   const handleExportCSV = () => {
     dispatch(exportCSV());
   };
+
 
   const handleSampleCSV = () => {
     const sampleHeader = 'Item Group,Status,Created Date,Updated Date\n';
@@ -102,22 +116,26 @@ const ItemGroupPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleImportCSV = (file: File): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      dispatch(importCSV(file))
-        .unwrap()
-        .then((response) => {
-          resolve(response);
-        })
-        .catch((error) => {
-          reject(error);
-        });
-    });
-  };
-
-  const handleImportResultsClose = () => {
+ // In handleImportCSV function:
+const handleImportCSV = (file: File): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    dispatch(importCSV(file))
+      .unwrap()
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((error) => {
+        // Extract proper error message
+        const errorMessage = error?.detail || error?.message || 'Import failed';
+        reject(new Error(errorMessage));
+      });
+  });
+};
+ 
+   const handleImportResultsClose = () => {
     dispatch(resetImportState());
   };
+
 
   const handleAddUpdateItemGroup = async (
     values: PurchaseGroupItem,
@@ -128,7 +146,16 @@ const ItemGroupPage: React.FC = () => {
       setFieldError('itemgroupName', 'Item group name cannot be empty');
       return;
     }
-
+     
+    if (editIndex !== null && !canEdit) {
+      dispatch(setSnackbarMessage('You do not have permission to edit item groups'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+ console.log('🔴 Sending payload to API:', {
+    ...values,
+    itemgroupName: normalizedName
+  });
     const isDuplicate = [...purchaseGroupItems, ...deactivatedItems].some(
       (groupitem) =>
         normalizeNameForComparison(groupitem.itemgroupName) === normalizeNameForComparison(normalizedName) &&
@@ -175,6 +202,12 @@ const ItemGroupPage: React.FC = () => {
   };
 
   const handleEditItemGroup = (id: string) => {
+    if (!canEdit) {
+      dispatch(setSnackbarMessage('You do not have permission to edit item groups'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    
     const item = purchaseGroupItems.find((groupitem) => groupitem.itemgroupId === id);
     if (item) {
       dispatch(
@@ -189,6 +222,12 @@ const ItemGroupPage: React.FC = () => {
   };
 
   const handleDeactivateItemGroup = (id: string) => {
+    if (!canDelete) {
+      dispatch(setSnackbarMessage('You do not have permission to deactivate item groups'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    
     dispatch(deactivatePurchaseGroupItem(id))
       .unwrap()
       .then(() => {
@@ -203,6 +242,12 @@ const ItemGroupPage: React.FC = () => {
   };
 
   const handleActivateItemGroup = (id: string) => {
+    if (!canDelete) {
+      dispatch(setSnackbarMessage('You do not have permission to activate item groups'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    
     dispatch(activatePurchaseGroupItem(id))
       .unwrap()
       .then(() => {
@@ -235,6 +280,10 @@ const ItemGroupPage: React.FC = () => {
           ...item,
           itemgroupName: item.itemgroupName ? item.itemgroupName.trim().replace(/\s+/g, ' ') : '',
         }));
+// ✅ MODULE VISIBILITY CHECK
+if (!isModuleVisible("yenerp", "itemgroup")) {
+  return null;
+}
 
   return (
     <Box>
@@ -249,6 +298,11 @@ const ItemGroupPage: React.FC = () => {
         onToggleShowDeactivated={toggleShowDeactivated}
         importing={importing}
         exporting={exporting}
+         permissions={{ 
+          canAdd,
+          canEdit, 
+          canDelete,
+        }}
       />
       <ItemGroupTable
         items={filteredItems}
@@ -256,6 +310,10 @@ const ItemGroupPage: React.FC = () => {
         handleEdit={handleEditItemGroup}
         handleDeactivate={handleDeactivateItemGroup}
         handleActivate={handleActivateItemGroup}
+        permissions={{ 
+          canEdit,
+          canDelete
+        }}
       />
       <ItemGroupForm
         open={dialogOpen !== 'none'}
@@ -271,12 +329,12 @@ const ItemGroupPage: React.FC = () => {
         importResult={importResult}
         module="itemGroup"
       />
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => dispatch(setSnackbarOpen(false))}
-        message={snackbarMessage}
-      />
+     <Snackbar
+  open={snackbarOpen}
+  autoHideDuration={6000}
+  onClose={() => dispatch(setSnackbarOpen(false))}
+  message={String(snackbarMessage)} 
+/>
       <Backdrop
         sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
         open={importing || exporting}

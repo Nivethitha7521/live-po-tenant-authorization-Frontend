@@ -5,6 +5,7 @@ import {
   Box, TextField, Button, Typography, Grid, TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
   Autocomplete, Snackbar, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, RadioGroup,
   FormControlLabel, Radio, CircularProgress, Tooltip, Backdrop, Switch, FormControl, Select, MenuItem,
+  Checkbox, // ADDED
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -78,12 +79,13 @@ const formatDateForDisplay = (dateStr: string | null | undefined): string => {
     return 'N/A';
   }
 };
+
 // Simple unique ID generator
 const generateUniqueId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
-// Helper function to convert flat arrays to descriptions
+// Helper function to convert flat arrays to descriptions - UPDATED WITH include_tax
 const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescription[] => {
   const descriptions: ServiceDescription[] = [];
   const maxLen = Math.max(
@@ -95,6 +97,7 @@ const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescrip
     serviceData.fees?.length || 0,
     serviceData.quantity?.length || 0,
     serviceData.remarks?.length || 0,
+    serviceData.include_tax?.length || 0, // NEW
     serviceData.desc_tax_types?.length || 0,
     serviceData.desc_tax_pers?.length || 0,
     serviceData.desc_sgst?.length || 0,
@@ -117,6 +120,7 @@ const getDescriptionsFromFlatArrays = (serviceData: ServiceData): ServiceDescrip
       quantity: serviceData.quantity?.[i] || 1,
       tax_type: serviceData.desc_tax_types?.[i] as 'cgst_sgst' | 'igst' || 'cgst_sgst',
       tax_per: serviceData.desc_tax_pers?.[i] || 0,
+      include_tax: serviceData.include_tax?.[i] !== undefined ? serviceData.include_tax[i] : true, // NEW
       sgst: serviceData.desc_sgst?.[i] || 0,
       cgst: serviceData.desc_cgst?.[i] || 0,
       igst: serviceData.desc_igst?.[i] || 0,
@@ -159,7 +163,7 @@ const CreateServicePage: React.FC = () => {
   const { items: taxItems } = useSelector((state: RootState) => state.purchaseTax);
   const { vendors } = useSelector(selectPurchaseOrderState);
 
-  // Memoized selectors
+  // Memoized selectors - UPDATED
   const descriptions = useMemo(() =>
     getDescriptionsFromFlatArrays(serviceData),
     [serviceData]
@@ -225,12 +229,12 @@ const CreateServicePage: React.FC = () => {
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const [isHoldOrderDialog, setIsHoldOrderDialog] = useState(false);
 
-  const [overallDiscountValue, setOverallDiscountValue] = useState<number>(0); // Pending/input value
-  const [appliedOverallDiscount, setAppliedOverallDiscount] = useState<number>(0); // Applied value
+  const [overallDiscountValue, setOverallDiscountValue] = useState<number>(0);
+  const [appliedOverallDiscount, setAppliedOverallDiscount] = useState<number>(0);
   const [overallDiscountMode, setOverallDiscountMode] = useState<'percentage' | 'amount'>('percentage');
-  const [appliedOverallDiscountMode, setAppliedOverallDiscountMode] = useState<'percentage' | 'amount'>('percentage'); // Applied mode
+  const [appliedOverallDiscountMode, setAppliedOverallDiscountMode] = useState<'percentage' | 'amount'>('percentage');
   const [overallDiscountAppliedOn, setOverallDiscountAppliedOn] = useState<'before_tax' | 'after_tax'>('after_tax');
-  const [appliedOverallDiscountAppliedOn, setAppliedOverallDiscountAppliedOn] = useState<'before_tax' | 'after_tax'>('after_tax'); // Applied type
+  const [appliedOverallDiscountAppliedOn, setAppliedOverallDiscountAppliedOn] = useState<'before_tax' | 'after_tax'>('after_tax');
   const [roundOffValue, setRoundOffValue] = useState<number>(0);
 
   // UI states
@@ -254,6 +258,7 @@ const CreateServicePage: React.FC = () => {
   const freightGrandTotal = useMemo(() =>
     freightSubTotal + freightTaxTotal, [freightSubTotal, freightTaxTotal]
   );
+
   // Update calculateDistributedDiscounts to use APPLIED values
   const calculateDistributedDiscounts = useCallback(() => {
     if (!serviceData.fees || serviceData.fees.length === 0) return [];
@@ -279,7 +284,9 @@ const CreateServicePage: React.FC = () => {
         percentage: discountPercentage
       };
     });
-  }, [serviceData.fees, appliedOverallDiscount, appliedOverallDiscountMode]); // Use APPLIED values
+  }, [serviceData.fees, appliedOverallDiscount, appliedOverallDiscountMode]);
+
+  // UPDATED refreshTotals function with include_tax
   const refreshTotals = useCallback(async (isMounted: boolean = true) => {
     if (!isMounted || loadingStates.totals) return;
     setLoadingStates(prev => ({ ...prev, totals: true }));
@@ -301,24 +308,25 @@ const CreateServicePage: React.FC = () => {
     }
 
     try {
-      // Use APPLIED values for calculations, not pending values
+      // Use APPLIED values for calculations
       const discountToUse = appliedOverallDiscount;
       const discountModeToUse = appliedOverallDiscountMode;
       const discountAppliedOnToUse = appliedOverallDiscountAppliedOn;
 
-      // Call backend for complex calculations WITH APPLIED DISCOUNT VALUES
+      // Call backend for complex calculations WITH APPLIED DISCOUNT VALUES AND include_tax
       const request: ServiceTotalsRequest = {
         descriptions: descriptions.map(desc => ({
           ...desc,
           fee: desc.fee,
           discount_percentage: desc.discount_percentage || 0,
           discount_amount: desc.discountAmount || 0,
+          include_tax: desc.include_tax !== undefined ? desc.include_tax : true, // NEW
         })),
-        overall_discount_value: discountToUse, // USE APPLIED VALUE
-        overall_discount_type: discountModeToUse, // USE APPLIED MODE
-        overall_discount_applied_on: discountAppliedOnToUse, // USE APPLIED TYPE
+        overall_discount_value: discountToUse,
+        overall_discount_type: discountModeToUse,
+        overall_discount_applied_on: discountAppliedOnToUse,
         round_off: roundOffValue,
-        fees_are_total_including_tax: true,
+        fees_are_total_including_tax: true, // This is now deprecated, but kept for backward compatibility
         total_freight_amount: freightSubTotal,
         total_freight_tax: freightTaxTotal,
       };
@@ -326,7 +334,7 @@ const CreateServicePage: React.FC = () => {
       const result = await dispatch(calculateServiceTotals(request)).unwrap();
 
       // Update service data with calculated values
-      dispatch(setServiceData({
+      const updates = {
         ...serviceData,
         desc_sgst: result.desc_sgst || [],
         desc_cgst: result.desc_cgst || [],
@@ -337,7 +345,11 @@ const CreateServicePage: React.FC = () => {
         desc_discount_amounts: result.desc_discount_amounts || [],
         desc_discount_percentages: result.desc_discount_percentages || [],
         desc_overall_discounts: result.desc_overall_discounts || [],
-      }));
+        // Preserve include_tax array
+        include_tax: serviceData.include_tax || descriptions.map(d => d.include_tax !== undefined ? d.include_tax : true),
+      };
+
+      dispatch(setServiceData(updates));
 
       // Update totals with backend calculations
       setTotals(prev => ({
@@ -364,9 +376,9 @@ const CreateServicePage: React.FC = () => {
     }
   }, [
     descriptions,
-    appliedOverallDiscount, // USE APPLIED VALUE
-    appliedOverallDiscountMode, // USE APPLIED MODE
-    appliedOverallDiscountAppliedOn, // USE APPLIED TYPE
+    appliedOverallDiscount,
+    appliedOverallDiscountMode,
+    appliedOverallDiscountAppliedOn,
     roundOffValue,
     dispatch,
     freightGrandTotal,
@@ -375,6 +387,7 @@ const CreateServicePage: React.FC = () => {
     serviceData,
     loadingStates.totals
   ]);
+
   // Manual refresh totals function for external calls
   const manualRefreshTotals = useCallback(() => {
     setNeedsTotalsRefresh(true);
@@ -390,7 +403,6 @@ const CreateServicePage: React.FC = () => {
       refreshTotals(isMounted);
     };
 
-    // Debounce the refresh to avoid rapid consecutive calls
     timeoutId = setTimeout(refreshIfNeeded, 300);
 
     return () => {
@@ -401,22 +413,7 @@ const CreateServicePage: React.FC = () => {
     };
   }, [needsTotalsRefresh, refreshTotals]);
 
-  // // Trigger totals refresh when descriptions change (add/edit/delete)
-  // useEffect(() => {
-  //   manualRefreshTotals();
-  // }, [descriptions.length]);
-
-  // // Trigger totals refresh when freights change
-  // useEffect(() => {
-  //   manualRefreshTotals();
-  // }, [freights.length]);
-
-  // // Trigger totals refresh when discount/roundoff changes
-  // useEffect(() => {
-  //   manualRefreshTotals();
-  // }, [overallDiscountValue, roundOffValue]);
-
-  // Load service data in edit mode
+  // Load service data in edit mode - UPDATED
   useEffect(() => {
     if (isEditMode && editId) {
       setLoadingStates(prev => ({ ...prev, initial: true }));
@@ -445,6 +442,7 @@ const CreateServicePage: React.FC = () => {
 
           parsedData.quantity = parsedData.quantity || [];
           parsedData.remarks = parsedData.remarks || [];
+          parsedData.include_tax = parsedData.include_tax || []; // NEW
 
           dispatch(setServiceData(parsedData));
           setFreights(data.freights || []);
@@ -494,7 +492,7 @@ const CreateServicePage: React.FC = () => {
     };
   }, [dispatch]);
 
-  // Initial data fetch
+  // Initial data fetch - UPDATED
   useEffect(() => {
     let isMounted = true;
 
@@ -526,6 +524,7 @@ const CreateServicePage: React.FC = () => {
           quantity: [],
           remarks: [],
           fees: [],
+          include_tax: [], // NEW
           desc_tax_types: [],
           desc_tax_pers: [],
           desc_sgst: [],
@@ -579,7 +578,7 @@ const CreateServicePage: React.FC = () => {
     };
   }, [dispatch, isEditMode]);
 
-  // Track form dirty state
+  // Track form dirty state - UPDATED
   useEffect(() => {
     const trackFormState = () => {
       const hasDescriptionWiseDiscountValue = descriptions.some(desc => (desc.discountAmount || 0) > 0);
@@ -674,7 +673,7 @@ const CreateServicePage: React.FC = () => {
     }
   }, [dispatch, serviceData, setFormErrors]);
 
-  // Description change handlers
+  // Description change handlers - UPDATED with include_tax
   const handleDescriptionChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
@@ -741,6 +740,16 @@ const CreateServicePage: React.FC = () => {
     }));
   }, [dispatch, newDescription]);
 
+  // NEW: Handle include_tax checkbox change
+  const handleIncludeTaxChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    dispatch(setNewDescriptionData({
+      ...newDescription,
+      include_tax: checked
+    }));
+  }, [dispatch, newDescription]);
+
+  // UPDATED: handleAddDescription with include_tax
   const handleAddDescription = useCallback(async () => {
     const editingIndex = (newDescription as any).index;
     const isCurrentlyEditing = editingIndex !== undefined && editingIndex >= 0;
@@ -774,6 +783,7 @@ const CreateServicePage: React.FC = () => {
         discount: 0,
         quantity: newDescription.quantity || 1,
         remarks: newDescription.remarks || '',
+        include_tax: newDescription.include_tax !== undefined ? newDescription.include_tax : true, // NEW
       };
 
       const calcResult = await dispatch(calculateDescriptionTotals(params)).unwrap();
@@ -788,6 +798,7 @@ const CreateServicePage: React.FC = () => {
         quantity: newDescription.quantity || 1,
         tax_type: newDescription.tax_type,
         tax_per: newDescription.tax_per || 0,
+        include_tax: newDescription.include_tax !== undefined ? newDescription.include_tax : true, // NEW
         sgst: calcResult.sgst || 0,
         cgst: calcResult.cgst || 0,
         igst: calcResult.igst || 0,
@@ -799,7 +810,7 @@ const CreateServicePage: React.FC = () => {
         discount_percentage: 0,
         discount_amount: 0,
         remarks: newDescription.remarks || '',
-        base_amount: newDescription.base_amount,
+        base_amount: newDescription.base_amount || 0,
       };
 
       if (isCurrentlyEditing && editingIndex !== undefined) {
@@ -823,6 +834,7 @@ const CreateServicePage: React.FC = () => {
         fee: 0,
         tax_type: 'cgst_sgst',
         tax_per: 0,
+        include_tax: true, // Default to true
         sgst: 0,
         cgst: 0,
         igst: 0,
@@ -894,6 +906,7 @@ const CreateServicePage: React.FC = () => {
     dispatch(clearDescriptionForEditing());
     setNeedsTotalsRefresh(true);
   }, [dispatch]);
+
   const handleOverallDiscountChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {
@@ -909,10 +922,10 @@ const CreateServicePage: React.FC = () => {
         dispatch(setSnackbarOpen(true));
         return;
       }
-      // ONLY UPDATE THE PENDING VALUE, DON'T TRIGGER CALCULATIONS
       setOverallDiscountValue(parsedValue);
     }
   }, [overallDiscountMode, totals.subTotal, dispatch]);
+
   const handleApplyDiscount = useCallback(async () => {
     if (hasDescriptionWiseDiscount) {
       dispatch(setSnackbarMessage('Cannot apply overall discount when description-wise discounts exist'));
@@ -932,7 +945,7 @@ const CreateServicePage: React.FC = () => {
       return;
     }
 
-    // SET THE APPLIED VALUES HERE (only when Apply button is clicked)
+    // SET THE APPLIED VALUES HERE
     setAppliedOverallDiscount(overallDiscountValue);
     setAppliedOverallDiscountMode(overallDiscountMode);
     setAppliedOverallDiscountAppliedOn(overallDiscountAppliedOn);
@@ -958,6 +971,7 @@ const CreateServicePage: React.FC = () => {
     dispatch,
     serviceData.fees
   ]);
+
   const handleClearOverallDiscount = useCallback(async () => {
     if (loadingStates.totals) return;
 
@@ -1012,6 +1026,8 @@ const CreateServicePage: React.FC = () => {
       }));
     }
   }, [dispatch, serviceData, formErrors]);
+
+  // UPDATED: handleClear with include_tax
   const handleClear = useCallback(() => {
     const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
@@ -1029,6 +1045,7 @@ const CreateServicePage: React.FC = () => {
       quantity: [],
       remarks: [],
       fees: [],
+      include_tax: [], // NEW
       desc_tax_types: [],
       desc_tax_pers: [],
       desc_sgst: [],
@@ -1067,6 +1084,7 @@ const CreateServicePage: React.FC = () => {
       fee: 0,
       tax_type: 'cgst_sgst',
       tax_per: 0,
+      include_tax: true, // Default to true
       sgst: 0,
       cgst: 0,
       igst: 0,
@@ -1120,6 +1138,7 @@ const CreateServicePage: React.FC = () => {
     }
   }, [isFormDirty, handleClear, router]);
 
+  // UPDATED: handleSubmit with include_tax
   const handleSubmit = useCallback(async () => {
     try {
       await validationSchema.validate(serviceData, { abortEarly: false });
@@ -1175,7 +1194,8 @@ const CreateServicePage: React.FC = () => {
         remarks: descriptions.map(desc => desc.remarks || ''),
         sacCode: descriptions.map(desc => desc.sacCode || ''),
         desc_ids: descriptions.map(desc => desc.id || ''),
-        desc_descriptions: descriptions.map(desc => desc.description),
+        descriptions: descriptions.map(desc => desc.description),
+        include_tax: descriptions.map(desc => desc.include_tax !== undefined ? desc.include_tax : true), // NEW
         from_dates: descriptions.map(desc =>
           desc.from_date ? formatDateForBackend(parseDate(desc.from_date)) : null
         ),
@@ -1192,6 +1212,10 @@ const CreateServicePage: React.FC = () => {
         desc_totals: serviceData.desc_totals || [],
         desc_total_fees: serviceData.desc_total_fees || [],
         desc_overall_discounts: serviceData.desc_overall_discounts || [],
+        desc_individual_discount_amounts: serviceData.desc_individual_discount_amounts || [],
+        desc_individual_discount_percentages: serviceData.desc_individual_discount_percentages || [],
+        desc_total_discount_amounts: serviceData.desc_total_discount_amounts || [],
+        desc_total_discount_percentages: serviceData.desc_total_discount_percentages || [],
         termsandConditions: serviceData.termsandConditions || [''],
       } as ServiceData;
 
@@ -1309,6 +1333,15 @@ const CreateServicePage: React.FC = () => {
     }
   }, []);
 
+  // Calculate include_tax percentages
+  const includeTaxCount = useMemo(() => 
+    descriptions.filter(desc => desc.include_tax).length, [descriptions]
+  );
+  
+  const excludeTaxCount = useMemo(() => 
+    descriptions.filter(desc => !desc.include_tax).length, [descriptions]
+  );
+
   // ========== RENDER ==========
 
   if (loadingStates.initial) {
@@ -1332,14 +1365,14 @@ const CreateServicePage: React.FC = () => {
         <Box sx={{
           width: '100%',
           maxWidth: {
-            xs: '100%',      // Mobile: full
-            sm: '100%',      // Tablets: full with padding
-            md: '1200px',    // Laptops (1366-1600px): comfortable fixed width
-            lg: '1400px',    // Large monitors: more space
-            xl: '1600px',    // XXL monitors (1920px+): max readable width
+            xs: '100%',
+            sm: '100%',
+            md: '1200px',
+            lg: '1400px',
+            xl: '1600px',
           },
-          mx: 'auto',        // Centered
-          px: { xs: 2, sm: 3, md: 4 },  // Generous side padding on big screens
+          mx: 'auto',
+          px: { xs: 2, sm: 3, md: 4 },
           py: 3,
         }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -1422,6 +1455,36 @@ const CreateServicePage: React.FC = () => {
             </Grid>
           </Grid>
 
+          {/* Tax Mode Summary */}
+          <Box sx={{ mt: 2, mb: 2, p: 1.5, bgcolor: '#f8f9fa', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" color="primary" gutterBottom>
+              Tax Mode Summary
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: 12, height: 12, bgcolor: 'success.main', borderRadius: '50%', mr: 1 }} />
+                  <Typography variant="body2">
+                    Includes Tax: <strong>{includeTaxCount}</strong> descriptions
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: 12, height: 12, bgcolor: 'warning.main', borderRadius: '50%', mr: 1 }} />
+                  <Typography variant="body2">
+                    Excludes Tax: <strong>{excludeTaxCount}</strong> descriptions
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Note: "Include Tax" means the entered fee includes tax. "Exclude Tax" means tax will be calculated on top of the entered fee.
+                </Typography>
+              </Grid>
+            </Grid>
+          </Box>
+
           {/* Add Description Section */}
           <Box sx={{
             p: 1,
@@ -1459,7 +1522,7 @@ const CreateServicePage: React.FC = () => {
 
             <Grid container spacing={2} id="description-form">
               {/* SAC Code */}
-              <Grid item xs={12} sm={2}>
+              <Grid item xs={12} sm={1.8}>
                 <ServiceAutocomplete
                   value={selectedService}
                   onChange={(service: ServiceSummary | null) => {
@@ -1486,7 +1549,7 @@ const CreateServicePage: React.FC = () => {
               </Grid>
 
               {/* Description */}
-              <Grid item xs={12} sm={3}>
+              <Grid item xs={12} sm={2}>
                 <TextField
                   inputRef={descriptionRef}
                   fullWidth
@@ -1502,7 +1565,7 @@ const CreateServicePage: React.FC = () => {
               </Grid>
 
               {/* Remarks */}
-              <Grid item xs={12} sm={2.5}>
+              <Grid item xs={12} sm={1.8}>
                 <TextField
                   fullWidth
                   label="Remarks"
@@ -1512,13 +1575,11 @@ const CreateServicePage: React.FC = () => {
                   size="small"
                   autoComplete="off"
                   placeholder="Optional"
-                  error={errors.remarks}
-                  helperText={errors.remarks ? 'Remarks is required' : ''}
                 />
               </Grid>
 
               {/* Quantity */}
-              <Grid item xs={12} sm={1.5}>
+              <Grid item xs={12} sm={1.2}>
                 <TextField
                   fullWidth
                   label="Quantity"
@@ -1543,7 +1604,7 @@ const CreateServicePage: React.FC = () => {
               </Grid>
 
               {/* From Date */}
-              <Grid item xs={12} sm={2}>
+              <Grid item xs={12} sm={1.5}>
                 <SmartDatePicker
                   label="From Date"
                   value={newDescription.from_date ? parseDate(newDescription.from_date) : null}
@@ -1553,7 +1614,7 @@ const CreateServicePage: React.FC = () => {
               </Grid>
 
               {/* To Date */}
-              <Grid item xs={12} sm={2}>
+              <Grid item xs={12} sm={1.5}>
                 <SmartDatePicker
                   label="To Date"
                   value={newDescription.to_date ? parseDate(newDescription.to_date) : null}
@@ -1576,6 +1637,27 @@ const CreateServicePage: React.FC = () => {
                   helperText={errors.fee ? 'Fee is required and must be > 0' : ''}
                   inputProps={{ min: 0, step: '0.01' }}
                   autoComplete="off"
+                />
+              </Grid>
+
+              {/* Include Tax Checkbox - NEW */}
+              <Grid item xs={12} sm={1.2}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={newDescription.include_tax !== undefined ? newDescription.include_tax : true}
+                      onChange={handleIncludeTaxChange}
+                      name="include_tax"
+                      size="small"
+                      sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 20 } }}
+                    />
+                  }
+                  label={
+                    <Typography variant="caption" sx={{ fontSize: '0.75rem', lineHeight: 1.2 }}>
+                      Fee includes tax
+                    </Typography>
+                  }
+                  sx={{ m: 0, height: '100%', display: 'flex', alignItems: 'center' }}
                 />
               </Grid>
 
@@ -1603,7 +1685,7 @@ const CreateServicePage: React.FC = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Tax"
+                      label="Tax %"
                       size="small"
                       variant="outlined"
                       error={errors.taxPer}
@@ -1624,16 +1706,32 @@ const CreateServicePage: React.FC = () => {
               </Grid>
 
               {/* Tax Type */}
-              <Grid item xs={12} sm={2}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Grid item xs={12} sm={1.8}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: '100%' }}>
                   <RadioGroup
                     row
                     value={newDescription.tax_type}
                     onChange={handleDescriptionTaxTypeChange}
-                    sx={{ display: 'flex', alignItems: 'center' }}
+                    sx={{ display: 'flex', alignItems: 'center', height: '100%' }}
                   >
-                    <FormControlLabel value="igst" control={<Radio size="small" />} label="IGST" />
-                    <FormControlLabel value="cgst_sgst" control={<Radio size="small" />} label="CGST/SGST" />
+                    <FormControlLabel 
+                      value="igst" 
+                      control={<Radio size="small" />} 
+                      label={
+                        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                          IGST
+                        </Typography>
+                      } 
+                    />
+                    <FormControlLabel 
+                      value="cgst_sgst" 
+                      control={<Radio size="small" />} 
+                      label={
+                        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                          CGST/SGST
+                        </Typography>
+                      } 
+                    />
                   </RadioGroup>
                 </Box>
               </Grid>
@@ -1689,7 +1787,12 @@ const CreateServicePage: React.FC = () => {
                     <TableCell>To Date</TableCell>
                     <TableCell align="right">
                       <Tooltip title="Original amount before discount">
-                        <Typography variant="body2">Original Amt (₹)</Typography>
+                        <Typography variant="body2">Fee (₹)</Typography>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Tax inclusion mode">
+                        <Typography variant="body2">Tax Mode</Typography>
                       </Tooltip>
                     </TableCell>
                     <TableCell align="center">Tax Type</TableCell>
@@ -1741,7 +1844,7 @@ const CreateServicePage: React.FC = () => {
                 <TableBody>
                   {descriptions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={19} align="center">No descriptions added</TableCell>
+                      <TableCell colSpan={20} align="center">No descriptions added</TableCell>
                     </TableRow>
                   ) : (
                     descriptions.map((desc, index) => {
@@ -1760,6 +1863,9 @@ const CreateServicePage: React.FC = () => {
                       const totalDiscountAmount = individualDiscountAmount + overallDiscountAmount;
                       const totalDiscountPercentage = originalAmount > 0 ?
                         (totalDiscountAmount / originalAmount * 100) : 0;
+
+                      // Calculate amount after quantity
+                      const amountAfterQuantity = desc.fee * desc.quantity;
 
                       return (
                         <TableRow key={desc.id || index} hover>
@@ -1781,9 +1887,31 @@ const CreateServicePage: React.FC = () => {
 
                           {/* ORIGINAL AMOUNT */}
                           <TableCell align="right">
-                            <Typography variant="body2">
-                              ₹{originalAmount.toFixed(2)}
-                            </Typography>
+                            <Tooltip title={`${desc.include_tax ? 'Includes tax' : 'Excludes tax'} | Quantity: ${desc.quantity}`}>
+                              <Box>
+                                <Typography variant="body2">
+                                  ₹{desc.fee.toFixed(2)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  × {desc.quantity} = ₹{amountAfterQuantity.toFixed(2)}
+                                </Typography>
+                              </Box>
+                            </Tooltip>
+                          </TableCell>
+
+                          {/* TAX MODE - NEW */}
+                          <TableCell align="center">
+                            <Tooltip title={desc.include_tax ? "Fee includes tax" : "Fee excludes tax"}>
+                              <Box>
+                                <Typography 
+                                  variant="caption" 
+                                  color={desc.include_tax ? "success.main" : "warning.main"} 
+                                  fontWeight="bold"
+                                >
+                                  {desc.include_tax ? '✓ Includes' : '✗ Excludes'}
+                                </Typography>
+                              </Box>
+                            </Tooltip>
                           </TableCell>
 
                           <TableCell align="center">
@@ -1794,704 +1922,624 @@ const CreateServicePage: React.FC = () => {
                           <TableCell align="right">{desc.cgst?.toFixed(2)}</TableCell>
                           <TableCell align="right">{desc.igst?.toFixed(2)}</TableCell>
 
-                          {/* INDIVIDUAL DISCOUNT */}
+                                                   {/* INDIVIDUAL DISCOUNT */}
                           <TableCell align="right">
                             {individualDiscountAmount > 0 ? (
-                              <Box>
-                                <Typography variant="body2">
-                                  ₹{individualDiscountAmount.toFixed(2)}
-                                </Typography>
-                                {individualDiscountPercentage > 0 && (
-                                  <Typography variant="caption" color="text.secondary" display="block">
+                              <Tooltip title={`${individualDiscountPercentage.toFixed(2)}% discount`}>
+                                <Box>
+                                  <Typography variant="body2" color="error">
+                                    -₹{individualDiscountAmount.toFixed(2)}
+                                  </Typography>
+                                  <Typography variant="caption" color="error">
                                     ({individualDiscountPercentage.toFixed(2)}%)
                                   </Typography>
-                                )}
-                              </Box>
+                                </Box>
+                              </Tooltip>
                             ) : (
                               <Typography variant="body2" color="text.secondary">
-                                -
+                                No discount
                               </Typography>
                             )}
                           </TableCell>
 
-                          {/* OVERALL DISCOUNT (Distributed) */}
+                          {/* OVERALL DISCOUNT */}
                           <TableCell align="right">
                             {overallDiscountAmount > 0 ? (
-                              <Box>
-                                <Typography variant="body2">
-                                  ₹{overallDiscountAmount.toFixed(2)}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" display="block">
-                                  ({overallDiscountPercentage.toFixed(2)}%)
-                                </Typography>
-                                <Typography variant="caption" color="primary" display="block" fontSize="0.7rem">
-                                  {overallDiscountAppliedOn === 'before_tax' ? 'Before Tax' : 'On Total'}
-                                </Typography>
-                              </Box>
+                              <Tooltip title="Overall distributed discount">
+                                <Box>
+                                  <Typography variant="body2" color="secondary">
+                                    -₹{overallDiscountAmount.toFixed(2)}
+                                  </Typography>
+                                  <Typography variant="caption" color="secondary">
+                                    ({overallDiscountPercentage.toFixed(2)}%)
+                                  </Typography>
+                                </Box>
+                              </Tooltip>
                             ) : (
                               <Typography variant="body2" color="text.secondary">
-                                -
+                                No discount
                               </Typography>
                             )}
                           </TableCell>
 
                           {/* TOTAL DISCOUNT */}
                           <TableCell align="right">
-                            <Box>
-                              <Typography variant="body2" fontWeight="bold">
-                                ₹{totalDiscountAmount.toFixed(2)}
+                            {totalDiscountAmount > 0 ? (
+                              <Tooltip title={`Individual + Overall discount = ${totalDiscountPercentage.toFixed(2)}%`}>
+                                <Box>
+                                  <Typography variant="body2" color="error" fontWeight="bold">
+                                    -₹{totalDiscountAmount.toFixed(2)}
+                                  </Typography>
+                                  <Typography variant="caption" color="error">
+                                    ({totalDiscountPercentage.toFixed(2)}%)
+                                  </Typography>
+                                </Box>
+                              </Tooltip>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                No discount
                               </Typography>
-                              <Typography variant="caption" color="text.secondary" display="block">
-                                ({totalDiscountPercentage.toFixed(2)}%)
-                              </Typography>
-                            </Box>
+                            )}
                           </TableCell>
 
                           {/* FINAL AMOUNT */}
                           <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold" color="success.main">
-                              ₹{finalAmount.toFixed(2)}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              {totalDiscountPercentage > 0 ? `-${totalDiscountPercentage.toFixed(2)}%` : ''}
-                            </Typography>
+                            <Tooltip title="Final amount after all discounts and taxes">
+                              <Box>
+                                <Typography variant="body2" fontWeight="bold" color="primary">
+                                  ₹{finalAmount.toFixed(2)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  {originalAmount > 0 ? 
+                                    `${((finalAmount / originalAmount) * 100).toFixed(1)}% of original` : 
+                                    'N/A'
+                                  }
+                                </Typography>
+                              </Box>
+                            </Tooltip>
                           </TableCell>
 
                           <TableCell align="right">
-                            <IconButton onClick={() => handleEditDescription(index)} size="small">
-                              <EditIcon />
-                            </IconButton>
-                            <IconButton onClick={() => handleDeleteDescription(index)} size="small">
-                              <DeleteIcon />
-                            </IconButton>
+                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                              <Tooltip title="Edit description">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() => handleEditDescription(index)}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Delete description">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => handleDeleteDescription(index)}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
                           </TableCell>
                         </TableRow>
                       );
                     })
                   )}
-
-                  {/* TOTALS SECTION */}
-                  <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
-                    <TableCell colSpan={7} align="right">
-                      <strong>Totals:</strong>
-                    </TableCell>
-
-                    {/* Original Amount Total */}
-                    <TableCell align="right">
-                      <strong>₹{totalOriginalAmount.toFixed(2)}</strong>
-                    </TableCell>
-
-                    <TableCell colSpan={4} />
-
-                    {/* Individual Discount Total */}
-                    <TableCell align="right">
-                      <Box>
-                        <Typography variant="body2" fontWeight="bold">
-                          ₹{(serviceData.desc_discount_amounts?.reduce((a, b) => a + b, 0) || 0).toFixed(2)}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-
-                    {/* Overall Discount Total */}
-                    <TableCell align="right">
-                      <Box>
-                        <Typography variant="body2" fontWeight="bold">
-                          ₹{overallDiscountValue.toFixed(2)}
-                        </Typography>
-                        {overallDiscountValue > 0 && (
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            {overallDiscountMode === 'percentage' ?
-                              `${overallDiscountValue}%` :
-                              `${((overallDiscountValue / totalOriginalAmount) * 100 || 0).toFixed(2)}%`
-                            }
-                          </Typography>
-                        )}
-                      </Box>
-                    </TableCell>
-
-                    {/* Total Discount */}
-                    <TableCell align="right">
-                      <Box>
-                        <Typography variant="body2" fontWeight="bold" color="error.main">
-                          ₹{totals.roundedTotalDiscount.toFixed(2)}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-
-                    {/* Final Amount */}
-                    <TableCell align="right">
-                      <Typography variant="body2" fontWeight="bold" color="success.main">
-                        ₹{totals.roundedTotalOrderAmount.toFixed(2)}
-                      </Typography>
-                    </TableCell>
-
-                    <TableCell />
-                  </TableRow>
-
-                  {/* Service Totals Section */}
-                  <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
-                    <TableCell colSpan={15} align="right">
-                      <strong>Sub Total (Service):</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>{totals.subTotal.toFixed(2)}</strong>
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-
-                  <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={15} align="right">
-                      <strong>Total Service Tax:</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>{totals.taxAmount.toFixed(2)}</strong>
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-
-                  {/* Overall Discount Control */}
-                  <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={15} align="right">
-                      <strong>Overall Discount:</strong>
-                    </TableCell>
-                    <TableCell align="right" colSpan={2}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <TextField
-                          autoComplete='off'
-                          value={overallDiscountValue === 0 ? '' : overallDiscountValue.toString()}
-                          onChange={handleOverallDiscountChange}
-                          size="small"
-                          type="number"
-                          label={overallDiscountMode === 'percentage' ? '%' : '₹'}
-                          inputProps={{
-                            min: '0',
-                            max: overallDiscountMode === 'percentage' ? '99.99' : undefined,
-                            step: '0.01',
-                          }}
-                          sx={{ width: 80 }}
-                          disabled={hasDescriptionWiseDiscount || loadingStates.totals}
-                        />
-
-                        <FormControl size="small" sx={{ minWidth: 100 }}>
-                          <Select
-                            value={overallDiscountMode}
-                            onChange={(e) => setOverallDiscountMode(e.target.value as 'percentage' | 'amount')}
-                            disabled={hasDescriptionWiseDiscount || loadingStates.totals}
-                          >
-                            <MenuItem value="percentage">Percentage</MenuItem>
-                            <MenuItem value="amount">Amount</MenuItem>
-                          </Select>
-                        </FormControl>
-
-                        <FormControl size="small" sx={{ minWidth: 100 }}>
-                          <Select
-                            value={overallDiscountAppliedOn}
-                            onChange={(e) => {
-                              setOverallDiscountAppliedOn(e.target.value as 'before_tax' | 'after_tax');
-                            }}
-                            disabled={hasDescriptionWiseDiscount || loadingStates.totals}
-                          >
-                            <MenuItem value="after_tax">On Total</MenuItem>
-                            <MenuItem value="before_tax">Before Tax</MenuItem>
-                          </Select>
-                        </FormControl>
-
-                        <Button
-                          variant="contained"
-                          size="small"
-                          onClick={handleApplyDiscount}
-                          disabled={loadingStates.description || overallDiscountValue <= 0 || descriptions.length === 0 || hasDescriptionWiseDiscount || loadingStates.totals}
-                          startIcon={loadingStates.description ? <CircularProgress size={16} /> : null}
-                        >
-                          {loadingStates.description ? 'Applying...' : 'Apply'}
-                        </Button>
-
-                        <IconButton
-                          onClick={handleClearOverallDiscount}
-                          size="small"
-                          color="error"
-                          disabled={appliedOverallDiscount === 0 || loadingStates.totals} // Check APPLIED value
-                          title="Clear overall discount"
-                        >
-                          <ClearIcon />
-                        </IconButton>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-
-                  <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={15} align="right">
-                      <strong>Total Service Discount:</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>{totals.overallDiscountAmount.toFixed(2)}</strong>
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-
-                  {/* Freight Totals Section */}
-                  <TableRow sx={{ backgroundColor: '#fff3e0', fontWeight: 'bold' }}>
-                    <TableCell colSpan={15} align="right">
-                      <strong>Freight Amount:</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>{freightSubTotal.toFixed(2)}</strong>
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-
-                  <TableRow sx={{ backgroundColor: '#fff3e0', fontWeight: 'bold' }}>
-                    <TableCell colSpan={15} align="right">
-                      <strong>Freight Tax:</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>{freightTaxTotal.toFixed(2)}</strong>
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-
-                  <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={15} align="right">
-                      <strong>Total Tax (Service + Freight):</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>{totals.roundedTotalTax.toFixed(2)}</strong>
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-
-                  <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={15} align="right">
-                      <strong>Total Discount:</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>{totals.roundedTotalDiscount.toFixed(2)}</strong>
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-
-                  <TableRow>
-                    <TableCell colSpan={15} align="right">
-                      <strong>Round Off/Adjustment:</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <TextField
-                          value={roundOffValue === 0 ? '' : roundOffValue.toString()}
-                          onChange={handleRoundOffChange}
-                          size="small"
-                          sx={{ width: 80 }}
-                          type="number"
-                          inputProps={{ step: '0.01', min: '-999999', max: '999999' }}
-                          autoComplete='off'
-                          disabled={loadingStates.totals}
-                        />
-                        <Typography variant="body2">
-                          ({roundOffValue >= 0 ? '+' : ''}{roundOffValue.toFixed(2)})
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-
-                  <TableRow sx={{ bgcolor: '#e8f5e8' }}>
-                    <TableCell colSpan={15} align="right">
-                      <Typography variant="h6" fontWeight="bold">
-                        FINAL AMOUNT:
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="h6" fontWeight="bold" color="success.main">
-                        ₹{totals.roundedTotalOrderAmount?.toFixed(2)}
-                      </Typography>
-                      {freightGrandTotal > 0 && (
-                        <Typography variant="caption" color="text.secondary">
-                          (Service: ₹{(totals.roundedTotalOrderAmount - freightGrandTotal).toFixed(2)} + Freight: ₹{freightGrandTotal.toFixed(2)})
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell colSpan={14} />
-                  </TableRow>
-
-                  {/* Verification Row */}
-                  {overallDiscountValue > 0 && (
-                    <TableRow sx={{ backgroundColor: '#f0f8ff' }}>
-                      <TableCell colSpan={8} align="center">
-                        <Typography variant="caption" color="primary">
-                          <InfoIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
-                          Discount Distribution
-                        </Typography>
-                      </TableCell>
-                      <TableCell colSpan={9} align="left">
-                        <Box>
-                          <Typography variant="caption">
-                            Overall Discount Applied: ₹{overallDiscountValue} ({overallDiscountMode === 'percentage' ? '%' : 'amount'})
-                          </Typography>
-                          <br />
-                          <Typography variant="caption">
-                            Applied as: {overallDiscountMode === 'amount' ?
-                              `${((overallDiscountValue / totalOriginalAmount) * 100 || 0).toFixed(2)}%` :
-                              `${overallDiscountValue}%`} to each description
-                          </Typography>
-                          <br />
-                          <Typography variant="caption">
-                            Sum of distributed discounts: ₹{(serviceData.desc_overall_discounts?.reduce((a, b) => a + b, 0) || 0).toFixed(2)}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell />
-                    </TableRow>
-                  )}
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Exit Full Screen Button */}
+            {isFullScreen && (
+              <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1000 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={toggleFullScreen}
+                  startIcon={<FullscreenExitIcon />}
+                >
+                  Exit Full Screen
+                </Button>
+              </Box>
+            )}
+          </Box>
+
+          {/* Overall Discount Section */}
+          <Box sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+            <Typography variant="h6" gutterBottom>
+              Overall Discount
+            </Typography>
+            
+            {hasDescriptionWiseDiscount && (
+              <Box sx={{ mb: 2, p: 1.5, bgcolor: '#fff3e0', borderRadius: 1, border: '1px solid #ffb74d' }}>
+                <Typography variant="body2" color="warning.dark">
+                  ⚠️ Overall discount is disabled because some descriptions already have individual discounts. 
+                  Please remove individual discounts first to apply an overall discount.
+                </Typography>
+              </Box>
+            )}
+
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} sm={2}>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={overallDiscountMode}
+                    onChange={(e) => setOverallDiscountMode(e.target.value as 'percentage' | 'amount')}
+                    disabled={hasDescriptionWiseDiscount || loadingStates.totals}
+                  >
+                    <MenuItem value="percentage">Percentage (%)</MenuItem>
+                    <MenuItem value="amount">Amount (₹)</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={2}>
+                <TextField
+                  fullWidth
+                  label={`Discount ${overallDiscountMode === 'percentage' ? '%' : 'Amount (₹)'}`}
+                  type="number"
+                  value={overallDiscountValue === 0 ? '' : overallDiscountValue}
+                  onChange={handleOverallDiscountChange}
+                  size="small"
+                  disabled={hasDescriptionWiseDiscount || loadingStates.totals}
+                  inputProps={{
+                    min: 0,
+                    max: overallDiscountMode === 'percentage' ? 99.99 : totals.subTotal,
+                    step: overallDiscountMode === 'percentage' ? 0.01 : 1,
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={3}>
+                <FormControl fullWidth size="small">
+                  <RadioGroup
+                    row
+                    value={overallDiscountAppliedOn}
+                    onChange={(e) => setOverallDiscountAppliedOn(e.target.value as 'before_tax' | 'after_tax')}
+                  >
+                    <FormControlLabel
+                      value="before_tax"
+                      control={<Radio size="small" />}
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Typography variant="body2">Before Tax</Typography>
+                          <Tooltip title="Discount applied on amount before tax calculation">
+                            <InfoIcon fontSize="small" color="action" />
+                          </Tooltip>
+                        </Box>
+                      }
+                    />
+                    <FormControlLabel
+                      value="after_tax"
+                      control={<Radio size="small" />}
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Typography variant="body2">After Tax</Typography>
+                          <Tooltip title="Discount applied on amount after tax calculation">
+                            <InfoIcon fontSize="small" color="action" />
+                          </Tooltip>
+                        </Box>
+                      }
+                    />
+                  </RadioGroup>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={5}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleApplyDiscount}
+                    disabled={
+                      hasDescriptionWiseDiscount || 
+                      overallDiscountValue <= 0 || 
+                      descriptions.length === 0 ||
+                      loadingStates.totals
+                    }
+                    startIcon={loadingStates.totals ? <CircularProgress size={16} /> : null}
+                  >
+                    {loadingStates.totals ? 'Calculating...' : 'Apply Discount'}
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={handleClearOverallDiscount}
+                    disabled={appliedOverallDiscount <= 0 || loadingStates.totals}
+                  >
+                    Clear Discount
+                  </Button>
+
+                  {appliedOverallDiscount > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                      <Typography variant="body2" color="success.main" fontWeight="bold">
+                        Applied: {appliedOverallDiscount}
+                        {appliedOverallDiscountMode === 'percentage' ? '%' : '₹'}
+                        {' '}on {appliedOverallDiscountAppliedOn === 'before_tax' ? 'Before Tax' : 'After Tax'}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
           </Box>
 
           {/* Freight Section */}
-          <Box sx={{ mt: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+          <Box sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Freight Charges
-                {loadingStates.totals && <CircularProgress size={16} sx={{ ml: 1 }} />}
-              </Typography>
+              <Typography variant="h6">Freight Details</Typography>
               <Button
                 variant="outlined"
-                color="primary"
-                onClick={() => setOpenFreightDialog(true)}
+                size="small"
                 startIcon={<AddIcon />}
-                disabled={loadingStates.totals}
+                onClick={() => setOpenFreightDialog(true)}
               >
                 Add Freight
               </Button>
             </Box>
 
             {freights.length > 0 ? (
-              <TableContainer sx={{ maxHeight: 300, overflowY: 'auto' }}>
+              <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Freight Name</TableCell>
                       <TableCell align="right">Amount (₹)</TableCell>
-                      <TableCell align="center">Tax Code</TableCell>
                       <TableCell align="center">Tax Type</TableCell>
-                      <TableCell align="right">Tax (₹)</TableCell>
-                      <TableCell align="right">Total (₹)</TableCell>
-                      <TableCell align="right">Actions</TableCell>
+                      <TableCell align="right">Tax %</TableCell>
+                      <TableCell align="right">Tax Amount (₹)</TableCell>
+                      <TableCell align="right">Total Amount (₹)</TableCell>
+                      <TableCell align="center">Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {freights.map((freight: FreightData, index: number) => (
-                      <TableRow key={index}>
+                    {freights.map((freight, index) => (
+                      <TableRow key={freight.id || index}>
                         <TableCell>{freight.name}</TableCell>
-                        <TableCell align="right">{freight.amt.toFixed(2)}</TableCell>
-                        <TableCell align="center">{freight.tCode}</TableCell>
+                        <TableCell align="right">₹{freight.amt?.toFixed(2)}</TableCell>
                         <TableCell align="center">
                           {freight.taxType === 'cgst_sgst' ? 'CGST/SGST' : 'IGST'}
                         </TableCell>
-                        <TableCell align="right">{freight.tAmt.toFixed(2)}</TableCell>
-                        <TableCell align="right">{freight.totalAmt.toFixed(2)}</TableCell>
-                        <TableCell align="right">
-                          <IconButton
-                            size="small"
-                            onClick={() => setOpenFreightDialog(true)}
-                            title="Edit Freight"
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
+                        <TableCell align="right">{freight.taxPercentage}%</TableCell>
+                        <TableCell align="right">₹{freight.tAmt?.toFixed(2)}</TableCell>
+                        <TableCell align="right">₹{freight.totalAmt?.toFixed(2)}</TableCell>
+                        <TableCell align="center">
                           <IconButton
                             size="small"
                             color="error"
                             onClick={() => handleDeleteFreight(index)}
-                            disabled={loadingStates.totals}
-                            title="Delete Freight"
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </TableCell>
                       </TableRow>
                     ))}
-                    {/* Freight Totals Row */}
-                    <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
-                      <TableCell><strong>Freight Totals:</strong></TableCell>
-                      <TableCell align="right"><strong>{freightSubTotal.toFixed(2)}</strong></TableCell>
-                      <TableCell colSpan={2} />
-                      <TableCell align="right"><strong>{freightTaxTotal.toFixed(2)}</strong></TableCell>
-                      <TableCell align="right"><strong>{freightGrandTotal.toFixed(2)}</strong></TableCell>
-                      <TableCell />
+                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                      <TableCell colSpan={5} align="right">
+                        <Typography fontWeight="bold">Freight Totals:</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography fontWeight="bold">₹{freightGrandTotal.toFixed(2)}</Typography>
+                      </TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
               </TableContainer>
             ) : (
-              <Typography variant="body2" color="text.secondary">
-                No freight charges added.
+              <Typography variant="body2" color="text.secondary" align="center" py={2}>
+                No freight added
               </Typography>
             )}
           </Box>
 
-          {/* Additional Form Fields */}
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={2} md={2}>
-              <TextField
-                fullWidth
-                label="Sub Total (Service)"
-                name="subTotal"
-                value={totals.subTotal.toFixed(2)}
-                size="small"
-                variant="outlined"
-                InputProps={{ readOnly: true }}
-                autoComplete="off"
-              />
-            </Grid>
-            <Grid item xs={12} sm={2} md={2}>
-              <TextField
-                fullWidth
-                label="Total Order Amount"
-                name="totalAmount"
-                value={totals.roundedTotalOrderAmount.toFixed(2)}
-                size="small"
-                variant="outlined"
-                InputProps={{ readOnly: true }}
-                error={totals.roundedTotalOrderAmount > serviceData.creditLimit}
-                helperText={totals.roundedTotalOrderAmount > serviceData.creditLimit ? 'Order amount exceeds credit limit' : ''}
-                autoComplete="off"
-              />
-            </Grid>
-            <Grid item xs={12} sm={4} md={2}>
-              <Autocomplete
-                fullWidth
-                options={businesses.map((business) => `${business.address1 ?? ''} ${business.address2 ?? ''}`.trim())}
-                value={serviceData.billingAddress || ''}
-                onChange={(event, newValue) => handleSelectAddressChange('billingAddress', newValue)}
-                renderInput={(params) => (
+          {/* Round Off and Totals Section */}
+          <Box sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                    Round Off
+                  </Typography>
                   <TextField
-                    {...params}
-                    label="Billing Address"
-                    size="small"
-                    variant="outlined"
-                    error={formErrors.billingAddress}
-                    helperText={formErrors.billingAddress ? 'Billing address is required' : ''}
-                    autoComplete="off"
-                  />
-                )}
-              />
-            </Grid>
-            <Grid item xs={12} sm={4} md={2}>
-              <Grid container spacing={1} sx={{ display: 'flex', alignItems: 'center' }}>
-                <Grid item xs={10}>
-                  <Autocomplete
                     fullWidth
-                    options={shippingaddress.map((shipping) => shipping.address ?? '')}
-                    value={serviceData.shippingAddress ?? ''}
-                    onChange={(event, newValue) => handleSelectAddressChange('shippingAddress', newValue)}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Shipping Address"
-                        size="small"
-                        variant="outlined"
-                        error={formErrors.shippingAddress}
-                        helperText={formErrors.shippingAddress ? 'Shipping address is required' : ''}
-                        autoComplete="off"
-                      />
-                    )}
+                    label="Round Off Amount (₹)"
+                    type="number"
+                    value={roundOffValue === 0 ? '' : roundOffValue}
+                    onChange={handleRoundOffChange}
+                    size="small"
+                    helperText="Positive value adds to total, negative value subtracts"
+                    sx={{ maxWidth: 300 }}
                   />
-                </Grid>
-                <Grid item xs={2} sx={{ display: 'flex', justifyContent: 'center' }}>
-                  <IconButton
-                    color="primary"
-                    onClick={() => setOpenShippingDialog(true)}
-                    sx={{ p: 0 }}
-                  >
-                    <AddIcon />
-                  </IconButton>
-                </Grid>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ p: 2, bgcolor: '#f8f9fa', borderRadius: 1 }}>
+                  <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                    Order Summary
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Subtotal:</Typography>
+                      <Typography variant="body2">₹{totals.subTotal.toFixed(2)}</Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Total Freight:</Typography>
+                      <Typography variant="body2">₹{freightGrandTotal.toFixed(2)}</Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Total Tax:</Typography>
+                      <Typography variant="body2">₹{totals.roundedTotalTax.toFixed(2)}</Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="error">
+                        Total Discount:
+                      </Typography>
+                      <Typography variant="body2" color="error">
+                        -₹{totals.roundedTotalDiscount.toFixed(2)}
+                      </Typography>
+                    </Box>
+
+                    {roundOffValue !== 0 && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color={roundOffValue > 0 ? "success.main" : "error"}>
+                          Round Off:
+                        </Typography>
+                        <Typography variant="body2" color={roundOffValue > 0 ? "success.main" : "error"}>
+                          {roundOffValue > 0 ? '+' : ''}₹{roundOffValue.toFixed(2)}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, pt: 1, borderTop: '1px solid #e0e0e0' }}>
+                      <Typography variant="body1" fontWeight="bold">
+                        Grand Total:
+                      </Typography>
+                      <Typography variant="body1" fontWeight="bold" color="primary">
+                        ₹{totals.roundedTotalOrderAmount.toFixed(2)}
+                      </Typography>
+                    </Box>
+
+                    {totals.roundedTotalOrderAmount > serviceData.creditLimit && (
+                      <Box sx={{ mt: 1, p: 1, bgcolor: '#ffebee', borderRadius: 1, border: '1px solid #f44336' }}>
+                        <Typography variant="caption" color="error" fontWeight="bold">
+                          ⚠️ Order amount exceeds credit limit of ₹{serviceData.creditLimit}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
               </Grid>
             </Grid>
-            <Grid item xs={12} sm={4} md={2}>
-              <LocationAutocomplete
-                value={locationSearch}
-                onChange={handleLocationChange}
-                label="Location"
-                error={formErrors.locationName}
-                helperText={formErrors.locationName ? 'Location is required' : ''}
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                label="Comments"
-                name="comments"
-                value={serviceData.comments}
-                onChange={handleTextFieldChange}
-                size="small"
-                variant="outlined"
-                multiline
-                rows={3}
-                autoComplete="off"
-              />
-            </Grid>
+          </Box>
 
-            {/* Terms and Conditions */}
-            {serviceData.termsandConditions.map((term, index) => (
-              <Grid item xs={12} sm={4} md={2} key={index}>
+          {/* Additional Details Section */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>Additional Details</Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  autoComplete='off'
-                  label={`Terms and Conditions ${index + 1}`}
+                  label="Shipping Address"
+                  name="shippingAddress"
+                  value={serviceData.shippingAddress}
+                  onChange={handleTextFieldChange}
+                  size="small"
+                  error={formErrors.shippingAddress}
+                  helperText={formErrors.shippingAddress ? 'Shipping address is required' : ''}
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Billing Address"
+                  name="billingAddress"
+                  value={serviceData.billingAddress}
+                  onChange={handleTextFieldChange}
+                  size="small"
+                  error={formErrors.billingAddress}
+                  helperText={formErrors.billingAddress ? 'Billing address is required' : ''}
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <LocationAutocomplete
+                  value={locationSearch}
+                  onChange={handleLocationChange}
+                  label="Location *"
+                  error={formErrors.locationName}
+                  helperText={formErrors.locationName ? 'Location is required' : ''}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Comments"
+                  name="comments"
+                  value={serviceData.comments || ''}
+                  onChange={handleTextFieldChange}
+                  size="small"
+                  multiline
+                  rows={2}
+                  placeholder="Any additional comments or notes"
+                />
+              </Grid>
+            </Grid>
+          </Box>
+
+          {/* Terms and Conditions Section */}
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">Terms and Conditions</Typography>
+              {serviceData.termsandConditions.length < 3 && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={handleAddTerm}
+                >
+                  Add Term
+                </Button>
+              )}
+            </Box>
+
+            {serviceData.termsandConditions.map((term, index) => (
+              <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                <TextField
+                  fullWidth
+                  label={`Term ${index + 1}`}
                   value={term}
                   onChange={(e) => handleTextFieldChange(e, index)}
                   size="small"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: (
-                      <IconButton onClick={() => handleRemoveTerm(index)} size="small">
-                        <RemoveIcon />
-                      </IconButton>
-                    ),
-                  }}
+                  multiline
+                  rows={1}
+                  placeholder="Enter a term or condition"
                 />
-              </Grid>
+                {index > 0 && (
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => handleRemoveTerm(index)}
+                  >
+                    <RemoveIcon />
+                  </IconButton>
+                )}
+              </Box>
             ))}
-            <Grid item xs={3}>
+          </Box>
+
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+            <Box>
               <Button
                 variant="outlined"
-                color="primary"
-                onClick={handleAddTerm}
-                disabled={serviceData.termsandConditions.length >= 3}
-                startIcon={<AddIcon />}
+                color="error"
+                onClick={handleClear}
+                disabled={loadingStates.submit}
               >
-                Add Term
+                Clear All
               </Button>
-              {serviceData.termsandConditions.length >= 3 && (
-                <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
-                  Maximum of 3 terms reached
-                </Typography>
-              )}
-            </Grid>
-          </Grid>
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleOpenDialog}
+                disabled={descriptions.length === 0 || loadingStates.submit}
+                startIcon={loadingStates.submit ? <CircularProgress size={20} /> : null}
+              >
+                {loadingStates.submit ? 'Processing...' : (isEditMode ? 'Update Service Order' : 'Create Service Order')}
+              </Button>
+            </Box>
+          </Box>
         </Box>
       </Box>
 
-      {/* Footer Actions */}
-      <Box sx={{ p: 0.5, bgcolor: 'white', position: 'sticky', bottom: 0, zIndex: 10 }}>
-        <Grid container spacing={2} justifyContent="flex-end">
-          <Grid item>
-            <Button variant="outlined" color="primary" onClick={handleClear}>
-              {isEditMode ? 'Cancel Edit' : 'Clear All'}
-            </Button>
-          </Grid>
-          <Grid item>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleOpenDialog}
-              disabled={loadingStates.submit || loadingStates.description || loadingStates.totals}
-            >
-              {isEditMode ? 'Update Service Order' : 'Submit Service Order'}
-            </Button>
-          </Grid>
-        </Grid>
-      </Box>
-
-      {/* Dialogs */}
-      <Dialog open={open} onClose={() => setDialogOpen(false)}>
-        <DialogTitle>
-          {isHoldOrderDialog ? 'Confirm Hold Service Order' : (isEditMode ? 'Confirm Update' : 'Confirm Service Order')}
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {isHoldOrderDialog
-              ? `The service order amount (${totals.roundedTotalOrderAmount.toFixed(2)}) exceeds the vendor's credit limit (${serviceData.creditLimit.toFixed(2)}). This order will be placed on hold and sent for approval. Proceed?`
-              : (isEditMode ? 'Are you sure you want to update this service order?' : 'Are you sure you want to submit this service order?')
-            }
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleSubmit}
-            color="primary"
-            variant="contained"
-            disabled={loadingStates.submit || loadingStates.totals}
-            startIcon={loadingStates.submit ? <CircularProgress size={20} /> : null}
-          >
-            {loadingStates.submit ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Confirm')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={openShippingDialog} onClose={() => {
-        setOpenShippingDialog(false);
-        setUpdatedShippingRow(null);
-      }}>
-        <DialogTitle>Add New Shipping Address</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Address"
-            value={updatedShippingRow?.address || ''}
-            onChange={(e) => setUpdatedShippingRow({
-              ...updatedShippingRow!,
-              address: e.target.value
-            })}
-            margin="normal"
-            variant="outlined"
-            autoComplete="off"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setOpenShippingDialog(false);
-            setUpdatedShippingRow(null);
-          }}>Cancel</Button>
-          <Button onClick={() => {
-            /* Implement save logic */
-            setOpenShippingDialog(false);
-            setUpdatedShippingRow(null);
-          }} color="primary">
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={showNavigationConfirm} onClose={() => setShowNavigationConfirm(false)}>
-        <DialogTitle>Unsaved Changes</DialogTitle>
-        <DialogContent>
-          <DialogContentText>You have unsaved changes. Are you sure you want to leave this page?</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowNavigationConfirm(false)}>Cancel</Button>
-          <Button onClick={() => {
-            setShowNavigationConfirm(false);
-            if (pendingNavigation) {
-              pendingNavigation();
-              setPendingNavigation(null);
-            }
-          }} color="primary" variant="contained">
-            Leave Page
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Backdrop sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: '#fff' }} open={loadingStates.description || loadingStates.totals || loadingStates.submit}>
-        <CircularProgress color="inherit" />
-      </Backdrop>
-
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => dispatch(clearSnackbarMessage())}
-        message={snackbarMessage}
-      />
-
-      {/* Freight Dialog */}
-      <FreightSelectionDialog
+      {/* Freight Selection Dialog */}
+          <FreightSelectionDialog
         open={openFreightDialog}
         onClose={() => setOpenFreightDialog(false)}
         onAddFreights={handleAddFreights}
         existingFreights={freights}
       />
+
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={open}
+        onClose={() => setDialogOpen(false)}
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby="confirm-dialog-description"
+      >
+        <DialogTitle id="confirm-dialog-title">
+          {isHoldOrderDialog ? 'Credit Limit Exceeded' : 'Confirm Service Order'}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="confirm-dialog-description">
+            {isHoldOrderDialog ? (
+              <>
+                The order amount of <strong>₹{totals.roundedTotalOrderAmount.toFixed(2)}</strong> exceeds the vendor's credit limit of <strong>₹{serviceData.creditLimit}</strong>.
+                <br /><br />
+                This order will be marked as <strong>HOLD</strong> and will require approval before processing.
+              </>
+            ) : (
+              `Are you sure you want to ${isEditMode ? 'update' : 'create'} this service order?`
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} color="primary" variant="contained" autoFocus>
+            {isHoldOrderDialog ? 'Create Hold Order' : (isEditMode ? 'Update' : 'Create')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Navigation Confirmation Dialog */}
+      <Dialog
+        open={showNavigationConfirm}
+        onClose={() => setShowNavigationConfirm(false)}
+      >
+        <DialogTitle>Unsaved Changes</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            You have unsaved changes. Are you sure you want to leave?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowNavigationConfirm(false)}>
+            Stay
+          </Button>
+          <Button onClick={() => {
+            if (pendingNavigation) {
+              pendingNavigation();
+            }
+            setShowNavigationConfirm(false);
+          }} color="error" autoFocus>
+            Leave
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => dispatch(setSnackbarOpen(false))}
+        message={snackbarMessage}
+        action={
+          <IconButton
+            size="small"
+            color="inherit"
+            onClick={() => dispatch(setSnackbarOpen(false))}
+          >
+            <ClearIcon fontSize="small" />
+          </IconButton>
+        }
+      />
+
+      {/* Loading Backdrop */}
+      <Backdrop
+        open={loadingStates.submit}
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
     </Box>
   );
 };

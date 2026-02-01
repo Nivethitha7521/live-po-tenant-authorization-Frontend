@@ -1,5 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
+import purchaseApi from "@/utils/api";
+
 import { RootState } from '../../../redux/store';
 import { Bank, BulkPaymentRequest, BulkPaymentResponse, DebitNote, FetchOutgoingsArgs, GRN, initialState, Outgoing, PaymentDetails, PaymentDone, PaymentHistory, ProcessPaymentRequest, TaxDetail, VendorDetail, VendorPayment } from '@/Models/outgoingModel';
 
@@ -11,7 +13,7 @@ export const fetchOutgoings = createAsyncThunk<
   'outgoings/fetchOutgoings',
   async (args, { rejectWithValue }) => {
     try {
-      const url = 'http://192.168.29.116:8000/purchasetestapi/outgoingpayments/';
+      const url = 'http://127.0.0.1:8000/purchasetestapi/outgoingpayments/';
       const params: any = {
         skip: (args.page - 1) * args.size,
         limit: args.size,
@@ -30,7 +32,7 @@ export const fetchOutgoings = createAsyncThunk<
 
       console.log('🔍 API Call Params:', params);
 
-      const response = await axios.get(url, { params });
+      const response = await purchaseApi.get("/outgoingpayments/", { params });
 
       // DEBUG: Log the actual API response
       console.log('🔍 RAW API RESPONSE:', response.data);
@@ -71,8 +73,8 @@ export const fetchVendorDetails = createAsyncThunk(
         params.append('fetchAll', filters.fetchAll.toString());
       }
 
-      const response = await axios.get<VendorDetail[]>(
-        `http://192.168.29.116:8000/purchasetestapi/outgoingpayments/vendors/details?${params.toString()}`
+       const response = await purchaseApi.get<VendorDetail[]>(
+        `/outgoingpayments/vendors/details?${params.toString()}`,
       );
       return response.data;
     } catch (error) {
@@ -81,7 +83,7 @@ export const fetchVendorDetails = createAsyncThunk(
   }
 );
 export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
-  const response = await axios.get<GRN[]>(`http://192.168.29.116:8000/purchasetestapi/grns/`);
+  const response = await purchaseApi.get<GRN[]>(`/grns/`);
   const grnData = response.data.map(item => ({
     grnId: item.grnId,
     randomId: item.randomId,
@@ -91,14 +93,16 @@ export const fetchGRN = createAsyncThunk('purchaseorder/fetch', async () => {
 
 // Async thunk to add a new Outgoing item
 export const addOutgoing = createAsyncThunk<Outgoing, Omit<Outgoing, 'outgoingId'>>('outgoings/addOutgoing', async (outgoingData) => {
-  const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/outgoingpayments/', outgoingData); // Adjust the API endpoint as needed
+  const response = await purchaseApi.post("/outgoingpayments/", outgoingData); // Adjust the API endpoint as needed
   return response.data;
 });
 
 // Async thunk to update an existing Outgoing item
 export const updateOutgoing = createAsyncThunk<Outgoing, Outgoing>('outgoings/updateOutgoing', async (outgoingData) => {
-  const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/outgoingpayments/${outgoingData.outgoingId}`, outgoingData); // Adjust the API endpoint as needed
-  return response.data;
+ const response = await purchaseApi.patch(
+      `/outgoingpayments/${outgoingData.outgoingId}`,
+      outgoingData,
+    );  return response.data;
 });
 // Thunk
 export const fetchBank = createAsyncThunk<Bank[], void, { dispatch: any }>(
@@ -166,8 +170,10 @@ export const processPayment = createAsyncThunk<
         paymentDate: paymentDate.toISOString(),
       };
 
-      await axios.patch(`http://192.168.29.116:8000/purchasetestapi/outgoingpayments/${outgoingId}/payment`, payload);
-    } catch (error: any) {
+  await purchaseApi.patch(
+        `/outgoingpayments/${outgoingId}/payment`,
+        payload,
+      );    } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || error.message || 'Payment processing failed');
     }
   }
@@ -183,8 +189,9 @@ export const fetchActiveDebitsVendor = createAsyncThunk<
   'debitNotes/fetchActiveDebitsVendor', // Unique action type
   async (vendorName, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`http://192.168.29.116:8000/purchasetestapi/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`);
-      if (!response.data.debits) {
+const response = await purchaseApi.get(
+        `/debitnote/vendor/${encodeURIComponent(vendorName)}/active-debits`,
+      );      if (!response.data.debits) {
         throw new Error('No debits found in response');
       }
       return response.data.debits as DebitNote[];
@@ -209,8 +216,8 @@ export const fetchActiveDebitsMultipleVendor = createAsyncThunk<
 
       // Use the multiple endpoint for efficiency
       const vendorNamesStr = vendorNames.join(',');
-      const response = await axios.get(
-        `http://192.168.29.116:8000/purchasetestapi/debitnote/multiplevendors/active-debits?vendor_names=${encodeURIComponent(vendorNamesStr)}`
+      const response = await purchaseApi.get(
+        `/debitnote/multiplevendors/active-debits?vendor_names=${encodeURIComponent(vendorNamesStr)}`,
       );
 
       return response.data.debits || [];
@@ -238,9 +245,9 @@ export const processBulkPayment = createAsyncThunk<
           : undefined,
       };
 
-      const response = await axios.patch(
-        'http://192.168.29.116:8000/purchasetestapi/outgoingpayments/bulk/bulk-payment',
-        requestPayload
+      const response = await purchaseApi.patch(
+        "/outgoingpayments/bulk/bulk-payment",
+        requestPayload,
       );
 
       if (response.status === 207) {
@@ -286,8 +293,10 @@ export const addNewPayment = createAsyncThunk<Outgoing, PaymentDetails>(
         ...paymentData,
       };
 
-      const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/outgoingpayments/', outgoingWithDate);
-      console.log('Response from API:', response.data); // Log response from API
+  const response = await purchaseApi.post(
+        "/outgoingpayments/",
+        outgoingWithDate,
+      );      console.log('Response from API:', response.data); // Log response from API
       return response.data;
     } catch (error: any) {
       console.error('Error in addNewPayment:', error); // Log the error for further insight
@@ -301,7 +310,7 @@ export const addNewVendorPayment = createAsyncThunk(
   async (paymentData: any, { rejectWithValue }) => {
     console.log('addNewPayment called with data:', paymentData);
     try {
-      const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/outgoingpayments/advance/', {
+      const response = await purchaseApi.post("/outgoingpayments/advance/", {
         ...paymentData,
         isPreOutgoing: !paymentData.poId,
       });
@@ -318,8 +327,9 @@ export const addNewVendorPayment = createAsyncThunk(
 export const fetchTaxDetails = createAsyncThunk<TaxDetail[], string>(
   'outgoings/fetchTaxDetails',
   async (outgoingId) => {
-    const response = await axios.get<TaxDetail[]>(`http://192.168.29.116:8000/purchasetestapi/outgoingpayments/${outgoingId}/tax-details`);
-    return response.data; // Assuming the response is directly an array of TaxDetail
+ const response = await purchaseApi.get<TaxDetail[]>(
+      `/outgoingpayments/${outgoingId}/tax-details`,
+    );    return response.data; // Assuming the response is directly an array of TaxDetail
   }
 );
 
@@ -344,8 +354,9 @@ export const selectOutgoingPayment = createAsyncThunk<
   ) => {
     try {
       // Fetch outgoing payment details
-      const response = await axios.get<Outgoing>(`http://192.168.29.116:8000/purchasetestapi/outgoingpayments/${outgoingId}`);
-      const outgoingData = response.data;
+  const response = await purchaseApi.get<Outgoing>(
+        `/outgoingpayments/${outgoingId}`,
+      );      const outgoingData = response.data;
 
       const totalPayableAmount = outgoingData.totalPayableAmount ?? 0;
 
@@ -407,8 +418,10 @@ export const selectOutgoingPayment = createAsyncThunk<
       }
 
       // Send updated data to the server
-      await axios.patch(`http://192.168.29.116:8000/purchasetestapi/outgoingpayments/${outgoingId}`, updatedOutgoing);
-
+ await purchaseApi.patch(
+        `/outgoingpayments/${outgoingId}`,
+        updatedOutgoing,
+      );
       return updatedOutgoing;
     } catch (error: any) {
       // Handle and log error if any occurs

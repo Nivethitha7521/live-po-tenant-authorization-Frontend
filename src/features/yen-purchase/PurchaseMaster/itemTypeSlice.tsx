@@ -3,14 +3,32 @@ import axios from 'axios';
 import { RootState } from '../../../redux/store';
 import { initialState, PurchaseItemType } from '@/Models/itemType';
 
+// ✅ GET USERNAME FROM LOCALSTORAGE OR CONTEXT
+const getUsername = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('username') || 'system';
+  }
+  return 'system';
+};
+
+const getHeaders = () => ({
+  Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+  "Content-Type": "application/json",
+});
+
+
 export const fetchPurchaseTypeItems = createAsyncThunk('purchaseTypeItems/fetchPurchaseTypeItems', async () => {
-  const response = await axios.get<PurchaseItemType[]>('http://192.168.29.116:8000/purchasetestapi/itemtypes/');
+  const response = await axios.get<PurchaseItemType[]>('http://127.0.0.1:8000/purchasetestapi/itemtypes/', {
+    headers: getHeaders() // ✅ ADD HEADERS
+  });
   return response.data;
 });
 
 export const addPurchaseTypeItem = createAsyncThunk<PurchaseItemType, Omit<PurchaseItemType, 'itemtypeId'>>('purchaseTypeItems/addPurchaseTypeItem', async (groupItemData, { rejectWithValue }) => {
   try {
-    const response = await axios.post('http://192.168.29.116:8000/purchasetestapi/itemtypes/', groupItemData);
+    const response = await axios.post('http://127.0.0.1:8000/purchasetestapi/itemtypes/', groupItemData, {
+      headers: getHeaders() // ✅ ADD HEADERS
+    });
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -19,7 +37,9 @@ export const addPurchaseTypeItem = createAsyncThunk<PurchaseItemType, Omit<Purch
 
 export const updatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, PurchaseItemType>('purchaseTypeItems/updatePurchaseTypeItem', async (groupItemData, { rejectWithValue }) => {
   try {
-    const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/itemtypes/${groupItemData.itemtypeId}`, groupItemData);
+    const response = await axios.patch(`http://127.0.0.1:8000/purchasetestapi/itemtypes/${groupItemData.itemtypeId}`, groupItemData, {
+      headers: getHeaders() // ✅ ADD HEADERS
+    });
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -28,7 +48,9 @@ export const updatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, Purchas
 
 export const deactivatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, string>('purchaseTypeItems/deactivatePurchaseTypeItem', async (itemtypeId, { rejectWithValue }) => {
   try {
-    const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/itemtypes/${itemtypeId}`, { status: 'deactivated' });
+    const response = await axios.delete(`http://127.0.0.1:8000/purchasetestapi/itemtypes/${itemtypeId}`, {  // ✅ USE DELETE METHOD
+      headers: getHeaders()
+    });
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -37,7 +59,12 @@ export const deactivatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, str
 
 export const activatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, string>('purchaseTypeItems/activatePurchaseTypeItem', async (itemtypeId, { rejectWithValue }) => {
   try {
-    const response = await axios.patch(`http://192.168.29.116:8000/purchasetestapi/itemtypes/${itemtypeId}`, { status: 'active' });
+    const response = await axios.patch(`http://127.0.0.1:8000/purchasetestapi/itemtypes/${itemtypeId}/activate`,  // ✅ USE ACTIVATE ENDPOINT
+      {}, // Empty body since we're using the specific activate endpoint
+      {
+        headers: getHeaders()
+      }
+    );
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -50,10 +77,18 @@ export const importPurchaseTypeItem = createAsyncThunk(
     try {
       const formData = new FormData();
       formData.append('file', file);
+      
+      // ✅ CREATE HEADERS FOR FORM DATA
+      const headers = {
+          Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+
+        'Content-Type': 'multipart/form-data'
+      };
+      
       const response = await axios.post(
-        'http://192.168.29.116:8000/purchasetestapi/itemtypes/import-csv',
+        'http://127.0.0.1:8000/purchasetestapi/itemtypes/import-csv',
         formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
+        { headers }
       );
       console.log('Item Type Import API response:', response.data);
       return response.data;
@@ -69,8 +104,11 @@ export const exportPurchaseTypeItem = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        'http://192.168.29.116:8000/purchasetestapi/itemtypes/export-itemtype/export-csv',
-        { responseType: 'blob' }
+        'http://127.0.0.1:8000/purchasetestapi/itemtypes/export-itemtype/export-csv',
+        {
+          responseType: 'blob',
+          headers: getHeaders() // ✅ ADD HEADERS
+        }
       );
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -136,17 +174,24 @@ const purchaseTypeItemSlice = createSlice({
         state.items = action.payload.filter((item) => item.status === 'active');
         state.deactivatedItems = action.payload.filter((item) => item.status === 'deactivated');
       })
-      .addCase(fetchPurchaseTypeItems.rejected, (state) => {
+      .addCase(fetchPurchaseTypeItems.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.error.message || 'Failed to fetch item types';
       })
       .addCase(addPurchaseTypeItem.fulfilled, (state, action) => {
         state.items.push(action.payload);
+      })
+      .addCase(addPurchaseTypeItem.rejected, (state, action) => {
+        state.error = action.payload as string || 'Failed to add item type';
       })
       .addCase(updatePurchaseTypeItem.fulfilled, (state, action) => {
         const index = state.items.findIndex((item) => item.itemtypeId === action.payload.itemtypeId);
         if (index !== -1) {
           state.items[index] = action.payload;
         }
+      })
+      .addCase(updatePurchaseTypeItem.rejected, (state, action) => {
+        state.error = action.payload as string || 'Failed to update item type';
       })
       .addCase(deactivatePurchaseTypeItem.fulfilled, (state, action) => {
         const index = state.items.findIndex((item) => item.itemtypeId === action.payload.itemtypeId);
@@ -169,6 +214,7 @@ const purchaseTypeItemSlice = createSlice({
         state.importError = null;
       })
       .addCase(importPurchaseTypeItem.fulfilled, (state, action) => {
+        state.importStatus = 'succeeded';
         state.importResult = action.payload;
         state.showImportResultDialog = true;
         state.snackbarMessage = action.payload.message || 'Item Type imported successfully';

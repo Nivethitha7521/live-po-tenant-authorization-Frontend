@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
-import { Backdrop, Box, CircularProgress, Snackbar, Typography } from '@mui/material';
+import { Backdrop, Box, CircularProgress, Snackbar, Typography,Alert } from '@mui/material';
 import { AppDispatch } from '@/redux/store';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -22,7 +22,7 @@ import VendorToolbar from '../../../../components/yen-purchase/vendorcomponent/v
 import VendorTable from '../../../../components/yen-purchase/vendorcomponent/vendortypecomponent/vendorTable';
 import VendorTypeDialog from '../../../../components/yen-purchase/vendorcomponent/vendortypecomponent/vendortypedialog';
 import MenuPage from '../page';
-
+import { usePermissions } from '../../../../hooks/usePermissions'; 
 interface VendorType {
   vendortypeId: string;
   vendorType: string;
@@ -39,6 +39,13 @@ const initialVendorTypeState: VendorType = {
 
 const VendorType: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const { hasPermission, isModuleVisible } = usePermissions();
+
+  
+  const canAdd = hasPermission('yenerp', 'vendortype', 'add');
+  const canEdit = hasPermission('yenerp', 'vendortype', 'edit');
+  const canDelete = hasPermission('yenerp', 'vendortype', 'delete');
+
   const {
     vendoritems: vendorTypes,
     deactivatedItems,
@@ -54,15 +61,15 @@ const VendorType: React.FC = () => {
   const [importLoading, setImportLoading] = useState(false);
   const [error, setError] = useState({ vendorType: '' });
   const abortController = useRef(new AbortController());
-
+ 
 useEffect(() => {
-  const controller = abortController.current; // Copy ref to a local variable
+  const controller = abortController.current; 
   dispatch(fetchVendorTypeItems({ signal: controller.signal })).catch(() => {
-    // Ignore errors (e.g., AbortError) for simplicity
+
   });
 
   return () => {
-    controller.abort(); // Use the copied variable in cleanup
+    controller.abort(); 
   };
 }, [dispatch]);
   const normalizeVendorType = (vendorType: string): string => {
@@ -85,6 +92,11 @@ useEffect(() => {
   };
 
   const handleSubmit = async () => {
+    if ((vendorTypeData.vendortypeId && !canEdit) || (!vendorTypeData.vendortypeId && !canAdd)) {
+      dispatch(setSnackbarMessage('You do not have permission to perform this action'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     const trimmedVendorType = vendorTypeData.vendorType.trim();
     if (trimmedVendorType === '') {
       setError({ vendorType: 'Vendor Type is required' });
@@ -153,6 +165,12 @@ useEffect(() => {
   };
 
   const handleEdit = (vendortypeId: string) => {
+    
+    if (!canEdit) {
+      dispatch(setSnackbarMessage('You do not have permission to edit vendor types'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     const vendorType = vendorTypes.find((type) => type.vendortypeId === vendortypeId);
     if (vendorType) {
       dispatch(setVendorTypeData(vendorType));
@@ -162,6 +180,13 @@ useEffect(() => {
   };
 
   const handleDeactivate = async (vendortypeId: string) => {
+    
+   
+    if (!canDelete) {
+      dispatch(setSnackbarMessage('You do not have permission to deactivate vendor types'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     try {
       await dispatch(
         deactivateVendorTypeItem({ vendortypeId, signal: abortController.current.signal })
@@ -178,6 +203,12 @@ useEffect(() => {
   };
 
   const handleActivate = async (vendortypeId: string) => {
+    if (!canDelete) {
+      dispatch(setSnackbarMessage('You do not have permission to activate vendor types'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
     try {
       await dispatch(
         activateVendorTypeItem({ vendortypeId, signal: abortController.current.signal })
@@ -202,6 +233,11 @@ useEffect(() => {
   };
 
   const handleAddClick = () => {
+     if (!canAdd) {
+      dispatch(setSnackbarMessage('You do not have permission to add vendor types'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     dispatch(setVendorTypeData(initialVendorTypeState));
     dispatch(setEditIndex(null));
     dispatch(setDialogOpen('add'));
@@ -212,6 +248,19 @@ useEffect(() => {
     : vendorTypes
         .filter((item) => item.vendorType.toLowerCase().includes(searchQuery.toLowerCase()))
         .reverse();
+// ✅ MODULE VISIBILITY CHECK
+if (!isModuleVisible("yenerp", "vendortype")) {
+  return null;
+
+  // if you want message:
+  // return (
+  //   <Box p={3}>
+  //     <Alert severity="error">
+  //       You do not have access to Vendor Type module.
+  //     </Alert>
+  //   </Box>
+  // );
+}
 
   return (
     <Box mx={1}>
@@ -222,12 +271,15 @@ useEffect(() => {
         onSearch={handleSearchChange}
         onAdd={handleAddClick}
         onToggleDeactivated={toggleShowDeactivated}
-      />
+        showAddButton={canAdd}
+     />
       <VendorTable
         vendorTypes={filteredVendorTypes}
         onEdit={handleEdit}
         onDeactivate={handleDeactivate}
         onActivate={handleActivate}
+        canEdit={canEdit} 
+        canDelete={canDelete} 
       />
       <VendorTypeDialog
         handleSubmit={handleSubmit}

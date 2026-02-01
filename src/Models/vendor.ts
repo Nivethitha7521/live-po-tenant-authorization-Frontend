@@ -2,7 +2,6 @@ import { list } from "postcss";
 
 export interface VendorSummary {
   vendorId: string;
-  randomId:string;
   vendorName?: string;
   contactpersonPhone?: string;
   contactpersonEmail?: string;
@@ -101,7 +100,7 @@ export interface VendorState {
   snackbarOpen: boolean;
   snackbarMessage: string;
   editIndex: number | null;
-  dialogOpen: 'none' | 'edit' | 'deactivated';
+  dialogOpen: 'none' | 'edit' | 'deactivated'|'add';
   showDeactivated: boolean;
   vendorData: Vendor;
   itemToActivate: Vendor | null;
@@ -117,6 +116,8 @@ export interface VendorState {
   exportStatus: 'idle' | 'loading' | 'succeeded' | 'failed'; // Added
   importErrors: CsvImportError[];
   importDuplicates: CsvImportDuplicate[];
+
+  
 }
 
 // Initial state values

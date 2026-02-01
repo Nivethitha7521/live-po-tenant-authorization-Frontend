@@ -6,7 +6,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Autocomplete, TextField, CircularProgress } from '@mui/material';
 import { AppDispatch, RootState } from '@/redux/store';
-import { fetchLocations, selectStorageLocations } from '../../../features/yen-purchase/PurchaseMaster/StorageLocationSlice';
+import { fetchStorageLocations, selectStorageLocations } from '../../../features/yen-purchase/PurchaseMaster/StorageLocationSlice';
 
 import { Location } from '@/Models/storagelocation';
 
@@ -36,7 +36,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
 
   useEffect(() => {
     if (locations.length === 0) {
-      dispatch(fetchLocations());
+      dispatch(fetchStorageLocations());
     }
   }, [dispatch, locations.length]);
 

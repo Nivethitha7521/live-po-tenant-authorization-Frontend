@@ -176,6 +176,22 @@ const GrnPage = () => {
       }
     }) : [];
   }, [grns, sortOrder]);
+const grnsPermission = useSelector(
+    (state: RootState) => state.auth.permissions?.yenerp?.grns,
+  );
+
+  const grnsReturnPermission = useSelector(
+    (state: RootState) => state.auth.permissions?.yenerp?.grns_return,
+  );
+
+  const canRead = grnsPermission?.read ?? false;
+  const canEdit = grnsPermission?.edit ?? false;
+
+  const canReturnRead = grnsReturnPermission?.read ?? false;
+  const canReturnEdit = grnsReturnPermission?.edit ?? false;
+  const isHidden = grnsPermission?.hide ?? false;
+
+
   const grnIds = useMemo(() => sortedGrns.map((grn) => grn.grnId), [sortedGrns]);
   const [isConvertedToAP, setIsConvertedToAP] = useState(false);
   const isValidJSON = (data: string): boolean => {
@@ -216,17 +232,26 @@ const GrnPage = () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
-  useEffect(() => {
+   useEffect(() => {
+    if (!canRead) return; // 🔥 IMPORTANT LINE (STEP 3)
+
     if (shouldFetch && !loading) {
-      const action = fetchGrns({
-        page: newPage,
-        size: pageSize,
-      });
-      console.log('Action payload:', action);
-      dispatch(action);
+      dispatch(
+        fetchGrns({
+          page: newPage,
+          size: pageSize,
+        }),
+      );
       setShouldFetch(false);
     }
-  }, [dispatch, newPage, pageSize, loading, shouldFetch]);
+  }, [
+    canRead, // 🔥 add
+    dispatch,
+    newPage,
+    pageSize,
+    loading,
+    shouldFetch,
+  ]);
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) {
       // Optionally handle out-of-bounds page number
@@ -1366,6 +1391,10 @@ const handleApRoundOffBlur = () => {
   );
   const safeSelectedGrnId = selectedGrnId || 'default-id';
   const filteredItems = selectedGrn?.itemDetails;
+  if (isHidden) {
+  return <Typography>You do not have permission to access GRN</Typography>;
+}
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -1663,11 +1692,17 @@ const handleApRoundOffBlur = () => {
                       <TableCell>
                         <Box display="flex" alignItems="center">
                           {/* View Button with Eye Icon */}
-                          <Tooltip title="View Detail">
-                            <IconButton color="primary" onClick={() => handleGrnSelect(grn.grnId)}>
-                              <VisibilityIcon />
-                            </IconButton>
-                          </Tooltip>
+                         <Tooltip title="View Detail">
+                              <span>
+                                <IconButton
+                                  color="primary"
+                                  onClick={() => handleGrnSelect(grn.grnId)}
+                                  disabled={!canRead}
+                                >
+                                  <VisibilityIcon />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
                           {/* Debit/Credit Note Button */}
                           <Tooltip title={tooltipTitle}>
                             <span>
@@ -1679,11 +1714,17 @@ const handleApRoundOffBlur = () => {
                               </IconButton>
                             </span>
                           </Tooltip>
-                          <Tooltip title="Return GRN">
-                            <IconButton color="primary" onClick={() => handleReturnClick(grn.grnId)}>
-                              <ExitToAppIcon />
-                            </IconButton>
-                          </Tooltip>
+                           <Tooltip title="Return GRN">
+                              <span>
+                                <IconButton
+                                  color="primary"
+                                  onClick={() => handleReturnClick(grn.grnId)}
+                                  disabled={!canEdit}
+                                >
+                                  <ExitToAppIcon />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
                           {/* Download PDF Button */}
                           <Tooltip title="Download PDF">
                             <IconButton color="primary" onClick={() => handleDownload(grn.grnId)}>
@@ -1691,11 +1732,17 @@ const handleApRoundOffBlur = () => {
                             </IconButton>
                           </Tooltip>
                           {/* Edit Invoice Button */}
-                          <Tooltip title="Edit Invoice">
-                            <IconButton color="primary" sx={{ mt: 0.2 }} onClick={() => handleEditInvoice(grn.grnId)}>
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
+                            <Tooltip title="Edit">
+                              <span>
+                                <IconButton
+                                  color="primary"
+                                  onClick={() => handleEditInvoice(grn.grnId)}
+                                  disabled={!canEdit}
+                                >
+                                  <EditIcon />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -2068,7 +2115,7 @@ const handleApRoundOffBlur = () => {
               variant="contained"
               color="primary"
               onClick={handleVerify}
-              disabled={loading}
+              disabled={!canEdit}
             >
               Convert to AP
             </Button>
@@ -2076,7 +2123,7 @@ const handleApRoundOffBlur = () => {
               variant="contained"
               color="warning"
               onClick={handleOpenConfirmDialog} // Changed: Open dialog instead of direct call
-              disabled={loading || !selectedGrnId}
+              disabled={loading || !selectedGrnId || !canEdit}
             >
               Revert to PO
             </Button>
