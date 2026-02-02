@@ -1569,8 +1569,9 @@ const handleSaveChanges = useCallback(async () => {
       grnPrice: grnPrice,
       befTaxDiscount: befTaxDiscount,
       afTaxDiscount: afTaxDiscount,
-      expiryDate: item.expiryDate ? item.expiryDate : null,
-    };
+      expiryDate: item.expiryDate
+  ? item.expiryDate.toISOString()
+  : null,    };
   });
 
   console.log("Items being sent to backend:", items);

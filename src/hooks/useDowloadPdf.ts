@@ -1,10 +1,10 @@
-import axios from 'axios';
+import purchaseApi from "@/utils/api";
 import { saveAs } from 'file-saver';
 
 export const useDownloadPdf = () => {
   const downloadPdf = async (url: string, filename: string) => {
     try {
-      const response = await axios.get(url, {
+      const response = await purchaseApi.get(url, {
         responseType: 'blob',
       });
       

@@ -91,7 +91,7 @@ const DebitCreditNoteDialog: React.FC = () => {
     try {
       console.log('Downloading PDF for noteId:', noteId);
       await downloadPdf(
-        `http://192.168.29.116:8000/purchasetestapi/debitnote/returnprocess/DebitCreditNote/pdf/${noteId}`,
+        `http://127.0.0.1:8000/purchasetestapi/debitnote/returnprocess/DebitCreditNote/pdf/${noteId}`,
         `DebitCreditNote_${noteId}.pdf`
       );
     } catch (error) {

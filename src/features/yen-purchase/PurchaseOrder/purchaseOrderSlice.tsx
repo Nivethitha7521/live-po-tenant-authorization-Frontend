@@ -384,21 +384,11 @@ export const calculateOverallDiscountForAllItems = createAsyncThunk<
     try {
       console.log('Sending to backend:', payload);
 
-      const response = await fetch(`${BASE_URL}/purchaseorders/items/calculate-overall-discount`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result: OverallDiscountResponse = await response.json();
-      console.log('Backend response:', result);
-      return result;
+     const response = await purchaseApi.post(
+  "/purchaseorders/items/calculate-overall-discount",
+  payload
+);
+      return response.data;
     } catch (error) {
       console.error('Error calculating overall discount:', error);
       return rejectWithValue({
