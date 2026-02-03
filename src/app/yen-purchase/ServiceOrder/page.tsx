@@ -49,6 +49,8 @@ import moment from 'moment';
 import VendorSearchAutocomplete from '@/components/vendorsearchautocomplete';
 import ServiceIdSearch from '../ServiceOrder/Components/ServiceIDSeacrh';
 import { debounce } from 'lodash';
+import { usePermissions } from "@/hooks/usePermissions";
+import Alert from "@mui/material/Alert";
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -99,6 +101,7 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 
     descriptions.push({
       id: service.desc_ids?.[i] || `desc-${i}`,
+      include_tax: service.include_tax?.[i] ?? true,
       sacCode: service.sacCode?.[i] || '',
       description: descriptionText,
       from_date: service.from_dates?.[i],
@@ -123,6 +126,27 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
   return descriptions;
 };
 const ServiceList: React.FC = () => {
+  const { hasPermission, permissions } = usePermissions();
+
+/* MODULE VISIBILITY */
+const isPendingModuleVisible =
+  permissions?.yenerp?.serviceorders_pending &&
+  !(
+    permissions?.yenerp?.serviceorders_pending?.hide === true ||
+    permissions?.yenerp?.serviceorders_pending?.hide === 1
+  );
+
+/* ACTION PERMISSIONS */
+const canAdd = hasPermission("yenerp","serviceorders_pending","add");
+const canEdit = hasPermission("yenerp","serviceorders_pending","edit");
+const canApprove = hasPermission("yenerp","serviceorders_pending","approve");
+const canRead = hasPermission("yenerp","serviceorders_pending","read");
+const canDelete = hasPermission("yenerp","serviceorders_pending","delete");
+
+console.log("SERVICE ORDER PERMISSIONS",{
+  canAdd, canEdit, canApprove, canRead, canDelete
+});
+
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const serviceOrder = useSelector(selectServiceState);
@@ -314,6 +338,7 @@ const ServiceList: React.FC = () => {
   };
 
   const handleCreateService = () => {
+    if (!canAdd) return;
     router.push('/yen-purchase/ServiceOrder/CreateService');
   };
 
@@ -338,6 +363,7 @@ const ServiceList: React.FC = () => {
   };
 
   const handleApproveService = async () => {
+     if (!canApprove) return;
     if (!selectedMongoId) return;
 
     const selectedService = services.find((s: ServiceData) => s.mongoId === selectedMongoId);
@@ -364,6 +390,7 @@ const ServiceList: React.FC = () => {
   };
 
   const handleRejectService = async () => {
+     if (!canApprove) return;
     if (!selectedMongoId) return;
 
     const selectedService = services.find((s: ServiceData) => s.mongoId === selectedMongoId);
@@ -643,6 +670,10 @@ const ServiceList: React.FC = () => {
     handleClose();
   };
 
+if (!canRead) {
+  return <Alert severity="error">No Read Permission</Alert>;
+}
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -675,11 +706,18 @@ const ServiceList: React.FC = () => {
                 Pending
               </Button>
             </Link>
+            {permissions?.yenerp?.serviceorders_approved &&
+ !(permissions?.yenerp?.serviceorders_approved?.hide === true ||
+   permissions?.yenerp?.serviceorders_approved?.hide === 1) && (
             <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
               <Button variant="contained" sx={{ marginLeft: '10px' }} color="primary">
                 Approved
               </Button>
             </Link>
+   )}
+   {permissions?.yenerp?.serviceorders_rejected &&
+ !(permissions?.yenerp?.serviceorders_rejected?.hide === true ||
+   permissions?.yenerp?.serviceorders_rejected?.hide === 1) && (
             <Button
               variant="contained"
               color="primary"
@@ -688,6 +726,7 @@ const ServiceList: React.FC = () => {
             >
               Rejected
             </Button>
+   )}
           </Grid>
         </Grid>
 
@@ -768,16 +807,27 @@ const ServiceList: React.FC = () => {
 
           <Grid item xs="auto">
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<AddIcon />}
-                onClick={handleCreateService}
-                size="small"
-                sx={{ minHeight: 40 }}
-              >
-                Create Service
-              </Button>
+             <Button
+  variant="contained"
+  color="primary"
+  startIcon={<AddIcon />}
+  onClick={canAdd ? handleCreateService : undefined}
+  disabled={!canAdd}
+  size="small"
+  sx={{
+    minHeight: 40,
+    color: canAdd ? "white" : "#6e6e6e",
+    opacity: 1,
+    cursor: canAdd ? "pointer" : "not-allowed",
+    "&.Mui-disabled": {
+      color: "#6e6e6e",
+      opacity: 1,
+    },
+  }}
+>
+  Create Service
+</Button>
+
             </Box>
           </Grid>
 
@@ -998,32 +1048,64 @@ const ServiceList: React.FC = () => {
 
                         <Tooltip title="Edit Order">
                           <IconButton
-                            onClick={() => handleEditClick(service.mongoId)}
-                            color='primary'
-                            sx={{ mr: 1 }}
-                          >
-                            <EditIcon />
-                          </IconButton>
+  onClick={() => canEdit && handleEditClick(service.mongoId)}
+  disabled={!canEdit}
+  sx={{
+    mr: 1,
+    color: canEdit ? "primary.main" : "#6e6e6e",
+    opacity: 1,
+    cursor: canEdit ? "pointer" : "not-allowed",
+    "&.Mui-disabled": {
+      color: "#6e6e6e",
+      opacity: 1,
+    },
+  }}
+>
+  <EditIcon />
+</IconButton>
+
                         </Tooltip>
 
                         <Tooltip title="Approve Order">
-                          <IconButton
-                            onClick={() => handleApproveDialogOpen(service.mongoId)}
-                            sx={{ mr: 1 }}
-                            color='primary'
-                          >
-                            <CheckIcon />
-                          </IconButton>
+                        <IconButton
+  onClick={() =>
+    canApprove && handleApproveDialogOpen(service.mongoId)
+  }
+  disabled={!canApprove}
+  sx={{
+    mr: 1,
+    color: canApprove ? "primary.main" : "#6e6e6e",
+    opacity: 1,
+    "&.Mui-disabled": {
+      color: "#6e6e6e",
+      opacity: 1,
+    },
+  }}
+>
+  <CheckIcon />
+</IconButton>
+
                         </Tooltip>
 
                         <Tooltip title="Reject Order">
-                          <IconButton
-                            onClick={() => handleRejectDialogOpen(service.mongoId)}
-                            sx={{ mr: 1 }}
-                            color='primary'
-                          >
-                            <CloseIcon />
-                          </IconButton>
+                        <IconButton
+  onClick={() =>
+    canApprove && handleRejectDialogOpen(service.mongoId)
+  }
+  disabled={!canApprove}
+  sx={{
+    mr: 1,
+    color: canApprove ? "primary.main" : "#6e6e6e",
+    opacity: 1,
+    "&.Mui-disabled": {
+      color: "#6e6e6e",
+      opacity: 1,
+    },
+  }}
+>
+  <CloseIcon />
+</IconButton>
+
                         </Tooltip>
                       </Box>
                     </TableCell>

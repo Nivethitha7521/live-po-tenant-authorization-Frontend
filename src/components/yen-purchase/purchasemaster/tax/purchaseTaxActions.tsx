@@ -28,6 +28,11 @@ interface PurchaseTaxActionsProps {
   onDialogOpen: () => void;
   showDeactivated: boolean;
   onToggleShowDeactivated: () => void;
+   permissions?: {
+    add?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+  };
 }
 
 const PurchaseTaxActions: React.FC<PurchaseTaxActionsProps> = ({
@@ -35,10 +40,10 @@ const PurchaseTaxActions: React.FC<PurchaseTaxActionsProps> = ({
   onSearchChange,
   onDialogOpen,
   showDeactivated,
-  onToggleShowDeactivated,
+  onToggleShowDeactivated, permissions = { add: true, edit: true, delete: true },
 }) => {
   const [confirmationDialogOpen, setConfirmationDialogOpen] = React.useState(false);
-
+ const { add = true } = permissions;
   return (
     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
       <TextField
@@ -52,12 +57,21 @@ const PurchaseTaxActions: React.FC<PurchaseTaxActionsProps> = ({
       />
       <Box display="flex" alignItems="center" gap={1}>
        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <IconButton
+           <IconButton
             color="primary"
             onClick={onDialogOpen}
             className="icon-button-outline"
             size="small"
-            sx={{p:0.3}}
+            sx={{
+              p: 0.3,
+              opacity: add ? 1 : 0.5, // ✅ ADD PERMISSION CHECK
+              "&.Mui-disabled": {
+                opacity: 0.5,
+                borderColor: "grey.400 !important",
+                color: "grey.500 !important",
+              },
+            }}
+            disabled={!add} // ✅ ADD PERMISSION CHECK
           >
             <AddIcon fontSize="small" />
           </IconButton>
@@ -66,14 +80,15 @@ const PurchaseTaxActions: React.FC<PurchaseTaxActionsProps> = ({
             align="center"
             sx={{
               maxWidth: 40,
-              wordBreak: 'break-word',
-              display: '-webkit-box',
+              wordBreak: "break-word",
+              display: "-webkit-box",
               WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
               lineHeight: 1.1,
               mt: 0.2,
+              color: add ? "text.primary" : "grey.500", // ✅ ADD COLOR CHANGE
             }}
           >
             Add

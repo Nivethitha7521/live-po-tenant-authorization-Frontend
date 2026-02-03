@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk, createAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import purchaseApi from "@/utils/api";
 import { RootState } from '@/redux/store';
 import {
   ServiceData,
@@ -372,8 +372,8 @@ export const calculateServiceTotals = createAsyncThunk(
   'serviceOrder/calculateServiceTotals',
   async (request: ServiceTotalsRequest): Promise<ServiceTotalsResponse> => {
     // FIXED: Send nested descriptions directly (backend expects List[ServiceDescription])
-    const response = await axios.post<ServiceTotalsResponse>(
-      `${BASE_URL}/servicepo/calculate-totals`,
+    const response = await purchaseApi.post<ServiceTotalsResponse>(
+      `/servicepo/calculate-totals`,
       request
     );
     return response.data;
@@ -404,8 +404,8 @@ export const fetchServices = createAsyncThunk(
     };
     
     // FIXED: Expect RawServiceData[] from backend
-    const response = await axios.get<RawServiceData[]>(
-      `${BASE_URL}/servicepo/getServices/`,
+    const response = await purchaseApi.get<RawServiceData[]>(
+      `/servicepo/getServices/`,
       { 
         params: defaultParams,
         paramsSerializer: (params) => {
@@ -430,7 +430,7 @@ export const fetchAllVendors = createAsyncThunk<
       if (localData) {
         return JSON.parse(localData);
       }
-      const response = await axios.get<VendorSummary[]>(`${BASE_URL}/vendors/`);
+      const response = await purchaseApi.get<VendorSummary[]>(`/vendors/`);
       localStorage.setItem('serviceVendors', JSON.stringify(response.data));
       return response.data;
     } catch (error: any) {
@@ -442,7 +442,7 @@ export const fetchAllVendors = createAsyncThunk<
 export const fetchServiceById = createAsyncThunk(
   'serviceOrder/fetchServiceById',
   async (serviceId: string): Promise<ServiceData> => {
-    const response = await axios.get<RawServiceData>(`${BASE_URL}/servicepo/${serviceId}`);
+    const response = await purchaseApi.get<RawServiceData>(`/servicepo/${serviceId}`);
     return transformRawToNested(response.data);
   }
 );
@@ -479,8 +479,8 @@ export const calculateDescriptionTotals = createAsyncThunk<
         include_tax
       };
       
-      const response = await axios.get<DescriptionCalculationResponse>(
-        `${BASE_URL}/servicepo/descriptions/totals`, 
+      const response = await purchaseApi.get<DescriptionCalculationResponse>(
+        `/servicepo/descriptions/totals`, 
         { params }
       );
       
@@ -562,8 +562,8 @@ export const addService = createAsyncThunk<
       
       console.log('Sending to backend:', JSON.stringify(serviceToAdd, null, 2));
       
-      const rawResponse = await axios.post<RawServiceData>(
-        `${BASE_URL}/servicepo/`, 
+      const rawResponse = await purchaseApi.post<RawServiceData>(
+        `/servicepo/`, 
         serviceToAdd
       );
       
@@ -599,8 +599,8 @@ export const updateService = createAsyncThunk<
         desc_overall_discounts: service.desc_overall_discounts || [],
       };
       
-      const rawResponse = await axios.patch<RawServiceData>(
-        `${BASE_URL}/servicepo/update/${mongoId}`, 
+      const rawResponse = await purchaseApi.patch<RawServiceData>(
+        `/servicepo/update/${mongoId}`, 
         serviceToUpdate
       );
       
@@ -618,7 +618,7 @@ export const approveServiceOrder = createAsyncThunk<
   'serviceOrder/approveServiceOrder',
   async (mongoId, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`${BASE_URL}/servicepo/approved/${mongoId}`, { send_whatsapp: false });
+      const response = await purchaseApi.patch(`/servicepo/approved/${mongoId}`, { send_whatsapp: false });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to approve service order');
@@ -634,7 +634,7 @@ export const rejectServiceOrder = createAsyncThunk<
   'serviceOrder/rejectServiceOrder',
   async (mongoId, { rejectWithValue }) => {
     try {
-      await axios.patch(`${BASE_URL}/servicepo/rejected/${mongoId}`, { reason: 'Rejected by user', send_notification: false });
+      await purchaseApi.patch(`/servicepo/rejected/${mongoId}`, { reason: 'Rejected by user', send_notification: false });
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to reject service order');
     }

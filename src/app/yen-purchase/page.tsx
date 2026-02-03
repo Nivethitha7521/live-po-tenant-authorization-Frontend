@@ -21,25 +21,24 @@ const YenPurchasePage = () => {
   );
   const permissionsLoaded = Object.keys(permissions).length > 0;
 
-  const isModuleVisible = (key: string) => {
-    if (key === "service") return true;   
+const isModuleVisible = (key: string) => {
+  const m = permissions?.[key];
 
-    const m = permissions?.[key];
+  // if missing => hidden
+  if (!m) return false;
 
-    // if missing => hidden
-    if (!m) return false;
+  // hide true => hidden
+  if (m.hide === true || m.hide === 1) return false;
 
-    // hide true => hidden
-    if (m.hide === true || m.hide === 1) return false;
+  // if no actions selected => hidden
+  const noActions = !m.read && !m.add && !m.edit && !m.delete && !m.approve;
 
-    // if no actions selected => hidden
-    const noActions = !m.read && !m.add && !m.edit && !m.delete && !m.approve;
+  if (noActions) return false;
 
-    if (noActions) return false;
+  // If at least read permission should show the menu
+  return m.read === true || m.read === 1;
+};
 
-    // If at least read permission should show the menu
-    return m.read === true || m.read === 1;
-  };
   const yenBookKeys = [
     "outgoingpayment",
     "advancepayment",
@@ -102,11 +101,16 @@ const YenPurchasePage = () => {
           path: "/yen-purchase/PurchaseOrder",
           visible: isAnyModuleVisible(purchaseOrderKeys),
         },
-        {
+   {
   label: "Service Order",
   path: "/yen-purchase/ServiceOrder",
-  visible: true,   // 👈 always show (since no permission setup)
+  visible: isAnyModuleVisible([
+    "serviceorders_pending",
+    "serviceorders_approved",
+    "serviceorders_rejected",
+  ]),
 },
+
 
         {
           label: "GRN Note",

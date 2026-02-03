@@ -40,6 +40,8 @@ import ServiceAutocomplete from '../../PurchaseMaster/Service/Components/Service
 import { fetchPurchaseTaxes } from '@/features/yen-purchase/PurchaseMaster/purchaseTaxSlice';
 import FreightSelectionDialog, { FreightData } from '../../PurchaseOrder/Component/freightSelectionDialog';
 import InfoIcon from '@mui/icons-material/Info';
+import { usePermissions } from "@/hooks/usePermissions";
+import Alert from "@mui/material/Alert";
 
 // Helper functions for date handling
 const formatDate = (date: Date | null): string => {
@@ -150,6 +152,13 @@ const validationSchema = Yup.object({
 });
 
 const CreateServicePage: React.FC = () => {
+  const { hasPermission } = usePermissions();
+const canAdd = hasPermission(
+  "yenerp",
+  "serviceorders_pending",
+  "add"
+);
+
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1357,6 +1366,15 @@ const CreateServicePage: React.FC = () => {
 
   const distributedDiscounts = calculateDistributedDiscounts();
   const totalOriginalAmount = serviceData.fees?.reduce((a, b) => a + b, 0) || 0;
+
+if (!canAdd) {
+  return (
+    <Alert severity="error">
+      ❌ You don't have permission to create Service Orders
+    </Alert>
+  );
+}
+
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>

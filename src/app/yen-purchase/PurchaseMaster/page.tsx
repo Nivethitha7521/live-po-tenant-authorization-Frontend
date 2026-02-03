@@ -19,7 +19,6 @@ const PurchaseMasterItemPage: React.FC = () => {
   const dispatch = useDispatch();
   const { isModuleVisible } = usePermissions();
  const canShow = (module: string) => {
-  if (module === "service") return true;   // 👈 bypass
   return isModuleVisible("yenerp", module);
 };
 
@@ -49,15 +48,7 @@ const PurchaseMasterItemPage: React.FC = () => {
   const current = map[activeSection];
   if (!current) return null;
 
-  if (!canShow(current.module)) {
-    return (
-      <Box p={3}>
-        <Alert severity="error">
-          You do not have access to this module
-        </Alert>
-      </Box>
-    );
-  }
+
 
   return current.comp;
 };

@@ -27,6 +27,10 @@ interface ServiceActionsProps {
   onToggleShowDeactivated: () => void;
   importing?: boolean;
   exporting?: boolean;
+  permissions?: {
+  add?: boolean;
+};
+
 }
 
 const ServiceActions: React.FC<ServiceActionsProps> = ({
@@ -40,11 +44,12 @@ const ServiceActions: React.FC<ServiceActionsProps> = ({
   onToggleShowDeactivated,
   importing = false,
   exporting = false,
+  permissions = { add: true },
 }) => {
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const { add = true } = permissions;
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -90,13 +95,22 @@ const ServiceActions: React.FC<ServiceActionsProps> = ({
         />
         <Box display="flex" alignItems="center" gap={1}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <IconButton
-              color="primary"
-              onClick={onDialogOpen}
-              className="icon-button-outline"
-              size="small"
-              sx={{ p: 0.3 }}
-            >
+           <IconButton
+  color="primary"
+  onClick={onDialogOpen}
+  className="icon-button-outline"
+  size="small"
+  disabled={!add}
+  sx={{
+    p: 0.3,
+    opacity: add ? 1 : 0.5,
+    "&.Mui-disabled": {
+      opacity: 0.5,
+      color: "grey.500",
+    },
+  }}
+>
+
               <AddIcon />
             </IconButton>
             <Typography
@@ -112,6 +126,7 @@ const ServiceActions: React.FC<ServiceActionsProps> = ({
                 textOverflow: 'ellipsis',
                 lineHeight: 1.1,
                 mt: 0.2,
+                color: add ? "text.primary" : "grey.500",
               }}
             >
               Add

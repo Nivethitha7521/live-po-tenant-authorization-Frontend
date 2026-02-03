@@ -30,7 +30,12 @@ const HARD_MODULES: AppPermissions[] = [
           { id: "pm_pt", name: "Purchase Tax", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
           { id: "pm_sl", name: "Storage Location", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
           { id: "pm_it", name: "Item Type", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
-           { id: "pm_fr", name: "Freight", actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false } }
+           { id: "pm_fr", name: "Freight", actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false } },
+           { 
+  id: "pm_service", 
+  name: "Service", 
+  actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false } 
+},
         ]
       },
       {
@@ -57,6 +62,28 @@ const HARD_MODULES: AppPermissions[] = [
           { id: "po_rejected", name: "Rejected", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } }
         ]
       },
+      {
+  id: "so",
+  name: "Service Order",
+  submodules: [
+    {
+      id: "so_pending",
+      name: "Pending",
+      actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false }
+    },
+    {
+      id: "so_approved",
+      name: "Approved",
+      actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false }
+    },
+    {
+      id: "so_rejected",
+      name: "Rejected",
+      actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false }
+    }
+  ]
+},
+
       {
         id: "grn",
         name: "GRN Note",
@@ -278,6 +305,39 @@ const SUBMODULE_INFO: Record<string, React.ReactNode> = {
       </ul>
     </div>
   ),
+so_pending: (
+  <div>
+    <div className="font-semibold mb-1">Service Order - Pending</div>
+    <ul className="list-disc pl-4 space-y-1">
+      <li>Used to view and manage pending service orders.</li>
+      <li><b>Add permission controls:</b> Create Service action.</li>
+      <li><b>Approve permission controls:</b> Approve and Reject actions.</li>
+      <li><b>Required for Service creation:</b></li>
+      <li>Vendor permission</li>
+       <li>Service (Purchase Master) permission</li>
+      <li>Purchase Tax (Purchase Master) permission</li>
+    </ul>
+  </div>
+),
+so_approved: (
+  <div>
+    <div className="font-semibold mb-1">Service Order - Approved</div>
+    <ul className="list-disc pl-4 space-y-1">
+      <li>Used to view approved service orders.</li>
+      <li><b>Edit permission controls:</b> Convert to AP and Move to Pending actions.</li>
+    </ul>
+  </div>
+),
+so_rejected: (
+  <div>
+    <div className="font-semibold mb-1">Service Order - Rejected</div>
+    <ul className="list-disc pl-4 space-y-1">
+      <li>Used to view rejected service orders.</li>
+      <li><b>Edit permission controls:</b> Move to Pending.</li>
+      <li><b>Delete permission controls:</b> Delete Permanently.</li>
+    </ul>
+  </div>
+),
 
   grn_list: (
     <div>
@@ -540,12 +600,18 @@ const [confirmDialog, setConfirmDialog] = useState<{
     'pm_sl': 'storagelocation',
     'pm_it': 'itemtype',
     'pm_fr': 'freight',
+    'pm_service': 'service',
     'vt': 'vendortype',
     'v': 'vendors',
     'pi_default': 'purchaseitem',
     'po_pending': 'purchaseorders_pending',
     'po_approved': 'purchaseorders_approved',
     'po_rejected': 'purchaseorders_rejected',
+     // SERVICE ORDER
+    'so_pending': 'serviceorders_pending',
+    'so_approved': 'serviceorders_approved',
+    'so_rejected': 'serviceorders_rejected',
+
     'grn_list': 'grns',
     'grn_return': 'grns_return',
     'ap_list': 'apinvoices',

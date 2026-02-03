@@ -1172,16 +1172,21 @@ const RejectedPo: React.FC = () => {
             }}
           >
             {/* Purchase Order Links */}
+            {!isPendingHidden && (
             <Link href="/yen-purchase/PurchaseOrder" passHref>
               <Button variant="contained" color="primary">
                 Pending
               </Button>
             </Link>
+            )}
+              {!isApprovedHidden && canViewApproved && (
             <Link href="/yen-purchase/PurchaseOrder/Approvedpo" passHref>
               <Button variant="contained" color="primary">
                 Approved
               </Button>
             </Link>
+              )}
+               {!isRejectedHidden && canViewRejected && (
             <Link href="/yen-purchase/PurchaseOrder/RejectedPo" passHref>
               <Button
                 variant="contained"
@@ -1196,6 +1201,7 @@ const RejectedPo: React.FC = () => {
                 Rejected
               </Button>
             </Link>
+               )}
           </Box>
           
           <Box

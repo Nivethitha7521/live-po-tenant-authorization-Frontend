@@ -1,10 +1,8 @@
 'use client';
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import purchaseApi from "@/utils/api";
 import { RootState } from '@/redux/store';
 import { initialState, Service, ImportResult, PaginatedServiceResponse, PaginatedServiceSummary, ServiceSummary } from '../Models/Service';
-
-const API_BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 
 // Async thunk to fetch paginated Service items
 export const fetchServiceItems = createAsyncThunk<
@@ -15,11 +13,9 @@ export const fetchServiceItems = createAsyncThunk<
   'serviceItems/fetchServiceItems',
   async ({ page = 1, limit = 50, status = 'active', search = '' }, { rejectWithValue }) => {
     try {
-      let url = `${API_BASE_URL}/services/?page=${page}&limit=${limit}&status=${status}`;
-      if (search) {
-        url += `&search=${encodeURIComponent(search)}`;
-      }
-      const response = await axios.get<PaginatedServiceResponse>(url);
+      const response = await purchaseApi.get(
+        `/services/?page=${page}&limit=${limit}&status=${status}&search=${search}`
+      );
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to fetch service items');
@@ -27,12 +23,13 @@ export const fetchServiceItems = createAsyncThunk<
   }
 );
 
+
 // Async thunk to add a new Service item
 export const addServiceItem = createAsyncThunk<Service, Omit<Service, 'serviceId'>>(
   'serviceItems/addServiceItem',
   async (serviceData, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/services/`, serviceData);
+      const response = await purchaseApi.post("/services/", serviceData);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to add service item');
@@ -40,13 +37,14 @@ export const addServiceItem = createAsyncThunk<Service, Omit<Service, 'serviceId
   }
 );
 
+
 // Async thunk to update an existing Service item
 export const updateServiceItem = createAsyncThunk<Service, Service>(
   'serviceItems/updateServiceItem',
   async (serviceData, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(
-        `${API_BASE_URL}/services/${serviceData.mongoId}`,
+      const response = await purchaseApi.patch(
+        `/services/${serviceData.mongoId}`,
         serviceData
       );
       return response.data;
@@ -56,12 +54,16 @@ export const updateServiceItem = createAsyncThunk<Service, Service>(
   }
 );
 
+
 // Async thunk to activate a Service item
 export const activateServiceItem = createAsyncThunk<Service, string>(
   'serviceItems/activateServiceItem',
   async (mongoId, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`${API_BASE_URL}/services/${mongoId}/activate`);
+      const response = await purchaseApi.patch(
+        `/services/${mongoId}/activate`,
+        {}
+      );
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to activate service item');
@@ -69,115 +71,112 @@ export const activateServiceItem = createAsyncThunk<Service, string>(
   }
 );
 
+
 // Async thunk to deactivate a Service item
 export const deactivateServiceItem = createAsyncThunk<Service, string>(
   'serviceItems/deactivateServiceItem',
   async (mongoId, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`${API_BASE_URL}/services/${mongoId}/deactivate`);
+      const response = await purchaseApi.patch(
+        `/services/${mongoId}/deactivate`,
+        {}
+      );
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to deactivate service item');
     }
   }
 );
+
 // Single thunk for all service summary operations
 export const fetchServiceSummaries = createAsyncThunk<
-  PaginatedServiceSummary,  // Always returns full paginated response
+  PaginatedServiceSummary,
   {
     page?: number;
     limit?: number;
     status?: 'active' | 'deactivated' | 'all';
     search?: string;
-    // Optional flag to indicate if this is for infinite scroll
     forInfiniteScroll?: boolean;
   },
   { rejectValue: string }
 >(
   'serviceItems/fetchServiceSummaries',
-  async ({
-    page = 1,
-    limit = 5,
-    status = 'active',
-    search = '',
-    forInfiniteScroll = false
-  }, { rejectWithValue }) => {
+  async (
+    {
+      page = 1,
+      limit = 5,
+      status = 'active',
+      search = '',
+      forInfiniteScroll = false,
+    },
+    { rejectWithValue }
+  ) => {
     try {
-      // For infinite scroll, adjust limit if needed
       const actualLimit = forInfiniteScroll ? Math.max(limit, 50) : limit;
 
-      let url = `${API_BASE_URL}/services/summary/paginatedsummary?page=${page}&limit=${actualLimit}&status=${status}`;
-      if (search) {
-        url += `&search=${encodeURIComponent(search)}`;
-      }
+      const response = await purchaseApi.get(
+        `/services/summary/paginatedsummary?page=${page}&limit=${actualLimit}&status=${status}&search=${search}`
+      );
 
-      const response = await axios.get<PaginatedServiceSummary>(url);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch service summaries');
+      return rejectWithValue(
+        error.response?.data?.detail || 'Failed to fetch service summaries'
+      );
     }
   }
 );
+
 // Async thunk for importing CSV
 export const importCSV = createAsyncThunk<ImportResult, File>(
   'serviceItems/importCSV',
   async (file: File, { rejectWithValue }) => {
-    if (!file || file.size === 0) {
-      return rejectWithValue({ detail: 'Please select a CSV file to import' });
-    }
-    if (!file.name.endsWith('.csv')) {
-      return rejectWithValue({ detail: 'Invalid file format. Please upload a CSV file' });
-    }
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      const response = await axios.post(`${API_BASE_URL}/services/import-csv`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return response.data as ImportResult;
+      formData.append("file", file);
+
+      const response = await purchaseApi.post(
+        "/services/import-csv",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+
+      return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || { detail: 'Failed to import CSV' });
+      return rejectWithValue(error.response?.data || { detail: "Failed to import CSV" });
     }
   }
 );
 
+
 // Async thunk for exporting CSV
-export const exportCSV = createAsyncThunk('serviceItems/exportCSV', async (_, { rejectWithValue }) => {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/services/export-service/export-csv`, {
-      responseType: 'blob',
-    });
-    console.log('Export CSV response status:', response.status, 'headers:', response.headers);
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'services_export.csv');
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-    return { success: true };
-  } catch (error: any) {
-    console.error('Export CSV error:', error);
-    if (error.response?.data) {
-      const blob = error.response.data;
-      let errorMessage = 'Failed to export CSV';
-      try {
-        const text = await new Response(blob).text();
-        try {
-          const parsed = JSON.parse(text);
-          errorMessage = parsed.detail || errorMessage;
-        } catch {
-          errorMessage = text || errorMessage;
-        }
-      } catch {
-        errorMessage = 'Unable to parse error response';
-      }
-      return rejectWithValue({ detail: errorMessage, status: error.response.status });
+export const exportCSV = createAsyncThunk(
+  "serviceItems/exportCSV",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.get(
+        "/services/export-service/export-csv",
+        { responseType: "blob" }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "services_export.csv");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      return { success: true };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || { detail: "Failed to export CSV" });
     }
-    return rejectWithValue({ detail: 'Failed to export CSV', status: error.response?.status || 500 });
   }
-});
+);
+
 
 // Create the Service slice
 const serviceSlice = createSlice({

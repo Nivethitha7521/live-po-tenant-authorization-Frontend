@@ -1,6 +1,6 @@
 // features/yen-purchase/ServiceOrder/serviceIdSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import purchaseApi from "@/utils/api";
 
 const API_BASE_URL = `http://127.0.0.1:8000/purchasetestapi`;
 export const LIMIT = 20; // Add this export
@@ -45,8 +45,8 @@ export const fetchServiceIds = createAsyncThunk<FetchServiceIdsResponse, {
   'serviceId/fetchServiceIds',
   async ({ query, skip, isInitialLoad = true }, { rejectWithValue }) => {
     try {
-      const response = await axios.get<ServiceIdItem[]>(
-        `${API_BASE_URL}/servicepo/getServiceIds/`,
+      const response = await purchaseApi.get<ServiceIdItem[]>(
+        `/servicepo/getServiceIds/`,
         {
           params: {
             query: query || undefined,

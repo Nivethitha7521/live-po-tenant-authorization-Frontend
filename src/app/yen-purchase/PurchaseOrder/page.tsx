@@ -176,6 +176,32 @@ const Polist: React.FC = () => {
   const [errors, setErrors] = useState<Record<number, Record<string, string>>>({}); // Tracks errors by item index and field name
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [overallDiscount, setOverallDiscount] = useState<number>(0); // New state for overall discount
+   const hideApproved =
+    permissions?.yenerp?.purchaseorders_approved?.hide === true;
+  const hideRejected =
+    permissions?.yenerp?.purchaseorders_rejected?.hide === true;
+
+  // ❌ Module hidden => block the whole page
+  if (!isPendingModuleVisible) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          You do not have access to the Purchase Order Pending module.
+        </Alert>
+      </Box>
+    );
+  }
+
+  // ❌ Read permission missing => block page
+  if (!canRead) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          You do not have permission to view Pending Purchase Orders.
+        </Alert>
+      </Box>
+    );
+  }
   // Add this after your useSelector line
 console.log('Pending Purchase List:', pendingPurchaseList);
 console.log('Loading:', loading);
@@ -1187,6 +1213,7 @@ if (!canRead) {
       <Box sx={{ px: 2, py: 1 }}>
         <Grid container spacing={2} sx={{ mb: 1 }}>
           <Grid item xs={12} display="flex" alignItems="center">
+            {!hidePending && (
             <Link href="/yen-purchase/PurchaseOrder" passHref>
               <Button
                 variant="contained"
@@ -1200,12 +1227,15 @@ if (!canRead) {
               >
                 Pending
               </Button>
-            </Link>
+            </Link>)}
+             {!hideApproved && (
             <Link href="/yen-purchase/PurchaseOrder/Approvedpo" passHref>
               <Button variant="contained" sx={{ marginLeft: '10px' }} color="primary">
                 Approved
               </Button>
             </Link>
+             )}
+              {!hideRejected && (
             <Button
               variant="contained"
               color="primary"
@@ -1214,6 +1244,7 @@ if (!canRead) {
             >
               Rejected
             </Button>
+              )}
             {/* <Grid container justifyContent="flex-end">
               <Grid item>
                 <Typography

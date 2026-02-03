@@ -26,7 +26,7 @@ import PurchaseTaxTable from '../../../../components/yen-purchase/purchasemaster
 import PurchaseTaxActions from '../../../../components/yen-purchase/purchasemaster/tax/purchaseTaxActions';
 import PurchaseTaxForm from '../../../../components/yen-purchase/purchasemaster/tax/purchaseTaxForm';
 import { PurchaseTax } from '@/Models/purchasetax';
-
+import { usePermissions } from "@/hooks/usePermissions";
 const initialTaxState: PurchaseTax = {
   purchasetaxId: '',
   purchasetaxName: '',
@@ -37,6 +37,12 @@ const initialTaxState: PurchaseTax = {
 
 const PurchaseTaxPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const { hasPermission, isModuleVisible } = usePermissions();
+
+  const canAdd = hasPermission("yenerp", "purchasetax", "add");
+  const canEdit = hasPermission("yenerp", "purchasetax", "edit");
+  const canDelete = hasPermission("yenerp", "purchasetax", "delete");
+
   const {
     items: purchaseTaxes,
     deactivatedItems,
@@ -59,7 +65,12 @@ const PurchaseTaxPage: React.FC = () => {
   }, [dispatch]);
 
   const handleDialogOpen = () => {
-    dispatch(setDialogOpen('edit'));
+    if (!canAdd) {
+      dispatch(setSnackbarMessage("You do not have permission to add tax"));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    dispatch(setDialogOpen("edit"));
   };
 
   const handleDialogClose = () => {
@@ -126,6 +137,11 @@ const PurchaseTaxPage: React.FC = () => {
   };
 
   const handleEdit = (id: string) => {
+     if (!canEdit) {
+      dispatch(setSnackbarMessage("You do not have permission to edit tax"));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     const tax = purchaseTaxes.find((tax) => tax.purchasetaxId === id);
     if (tax) {
       dispatch(setTaxData(tax));
@@ -135,6 +151,13 @@ const PurchaseTaxPage: React.FC = () => {
   };
 
   const handleDeactivate = (purchasetaxId: string) => {
+     if (!canDelete) {
+      dispatch(
+        setSnackbarMessage("You do not have permission to deactivate tax"),
+      );
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     dispatch(deactivatePurchaseTax(purchasetaxId))
       .unwrap()
       .then(() => {
@@ -149,6 +172,13 @@ const PurchaseTaxPage: React.FC = () => {
   };
 
   const handleActivate = (purchasetaxId: string) => {
+     if (!canDelete) {
+      dispatch(
+        setSnackbarMessage("You do not have permission to activate tax"),
+      );
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
     dispatch(activatePurchaseTax(purchasetaxId))
       .unwrap()
       .then(() => {
@@ -169,6 +199,10 @@ const PurchaseTaxPage: React.FC = () => {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(setSearchQuery(e.target.value));
   };
+ // ✅ MODULE VISIBILITY CHECK
+  if (!isModuleVisible("yenerp", "purchasetax")) {
+    return null;
+  }
 
   return (
     <Box>
@@ -178,6 +212,7 @@ const PurchaseTaxPage: React.FC = () => {
         onDialogOpen={handleDialogOpen}
         showDeactivated={showDeactivated}
         onToggleShowDeactivated={toggleShowDeactivated}
+         permissions={{ add: canAdd, edit: canEdit, delete: canDelete }}
       />
       <PurchaseTaxTable
         purchaseTaxes={showDeactivated ? deactivatedItems : purchaseTaxes}
@@ -186,6 +221,8 @@ const PurchaseTaxPage: React.FC = () => {
         handleEdit={handleEdit}
         handleDeactivate={handleDeactivate}
         handleActivate={handleActivate}
+        canEdit={canEdit}
+        canDelete={canDelete}
       />
       <PurchaseTaxForm
         open={dialogOpen === 'edit'}

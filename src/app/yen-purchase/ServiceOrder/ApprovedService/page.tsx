@@ -58,6 +58,7 @@ import ServiceIdSearch from '../Components/ServiceIDSeacrh';
 import FreightSelectionDialog, { FreightData } from '../../PurchaseOrder/Component/freightSelectionDialog';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
+import { usePermissions } from "@/hooks/usePermissions";
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -141,6 +142,41 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 };
 
 const ApprovedService: React.FC = () => {
+  const { hasPermission, permissions } = usePermissions();
+
+/* MODULE VISIBILITY */
+const isApprovedModuleVisible =
+  permissions?.yenerp?.serviceorders_approved &&
+  !(
+    permissions?.yenerp?.serviceorders_approved?.hide === true ||
+    permissions?.yenerp?.serviceorders_approved?.hide === 1
+  );
+const isRejectedModuleVisible =
+  permissions?.yenerp?.serviceorders_rejected &&
+  !(
+    permissions?.yenerp?.serviceorders_rejected?.hide === true ||
+    permissions?.yenerp?.serviceorders_rejected?.hide === 1
+  );
+
+/* ACTION PERMISSIONS */
+const canReadApproved = hasPermission(
+  "yenerp",
+  "serviceorders_approved",
+  "read"
+);
+
+const canEditApproved = hasPermission(
+  "yenerp",
+  "serviceorders_approved",
+  "edit"
+);
+
+console.log("APPROVED SERVICE PERMISSIONS", {
+  isApprovedModuleVisible,
+  canReadApproved,
+  canEditApproved
+});
+
   const dispatch = useDispatch<AppDispatch>();
   const serviceOrder = useSelector(selectServiceState);
   const { services, loading, error, snackbarMessage, snackbarOpen } = serviceOrder;
@@ -435,6 +471,7 @@ const ApprovedService: React.FC = () => {
   };
 
   const handleConfirmMovePending = async () => {
+    if (!canEditApproved) return;
     if (selectedOrder?.mongoId) {
       try {
         await dispatch(updateServiceOrderStatusToPending(selectedOrder.mongoId)).unwrap();
@@ -451,6 +488,7 @@ const ApprovedService: React.FC = () => {
   };
   const handleConfirmConvertToAP = () => {
     if (!selectedOrder || !apInvoiceNo.trim()) return;
+if (!canEditApproved) return;
 
     const request = {
       service_id: selectedOrder.mongoId,
@@ -844,6 +882,11 @@ const ApprovedService: React.FC = () => {
     doc.save(`${service.vendorName}_${service.serviceId}_Approved.pdf`);
   };
 
+
+if (!canReadApproved) {
+  return <Alert severity="error">No Read Permission</Alert>;
+}
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -868,26 +911,30 @@ const ApprovedService: React.FC = () => {
                 Pending
               </Button>
             </Link>
-            <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
-              <Button
-                variant="contained"
-                sx={{
-                  ml: 1,
-                  backgroundColor: 'white',
-                  color: 'black',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                  },
-                }}
-              >
-                Approved
-              </Button>
-            </Link>
+          {isApprovedModuleVisible && (
+  <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
+    <Button
+      variant="contained"
+      sx={{
+        ml: 1,
+        backgroundColor: 'white',
+        color: 'black',
+        '&:hover': {
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        },
+      }}
+    >
+      Approved
+    </Button>
+  </Link>
+)}
+            {isRejectedModuleVisible && (
             <Link href="/yen-purchase/ServiceOrder/RejectedService" passHref>
               <Button variant="contained" color="primary" sx={{ ml: 1 }}>
                 Rejected
               </Button>
             </Link>
+            )}
           </Grid>
         </Grid>
 
@@ -1263,16 +1310,34 @@ const ApprovedService: React.FC = () => {
             <Button onClick={handleDialogClose} color="inherit">
               Close
             </Button>
-            <Button onClick={handleOpenMovePendingDialog} variant="outlined" color="primary">
-              Move to Pending
-            </Button>
-            <Button
-              onClick={handleOpenConvertConfirmation}
-              variant="contained"
-              color="success"
-              disabled={conversionLoading || !apInvoiceNo.trim() || !apInvoiceDate}
-              startIcon={conversionLoading ? <CircularProgress size={20} /> : <CheckIcon />}
-            >
+           <Button
+  onClick={() => canEditApproved && handleOpenMovePendingDialog()}
+  variant="outlined"
+  disabled={!canEditApproved}
+  sx={{
+    color: canEditApproved ? "primary.main" : "#6e6e6e",
+    opacity: 1,
+    "&.Mui-disabled": {
+      color: "#6e6e6e",
+      opacity: 1,
+    },
+  }}
+>
+  Move to Pending
+</Button>
+
+           <Button
+  onClick={() => canEditApproved && handleOpenConvertConfirmation()}
+  variant="contained"
+  color="success"
+  disabled={
+    !canEditApproved ||
+    conversionLoading ||
+    !apInvoiceNo.trim() ||
+    !apInvoiceDate
+  }
+  startIcon={conversionLoading ? <CircularProgress size={20} /> : <CheckIcon />}
+>
               {conversionLoading ? 'Converting...' : 'Convert to AP Invoice'}
             </Button>
           </DialogActions>

@@ -17,10 +17,14 @@ interface ServiceTableProps {
   handleEdit: (mongoId: string) => void;
   handleDeactivate: (mongoId: string) => void;
   handleActivate: (mongoId: string) => void;
+   canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const ServiceTable: React.FC<ServiceTableProps> = ({
-  handleEdit, handleDeactivate, handleActivate
+  handleEdit, handleDeactivate, handleActivate,
+  canEdit = true,
+  canDelete = true,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { displayItems, loading, currentPage, totalPages, pageSize, currentViewStatus, searchQuery } = useSelector((state: RootState) => state.serviceItems);
@@ -105,15 +109,39 @@ const ServiceTable: React.FC<ServiceTableProps> = ({
                   <TableCell>
                     {item.status === 'active' ? (
                       <>
-                        <IconButton onClick={() => handleEdit(item.mongoId || '')}>
+                       <IconButton
+  onClick={() => handleEdit(item.mongoId || '')}
+  disabled={!canEdit}
+  sx={{
+    opacity: canEdit ? 1 : 0.5,
+    "&.Mui-disabled": { color: "grey.500" },
+  }}
+>
+
                           <EditIcon />
                         </IconButton>
-                        <IconButton onClick={() => handleOpenDialog(item.mongoId || '', 'deactivate')}>
+                       <IconButton
+  onClick={() => handleOpenDialog(item.mongoId || '', 'deactivate')}
+  disabled={!canDelete}
+  sx={{
+    opacity: canDelete ? 1 : 0.5,
+    "&.Mui-disabled": { color: "grey.500" },
+  }}
+>
+
                           <DeleteIcon />
                         </IconButton>
                       </>
                     ) : (
-                      <IconButton onClick={() => handleOpenDialog(item.mongoId || '', 'activate')}>
+                     <IconButton
+  onClick={() => handleOpenDialog(item.mongoId || '', 'activate')}
+  disabled={!canDelete}
+  sx={{
+    opacity: canDelete ? 1 : 0.5,
+    "&.Mui-disabled": { color: "grey.500" },
+  }}
+>
+
                         <RefreshIcon />
                       </IconButton>
                     )}

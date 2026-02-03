@@ -15,10 +15,12 @@ interface PurchaseTaxTableProps {
   handleEdit: (id: string) => void;
   handleDeactivate: (purchasetaxId: string) => void;
   handleActivate: (purchasetaxId: string) => void;
+   canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const PurchaseTaxTable: React.FC<PurchaseTaxTableProps> = ({
-  purchaseTaxes, showDeactivated, searchQuery, handleEdit, handleDeactivate, handleActivate
+  purchaseTaxes, showDeactivated, searchQuery, handleEdit, handleDeactivate, handleActivate, canEdit = true, canDelete = true, 
 }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogAction, setDialogAction] = useState<'deactivate' | 'activate' | null>(null);
@@ -102,15 +104,49 @@ const PurchaseTaxTable: React.FC<PurchaseTaxTableProps> = ({
                   <TableCell>
                     {tax.status === 'active' ? (
                       <>
-                        <IconButton onClick={() => handleEdit(tax.purchasetaxId)}>
+                       <IconButton
+                          onClick={() => handleEdit(tax.purchasetaxId)}
+                          disabled={!canEdit} // ✅ ADD PERMISSION CHECK
+                          sx={{
+                            opacity: canEdit ? 1 : 0.5,
+                            "&.Mui-disabled": {
+                              opacity: 0.5,
+                              color: "grey.500",
+                            },
+                          }}
+                        >
                           <EditIcon />
                         </IconButton>
-                        <IconButton onClick={() => handleOpenDialog('deactivate', tax.purchasetaxId)}>
+                       <IconButton
+                          onClick={() =>
+                            handleOpenDialog("deactivate", tax.purchasetaxId)
+                          }
+                          disabled={!canDelete} // ✅ ADD PERMISSION CHECK
+                          sx={{
+                            opacity: canDelete ? 1 : 0.5,
+                            "&.Mui-disabled": {
+                              opacity: 0.5,
+                              color: "grey.500",
+                            },
+                          }}
+                        >
                           <DeleteIcon />
                         </IconButton>
                       </>
                     ) : (
-                      <IconButton onClick={() => handleOpenDialog('activate', tax.purchasetaxId)}>
+                      <IconButton
+                        onClick={() =>
+                          handleOpenDialog("activate", tax.purchasetaxId)
+                        }
+                        disabled={!canDelete} // ✅ ADD PERMISSION CHECK
+                        sx={{
+                          opacity: canDelete ? 1 : 0.5,
+                          "&.Mui-disabled": {
+                            opacity: 0.5,
+                            color: "grey.500",
+                          },
+                        }}
+                      >
                         <RefreshIcon />
                       </IconButton>
                     )}

@@ -20,7 +20,7 @@ import {
   Menu,
   MenuItem,
   Chip,
-  Divider
+  Divider,Alert
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
@@ -50,6 +50,7 @@ import { debounce } from 'lodash';
 import YenPurchasePage from '../../page';
 import { deactivateServiceOrder, updateServiceOrderStatusToPending } from '../Features/servicelist';
 import ServiceIdSearch from '../Components/ServiceIDSeacrh';
+import { usePermissions } from "@/hooks/usePermissions";
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -106,6 +107,7 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 
     descriptions.push({
       id: service.desc_ids?.[i] || `desc-${i}`,
+      include_tax: service.include_tax?.[i] ?? true,
       sacCode: service.sacCode?.[i] || '',
       description: descriptionText,
       from_date: service.from_dates?.[i],
@@ -131,6 +133,48 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 };
 
 const RejectedService: React.FC = () => {
+  const { hasPermission, permissions } = usePermissions();
+
+/* MODULE VISIBILITY */
+const isRejectedModuleVisible =
+  permissions?.yenerp?.serviceorders_rejected &&
+  !(
+    permissions?.yenerp?.serviceorders_rejected?.hide === true ||
+    permissions?.yenerp?.serviceorders_rejected?.hide === 1
+  );
+const isApprovedModuleVisible =
+  permissions?.yenerp?.serviceorders_approved &&
+  !(
+    permissions?.yenerp?.serviceorders_approved?.hide === true ||
+    permissions?.yenerp?.serviceorders_approved?.hide === 1
+  );
+
+/* ACTION PERMISSIONS */
+const canReadRejected = hasPermission(
+  "yenerp",
+  "serviceorders_rejected",
+  "read"
+);
+
+const canEditRejected = hasPermission(
+  "yenerp",
+  "serviceorders_rejected",
+  "edit"
+);
+
+const canDeleteRejected = hasPermission(
+  "yenerp",
+  "serviceorders_rejected",
+  "delete"
+);
+
+console.log("REJECTED SERVICE PERMISSIONS", {
+  isRejectedModuleVisible,
+  canReadRejected,
+  canEditRejected,
+  canDeleteRejected
+});
+
   const dispatch = useDispatch<AppDispatch>();
   const serviceOrder = useSelector(selectServiceState);
   const { services, loading, error, snackbarMessage, snackbarOpen } = serviceOrder;
@@ -345,6 +389,7 @@ const RejectedService: React.FC = () => {
   };
 
   const handleConfirmDelete = async () => {
+    if (!canDeleteRejected) return;
     if (selectedMongoId) {
       try {
         await dispatch(deactivateServiceOrder(selectedMongoId)).unwrap();
@@ -369,6 +414,7 @@ const RejectedService: React.FC = () => {
   };
 
   const handleConfirmMovePending = async () => {
+    if (!canEditRejected) return;
     if (selectedOrder?.mongoId) {
       try {
         await dispatch(updateServiceOrderStatusToPending(selectedOrder.mongoId)).unwrap();
@@ -748,6 +794,11 @@ const RejectedService: React.FC = () => {
     doc.save(`${service.vendorName}_${service.serviceId}_Rejected.pdf`);
   };
 
+
+if (!canReadRejected) {
+  return <Alert severity="error">No Read Permission</Alert>;
+}
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -772,26 +823,31 @@ const RejectedService: React.FC = () => {
                 Pending
               </Button>
             </Link>
+             {isApprovedModuleVisible && (
             <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
               <Button variant="contained" color="primary" sx={{ ml: 1 }}>
                 Approved
               </Button>
             </Link>
-            <Link href="/yen-purchase/ServiceOrder/RejectedService" passHref>
-              <Button
-                variant="contained"
-                sx={{
-                  ml: 1,
-                  backgroundColor: 'white',
-                  color: 'black',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                  },
-                }}
-              >
-                Rejected
-              </Button>
-            </Link>
+             )}
+         {isRejectedModuleVisible && (
+  <Link href="/yen-purchase/ServiceOrder/RejectedService" passHref>
+    <Button
+      variant="contained"
+      sx={{
+        ml: 1,
+        backgroundColor: 'white',
+        color: 'black',
+        '&:hover': {
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        },
+      }}
+    >
+      Rejected
+    </Button>
+  </Link>
+)}
+
           </Grid>
         </Grid>
 
@@ -967,26 +1023,47 @@ const RejectedService: React.FC = () => {
                         </Tooltip>
 
                         <Tooltip title="Move to Pending">
-                          <IconButton
-                            onClick={() => {
-                              setSelectedOrder(service);
-                              setSelectedDescriptions(getDescriptionsFromFlatArrays(service));
-                              handleOpenMovePendingDialog();
-                            }}
-                            color='primary'
-                            sx={{ mr: 1 }}
-                          >
-                            <CheckIcon />
-                          </IconButton>
+                        <span>
+                        <IconButton
+  onClick={() => {
+    if (!canEditRejected) return;
+    setSelectedOrder(service);
+    setSelectedDescriptions(getDescriptionsFromFlatArrays(service));
+    handleOpenMovePendingDialog();
+  }}
+  disabled={!canEditRejected}
+  sx={{
+    mr: 1,
+    color: canEditRejected ? "primary.main" : "#6e6e6e",
+    opacity: 1,
+    "&.Mui-disabled": {
+      color: "#6e6e6e",
+      opacity: 1,
+    },
+  }}
+>
+  <CheckIcon />
+</IconButton>
+</span>
                         </Tooltip>
 
                         <Tooltip title="Deactivate">
-                          <IconButton
-                            onClick={() => handleOpenDeactivateDialog(service.mongoId)}
-                            color='error'
-                          >
-                            <BlockIcon />
-                          </IconButton>
+                          <span>
+                       <IconButton
+  onClick={() => canDeleteRejected && handleOpenDeactivateDialog(service.mongoId)}
+  disabled={!canDeleteRejected}
+  sx={{
+    color: canDeleteRejected ? "error.main" : "#6e6e6e",
+    opacity: 1,
+    "&.Mui-disabled": {
+      color: "#6e6e6e",
+      opacity: 1,
+    },
+  }}
+>
+  <BlockIcon />
+</IconButton>
+</span>
                         </Tooltip>
                       </Box>
                     </TableCell>
@@ -1104,9 +1181,22 @@ const RejectedService: React.FC = () => {
           </DialogContent>
 
           <DialogActions>
-            <Button onClick={handleOpenMovePendingDialog} variant="contained">
-              Move to Pending
-            </Button>
+          <Button
+  onClick={() => canEditRejected && handleOpenMovePendingDialog()}
+  disabled={!canEditRejected}
+  variant="contained"
+  sx={{
+    color: canEditRejected ? "white" : "#6e6e6e",
+    opacity: 1,
+    "&.Mui-disabled": {
+      color: "#6e6e6e",
+      opacity: 1,
+    },
+  }}
+>
+  Move to Pending
+</Button>
+
             <Button onClick={handleDialogClose} color="primary">Close</Button>
           </DialogActions>
         </Dialog>
@@ -1124,9 +1214,22 @@ const RejectedService: React.FC = () => {
             <Button onClick={handleCloseDeleteDialog} color="primary">
               Cancel
             </Button>
-            <Button onClick={handleConfirmDelete} color="error">
-              Deactivate Permanently
-            </Button>
+          <Button
+  onClick={handleConfirmDelete}
+  color="error"
+  disabled={!canDeleteRejected}
+  sx={{
+    color: canDeleteRejected ? "error.main" : "#6e6e6e",
+    opacity: 1,
+    "&.Mui-disabled": {
+      color: "#6e6e6e",
+      opacity: 1,
+    },
+  }}
+>
+  Deactivate Permanently
+</Button>
+
           </DialogActions>
         </Dialog>
 

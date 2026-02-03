@@ -21,6 +21,8 @@ import {
   setShowImportResultDialog,
   setCurrentPage,
 } from '../Service/Features/ServiceSlice';
+import { usePermissions } from "@/hooks/usePermissions";
+
 import { Box, Snackbar, Backdrop, CircularProgress, Typography } from '@mui/material';
 import ServiceActions from '../Service/Components/ServiceActions';
 import ServiceForm from '../Service/Components/ServiceForm';
@@ -60,6 +62,12 @@ const initialServiceState: Service = {
 };
 
 const ServicePage: React.FC = () => {
+  const { hasPermission, isModuleVisible } = usePermissions();
+
+const canAdd = hasPermission("yenerp", "service", "add");
+const canEdit = hasPermission("yenerp", "service", "edit");
+const canDelete = hasPermission("yenerp", "service", "delete");
+
   const dispatch = useDispatch<AppDispatch>();
   const {
     displayItems,
@@ -136,9 +144,14 @@ const ServicePage: React.FC = () => {
     }));
   };
 
-  const handleDialogOpen = () => {
-    dispatch(setDialogOpen('edit'));
-  };
+ const handleDialogOpen = () => {
+  if (!canAdd) {
+    dispatch(setSnackbarMessage("You do not have permission to add service"));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+  dispatch(setDialogOpen('edit'));
+};
 
   const handleDialogClose = () => {
     dispatch(setDialogOpen('none'));
@@ -232,63 +245,87 @@ const ServicePage: React.FC = () => {
     }
   };
 
-  const handleEditService = (mongoId: string) => {
-    const item = displayItems.find((service) => service.mongoId === mongoId);
-    if (item) {
-      dispatch(
-        setServiceData({
-          ...item,
-          serviceName: item.serviceName ? item.serviceName.trim().replace(/\s+/g, ' ') : '',
-        })
-      );
-      dispatch(setEditIndex(0));
-      dispatch(setDialogOpen('edit'));
-    }
-  };
+ const handleEditService = (mongoId: string) => {
+  if (!canEdit) {
+    dispatch(setSnackbarMessage("You do not have permission to edit service"));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
 
-  const handleDeactivateService = (mongoId: string) => {
-    dispatch(deactivateServiceItem(mongoId))
-      .unwrap()
-      .then(() => {
-        dispatch(setSnackbarMessage('Service deactivated successfully'));
-        dispatch(setSnackbarOpen(true));
-        dispatch(fetchServiceItems({ 
-          page: currentPage, 
-          limit: pageSize, 
-          status: currentViewStatus, 
-          search: searchQuery || '' 
-        }));
+  const item = displayItems.find((service) => service.mongoId === mongoId);
+  if (item) {
+    dispatch(
+      setServiceData({
+        ...item,
+        serviceName: item.serviceName ? item.serviceName.trim().replace(/\s+/g, ' ') : '',
       })
-      .catch((error) => {
-        dispatch(setSnackbarMessage(`Failed to deactivate service: ${error.message}`));
-        dispatch(setSnackbarOpen(true));
-      });
-  };
+    );
+    dispatch(setEditIndex(0));
+    dispatch(setDialogOpen('edit'));
+  }
+};
 
-  const handleActivateService = (mongoId: string) => {
-    dispatch(activateServiceItem(mongoId))
-      .unwrap()
-      .then(() => {
-        dispatch(setSnackbarMessage('Service activated successfully'));
-        dispatch(setSnackbarOpen(true));
-        dispatch(fetchServiceItems({ 
-          page: currentPage, 
-          limit: pageSize, 
-          status: currentViewStatus, 
-          search: searchQuery || '' 
-        }));
-      })
-      .catch((error) => {
-        dispatch(setSnackbarMessage(`Failed to activate service: ${error.message}`));
-        dispatch(setSnackbarOpen(true));
-      });
-  };
+
+const handleDeactivateService = (mongoId: string) => {
+  if (!canDelete) {
+    dispatch(setSnackbarMessage("You do not have permission to deactivate service"));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+
+  dispatch(deactivateServiceItem(mongoId))
+    .unwrap()
+    .then(() => {
+      dispatch(setSnackbarMessage('Service deactivated successfully'));
+      dispatch(setSnackbarOpen(true));
+      dispatch(fetchServiceItems({ 
+        page: currentPage, 
+        limit: pageSize, 
+        status: currentViewStatus, 
+        search: searchQuery || '' 
+      }));
+    })
+    .catch((error) => {
+      dispatch(setSnackbarMessage(`Failed to deactivate service: ${error.message}`));
+      dispatch(setSnackbarOpen(true));
+    });
+};
+
+
+const handleActivateService = (mongoId: string) => {
+  if (!canDelete) {
+    dispatch(setSnackbarMessage("You do not have permission to activate service"));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+
+  dispatch(activateServiceItem(mongoId))
+    .unwrap()
+    .then(() => {
+      dispatch(setSnackbarMessage('Service activated successfully'));
+      dispatch(setSnackbarOpen(true));
+      dispatch(fetchServiceItems({ 
+        page: currentPage, 
+        limit: pageSize, 
+        status: currentViewStatus, 
+        search: searchQuery || '' 
+      }));
+    })
+    .catch((error) => {
+      dispatch(setSnackbarMessage(`Failed to activate service: ${error.message}`));
+      dispatch(setSnackbarOpen(true));
+    });
+};
+
 
   const defaultInitialValues: Service = {
     ...initialServiceState,
     serviceName: serviceData?.serviceName || '',
     saccode: serviceData?.saccode || 0,
   };
+if (!isModuleVisible("yenerp", "service")) {
+  return null;
+}
 
   return (
     <Box>
@@ -303,11 +340,14 @@ const ServicePage: React.FC = () => {
         onToggleShowDeactivated={toggleShowDeactivated}
         importing={importing}
         exporting={exporting}
+        permissions={{ add: canAdd }}
       />
       <ServiceTable
         handleEdit={handleEditService}
         handleDeactivate={handleDeactivateService}
         handleActivate={handleActivateService}
+        canEdit={canEdit}
+        canDelete={canDelete}
       />
       <ServiceForm
         open={dialogOpen !== 'none'}

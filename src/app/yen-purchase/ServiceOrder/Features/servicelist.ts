@@ -1,6 +1,6 @@
 // features/yen-purchase/ServiceOrder/Features/servicepo.ts
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import axios from "axios";
+import purchaseApi from "@/utils/api";
 import { initialState } from "./servicepo";
 import { ServiceData } from "../Models/servicepo";
 
@@ -86,8 +86,8 @@ export const convertServiceToAPOutgoing = createAsyncThunk(
         params.append('invoiceDate', invoiceDate); // Just pass the date string
       }
 
-      const response = await axios.post<ServiceToAPResponse>(
-        `http://127.0.0.1:8000/purchasetestapi/servicepo/convert-service-to-ap-outgoing/${service_id}`,
+      const response = await purchaseApi.post<ServiceToAPResponse>(
+        `/servicepo/convert-service-to-ap-outgoing/${service_id}`,
         null,
         {
           params: params,
@@ -115,8 +115,8 @@ export const getAPInvoiceWithServiceDetails = createAsyncThunk(
     try {
       if (!ap_id) throw new Error("AP Invoice ID is required");
 
-      const response = await axios.get(
-        `http://127.0.0.1:8000/api/service-to-ap/ap-invoice/${ap_id}/service-details`
+      const response = await purchaseApi.get(
+        `/api/service-to-ap/ap-invoice/${ap_id}/service-details`
       );
       
       return response.data;
@@ -137,8 +137,8 @@ export const deactivateServiceOrder = createAsyncThunk(
     try {
       if (!mongoId) throw new Error("Invalid service order ID");
 
-      const response = await axios.patch(
-        `http://127.0.0.1:8000/purchasetestapi/servicepo/deactivated/${mongoId}`
+      const response = await purchaseApi.patch(
+        `/servicepo/deactivated/${mongoId}`
       );
       return response.data;
     } catch (error: any) {
@@ -152,8 +152,8 @@ export const updateServiceOrderStatusToPending = createAsyncThunk(
   'serviceOrders/updateStatusToPending',
   async (mongoId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(
-        `http://127.0.0.1:8000/purchasetestapi/servicepo/pending/${mongoId}`
+      const response = await purchaseApi.patch(
+        `/servicepo/pending/${mongoId}`
       );
       return response.data;
     } catch (error: any) {
@@ -166,8 +166,8 @@ export const fetchServiceById = createAsyncThunk(
   async (identifier: string, { rejectWithValue }) => {
     try {
       // Use your actual backend base URL
-      const response = await axios.get(
-        `http://127.0.0.1:8000/purchasetestapi/servicepo/getOutgoing/${identifier}`
+      const response = await purchaseApi.get(
+        `/servicepo/getOutgoing/${identifier}`
         // or `/api/service/getOutgoing/${identifier}` if using proxy
       );
 
