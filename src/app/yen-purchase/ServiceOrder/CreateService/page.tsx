@@ -1370,7 +1370,8 @@ const canAdd = hasPermission(
 if (!canAdd) {
   return (
     <Alert severity="error">
-      ❌ You don't have permission to create Service Orders
+       ❌ You don&apos;t have permission to create Service Orders
+
     </Alert>
   );
 }
@@ -1497,7 +1498,8 @@ if (!canAdd) {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
-                  Note: "Include Tax" means the entered fee includes tax. "Exclude Tax" means tax will be calculated on top of the entered fee.
+                  Note: &quot;Include Tax&quot; means the entered fee includes tax. &quot;Exclude Tax&quot; means tax will be calculated on top of the entered fee.
+
                 </Typography>
               </Grid>
             </Grid>
@@ -2489,7 +2491,7 @@ if (!canAdd) {
           <DialogContentText id="confirm-dialog-description">
             {isHoldOrderDialog ? (
               <>
-                The order amount of <strong>₹{totals.roundedTotalOrderAmount.toFixed(2)}</strong> exceeds the vendor's credit limit of <strong>₹{serviceData.creditLimit}</strong>.
+                The order amount of <strong>₹{totals.roundedTotalOrderAmount.toFixed(2)}</strong> exceeds the vendor&apos;s credit limit of <strong>₹{serviceData.creditLimit}</strong>.
                 <br /><br />
                 This order will be marked as <strong>HOLD</strong> and will require approval before processing.
               </>

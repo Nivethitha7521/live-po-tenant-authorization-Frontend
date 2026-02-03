@@ -6,6 +6,7 @@ import { RootState, AppDispatch } from '../redux/store';
 import { initializeAuth, validateToken, clearSnackbar } from '../features/authSlice';
 import SideMenu from '@/components/SideMenu';
 import Navbar from '@/components/Navbar';
+import { Toaster } from "react-hot-toast";
 
 // ⭐ ADD SNACKBAR IMPORTS
 import Snackbar from "@mui/material/Snackbar";
@@ -106,6 +107,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   if (isLoggedIn) {
     return (
       <>
+       <Toaster position="top-right" />
         <div className="flex h-screen overflow-hidden">
           {isMenuOpen && (
             <SideMenu
@@ -137,6 +139,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   // LOGIN PAGE
   return (
     <>
+    <Toaster position="top-right" />
       {children}
       {snackbarElement}
     </>

@@ -11,6 +11,8 @@ import './Navbar.css';
 import ConfirmationDialog from './confirmationDialog';
 import { FiLogOut, FiMenu, FiUser, FiClock } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import { setManualLogoutFlag } from '@/utils/api';
+
 
 interface NavbarProps {
   moduleName: string;
@@ -54,20 +56,30 @@ const Navbar: React.FC<NavbarProps> = ({ moduleName, username, onToggleMenu }) =
 
 
   const handleConfirmLogout = async () => {
+    setManualLogoutFlag();
+
     setIsDialogOpen(false);
-    try {
-      await dispatch(logout('manual')).unwrap();
-      // Clear all storage on manual logout
-      sessionStorage.clear();
-      localStorage.removeItem('browserSessionId');
-      router.push('/');
-    } catch (error) {
-      console.error('Logout failed:', error);
-      // Force cleanup even if API call fails
-      sessionStorage.clear();
-      localStorage.removeItem('browserSessionId');
-      router.push('/');
-    }
+      
+  try {
+  await dispatch(logout('manual')).unwrap();
+
+  // ✅ Clear only session storage
+  sessionStorage.clear();
+
+  // ❌ DO NOT clear full localStorage here
+  localStorage.removeItem('browserSessionId');
+
+  router.push('/');
+} catch (error) {
+  console.error('Logout failed:', error);
+
+  // Even if API fails, still logout locally
+  sessionStorage.clear();
+  localStorage.removeItem('browserSessionId');
+
+  router.push('/');
+}
+
   };
 
   

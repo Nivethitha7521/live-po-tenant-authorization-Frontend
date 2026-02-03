@@ -8,7 +8,7 @@ export const fetchPersonals = createAsyncThunk(
   "personals/fetchPersonals",
   async () => {
     const response = await axios.get(
-      "http://127.0.0.1:8000/purchaseapi/popersonals/",
+      "http://127.0.0.1:8000/purchasetestapi/popersonals/",
     ); // Adjust API endpoint as needed
     return response.data;
   },
@@ -19,7 +19,7 @@ export const addPersonal = createAsyncThunk<Personal, Personal>(
   "personals/addPersonal",
   async (personalData) => {
     const response = await axios.post(
-      "http://127.0.0.1:8000/purchaseapi/popersonals/",
+      "http://127.0.0.1:8000/purchasetestapi/popersonals/",
       personalData,
     ); // Adjust API endpoint as needed
     return response.data;
@@ -31,7 +31,7 @@ export const updatePersonal = createAsyncThunk<Personal, Personal>(
   "personals/updatePersonal",
   async (personalData) => {
     const response = await axios.patch(
-      `http://127.0.0.1:8000/purchaseapi/popersonals/${personalData.personalId}`,
+      `http://127.0.0.1:8000/purchasetestapi/popersonals/${personalData.personalId}`,
       personalData,
     ); // Adjust API endpoint as needed
     return response.data;

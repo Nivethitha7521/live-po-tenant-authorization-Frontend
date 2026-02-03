@@ -1139,7 +1139,7 @@ const RejectedPo: React.FC = () => {
         </Typography>
 
         <Typography sx={{ mb: 1 }}>
-          You don't have permission to view Rejected Purchase Orders.
+          You don&apos;t have permission to view Rejected Purchase Orders..
         </Typography>
 
         <Typography variant="body2" sx={{ opacity: 0.8 }}>

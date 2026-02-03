@@ -1,10 +1,14 @@
 import axios from "axios";
-
+import { toast } from "react-hot-toast";
 // Create axios instance for purchase API
 const purchaseApi = axios.create({
   baseURL: "http://127.0.0.1:8000/purchasetestapi",
 });
 
+let isLoggingOut = false;
+export const setManualLogoutFlag = () => {
+  isLoggingOut = true;
+};
 
 purchaseApi.interceptors.request.use(
   (config) => {
@@ -30,10 +34,30 @@ purchaseApi.interceptors.response.use(
       // Optional: toast.error('You do not have permission')
     }
 
-    if (error.response?.status === 401) {
-      console.error("Unauthorized: Invalid or expired token");
-      // Optional: auto-logout logic
-    }
+if (error.response?.status === 401) {
+
+  // ✅ If user is manually logging out, skip snackbar
+  if (!isLoggingOut) {
+    toast("⚠️ Session expired. Please login again", {
+      duration: 5000,
+      style: {
+        background: "#f59e0b",
+        color: "#000",
+        fontWeight: "600",
+      },
+    });
+  }
+
+  sessionStorage.clear();
+  localStorage.removeItem("token");
+
+  setTimeout(() => {
+    window.location.href = "/";
+  }, 1500);
+}
+
+
+
 
     return Promise.reject(error);
   }

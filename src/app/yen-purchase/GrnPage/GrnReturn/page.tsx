@@ -47,7 +47,7 @@ import 'react-date-range/dist/theme/default.css';
 import { VendorSearch } from '@/Models/vendor';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
-export const getReturnGrnPermission = (permissions: any) => {
+const getReturnGrnPermission = (permissions: any) => {
   return (
     permissions?.yenerp?.grns_return ?? {
       read: false,

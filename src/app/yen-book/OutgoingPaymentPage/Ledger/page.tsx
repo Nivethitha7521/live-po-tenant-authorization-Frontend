@@ -60,17 +60,8 @@ export interface VendorNameGet {
 const LedgerPage = () => {
   const dispatch = useDispatch<AppDispatch>();
    const { hasPermission, isModuleVisible } = usePermissions();
-  const canReadLedger = hasPermission("yenerp", "ledger", "read");
 
-  if (!canReadLedger) {
-    return (
-      <Box p={2}>
-        <Typography color="error">
-          You do not have access to the Ledger module.
-        </Typography>
-      </Box>
-    );
-  }
+ 
   const { ledgerData, loading, error, selectedVendorName, transactions } = useSelector(selectLedger);
   const { businesses } = useSelector(selectBusinesses);
   const [openDialog, setOpenDialog] = useState(false);
@@ -442,7 +433,16 @@ const LedgerPage = () => {
   // FIX: Check if we have invoice transactions
   const hasInvoices = transactions?.some(t => t.type === 'invoice');
   console.log('Has invoice transactions:', hasInvoices);
-
+  const canReadLedger = hasPermission("yenerp", "ledger", "read");
+if (!canReadLedger) {
+  return (
+    <Box p={2}>
+      <Typography color="error">
+        You do not have access to the Ledger module.
+      </Typography>
+    </Box>
+  );
+}
   if (loading) {
     return (
       <Container maxWidth="lg">

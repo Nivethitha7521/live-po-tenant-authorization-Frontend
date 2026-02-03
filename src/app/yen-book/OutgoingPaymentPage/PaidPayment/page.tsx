@@ -67,15 +67,7 @@ const PaidPaymentComponent = () => {
    const { hasPermission, isModuleVisible } = usePermissions();
   const canReadpaymentdone = hasPermission("yenerp", "paymentdone", "read");
 
-  if (!canReadpaymentdone) {
-    return (
-      <Box p={2}>
-        <Typography color="error">
-          You do not have access to the Payment Done module.
-        </Typography>
-      </Box>
-    );
-  }
+ 
   const { outgoings, loading, snackbarOpen, snackbarMessage, outgoingvendor } = useSelector(selectOutgoings);
   const { itemwise } = useSelector(selectGrn);
   const { businesses } = useSelector(selectBusinesses);
@@ -572,7 +564,15 @@ const handleDownload = async (outgoingId: string) => {
   const handleCloseDetailsDialog = () => {
     setOpenDetailsDialog(false);
   };
-
+ if (!canReadpaymentdone) {
+    return (
+      <Box p={2}>
+        <Typography color="error">
+          You do not have access to the Payment Done module.
+        </Typography>
+      </Box>
+    );
+  }
   return (
     <Box>
       <YenBookPage />

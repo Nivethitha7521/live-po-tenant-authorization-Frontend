@@ -163,7 +163,12 @@ const VerifiedApInvoicePage: React.FC = () => {
  const apPermission = useSelector(
     (state: RootState) => state.auth.permissions?.yenerp?.apinvoices,
   );
+  const returnPermission = useSelector(
+    (state: RootState) => state.auth.permissions?.yenerp?.apinvoices_return,
+  );
 
+  const canReturnRead = returnPermission?.read ?? false;
+  const isReturnHidden = returnPermission?.hide ?? false;
   const canRead = apPermission?.read ?? false;
   const canEdit = apPermission?.edit ?? false;
   const isModuleHidden =
@@ -265,7 +270,6 @@ const isDateFilterActive = useMemo(() => {
 }, [selectionRange]);
 // Update the initial fetch in the useEffect
 useEffect(() => {
-   if (!canRead) return; 
   const initializeData = async () => {
     dispatch(fetchBusinesses());
     dispatch(fetchAllVendors());
@@ -342,7 +346,7 @@ const refetchWithFilters = useCallback((
   page: number = currentPage,
   fromDateOverride?: string,
   toDateOverride?: string
-) => {if (!canRead) return; 
+) => { 
   const filters: any = {
     page,
     limit: pageSize,
@@ -372,7 +376,6 @@ const refetchWithFilters = useCallback((
   selectionRange, selectedVendorName, invoiceTypeFilter, selectedStatus
 ]);
 
-if (!canRead) return; 
 const handlePageChange = useCallback((newPage: number) => {
   if (newPage < 1 || newPage > totalPages || loading) return;
   
@@ -1387,15 +1390,19 @@ useEffect(() => {
  const filterAp = filteredAp.length > 0 ? filteredAp : apInvoices;
   /* ================= HIDE MODULE ================= */
   if (isModuleHidden) return null;
-  /* =============================================== */
 
-  /* =============================================== */
-  const returnPermission = useSelector(
-    (state: RootState) => state.auth.permissions?.yenerp?.apinvoices_return,
+if (!canRead) {
+  return (
+    <Box p={2}>
+      <Typography color="error">
+        You do not have access to AP Invoice module.
+      </Typography>
+    </Box>
   );
+}
 
-  const canReturnRead = returnPermission?.read ?? false;
-  const isReturnHidden = returnPermission?.hide ?? false;
+  /* =============================================== */
+
   return (
     <Box>
       <YenPurchasePage />

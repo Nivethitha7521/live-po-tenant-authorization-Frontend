@@ -25,16 +25,7 @@ const Vendor = memo(() => {
   const canDelete = hasPermission('yenerp', 'vendors', 'delete');
   const canImport = hasPermission('yenerp', 'vendors', 'import');
   const canExport = hasPermission('yenerp', 'vendors', 'export');
-  // ✅ MODULE VISIBILITY CHECK
-if (!isModuleVisible("yenerp", "vendors")) {
-  return null;
-  // or show message:
-  // return (
-  //   <Box p={3}>
-  //     <Alert severity="error">You do not have access to Vendors module.</Alert>
-  //   </Box>
-  // );
-}
+
 
 
   console.log('🎯 Vendor Action Permissions:', { canAdd, canEdit, canDelete, canImport, canExport });
@@ -91,7 +82,11 @@ if (!isModuleVisible("yenerp", "vendors")) {
       vendorName: searchInputValue.trim() !== '' ? searchInputValue : undefined
     }));
   };
+  // ✅ MODULE VISIBILITY CHECK
+if (!isModuleVisible("yenerp", "vendors")) {
+  return null;
 
+}
   return (
     <Box>
       <MenuPage />

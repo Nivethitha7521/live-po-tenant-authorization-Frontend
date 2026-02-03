@@ -71,17 +71,7 @@ const FreightPage: React.FC = () => {
 
 
 
-  // ❌ READ permission – page blocked
-  if (!canRead) {
-    return (
-      <Box p={3}>
-        <Alert severity="error">
-          You do not have permission to view this page
-        </Alert>
-      </Box>
-    );
-  }
-
+ 
   useEffect(() => {
     dispatch(fetchFreightItems());
   }, [dispatch, showDeactivated]);
@@ -267,6 +257,16 @@ const FreightPage: React.FC = () => {
 if (!isModuleVisible('yenerp', 'freight')) {
   return null;
 }
+ // ❌ READ permission – page blocked
+  if (!canRead) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          You do not have permission to view this page
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box>

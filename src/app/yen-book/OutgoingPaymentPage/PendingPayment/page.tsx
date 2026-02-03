@@ -68,15 +68,7 @@ const PendingPaymentComponent = React.memo(() => {
    const { hasPermission, isModuleVisible } = usePermissions();
   const canReadPartial = hasPermission("yenerp", "partialpayment", "read");
 
-  if (!canReadPartial) {
-    return (
-      <Box p={2}>
-        <Typography color="error">
-          You do not have access to the Partial Payment module.
-        </Typography>
-      </Box>
-    );
-  }
+  
   const { outgoings, loading, snackbarMessage, snackbarOpen, banks, outgoingvendor } = useSelector(selectOutgoings);
   const { itemwise } = useSelector(selectGrn);
   const { businesses } = useSelector(selectBusinesses);
@@ -647,7 +639,15 @@ const handleDownload = async (outgoingId: string) => {
   doc.save(`${outgoingdetail.vendorName} ${outgoingdetail.randomId}_PartialPayment.pdf`);
 };  
 const filteredPayments = outgoings.filter(outgoing => outgoing.status === 'Partially Paid');
-
+if (!canReadPartial) {
+    return (
+      <Box p={2}>
+        <Typography color="error">
+          You do not have access to the Partial Payment module.
+        </Typography>
+      </Box>
+    );
+  }
   return (
     <Box>
       <YenBookPage />

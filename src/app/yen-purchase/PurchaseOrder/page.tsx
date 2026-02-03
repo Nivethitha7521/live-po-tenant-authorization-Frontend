@@ -181,27 +181,7 @@ const Polist: React.FC = () => {
   const hideRejected =
     permissions?.yenerp?.purchaseorders_rejected?.hide === true;
 
-  // ❌ Module hidden => block the whole page
-  if (!isPendingModuleVisible) {
-    return (
-      <Box p={3}>
-        <Alert severity="error">
-          You do not have access to the Purchase Order Pending module.
-        </Alert>
-      </Box>
-    );
-  }
 
-  // ❌ Read permission missing => block page
-  if (!canRead) {
-    return (
-      <Box p={3}>
-        <Alert severity="error">
-          You do not have permission to view Pending Purchase Orders.
-        </Alert>
-      </Box>
-    );
-  }
   // Add this after your useSelector line
 console.log('Pending Purchase List:', pendingPurchaseList);
 console.log('Loading:', loading);
@@ -1189,13 +1169,27 @@ useEffect(() => {
   }
 };
 
-if (!isPendingModuleVisible) {
-  return <Alert severity="error">Module Access Denied</Alert>;
-}
+  // ❌ Module hidden => block the whole page
+  if (!isPendingModuleVisible) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          You do not have access to the Purchase Order Pending module.
+        </Alert>
+      </Box>
+    );
+  }
 
-if (!canRead) {
-  return <Alert severity="error">No Read Permission</Alert>;
-}
+  // ❌ Read permission missing => block page
+  if (!canRead) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          You do not have permission to view Pending Purchase Orders.
+        </Alert>
+      </Box>
+    );
+  }
 
   if (loading) {
     return (
