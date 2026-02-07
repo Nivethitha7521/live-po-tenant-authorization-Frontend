@@ -388,14 +388,26 @@ export interface DescriptionCalculationResponse {
 }
 
 export interface ServiceTotalsRequest {
-  descriptions: ServiceDescription[];
-  overall_discount_value?: number;
-  overall_discount_type?: 'percentage' | 'amount';
+  descriptions: Array<{
+    sacCode?: string;
+    description: string;
+    quantity?: number;
+    remarks?: string;
+    from_date?: string | null;
+    to_date?: string | null;
+    fee: number;  // MUST be called "fee"
+    tax_type?: 'cgst_sgst' | 'igst';
+    tax_per?: number;
+    discount_percentage?: number;
+    discount_amount?: number;
+    include_tax?: boolean;  // CRITICAL: tell backend if fee includes tax
+  }>;
+  overall_discount_value: number;
   overall_discount_applied_on?: 'before_tax' | 'after_tax';
+  overall_discount_type?: 'percentage' | 'amount';
   round_off?: number;
   total_freight_amount?: number;
   total_freight_tax?: number;
-  fees_are_total_including_tax?: boolean; // Deprecated, use include_tax per description
 }
 
 export interface RawServiceData {

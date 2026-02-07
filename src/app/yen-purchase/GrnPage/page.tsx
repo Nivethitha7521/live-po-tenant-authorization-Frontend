@@ -1484,6 +1484,7 @@ const handleApRoundOffBlur = () => {
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={1} ml={1}>
             {/* Buttons */}
             <Box display="flex" alignItems="center">
+               {canRead && (
               <Link href="/yen-purchase/GrnPage" passHref>
                 <Button
                   variant="contained"
@@ -1499,11 +1500,14 @@ const handleApRoundOffBlur = () => {
                   GRN List
                 </Button>
               </Link>
+               )}
+              {canReturnRead && (
               <Link href="/yen-purchase/GrnPage/GrnReturn" passHref>
                 <Button variant="contained" color="primary" sx={{ mr: 2 }}>
                   Return GRN
                 </Button>
               </Link>
+              )}
             </Box>
             {/*
             <Typography

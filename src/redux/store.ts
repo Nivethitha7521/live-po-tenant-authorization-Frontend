@@ -95,6 +95,7 @@ import serviceOrderReducer from '../app/yen-purchase/ServiceOrder/Features/servi
 import serviceListReducer from '../app/yen-purchase/ServiceOrder/Features/servicelist';
 import serviceIdSliceReducer from '../app/yen-purchase/ServiceOrder/Features/ServiceIdSlice';
 
+
 const store = configureStore({
   reducer: {
     // locations: locationAreaReducer,

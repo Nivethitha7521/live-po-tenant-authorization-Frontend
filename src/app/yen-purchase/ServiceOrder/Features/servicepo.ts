@@ -367,19 +367,42 @@ export const initialState: ServiceState = {
 };
 const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 
-// FIXED: Async thunk for calculateServiceTotals (sends nested ServiceDescription[])
 export const calculateServiceTotals = createAsyncThunk(
   'serviceOrder/calculateServiceTotals',
   async (request: ServiceTotalsRequest): Promise<ServiceTotalsResponse> => {
-    // FIXED: Send nested descriptions directly (backend expects List[ServiceDescription])
+    // Transform the data to match backend EXACT field names
+    const backendRequest = {
+      descriptions: request.descriptions.map(desc => ({
+        sacCode: desc.sacCode || '',
+        description: desc.description || '',
+        quantity: desc.quantity || 1,
+        remarks: desc.remarks || '',
+        from_date: desc.from_date || null,
+        to_date: desc.to_date || null,
+        fee: desc.fee,  // MUST be called "fee"
+        tax_type: desc.tax_type || 'cgst_sgst',
+        tax_per: desc.tax_per || 0,
+        discount_percentage: desc.discount_percentage || 0,
+        discount_amount: desc.discount_amount || 0,
+        include_tax: desc.include_tax !== undefined ? desc.include_tax : true,
+      })),
+      overall_discount_value: request.overall_discount_value || 0,
+      overall_discount_applied_on: request.overall_discount_applied_on || 'after_tax',
+      overall_discount_type: request.overall_discount_type || 'percentage',
+      round_off: request.round_off || 0,
+      total_freight_amount: request.total_freight_amount || 0,
+      total_freight_tax: request.total_freight_tax || 0,
+    };
+
+    console.log('Sending to backend for calculation:', JSON.stringify(backendRequest, null, 2));
+
     const response = await purchaseApi.post<ServiceTotalsResponse>(
       `/servicepo/calculate-totals`,
-      request
+      backendRequest
     );
     return response.data;
   }
 );
-
 // REMOVED: calculateOverallDiscountForAllDescriptions (integrated into calculateServiceTotals)
 export const fetchServices = createAsyncThunk(
   'serviceOrder/fetchServices',

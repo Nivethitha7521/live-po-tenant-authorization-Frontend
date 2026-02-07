@@ -1276,7 +1276,14 @@ const backendPerms = transformPermissionsForBackend(sanitizedPermissions);
                           <button onClick={(e) => { e.stopPropagation(); toggleAllSubmodules(ai, mi, m.id); }} className={`w-5 h-5 rounded border-2 mr-3 flex items-center justify-center ${moduleCheckboxes[m.id] ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-300"}`}>
                             {moduleCheckboxes[m.id] && "✓"}
                           </button>
-                          <span>{m.name}</span>
+                          <span className="flex items-center">
+  {m.name}
+
+  {MODULE_INFO[m.id] && (
+    <SubmoduleInfoIcon info={MODULE_INFO[m.id]} />
+  )}
+</span>
+
                         </div>
 <button
   onClick={(e) => {

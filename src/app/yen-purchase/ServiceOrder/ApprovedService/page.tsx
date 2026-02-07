@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/redux/store';
 import { format } from 'date-fns';
+import { usePermissions } from "@/hooks/usePermissions";
+
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -58,7 +60,6 @@ import ServiceIdSearch from '../Components/ServiceIDSeacrh';
 import FreightSelectionDialog, { FreightData } from '../../PurchaseOrder/Component/freightSelectionDialog';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
-import { usePermissions } from "@/hooks/usePermissions";
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -73,7 +74,7 @@ interface AutoTableHookData {
   doc: jsPDF;
 }
 
-// Helper function to add footer
+// Helper function to add footer  
 const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
   const pageHeight = doc.internal.pageSize.height;
   const pageWidth = doc.internal.pageSize.width;
@@ -142,42 +143,27 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 };
 
 const ApprovedService: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
   const { hasPermission, permissions } = usePermissions();
-
-/* MODULE VISIBILITY */
+  // MODULE VISIBILITY
 const isApprovedModuleVisible =
   permissions?.yenerp?.serviceorders_approved &&
   !(
     permissions?.yenerp?.serviceorders_approved?.hide === true ||
     permissions?.yenerp?.serviceorders_approved?.hide === 1
   );
-const isRejectedModuleVisible =
-  permissions?.yenerp?.serviceorders_rejected &&
-  !(
-    permissions?.yenerp?.serviceorders_rejected?.hide === true ||
-    permissions?.yenerp?.serviceorders_rejected?.hide === 1
-  );
 
-/* ACTION PERMISSIONS */
-const canReadApproved = hasPermission(
-  "yenerp",
-  "serviceorders_approved",
-  "read"
-);
+// ACTION PERMISSIONS
+const canRead = hasPermission("yenerp", "serviceorders_approved", "read");
+const canEdit = hasPermission("yenerp", "serviceorders_approved", "edit");
+const canReadPending = hasPermission("yenerp", "serviceorders_pending", "read");
+const canReadRejected = hasPermission("yenerp", "serviceorders_rejected", "read");
 
-const canEditApproved = hasPermission(
-  "yenerp",
-  "serviceorders_approved",
-  "edit"
-);
-
-console.log("APPROVED SERVICE PERMISSIONS", {
-  isApprovedModuleVisible,
-  canReadApproved,
-  canEditApproved
+console.log("Approved Service Permissions:", {
+  canRead,
+  canEdit,
 });
 
-  const dispatch = useDispatch<AppDispatch>();
   const serviceOrder = useSelector(selectServiceState);
   const { services, loading, error, snackbarMessage, snackbarOpen } = serviceOrder;
   const { businesses } = useSelector(selectBusinesses);
@@ -471,7 +457,6 @@ console.log("APPROVED SERVICE PERMISSIONS", {
   };
 
   const handleConfirmMovePending = async () => {
-    if (!canEditApproved) return;
     if (selectedOrder?.mongoId) {
       try {
         await dispatch(updateServiceOrderStatusToPending(selectedOrder.mongoId)).unwrap();
@@ -488,7 +473,6 @@ console.log("APPROVED SERVICE PERMISSIONS", {
   };
   const handleConfirmConvertToAP = () => {
     if (!selectedOrder || !apInvoiceNo.trim()) return;
-if (!canEditApproved) return;
 
     const request = {
       service_id: selectedOrder.mongoId,
@@ -881,10 +865,23 @@ if (!canEditApproved) return;
 
     doc.save(`${service.vendorName}_${service.serviceId}_Approved.pdf`);
   };
-
-
-if (!canReadApproved) {
-  return <Alert severity="error">No Read Permission</Alert>;
+if (!isApprovedModuleVisible) {
+  return (
+    <Box p={3}>
+      <Alert severity="error">
+        You do not have access to Approved Service module.
+      </Alert>
+    </Box>
+  );
+}
+if (!canRead) {
+  return (
+    <Box p={3}>
+      <Alert severity="error">
+        You do not have permission to view Approved Service Orders.
+      </Alert>
+    </Box>
+  );
 }
 
   if (loading) {
@@ -906,35 +903,34 @@ if (!canReadApproved) {
         {/* Navigation Links */}
         <Grid container spacing={2} sx={{ mb: 1 }}>
           <Grid item xs={12} display="flex" alignItems="center">
+            {canReadPending && (
+
             <Link href="/yen-purchase/ServiceOrder" passHref>
               <Button variant="contained" color="primary">
                 Pending
               </Button>
+            </Link> )}
+            <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
+              <Button
+                variant="contained"
+                sx={{
+                  ml: 1,
+                  backgroundColor: 'white',
+                  color: 'black',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  },
+                }}
+              >
+                Approved
+              </Button>
             </Link>
-          {isApprovedModuleVisible && (
-  <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
-    <Button
-      variant="contained"
-      sx={{
-        ml: 1,
-        backgroundColor: 'white',
-        color: 'black',
-        '&:hover': {
-          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        },
-      }}
-    >
-      Approved
-    </Button>
-  </Link>
-)}
-            {isRejectedModuleVisible && (
+            {canReadRejected && (
             <Link href="/yen-purchase/ServiceOrder/RejectedService" passHref>
               <Button variant="contained" color="primary" sx={{ ml: 1 }}>
                 Rejected
               </Button>
-            </Link>
-            )}
+            </Link> )}
           </Grid>
         </Grid>
 
@@ -1311,14 +1307,16 @@ if (!canReadApproved) {
               Close
             </Button>
            <Button
-  onClick={() => canEditApproved && handleOpenMovePendingDialog()}
+  onClick={canEdit ? handleOpenMovePendingDialog : undefined}
   variant="outlined"
-  disabled={!canEditApproved}
+  color="primary"
+  disabled={!canEdit}
   sx={{
-    color: canEditApproved ? "primary.main" : "#6e6e6e",
+    color: canEdit ? "primary.main" : "#6e6e6e !important",
     opacity: 1,
+    cursor: canEdit ? "pointer" : "not-allowed",
     "&.Mui-disabled": {
-      color: "#6e6e6e",
+      color: "#6e6e6e !important",
       opacity: 1,
     },
   }}
@@ -1327,17 +1325,18 @@ if (!canReadApproved) {
 </Button>
 
            <Button
-  onClick={() => canEditApproved && handleOpenConvertConfirmation()}
+  onClick={canEdit ? handleOpenConvertConfirmation : undefined}
   variant="contained"
   color="success"
   disabled={
-    !canEditApproved ||
+    !canEdit ||
     conversionLoading ||
     !apInvoiceNo.trim() ||
     !apInvoiceDate
   }
   startIcon={conversionLoading ? <CircularProgress size={20} /> : <CheckIcon />}
 >
+
               {conversionLoading ? 'Converting...' : 'Convert to AP Invoice'}
             </Button>
           </DialogActions>

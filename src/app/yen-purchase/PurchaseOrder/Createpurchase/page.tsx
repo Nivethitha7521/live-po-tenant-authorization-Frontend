@@ -1432,26 +1432,50 @@ const CreatePurchasePage: React.FC = () => {
       </Box>
     );
   }
-   if (!canAdd) {
-    return (
-      <Box sx={{ p: 4, textAlign: "center" }}>
-        <Typography variant="h5" color="error" sx={{ mb: 2 }}>
-          ❌ Access Denied
-        </Typography>
-        <Typography>
-          You don&apos;t have permission to create purchase orders. Required
-          permission: <strong>purchaseorders_pending.add</strong>
-        </Typography>
-        <Button
-          variant="contained"
-          sx={{ mt: 2 }}
-          onClick={() => router.push("/yen-purchase/PurchaseOrder")}
-        >
-          Back to Purchase Orders
-        </Button>
-      </Box>
-    );
-  }
+const canEdit = hasPermission("yenerp", "purchaseorders_pending", "edit");
+
+if (!isEditMode && !canAdd) {
+  return (
+    <Box sx={{ p: 4, textAlign: "center" }}>
+      <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+        ❌ Access Denied
+      </Typography>
+      <Typography>
+        You don&apos;t have permission to create purchase orders.
+        Required permission: <strong>purchaseorders_pending.add</strong>
+      </Typography>
+      <Button
+        variant="contained"
+        sx={{ mt: 2 }}
+        onClick={() => router.push("/yen-purchase/PurchaseOrder")}
+      >
+        Back to Purchase Orders
+      </Button>
+    </Box>
+  );
+}
+
+if (isEditMode && !canEdit) {
+  return (
+    <Box sx={{ p: 4, textAlign: "center" }}>
+      <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+        ❌ Access Denied
+      </Typography>
+      <Typography>
+        You don&apos;t have permission to edit purchase orders.
+        Required permission: <strong>purchaseorders_pending.edit</strong>
+      </Typography>
+      <Button
+        variant="contained"
+        sx={{ mt: 2 }}
+        onClick={() => router.push("/yen-purchase/PurchaseOrder")}
+      >
+        Back to Purchase Orders
+      </Button>
+    </Box>
+  );
+}
+
   const taxDetails = calculateTaxDetails();
   const variancePrice = (newItem.newPrice - newItem.existingPrice).toFixed(2);
   const isBefDiscountActive = newItem.befTaxDiscount > 0 || newItem.befTaxDiscountAmount > 0;

@@ -116,7 +116,7 @@ export const getAPInvoiceWithServiceDetails = createAsyncThunk(
       if (!ap_id) throw new Error("AP Invoice ID is required");
 
       const response = await purchaseApi.get(
-        `/api/service-to-ap/ap-invoice/${ap_id}/service-details`
+        `/service-to-ap/ap-invoice/${ap_id}/service-details`
       );
       
       return response.data;
@@ -166,7 +166,7 @@ export const fetchServiceById = createAsyncThunk(
   async (identifier: string, { rejectWithValue }) => {
     try {
       // Use your actual backend base URL
-      const response = await purchaseApi.get(
+      const response = await  purchaseApi.get(
         `/servicepo/getOutgoing/${identifier}`
         // or `/api/service/getOutgoing/${identifier}` if using proxy
       );

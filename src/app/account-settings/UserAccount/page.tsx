@@ -47,6 +47,12 @@ const BOOK_SUBMODULES = [
   "ledger",
   "purchasereturn",
 ];
+// ✅ Username: min 4 characters
+const USERNAME_REGEX = /^.{4,}$/;
+
+// ✅ Password: min 8 chars, 1 upper, 1 lower, 1 number, 1 special
+const PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
 export default function UserAccounts() {
   const dispatch = useDispatch();
@@ -54,12 +60,15 @@ export default function UserAccounts() {
     const [roles, setRoles] = useState<any[]>([]); // ✅ ADD THIS STATE FOR ROLES
     // ✅ role -> apps map
 const [roleAppsMap, setRoleAppsMap] = useState<Record<string, string[]>>({});
+const [isSubmitting, setIsSubmitting] = useState(false);
+
+const [usernameTouched, setUsernameTouched] = useState(false);
 
 // ✅ Snackbar state
 const [snackbar, setSnackbar] = useState({
   open: false,
   message: "",
-  severity: "success" as "success" | "error",
+  severity: "success" as "success" | "error" | "warning",
 });
 
   const [showActive, setShowActive] = useState(true);
@@ -74,9 +83,20 @@ const [snackbar, setSnackbar] = useState({
     role: "",
     active: true,
   });
+  const isUsernameInvalid =
+  usernameTouched &&
+  formUser.username.length > 0 &&
+  formUser.username.length < 4;
+
+
   const [showPassword, setShowPassword] = useState(false);
 const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+const [passwordTouched, setPasswordTouched] = useState(false);
 
+  const isPasswordInvalid =
+  passwordTouched &&
+  formUser.password.length > 0 &&
+  !PASSWORD_REGEX.test(formUser.password);
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: "",
@@ -254,7 +274,30 @@ if (appHasPermission) {
 
   // UserAccounts/page.tsx - UPDATE handleSaveUser function
 const handleSaveUser = async () => {
+
+  // 🔴 PREVENT DOUBLE SUBMIT
+  if (isSubmitting) return;
+
+  setIsSubmitting(true); // 🔒 LOCK BUTTON
+
   try {
+// ✅ USERNAME VALIDATION
+if (!USERNAME_REGEX.test(formUser.username)) {
+  throw new Error("Username must be at least 4 characters");
+}
+
+// ✅ PASSWORD VALIDATION (only for create OR when changing password)
+if (
+  !editingUserId ||
+  (editingUserId && formUser.password !== "••••••••")
+) {
+  if (!PASSWORD_REGEX.test(formUser.password)) {
+    throw new Error(
+      "Password must be at least 8 characters and include uppercase, lowercase, number and special character"
+    );
+  }
+}
+
     // Validate passwords match
     if (!editingUserId && formUser.password !== formUser.confirmPassword) {
       throw new Error("Passwords do not match");
@@ -341,7 +384,7 @@ setSnackbar({
     setSnackbar({
       open: true,
       message: "Username already exists",
-      severity: "error",
+      severity: "warning",
     });
     return; // ❗ STOP further execution
   }
@@ -382,16 +425,18 @@ setSnackbar({
     resetForm();
     
  } catch (error: any) {
-  console.error("❌ Error:", error);
+   console.error("❌ Error:", error);
 
-  setSnackbar({
-    open: true,
-    message: error.message || "Something went wrong",
-    severity: "error",
-  });
-}
-
+   setSnackbar({
+     open: true,
+     message: error.message || "Something went wrong",
+     severity: "error",
+   });
+ } finally {
+   setIsSubmitting(false); // 🔓 UNLOCK BUTTON
+ }
 };
+
  const handleDeactivateUser = async (userId: string) => {
   try {
     // 🔥 1. Update backend
@@ -514,18 +559,33 @@ const fetchUsersFromBackend = async () => {
  anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
 
 >
-  <Alert
-    onClose={() => setSnackbar({ ...snackbar, open: false })}
-    severity={snackbar.severity}
-    sx={{  width: "100%",
-    backgroundColor: "#2e7d32", // ✅ dark green
-    color: "#ffffff",          // white text
+ <Alert
+  onClose={() => setSnackbar({ ...snackbar, open: false })}
+  severity={snackbar.severity}
+  sx={{
+    width: "100%",
+    color: "#ffffff",
+
+    ...(snackbar.severity === "success" && {
+      backgroundColor: "#2e7d32", // ✅ green
+    }),
+
+    ...(snackbar.severity === "warning" && {
+      backgroundColor: "#ed6c02", // 🟠 orange
+    }),
+
+    ...(snackbar.severity === "error" && {
+      backgroundColor: "#d32f2f", // 🔴 red
+    }),
+
     "& .MuiAlert-icon": {
-      color: "#ffffff",        // white icon
-    }, }}
-  >
-    {snackbar.message}
-  </Alert>
+      color: "#ffffff",
+    },
+  }}
+>
+  {snackbar.message}
+</Alert>
+
 </Snackbar>
 
         {/* Add + Toggle */}
@@ -713,10 +773,11 @@ const fetchUsersFromBackend = async () => {
       {/* User Modal */}
       {userModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50 backdrop-blur-sm">
-        <div className="bg-white p-6 rounded-xl w-[400px] max-h-[90vh] overflow-hidden">
+        <div className="bg-white rounded-xl w-[440px] flex flex-col shadow-2xl">
 
 
-            <div className="flex justify-between items-center mb-6">
+
+            <div className="flex justify-between items-center px-5 pt-5 pb-3">
               <h3 className="text-xl font-semibold text-gray-900">
                 {editingUserId ? "Edit User" : "Create User"}
               </h3>
@@ -728,15 +789,31 @@ const fetchUsersFromBackend = async () => {
               </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 px-5 pb-3">
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
                 <input
                   placeholder="Enter username"
                   value={formUser.username}
-                  onChange={(e) => setFormUser({ ...formUser, username: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 onChange={(e) => {
+  const value = e.target.value;
+  setFormUser({ ...formUser, username: value });
+
+  if (!usernameTouched) {
+    setUsernameTouched(true);
+  }
+}}
+
+                  className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+   {isUsernameInvalid && (
+  <p className="text-xs text-red-500 mt-1">
+    Username must contain at least 4 characters
+  </p>
+)}
+
+
               </div>
             <div>
   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -744,16 +821,24 @@ const fetchUsersFromBackend = async () => {
   </label>
 
   <div className="relative">
-    <input
-      type={showPassword ? "text" : "password"}
-      placeholder="Enter password"
-      value={formUser.password}
-      onChange={(e) =>
-        setFormUser({ ...formUser, password: e.target.value })
-      }
-      className="w-full border border-gray-300 rounded-lg p-3 pr-10
-                 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-    />
+  <input
+  type={showPassword ? "text" : "password"}
+  placeholder="Enter password"
+  value={formUser.password}
+  onChange={(e) => {
+    const value = e.target.value;
+    setFormUser({ ...formUser, password: value });
+
+    if (!passwordTouched) {
+      setPasswordTouched(true);
+    }
+  }}
+  className={`w-full border rounded-lg py-2.5 px-3 pr-10 focus:ring-2
+    ${isPasswordInvalid
+      ? "border-red-500 focus:ring-red-500"
+      : "border-gray-300 focus:ring-blue-500"
+    }`}
+ />
 
     <button
       type="button"
@@ -765,6 +850,13 @@ const fetchUsersFromBackend = async () => {
       {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
     </button>
   </div>
+ {isPasswordInvalid && (
+  <p className="text-xs text-red-500 mt-1">
+    Password must contain at least 8 characters with uppercase, lowercase,
+    number & special character
+  </p>
+)}
+
 </div>
 
              <div>
@@ -780,7 +872,7 @@ const fetchUsersFromBackend = async () => {
       onChange={(e) =>
         setFormUser({ ...formUser, confirmPassword: e.target.value })
       }
-      className="w-full border border-gray-300 rounded-lg p-3 pr-10
+      className="w-full border border-gray-300 rounded-lg py-2.5 px-3 pr-10
                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
     />
 
@@ -802,7 +894,7 @@ const fetchUsersFromBackend = async () => {
                <select
             value={formUser.role}
             onChange={(e) => setFormUser({ ...formUser, role: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">-- Select Role --</option>
             {roles.map((role) => (
@@ -821,22 +913,23 @@ const fetchUsersFromBackend = async () => {
       </div>
 
 
-            <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+           <div className="flex justify-end gap-3 px-5 py-3 border-t border-gray-200 bg-white rounded-b-xl">
+
+
               <button
                 onClick={() => setUserModal(false)}
                 className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
-             <button
+<button
+  disabled={isSubmitting}
   onClick={() => {
-    // 🟡 Create user → direct save
     if (!editingUserId) {
       handleSaveUser();
       return;
     }
 
-    // 🔴 Edit user → confirmation dialog
     setConfirmDialog({
       open: true,
       title: "Update User",
@@ -852,10 +945,19 @@ const fetchUsersFromBackend = async () => {
       },
     });
   }}
-  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+  className={`px-6 py-2 rounded-lg text-white transition-colors
+    ${isSubmitting
+      ? "bg-gray-400 cursor-not-allowed"
+      : "bg-blue-600 hover:bg-blue-700"
+    }`}
 >
-  {editingUserId ? "Update User" : "Create User"}
+  {isSubmitting
+    ? "Please wait..."
+    : editingUserId
+    ? "Update User"
+    : "Create User"}
 </button>
+
 
             </div>
           </div>

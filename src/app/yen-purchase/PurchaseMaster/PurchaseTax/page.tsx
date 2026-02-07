@@ -147,7 +147,7 @@ const PurchaseTaxPage: React.FC = () => {
       dispatch(setTaxData(tax));
       dispatch(setEditIndex(purchaseTaxes.indexOf(tax)));
     }
-    handleDialogOpen();
+     dispatch(setDialogOpen("edit"));
   };
 
   const handleDeactivate = (purchasetaxId: string) => {

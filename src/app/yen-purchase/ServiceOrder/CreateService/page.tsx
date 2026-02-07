@@ -40,8 +40,6 @@ import ServiceAutocomplete from '../../PurchaseMaster/Service/Components/Service
 import { fetchPurchaseTaxes } from '@/features/yen-purchase/PurchaseMaster/purchaseTaxSlice';
 import FreightSelectionDialog, { FreightData } from '../../PurchaseOrder/Component/freightSelectionDialog';
 import InfoIcon from '@mui/icons-material/Info';
-import { usePermissions } from "@/hooks/usePermissions";
-import Alert from "@mui/material/Alert";
 
 // Helper functions for date handling
 const formatDate = (date: Date | null): string => {
@@ -152,13 +150,6 @@ const validationSchema = Yup.object({
 });
 
 const CreateServicePage: React.FC = () => {
-  const { hasPermission } = usePermissions();
-const canAdd = hasPermission(
-  "yenerp",
-  "serviceorders_pending",
-  "add"
-);
-
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -335,10 +326,12 @@ const canAdd = hasPermission(
         overall_discount_type: discountModeToUse,
         overall_discount_applied_on: discountAppliedOnToUse,
         round_off: roundOffValue,
-        fees_are_total_including_tax: true, // This is now deprecated, but kept for backward compatibility
+        // REMOVE THIS LINE: fees_are_total_including_tax: true, // This is deprecated
         total_freight_amount: freightSubTotal,
         total_freight_tax: freightTaxTotal,
       };
+
+      console.log('Sending totals request:', JSON.stringify(request.descriptions[0], null, 2));
 
       const result = await dispatch(calculateServiceTotals(request)).unwrap();
 
@@ -1343,11 +1336,11 @@ const canAdd = hasPermission(
   }, []);
 
   // Calculate include_tax percentages
-  const includeTaxCount = useMemo(() => 
+  const includeTaxCount = useMemo(() =>
     descriptions.filter(desc => desc.include_tax).length, [descriptions]
   );
-  
-  const excludeTaxCount = useMemo(() => 
+
+  const excludeTaxCount = useMemo(() =>
     descriptions.filter(desc => !desc.include_tax).length, [descriptions]
   );
 
@@ -1366,16 +1359,6 @@ const canAdd = hasPermission(
 
   const distributedDiscounts = calculateDistributedDiscounts();
   const totalOriginalAmount = serviceData.fees?.reduce((a, b) => a + b, 0) || 0;
-
-if (!canAdd) {
-  return (
-    <Alert severity="error">
-       ❌ You don&apos;t have permission to create Service Orders
-
-    </Alert>
-  );
-}
-
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
@@ -1496,12 +1479,12 @@ if (!canAdd) {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} sm={6}>
+              {/* <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
-                  Note: &quot;Include Tax&quot; means the entered fee includes tax. &quot;Exclude Tax&quot; means tax will be calculated on top of the entered fee.
-
+                  {`Note: "Include Tax" means the entered fee includes tax. "Exclude Tax" means tax will be calculated on top of the entered fee.`}
                 </Typography>
-              </Grid>
+
+              </Grid> */}
             </Grid>
           </Box>
 
@@ -1734,23 +1717,23 @@ if (!canAdd) {
                     onChange={handleDescriptionTaxTypeChange}
                     sx={{ display: 'flex', alignItems: 'center', height: '100%' }}
                   >
-                    <FormControlLabel 
-                      value="igst" 
-                      control={<Radio size="small" />} 
+                    <FormControlLabel
+                      value="igst"
+                      control={<Radio size="small" />}
                       label={
                         <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
                           IGST
                         </Typography>
-                      } 
+                      }
                     />
-                    <FormControlLabel 
-                      value="cgst_sgst" 
-                      control={<Radio size="small" />} 
+                    <FormControlLabel
+                      value="cgst_sgst"
+                      control={<Radio size="small" />}
                       label={
                         <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
                           CGST/SGST
                         </Typography>
-                      } 
+                      }
                     />
                   </RadioGroup>
                 </Box>
@@ -1923,9 +1906,9 @@ if (!canAdd) {
                           <TableCell align="center">
                             <Tooltip title={desc.include_tax ? "Fee includes tax" : "Fee excludes tax"}>
                               <Box>
-                                <Typography 
-                                  variant="caption" 
-                                  color={desc.include_tax ? "success.main" : "warning.main"} 
+                                <Typography
+                                  variant="caption"
+                                  color={desc.include_tax ? "success.main" : "warning.main"}
                                   fontWeight="bold"
                                 >
                                   {desc.include_tax ? '✓ Includes' : '✗ Excludes'}
@@ -1942,25 +1925,22 @@ if (!canAdd) {
                           <TableCell align="right">{desc.cgst?.toFixed(2)}</TableCell>
                           <TableCell align="right">{desc.igst?.toFixed(2)}</TableCell>
 
-                                                   {/* INDIVIDUAL DISCOUNT */}
-                          <TableCell align="right">
-                            {individualDiscountAmount > 0 ? (
-                              <Tooltip title={`${individualDiscountPercentage.toFixed(2)}% discount`}>
-                                <Box>
-                                  <Typography variant="body2" color="error">
-                                    -₹{individualDiscountAmount.toFixed(2)}
-                                  </Typography>
-                                  <Typography variant="caption" color="error">
-                                    ({individualDiscountPercentage.toFixed(2)}%)
-                                  </Typography>
-                                </Box>
-                              </Tooltip>
-                            ) : (
-                              <Typography variant="body2" color="text.secondary">
-                                No discount
-                              </Typography>
-                            )}
-                          </TableCell>
+                          {individualDiscountAmount > 0 ? (
+                            <Tooltip title={`${individualDiscountPercentage.toFixed(2)}% discount`}>
+                              <Box>
+                                <Typography variant="body2" color="error">
+                                  -₹{individualDiscountAmount.toFixed(2)}
+                                </Typography>
+                                <Typography variant="caption" color="error">
+                                  ({individualDiscountPercentage.toFixed(2)}%)
+                                </Typography>
+                              </Box>
+                            </Tooltip>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              No discount
+                            </Typography>
+                          )}
 
                           {/* OVERALL DISCOUNT */}
                           <TableCell align="right">
@@ -2010,8 +1990,8 @@ if (!canAdd) {
                                   ₹{finalAmount.toFixed(2)}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" display="block">
-                                  {originalAmount > 0 ? 
-                                    `${((finalAmount / originalAmount) * 100).toFixed(1)}% of original` : 
+                                  {originalAmount > 0 ?
+                                    `${((finalAmount / originalAmount) * 100).toFixed(1)}% of original` :
                                     'N/A'
                                   }
                                 </Typography>
@@ -2069,11 +2049,11 @@ if (!canAdd) {
             <Typography variant="h6" gutterBottom>
               Overall Discount
             </Typography>
-            
+
             {hasDescriptionWiseDiscount && (
               <Box sx={{ mb: 2, p: 1.5, bgcolor: '#fff3e0', borderRadius: 1, border: '1px solid #ffb74d' }}>
                 <Typography variant="body2" color="warning.dark">
-                  ⚠️ Overall discount is disabled because some descriptions already have individual discounts. 
+                  ⚠️ Overall discount is disabled because some descriptions already have individual discounts.
                   Please remove individual discounts first to apply an overall discount.
                 </Typography>
               </Box>
@@ -2152,8 +2132,8 @@ if (!canAdd) {
                     color="primary"
                     onClick={handleApplyDiscount}
                     disabled={
-                      hasDescriptionWiseDiscount || 
-                      overallDiscountValue <= 0 || 
+                      hasDescriptionWiseDiscount ||
+                      overallDiscountValue <= 0 ||
                       descriptions.length === 0 ||
                       loadingStates.totals
                     }
@@ -2280,7 +2260,7 @@ if (!canAdd) {
                   <Typography variant="subtitle1" gutterBottom fontWeight="bold">
                     Order Summary
                   </Typography>
-                  
+
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2">Subtotal:</Typography>
@@ -2469,47 +2449,38 @@ if (!canAdd) {
       </Box>
 
       {/* Freight Selection Dialog */}
-          <FreightSelectionDialog
+      <FreightSelectionDialog
         open={openFreightDialog}
         onClose={() => setOpenFreightDialog(false)}
         onAddFreights={handleAddFreights}
         existingFreights={freights}
       />
-
-
-      {/* Confirmation Dialog */}
-      <Dialog
-        open={open}
-        onClose={() => setDialogOpen(false)}
-        aria-labelledby="confirm-dialog-title"
-        aria-describedby="confirm-dialog-description"
-      >
-        <DialogTitle id="confirm-dialog-title">
-          {isHoldOrderDialog ? 'Credit Limit Exceeded' : 'Confirm Service Order'}
+      {/* Dialogs */}
+      <Dialog open={open} onClose={() => setDialogOpen(false)}>
+        <DialogTitle>
+          {isHoldOrderDialog ? 'Confirm Hold Service Order' : (isEditMode ? 'Confirm Update' : 'Confirm Service Order')}
         </DialogTitle>
         <DialogContent>
-          <DialogContentText id="confirm-dialog-description">
-            {isHoldOrderDialog ? (
-              <>
-                The order amount of <strong>₹{totals.roundedTotalOrderAmount.toFixed(2)}</strong> exceeds the vendor&apos;s credit limit of <strong>₹{serviceData.creditLimit}</strong>.
-                <br /><br />
-                This order will be marked as <strong>HOLD</strong> and will require approval before processing.
-              </>
-            ) : (
-              `Are you sure you want to ${isEditMode ? 'update' : 'create'} this service order?`
-            )}
+          <DialogContentText>
+            {isHoldOrderDialog
+              ? `The service order amount (${totals.roundedTotalOrderAmount.toFixed(2)}) exceeds the vendor's credit limit (${serviceData.creditLimit.toFixed(2)}). This order will be placed on hold and sent for approval. Proceed?`
+              : (isEditMode ? 'Are you sure you want to update this service order?' : 'Are you sure you want to submit this service order?')
+            }
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} color="primary" variant="contained" autoFocus>
-            {isHoldOrderDialog ? 'Create Hold Order' : (isEditMode ? 'Update' : 'Create')}
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleSubmit}
+            color="primary"
+            variant="contained"
+            disabled={loadingStates.submit || loadingStates.totals}
+            startIcon={loadingStates.submit ? <CircularProgress size={20} /> : null}
+          >
+            {loadingStates.submit ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Confirm')}
           </Button>
         </DialogActions>
       </Dialog>
-
       {/* Navigation Confirmation Dialog */}
       <Dialog
         open={showNavigationConfirm}
