@@ -1,6 +1,6 @@
 // photoSlice.ts
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import purchaseApi from "@/utils/api";
 import { RootState } from '@/redux/store';
 
 interface PhotoInfo {
@@ -37,7 +37,7 @@ export const fetchPhotosByOrderId = createAsyncThunk(
   'photos/fetchByOrderId',
   async (orderId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`http://127.0.0.1:8000/purchasetestapi/photos/${orderId}`);
+      const response = await purchaseApi.get(`/photos/${orderId}`);
       return { orderId, photos: response.data.photos };
     } catch (error: any) {   
       return rejectWithValue(error.response?.data || 'Failed to fetch photos');
@@ -54,8 +54,8 @@ export const uploadPhotos = createAsyncThunk(
         formData.append('files', file);
       });
 
-      const response = await axios.post(
-        `http://127.0.0.1:8000/purchasetestapi/photos/upload/${orderId}`,
+      const response = await purchaseApi.post(
+        `/photos/upload/${orderId}`,
         formData,
         {
           headers: {
@@ -78,8 +78,8 @@ export const editPhotoByIndex = createAsyncThunk(
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await axios.patch(
-        `http://127.0.0.1:8000/purchasetestapi/photos/edit/${orderId}/${index}`,
+      const response = await purchaseApi.patch(
+        `/photos/edit/${orderId}/${index}`,
         formData,
         {
           headers: {
@@ -99,7 +99,7 @@ export const deletePhoto = createAsyncThunk(
   'photos/delete',
   async ({ orderId, index }: { orderId: string; index: number }, { rejectWithValue }) => {
     try {
-      await axios.delete(`http://127.0.0.1:8000/purchasetestapi/photos/${orderId}/${index}`);
+      await purchaseApi.delete(`/photos/${orderId}/${index}`);
       return { orderId, index };
     } catch (error: any) {
       return rejectWithValue(error.response?.data || 'Failed to delete photo');

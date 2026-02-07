@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, IconButton, Typography,Tooltip } from '@mui/material';
 import Image from 'next/image';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import EditIcon from '@mui/icons-material/Edit';
@@ -7,6 +7,8 @@ import EditIcon from '@mui/icons-material/Edit';
 interface PhotoDisplayProps {
   orderId: string;
   imageUrls: string[]; // Array with 0-based index
+  canAdd: boolean;
+  canEdit: boolean;
   onImageClick?: (url: string, displayIndex: number) => void;
   onUploadClick: (orderId: string, backendIndex: number) => void;
 }
@@ -14,6 +16,8 @@ interface PhotoDisplayProps {
 const PhotoDisplay: React.FC<PhotoDisplayProps> = ({
   orderId,
   imageUrls,
+  canAdd,
+  canEdit,
   onImageClick,
   onUploadClick
 }) => {
@@ -68,37 +72,46 @@ const PhotoDisplay: React.FC<PhotoDisplayProps> = ({
                       borderRadius: 4
                     }}
                   />
-                  <IconButton
-                    size="small"
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      right: 0,
-                      backgroundColor: 'rgba(255,255,255,0.7)',
-                      '&:hover': { backgroundColor: 'rgba(255,255,255,0.9)' },
-                      padding: '2px'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUploadClick(orderId, displayIndex);
-                    }}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
+                 <Tooltip title={canEdit ? "Replace Photo" : "No permission to edit"}>
+  <span style={{ display: "inline-flex" }}>
+    <IconButton
+      size="small"
+      disabled={!canEdit}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!canEdit) return;
+        onUploadClick(orderId, displayIndex);
+      }}
+      sx={{
+        backgroundColor: 'rgba(255,255,255,0.7)',
+        color: canEdit ? "primary.main" : "#9e9e9e",
+        cursor: canEdit ? "pointer" : "not-allowed",
+        padding: '2px'
+      }}
+    >
+      <EditIcon fontSize="small" />
+    </IconButton>
+  </span>
+</Tooltip>
+
                 </>
               ) : (
-                <IconButton 
-                  color="primary" 
-                  sx={{ 
-                    width: '100%', 
-                    height: '100%',
-                    flexDirection: 'column'
-                  }}
-                  onClick={() => onUploadClick(orderId, displayIndex)}
-                >
-                  <PhotoCamera fontSize="small" />
-                  <Typography variant="caption">{displayIndex}</Typography>
-                </IconButton>
+             <Tooltip title={canAdd ? "Upload Photo" : "No permission to upload"}>
+  <span style={{ display: "inline-flex" }}>
+    <IconButton
+      onClick={() => canAdd && onUploadClick(orderId, displayIndex)} // ✅ FIXED
+      disabled={!canAdd}
+      sx={{
+        color: canAdd ? "primary.main" : "#9e9e9e",
+        cursor: canAdd ? "pointer" : "not-allowed",
+      }}
+    >
+      <PhotoCamera />
+    </IconButton>
+  </span>
+</Tooltip>
+
+
               )}
             </Box>
           );

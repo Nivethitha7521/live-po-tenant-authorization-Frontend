@@ -414,6 +414,11 @@ useEffect(() => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, orderId: string, displayIndex: number) => {
     const file = e.target.files?.[0];
     if (!file || !orderId) return;
+      const frontendIndex = displayIndex - 1;
+  const isReplacing = imageUrls[orderId]?.[frontendIndex];
+
+  if (isReplacing && !canEdit) return;
+  if (!isReplacing && !canAdd) return;
     try {
       const backendIndex = displayIndex; // 1-based for backend
       const frontendIndex = displayIndex - 1; // 0-based for frontend state
@@ -1875,12 +1880,15 @@ useEffect(() => {
                         <PhotoDisplay
                           orderId={order.purchaseOrderId}
                           imageUrls={imageUrls[order.purchaseOrderId] || []}
+                           canAdd={canAdd} 
+                           canEdit={canEdit}
                           onImageClick={(url, displayIndex) => {
                             setSelectedImage(url);
                             setSelectedImageIndex(displayIndex - 1); // Store as 0-based in state
                             setOpenImageDialog(true);
                           }}
                           onUploadClick={(orderId, backendIndex) => {
+                             
                             // Trigger file input click with 1-based index
                             document.getElementById(`file-input-${orderId}-${backendIndex}`)?.click();
                           }}
@@ -1891,6 +1899,7 @@ useEffect(() => {
                             id={`file-input-${order.purchaseOrderId}-${displayIndex}`}
                             type="file"
                             accept="image/*"
+                            
                             onChange={(e) => handleFileChange(e, order.purchaseOrderId, displayIndex)}
                             style={{ display: 'none' }}
                           />
@@ -1913,6 +1922,7 @@ useEffect(() => {
                           </Tooltip>
                           {/* New Edit Button with Edit Icon */}
                           <Tooltip title="Edit Order">
+                             <span style={{ display: "inline-flex" }}>
                             <IconButton
                             onClick={() =>
                               canEdit && handleEditClick(order.purchaseOrderId)
@@ -1932,9 +1942,11 @@ useEffect(() => {
                           >
                             <EditIcon />
                           </IconButton>
+                          </span>
                           </Tooltip>
                           {/* Approve Button with Check Icon */}
                           <Tooltip title="Approve Order">
+                             <span style={{ display: "inline-flex" }}>
                             <IconButton
                             onClick={() =>
                               canApprove &&
@@ -1955,9 +1967,11 @@ useEffect(() => {
                           >
                             <CheckIcon />
                           </IconButton>
+                          </span>
                           </Tooltip>
                           {/* Reject Button with Close (X) Icon */}
                           <Tooltip title="Reject Order">
+                             <span style={{ display: "inline-flex" }}>
                              <IconButton
                             onClick={() =>
                               canApprove &&
@@ -1978,6 +1992,7 @@ useEffect(() => {
                           >
                             <CloseIcon />
                           </IconButton>
+                          </span>
                           </Tooltip>
                           {/* Download Button with PDF Icon
                           <Tooltip title="Download PDF">
