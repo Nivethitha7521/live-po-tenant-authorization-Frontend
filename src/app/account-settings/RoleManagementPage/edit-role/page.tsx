@@ -112,6 +112,11 @@ const HARD_MODULES: AppPermissions[] = [
           { id: "op_advance", name: "Advance Payment", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
           { id: "op_partial", name: "Partial Payment", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
           { id: "op_done", name: "Payment Done", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
+           { 
+      id: "op_history", 
+      name: "Payment History", 
+      actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false } 
+    },
           { id: "op_ledger", name: "Ledger", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
           { id: "op_return", name: "Purchase Return", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } }
         ]
@@ -620,6 +625,7 @@ const [confirmDialog, setConfirmDialog] = useState<{
     'op_advance': 'advancepayment',
     'op_partial': 'partialpayment',
     'op_done': 'paymentdone',
+     'op_history': 'paymenthistory',
     'op_ledger': 'ledger',
     'op_return': 'purchasereturn',
     'om_so': 'sale_order',

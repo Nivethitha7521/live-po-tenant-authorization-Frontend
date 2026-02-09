@@ -1164,11 +1164,13 @@ const OutgoingPaymentComponent = React.memo(() => {
                   </Link>
                 </Grid>
               )}
+              {isModuleVisible("yenerp", "paymenthistory") && (
               <Grid item>
                 <Link href="/yen-book/OutgoingPaymentPage/PaymentHistory" passHref>
                   <Button variant="contained" color="primary" sx={{ mr: 1 }}>Payment History</Button>
                 </Link>
               </Grid>
+              )}
              {isModuleVisible("yenerp", "ledger") && (
                 <Grid item>
                   <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>

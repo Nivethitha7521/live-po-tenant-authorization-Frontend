@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
+import YenBookPage from "../../page";
+
 import {
   Grid,
   Typography,
@@ -38,8 +40,12 @@ import {
   selectPayments,
   resetExport,
 } from '@/features/yen-purchase/Outgoing/paymentHistory';
+import { usePermissions } from "@/hooks/usePermissions";
 
 const PaymentHistoryPage = () => {
+     const { hasPermission, isModuleVisible } = usePermissions();
+  
+    const canRead = hasPermission("yenerp", "paymenthistory", "read");
   const searchParams = useSearchParams();
   const paymentIdFilter = searchParams?.get('payment_id') || ''; // Optional filter from query param
   const currentPageParam = searchParams?.get('page') || '1';
@@ -56,6 +62,7 @@ const PaymentHistoryPage = () => {
 
   // Fetch data on mount, filter change, or page change
   useEffect(() => {
+     if (!canRead) return;
     console.log('useEffect triggered. Filter:', paymentIdFilter, 'Page:', currentPage);
     const effectivePaymentId = paymentIdFilter || undefined; // Undefined for "all"
     console.log('Dispatching fetchPaymentsById with:', { paymentId: effectivePaymentId, page: currentPage, limit });
@@ -151,42 +158,57 @@ const PaymentHistoryPage = () => {
     newParams.set('page', value.toString());
     router.push(`?${newParams.toString()}`);
   };
-
-  if (loading) {
-    return (
+if (!canRead) {
+  return (
+    <>
+      <YenBookPage />
       <Container maxWidth="lg">
-        <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
-          <CircularProgress />
-          <Typography ml={2}>Loading payment history...</Typography>
+        <Box p={4}>
+          <Alert severity="error">
+            You do not have permission to view Payment History
+          </Alert>
         </Box>
       </Container>
-    );
-  }
+    </>
+  );
+}
 
-  if (error || !data) {
-    return (
+
+ if (loading) {
+  return (
+    <>
+      <YenBookPage />
       <Container maxWidth="lg">
-        <Box p={4} textAlign="center">
-          <Typography color="error" variant="h6" gutterBottom>
+        <Box display="flex" justifyContent="center">
+          <CircularProgress />
+        </Box>
+      </Container>
+    </>
+  );
+}
+
+
+ if (error || !data) {
+  return (
+    <>
+      <YenBookPage />
+      <Container maxWidth="lg">
+        <Box p={4}>
+          <Typography color="error">
             {error || 'No data found'}
           </Typography>
-          <Typography variant="body2" color="textSecondary" gutterBottom>
-            Filter: {paymentIdFilter || 'All'} | Page: {currentPage}
-          </Typography>
-          <Button
-            onClick={() => dispatch(fetchPaymentsById({ paymentId: paymentIdFilter || '', page: currentPage, limit }))}
-            variant="contained"
-          >
-            Retry Fetch
-          </Button>
         </Box>
       </Container>
-    );
-  }
+    </>
+  );
+}
+
 
   const title = paymentIdFilter ? `Payment History (Filtered: ${paymentIdFilter})` : 'All Payment History';
 
   return (
+    <>
+    <YenBookPage />
     <Container maxWidth="lg">
       <Box sx={{ p: 2 }}>
         <Typography variant="h4" gutterBottom>
@@ -309,6 +331,7 @@ const PaymentHistoryPage = () => {
         </Dialog>
       </Box>
     </Container>
+    </>
   );
 };
 

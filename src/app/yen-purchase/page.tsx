@@ -44,6 +44,7 @@ const isModuleVisible = (key: string) => {
     "advancepayment",
     "partialpayment",
     "paymentdone",
+    "paymenthistory",
     "ledger",
     "purchasereturn",
   ];
@@ -70,7 +71,11 @@ const isModuleVisible = (key: string) => {
     "purchaseorders_approved",
     "purchaseorders_rejected",
   ];
-
+const serviceOrderKeys = [
+  "serviceorders_pending",
+  "serviceorders_approved",
+  "serviceorders_rejected",
+];
   const grnKeys = ["grns", "grns_return"];
 
   const apInvoiceKeys = ["apinvoices"]; // need na more keys add panlaam
@@ -101,15 +106,12 @@ const isModuleVisible = (key: string) => {
           path: "/yen-purchase/PurchaseOrder",
           visible: isAnyModuleVisible(purchaseOrderKeys),
         },
-   {
+ {
   label: "Service Order",
   path: "/yen-purchase/ServiceOrder",
-  visible: isAnyModuleVisible([
-    "serviceorders_pending",
-    "serviceorders_approved",
-    "serviceorders_rejected",
-  ]),
+  visible: isAnyModuleVisible(serviceOrderKeys),
 },
+
 
 
         {
@@ -125,8 +127,22 @@ const isModuleVisible = (key: string) => {
       ].filter((item) => item.visible),
     [permissions],
   );
-
+// ✅ MASTER purchase permission keys (reuse existing decoded keys)
+const purchaseKeys: string[] = [
+  ...purchaseMasterKeys,
+  ...vendorKeys,
+  ...purchaseitemKeys,
+  ...purchaseOrderKeys,
+  ...serviceOrderKeys,
+  ...grnKeys,
+  ...apInvoiceKeys,
  
+];
+
+ // ✅ ADD THIS - correct hidePurchaseMenu logic
+const hidePurchaseMenu =
+  permissionsLoaded &&
+  !purchaseKeys.some((key:string) => isModuleVisible(key));
   React.useEffect(() => {
     if (pathname === "/yen-purchase" || pathname === "/yen-purchase/") {
       const firstVisible = subItems[0];
@@ -147,7 +163,7 @@ const isModuleVisible = (key: string) => {
       <SideMenu
         onMenuClick={handleMenuClick}
         activePath={pathname || "/"}
-hidePurchaseMenu={permissionsLoaded && subItems.length === 0}      
+         hidePurchaseMenu={hidePurchaseMenu}
   hideBookMenu={hideBookMenu}
       />
       <div className="flex flex-wrap gap-2 ml-4 items-center justify-start">

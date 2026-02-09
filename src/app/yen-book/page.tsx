@@ -6,18 +6,82 @@ import Link from 'next/link';
 import { Button } from '@mui/material';
 import { usePathname, useRouter } from 'next/navigation';
 import SideMenu from '../../components/SideMenu';
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
 
 const YenBookPage = () => {
   const pathname = usePathname();
   const router = useRouter();
+const permissions = useSelector(
+  (state: RootState) => state.auth.permissions?.yenerp || {}
+);
 
-  const subItems = useMemo(() => [
-    // { label: 'Outlet Bank Deposit', path: '/yen-book/OutletBankDeposit' },
-    // { label: 'Payment Details', path: '/yen-book/PaymentDetailsPage' },
-    { label: 'Outgoing Payment', path: '/yen-book/OutgoingPaymentPage' },
-    // { label: 'Asset Management', path: '/yen-book/AssetManagement' },
-    // { label: 'Budget Management', path: '/yen-book/BudgetManagementPage' },
-  ], []);
+const permissionsLoaded = Object.keys(permissions).length > 0;
+
+const isModuleVisible = (key: string) => {
+  const m = permissions?.[key];
+
+  if (!m) return false;
+  if (m.hide === true || m.hide === 1) return false;
+
+  const noActions = !m.read && !m.add && !m.edit && !m.delete && !m.approve;
+  if (noActions) return false;
+
+  return m.read === true || m.read === 1;
+};
+// ✅ Yen Book module permission keys
+const bookKeys = [
+  "outgoingpayment",
+  "advancepayment",
+  "partialpayment",
+  "paymentdone",
+  "paymenthistory",
+  "ledger",
+  "purchasereturn"
+];
+const purchaseKeys = [
+  "purchasecategory",
+  "purchasesubcategory",
+  "itemgroup",
+  "purchaseuom",
+  "purchasetax",
+  "storagelocation",
+  "freight",
+  "itemtype",
+  "service",
+  "vendors",
+  "vendortype",
+  "purchaseitem",
+  "purchaseorders_pending",
+  "purchaseorders_approved",
+  "purchaseorders_rejected",
+  "serviceorders_pending",
+  "serviceorders_approved",
+  "serviceorders_rejected",
+  "grns",
+  "grns_return",
+  "apinvoices",
+];
+const hidePurchaseMenu =
+  permissionsLoaded &&
+  !purchaseKeys.some((key: string) => isModuleVisible(key));
+
+const hideBookMenu =
+  permissionsLoaded &&
+  !bookKeys.some((key: string) => isModuleVisible(key));
+
+ const subItems = useMemo(
+  () =>
+    [
+      {
+        label: "Outgoing Payment",
+        path: "/yen-book/OutgoingPaymentPage",
+        visible: isModuleVisible("outgoingpayment"),
+      },
+    ].filter((item) => item.visible),
+  [permissions]
+);
+
 
   const isActiveRoute = (itemPath: string) => (pathname || '').startsWith(itemPath);
 
@@ -30,6 +94,8 @@ const YenBookPage = () => {
       <SideMenu
         onMenuClick={handleMenuClick}
         activePath={pathname || '/'} // Fallback to '/' if pathname is null
+          hideBookMenu={hideBookMenu}
+           hidePurchaseMenu={hidePurchaseMenu}
       />
 
       <div className="flex flex-wrap gap-2 mt-1 ml-5 mr:1 items-center justify-start">

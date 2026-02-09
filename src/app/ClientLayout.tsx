@@ -35,7 +35,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const pathname = usePathname();
   const dispatch = useDispatch<AppDispatch>();
 
-  const { isLoggedIn, isInitialized, username, snackbarOpen, snackbarMessage } =
+  const { isLoggedIn, isInitialized,permissionReady, username, snackbarOpen, snackbarMessage } =
     useSelector((state: RootState) => state.auth);
 
   const [isMenuOpen, setIsMenuOpen] = useState(true);
@@ -47,24 +47,33 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     PROTECTED_ROUTES.some(route => pathname?.startsWith(route)),
     [pathname]
   );
+const rawPermissions = useSelector(
+  (state: RootState) => state.auth.permissions
+);
+
+// ✅ normalize to array
+const permissions: string[] = Array.isArray(rawPermissions)
+  ? rawPermissions
+  : [];
+
+const hideBookMenu = !permissions.includes("YEN_BOOK_VIEW");
+const hidePurchaseMenu = !permissions.includes("YEN_PURCHASE_VIEW");
+
 
   // Session validation
-  useEffect(() => {
-    const token = sessionStorage.getItem("accessToken");
+// Session validation (FIX 3)
+useEffect(() => {
+  dispatch(initializeAuth());   // restore localStorage (permissions, role)
+  dispatch(validateToken());    // backend token + permissions validation
+}, [dispatch]);
 
-    if (token) {
-      dispatch(validateToken())
-        .unwrap()
-        .then(() => dispatch(initializeAuth()))
-        .catch(() => sessionStorage.clear());
-    } else {
-      dispatch(initializeAuth());
-    }
-  }, [dispatch]);
 
-  useEffect(() => {
+ useEffect(() => {
+  if (isInitialized && permissionReady) {
     setIsCheckingSession(false);
-  }, []);
+  }
+}, [isInitialized, permissionReady]);
+
 
   useEffect(() => {
     if (!isInitialized || isCheckingSession) return;
@@ -76,7 +85,9 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   }, [isLoggedIn, isInitialized, isProtectedRoute, isLoginRoute, router, isCheckingSession]);
 
-  if (!isInitialized || isCheckingSession) {
+  if (!isInitialized || isCheckingSession||
+  (isLoggedIn && !permissionReady)
+) {
     return <LoadingSpinner />;
   }
 
@@ -116,6 +127,8 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
                 router.push(menuItem.path);
               }}
               activePath={pathname || '/yen-purchase'}
+                hideBookMenu={hideBookMenu}
+  hidePurchaseMenu={hidePurchaseMenu}
             />
           )}
           <div className={`flex flex-col flex-1 overflow-hidden ${isMenuOpen ? 'pl-12' : 'pl-0'}`}>

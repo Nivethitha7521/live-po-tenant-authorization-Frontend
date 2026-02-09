@@ -101,8 +101,7 @@ dispatch(jwtLoginSuccess({
    role: result.role_name
 }));
 
-// 🔥 This updates isLoggedIn in Redux
-dispatch(initializeAuth());
+
 
 
 // ⭐ SHOW ROLE-BASED SNACKBAR HERE

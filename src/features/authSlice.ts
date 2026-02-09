@@ -19,6 +19,7 @@ interface AuthState {
   browserSessionId: string | null;
   tabId: string | null;
    permissions: any;
+    permissionReady: boolean;
    snackbarOpen: boolean; // ✅ ADD THIS
   snackbarMessage: string | null; // ✅ ADD THIS
 }
@@ -32,6 +33,7 @@ const initialState: AuthState = {
   browserSessionId: null,
   tabId: null,
    permissions: {},
+   permissionReady: false,
    snackbarOpen: false, // ✅ ADD THIS
   snackbarMessage: null, // ✅ ADD THIS
 };
@@ -245,7 +247,10 @@ initializeAuth(state) {
   const storedPermissions = localStorage.getItem("userPermissions");
   if (storedPermissions) {
     state.permissions = JSON.parse(storedPermissions);
-  }
+     state.permissionReady = true;
+  }else {
+  state.permissionReady = false; // ⭐ IMPORTANT
+}
 
   // ⭐ Set redux state only if logged in
   if (token && username) {
@@ -267,6 +272,8 @@ initializeAuth(state) {
     forceLogout(state) {
       state.isLoggedIn = false;
       state.username = null;
+       state.permissions = {};
+  state.permissionReady = false; 
       state.error = null;
       state.browserSessionId = null;
       state.tabId = null;
@@ -300,6 +307,7 @@ initializeAuth(state) {
   state.username = action.payload.username;
   state.permissions = action.payload.permissions;
    state.role = action.payload.role; 
+    state.permissionReady = true;
   state.error = null;
   state.isInitialized = true;
 },
@@ -323,6 +331,15 @@ initializeAuth(state) {
         state.isLoggedIn = true;
         state.username = action.payload.username;
         state.error = null;
+
+          if (action.payload.permissions) {
+    state.permissions = action.payload.permissions;
+    localStorage.setItem(
+      "userPermissions",
+      JSON.stringify(action.payload.permissions)
+    );
+    state.permissionReady = true;
+  }
       })
       .addCase(validateToken.rejected, (state, action) => {
         state.isLoggedIn = false;
@@ -341,6 +358,8 @@ initializeAuth(state) {
       .addCase(logout.fulfilled, (state) => {
         state.isLoggedIn = false;
         state.username = null;
+         state.permissions = {};
+  state.permissionReady = false;
         state.browserSessionId = null;
         state.tabId = null;
         state.error = null;

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import purchaseApi from "@/utils/api";
 import { RootState } from '../../../redux/store';
 
 // Interfaces (updated to make paymentId optional)
@@ -79,7 +79,10 @@ export const fetchPaymentsById = createAsyncThunk(
       params.append('limit', limit.toString());
       const url = `http://127.0.0.1:8000/purchasetestapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
       console.log('Fetching from URL:', url);
-      const response = await axios.get(url);
+      const response = await purchaseApi.get(
+  `/outgoingpayments/payments/paymentwise?${params.toString()}`
+);
+
       console.log('API Response received:', response.data);
       return response.data as PaymentsByIdResponse;
     } catch (error: any) {
@@ -112,7 +115,10 @@ export const exportPaymentsCSV = createAsyncThunk(
       params.append('format', 'csv');
       const url = `http://127.0.0.1:8000/purchasetestapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
       console.log('Exporting CSV from URL:', url);
-      const response = await axios.get(url, { responseType: 'blob' });
+const response = await purchaseApi.get(
+  `/outgoingpayments/payments/paymentwise?${params.toString()}`,
+  { responseType: "blob" }
+);
       return response.data; // Blob
     } catch (error: any) {
       console.error('CSV Export Error:', error);
@@ -137,7 +143,10 @@ export const exportPaymentsPDF = createAsyncThunk(
       params.append('format', 'pdf');
       const url = `http://127.0.0.1:8000/purchasetestapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
       console.log('Exporting PDF from URL:', url);
-      const response = await axios.get(url, { responseType: 'blob' });
+const response = await purchaseApi.get(
+  `/outgoingpayments/payments/paymentwise?${params.toString()}`,
+  { responseType: "blob" }
+);
       return response.data; // Blob
     } catch (error: any) {
       console.error('PDF Export Error:', error);
