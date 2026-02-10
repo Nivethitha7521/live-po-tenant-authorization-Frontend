@@ -271,6 +271,15 @@ router.push("/yen-purchase");
                   'Sign In'
                 )}
               </button>
+               <div className="text-center mt-4">
+    <button
+      type="button"
+      onClick={() => router.push("/forgot-password")}
+      className="text-sm text-blue-600 hover:underline"
+    >
+      Forgot Password?
+    </button>
+  </div>
             </form>
           </div>
         </div>
