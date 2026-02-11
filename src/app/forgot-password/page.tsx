@@ -1,5 +1,5 @@
 'use client';
-import { useState } from "react";
+import { useState, useEffect} from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import Image from "next/image";
@@ -8,19 +8,34 @@ export default function ForgotPassword() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+const [email, setEmail] = useState("");
+const [emailLoading, setEmailLoading] = useState(false);
+const [isAutoFetching, setIsAutoFetching] = useState(false);
 
   const sendOtp = async () => {
-    if (!username.trim()) {
-      toast.error("Username is required");
-      return;
-    }
+ if (!username.trim() && !email.trim()) {
+  toast.error("Please enter username or email");
+  return;
+}
+
 
     setLoading(true);
     try {
-      const res = await fetch(
-        `http://127.0.0.1:8000/purchasetestapi/users/forgot-password?username=${username}`,
-        { method: "POST" }
-      );
+      const query = new URLSearchParams();
+
+if (username.trim()) {
+  query.append("username", username);
+}
+
+if (email.trim()) {
+  query.append("email", email);
+}
+
+const res = await fetch(
+  `http://127.0.0.1:8000/purchasetestapi/users/forgot-password?${query.toString()}`,
+  { method: "POST" }
+);
+
 
       if (!res.ok) {
         const err = await res.json();
@@ -28,8 +43,10 @@ export default function ForgotPassword() {
         return;
       }
 
-      toast.success("OTP sent to registered email");
-      sessionStorage.setItem("fp_username", username);
+    toast.success("OTP sent to registered email");
+sessionStorage.setItem("fp_username", username);
+
+
       router.push("/forgot-password/verify-otp");
     } catch {
       toast.error("Server error");
@@ -37,6 +54,73 @@ export default function ForgotPassword() {
       setLoading(false);
     }
   };
+  const fetchUsernameByEmail = async (mail: string) => {
+  if (!mail.trim()) {
+    setUsername("");
+    return;
+  }
+ setIsAutoFetching(true);
+  try {
+    const res = await fetch(
+      `http://127.0.0.1:8000/purchasetestapi/users/email/${mail}/username`
+    );
+
+    if (!res.ok) {
+      return;
+    }
+
+    const data = await res.json();
+    setUsername(data.username);
+  } catch {
+    setUsername("");
+  } finally {
+    setIsAutoFetching(false); // 🔥 enable button after complete
+  }
+};
+
+const fetchEmailByUsername = async (uname: string) => {
+  if (!uname.trim()) {
+    setEmail("");
+    return;
+  }
+ setIsAutoFetching(true);
+ ;
+  try {
+    const res = await fetch(
+      `http://127.0.0.1:8000/purchasetestapi/users/username/${uname}/email`
+    );
+
+    if (!res.ok) {
+      setEmail("");
+      return;
+    }
+
+    const data = await res.json();
+    setEmail(data.email);
+  } catch {
+    setEmail("");
+  } finally {
+    setIsAutoFetching(false);
+  }
+};
+useEffect(() => {
+  if (!email.trim()) return;
+
+  const delay = setTimeout(() => {
+    fetchUsernameByEmail(email);
+  }, 300); // 300ms debounce
+
+  return () => clearTimeout(delay);
+}, [email]);
+useEffect(() => {
+  if (!username.trim()) return;
+
+  const delay = setTimeout(() => {
+    fetchEmailByUsername(username);
+  }, 300); // 300ms debounce
+
+  return () => clearTimeout(delay);
+}, [username]);
 
   return (
     <div className="min-h-screen flex">
@@ -89,7 +173,7 @@ export default function ForgotPassword() {
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-gray-800">Reset Password</h1>
             <p className="text-gray-500 mt-1">
-              Enter your username to receive an OTP
+              Enter your username or email to receive an OTP
             </p>
           </div>
 
@@ -103,14 +187,36 @@ export default function ForgotPassword() {
               placeholder="Enter your username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+             
+
               className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
           </div>
+          {/* EMAIL (AUTO FILLED) */}
+<div className="mb-5">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Email
+  </label>
+
+ <input
+  type="email"
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+  placeholder="Enter your registered email"
+  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+/>
+
+
+</div>
 
           {/* SEND OTP */}
           <button
             onClick={sendOtp}
-            disabled={loading}
+           disabled={
+  loading ||
+  isAutoFetching ||
+  (!username.trim() && !email.trim())
+}
             className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition"
           >
             {loading ? "Sending..." : "Send OTP"}

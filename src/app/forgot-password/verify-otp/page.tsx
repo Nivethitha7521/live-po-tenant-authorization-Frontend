@@ -3,47 +3,56 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import Image from "next/image";
-
+import { useEffect } from "react";
 export default function VerifyOtp() {
   const [otp, setOtp] = useState("");
   const [confirmOtp, setConfirmOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+const [username, setUsername] = useState<string | null>(null);
 
-  const username = sessionStorage.getItem("fp_username");
+const verifyOtp = async () => {
 
-  const verifyOtp = async () => {
-    if (!otp || !confirmOtp) {
-      toast.error("OTP required");
+  if (!username) {
+    toast.error("Session expired. Please start again.");
+    router.replace("/forgot-password");
+    return;
+  }
+
+  if (!otp || !confirmOtp) {
+    toast.error("OTP required");
+    return;
+  }
+
+  if (otp !== confirmOtp) {
+    toast.error("OTP mismatch");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const res = await fetch(
+      `http://127.0.0.1:8000/purchasetestapi/users/verify-otp?username=${username}&otp=${otp}`,
+      { method: "POST" }
+    );
+
+    if (!res.ok) {
+      const err = await res.json();
+      toast.error(err.detail);
       return;
     }
 
-    if (otp !== confirmOtp) {
-      toast.error("OTP mismatch");
-      return;
-    }
+    toast.success("OTP verified");
+    router.push("/forgot-password/new-password");
 
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `http://127.0.0.1:8000/purchasetestapi/users/verify-otp?username=${username}&otp=${otp}`,
-        { method: "POST" }
-      );
+  } catch {
+    toast.error("Server error");
+  } finally {
+    setLoading(false);
+  }
+};
 
-      if (!res.ok) {
-        const err = await res.json();
-        toast.error(err.detail);
-        return;
-      }
-
-      toast.success("OTP verified");
-      router.push("/forgot-password/new-password");
-    } catch {
-      toast.error("Server error");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const resendOtp = async () => {
     try {
@@ -64,6 +73,16 @@ export default function VerifyOtp() {
     }
   };
 
+useEffect(() => {
+  const storedUsername = sessionStorage.getItem("fp_username");
+
+  if (!storedUsername) {
+    toast.error("Please enter username first");
+    router.replace("/forgot-password");
+  } else {
+    setUsername(storedUsername);
+  }
+}, [router]);
   return (
     <div className="min-h-screen flex">
       {/* LEFT BLUE PANEL */}
@@ -202,7 +221,7 @@ export default function VerifyOtp() {
           {/* VERIFY BUTTON */}
           <button
             onClick={verifyOtp}
-            disabled={loading}
+            disabled={loading || !username}
             className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition"
           >
             {loading ? "Verifying..." : "Verify OTP"}

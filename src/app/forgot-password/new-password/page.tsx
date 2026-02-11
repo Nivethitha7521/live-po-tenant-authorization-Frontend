@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import Image from "next/image";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import { useEffect } from "react";
 
 export default function NewPassword() {
   const [password, setPassword] = useState("");
@@ -17,7 +18,23 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 const PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
-  const username = sessionStorage.getItem("fp_username");
+ const [username, setUsername] = useState<string | null>(null);
+const [isCheckingSession, setIsCheckingSession] = useState(true);
+useEffect(() => {
+  const storedUsername = sessionStorage.getItem("fp_username");
+
+  if (!storedUsername) {
+    toast.error("Please verify OTP first");
+    router.replace("/forgot-password");
+  } else {
+    setUsername(storedUsername);
+  }
+
+  setIsCheckingSession(false);
+}, [router]);
+
+
+ 
 const [passwordTouched, setPasswordTouched] = useState(false);
 const [confirmTouched, setConfirmTouched] = useState(false);
 const isPasswordInvalid =
@@ -29,6 +46,11 @@ const isPasswordInvalid =
   confirm.length > 0 &&
   password !== confirm;
 const resetPassword = async () => {
+     if (!username) {
+   
+    router.replace("/forgot-password");
+    return;
+  }
   if (!password || !confirm) {
     toast.error("Password required");
     return;
@@ -72,7 +94,7 @@ const resetPassword = async () => {
   }
 };
 
-
+if (isCheckingSession) return null;
   return (
     <div className="min-h-screen flex">
       {/* LEFT BLUE PANEL */}

@@ -52,7 +52,10 @@ const USERNAME_REGEX = /^.{4,}$/;
 
 // ✅ Password: min 8 chars, 1 upper, 1 lower, 1 number, 1 special
 const PASSWORD_REGEX =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
+  // ✅ Email format validation
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export default function UserAccounts() {
   const dispatch = useDispatch();
@@ -63,6 +66,7 @@ const [roleAppsMap, setRoleAppsMap] = useState<Record<string, string[]>>({});
 const [isSubmitting, setIsSubmitting] = useState(false);
 
 const [usernameTouched, setUsernameTouched] = useState(false);
+const [emailTouched, setEmailTouched] = useState(false);
 
 // ✅ Snackbar state
 const [snackbar, setSnackbar] = useState({
@@ -78,6 +82,7 @@ const [snackbar, setSnackbar] = useState({
   const [formUser, setFormUser] = useState({
     id: "",
     username: "",
+    email: "",  
     password: "",
     confirmPassword: "",
     role: "",
@@ -97,6 +102,13 @@ const [passwordTouched, setPasswordTouched] = useState(false);
   passwordTouched &&
   formUser.password.length > 0 &&
   !PASSWORD_REGEX.test(formUser.password);
+
+
+  const isEmailInvalid =
+  emailTouched &&
+  formUser.email.length > 0 &&
+  !EMAIL_REGEX.test(formUser.email);
+
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: "",
@@ -285,6 +297,15 @@ const handleSaveUser = async () => {
 if (!USERNAME_REGEX.test(formUser.username)) {
   throw new Error("Username must be at least 4 characters");
 }
+// ✅ EMAIL REQUIRED VALIDATION
+if (!formUser.email || formUser.email.trim() === "") {
+  throw new Error("Please fill email address");
+}
+
+// ✅ EMAIL FORMAT VALIDATION
+if (!EMAIL_REGEX.test(formUser.email)) {
+  throw new Error("Please enter a valid email address");
+}
 
 // ✅ PASSWORD VALIDATION (only for create OR when changing password)
 if (
@@ -313,6 +334,7 @@ if (
       
       const updateData: any = {
         username: formUser.username,
+        email: formUser.email || null,
         role_name: formUser.role
       };
       
@@ -332,10 +354,33 @@ if (
         body: JSON.stringify(updateData),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'User update failed');
-      }
+     if (!response.ok) {
+  const errorData = await response.json();
+
+  if (
+    errorData.detail?.toLowerCase().includes("email already exists")
+  ) {
+    setSnackbar({
+      open: true,
+      message: "Email already registered",
+      severity: "warning",
+    });
+    return;
+  }
+
+  if (
+    errorData.detail?.toLowerCase().includes("username already exists")
+  ) {
+    setSnackbar({
+      open: true,
+      message: "Username already exists",
+      severity: "warning",
+    });
+    return;
+  }
+
+  throw new Error(errorData.detail || "User update failed");
+}
 
       const result = await response.json();
       console.log("✅ User updated successfully:", result);
@@ -366,31 +411,43 @@ setSnackbar({
         },
         body: JSON.stringify({
           username: formUser.username,
+           email: formUser.email || null, 
           password: formUser.password,
           role_name: formUser.role,
           is_active: true
         }),
       });
 
-     if (!response.ok) {
-  const errorText = await response.text();
+if (!response.ok) {
+  const errorData = await response.json();
 
-  // 👇 Username already exists case (409 / duplicate)
+  // ✅ Email already exists
   if (
-    response.status === 409 ||
-    errorText.toLowerCase().includes("exists") ||
-    errorText.toLowerCase().includes("already")
+    errorData.detail?.toLowerCase().includes("email already exists")
+  ) {
+    setSnackbar({
+      open: true,
+      message: "Email already registered",
+      severity: "warning",
+    });
+    return;
+  }
+
+  // ✅ Username already exists
+  if (
+    errorData.detail?.toLowerCase().includes("username already exists")
   ) {
     setSnackbar({
       open: true,
       message: "Username already exists",
       severity: "warning",
     });
-    return; // ❗ STOP further execution
+    return;
   }
 
-  throw new Error(errorText || "User creation failed");
+  throw new Error(errorData.detail || "User creation failed");
 }
+
 
 
       const result = await response.json();
@@ -490,6 +547,7 @@ setSnackbar({
     setFormUser({
       id: "",
       username: "",
+      email: "",
       password: "",
       confirmPassword: "",
       role: "",
@@ -512,6 +570,7 @@ const fetchUsersFromBackend = async () => {
         const transformedUsers = usersFromBackend.map((user: any) => ({
           id: user._id || user.id,
           username: user.username,
+          email: user.email || "",  
           password: '••••••••',
           confirmPassword: '••••••••',
           role: user.role_name || user.role,
@@ -713,6 +772,7 @@ const fetchUsersFromBackend = async () => {
     setFormUser({
       id: user.id,
       username: user.username,
+       email: user.email || "",
       password: '••••••••', // Masked password
       confirmPassword: '••••••••', // Masked confirm password
       role: user.role,
@@ -815,6 +875,40 @@ const fetchUsersFromBackend = async () => {
 
 
               </div>
+
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Email
+  </label>
+  <input
+    type="email"
+    placeholder="Enter email address"
+    value={formUser.email}
+   onChange={(e) => {
+  const value = e.target.value;
+  setFormUser({ ...formUser, email: value });
+
+  if (!emailTouched) {
+    setEmailTouched(true);
+  }
+}}
+
+   className={`w-full border rounded-lg py-2.5 px-3 focus:ring-2
+  ${
+    isEmailInvalid
+      ? "border-red-500 focus:ring-red-500"
+      : "border-gray-300 focus:ring-blue-500"
+  }`}
+
+  />
+  {isEmailInvalid && (
+  <p className="text-xs text-red-500 mt-1">
+    Please enter a valid email address
+  </p>
+)}
+</div>
+
+
             <div>
   <label className="block text-sm font-medium text-gray-700 mb-2">
     Password
@@ -926,6 +1020,7 @@ const fetchUsersFromBackend = async () => {
   disabled={isSubmitting}
   onClick={() => {
     if (!editingUserId) {
+      setEmailTouched(true);
       handleSaveUser();
       return;
     }
