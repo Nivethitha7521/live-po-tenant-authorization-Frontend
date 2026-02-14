@@ -184,43 +184,34 @@ const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 // Async thunks for freight and PO calculations
 export const calculateFreightTotals = createAsyncThunk(
   'purchaseOrder/calculateFreightTotals',
-  async (request: FreightCalculationRequest): Promise<FreightCalculationResponse> => {
-    const params = new URLSearchParams({
-      amt: request.amt.toString(),
-      tCode: request.tCode,
-      taxType: request.taxType,
-    });
+  async (request: FreightCalculationRequest) => {
 
-    const response = await fetch(`${BASE_URL}/purchaseorders/freight/totals?${params}`);
-    if (!response.ok) {
-      throw new Error('Failed to calculate freight totals');
-    }
-    return await response.json();
+    const response = await purchaseApi.get(
+      `/purchaseorders/freight/totals`,
+      { params: request }
+    );
+
+    return response.data;
   }
 );
+
 
 export const calculatePurchaseOrderTotals = createAsyncThunk(
   'purchaseOrder/calculatePurchaseOrderTotals',
-  async (request: PurchaseOrderTotalsRequest): Promise<PurchaseOrderTotalsResponse> => {
-    const response = await fetch(`${BASE_URL}/purchaseorders/calculate-totals`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+  async (request: PurchaseOrderTotalsRequest) => {
+
+    const response = await purchaseApi.post(
+      `/purchaseorders/calculate-totals`,
+      {
         items: request.items,
         freights: request.freights,
-      }),
-    });
+      }
+    );
 
-    if (!response.ok) {
-      throw new Error('Failed to calculate purchase order totals');
-    }
-
-    const result = await response.json();
-    return result.totals || result;
+    return response.data.totals || response.data;
   }
 );
+
 
 export const fetchPurchaseOrders = createAsyncThunk(
   "purchaseOrder/fetchPurchaseOrders",

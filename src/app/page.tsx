@@ -13,6 +13,8 @@ import { setSnackbarMessage, setSnackbarOpen } from "../features/authSlice";
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [tenantId, setTenantId] = useState('');
+  const [tenants, setTenants] = useState<any[]>([])
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -22,7 +24,19 @@ const Login: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isLoggedIn } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
+useEffect(() => {
+  const fetchTenants = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/purchasetestapi/tenants");
+      const data = await res.json();
+      setTenants(data);
+    } catch (err) {
+      console.error("Failed to fetch tenants");
+    }
+  };
 
+  fetchTenants();
+}, []);
   // Check if image exists on component mount
   useEffect(() => {
     const checkImage = async () => {
@@ -51,6 +65,7 @@ const handleLogin = async () => {
 
   const trimmedUsername = username.trim();
   const trimmedPassword = password.trim();
+  const trimmedTenant = tenantId.trim();
 
   if (!trimmedUsername || !trimmedPassword) {
     toast.error('Please enter both username and password');
@@ -61,13 +76,15 @@ const handleLogin = async () => {
 
   try {
     // ✅ CORRECT URL - Call your FastAPI backend on port 8000
-    const response = await fetch('http://127.0.0.1:8000/purchasetestapi/login', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${btoa(`${trimmedUsername}:${trimmedPassword}`)}`,
-        'Content-Type': 'application/json',
-      },
-    });
+ const response = await fetch('http://127.0.0.1:8000/purchasetestapi/login', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Basic ${btoa(`${trimmedUsername}:${trimmedPassword}`)}`,
+    'tenant-id': trimmedTenant,   // 🔥 THIS IS THE IMPORTANT FIX
+  },
+});
+
+
 
   if (!response.ok) {
   let msg = "Login failed";
@@ -88,6 +105,7 @@ const result = await response.json();
 
 // Save token
 localStorage.setItem("token", result.access_token);
+localStorage.setItem("tenant_id", trimmedTenant);
 localStorage.setItem("username", result.username);
 localStorage.setItem("userPermissions", JSON.stringify(result.permissions));
 
@@ -142,8 +160,7 @@ router.push("/yen-purchase");
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Image */}
+    <div className="h-screen flex overflow-hidden">      {/* Left Side - Image */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-500 to-blue-600 relative overflow-hidden">
         <div className="absolute inset-0 bg-black bg-opacity-20"></div>
         <div className="relative z-10 flex flex-col justify-center items-center text-white p-12 w-full">
@@ -185,20 +202,21 @@ router.push("/yen-purchase");
         </div>
       </div>
       {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50 overflow-hidden">
+
         <div className="w-full max-w-md">
           <div className="lg:hidden text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">YEN ERP</h1>
             <p className="text-gray-600">Sign in to your account</p>
           </div>
 
-          <div className="bg-white p-8 rounded-xl shadow-lg">
-            <div className="hidden lg:block text-center mb-8">
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <div className="hidden lg:block text-center mb-5">
               <h1 className="text-2xl font-bold text-gray-800 mb-2">Welcome Back</h1>
               <p className="text-gray-600">Please sign in to your account</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="username">
                   Username
@@ -214,6 +232,7 @@ router.push("/yen-purchase");
                   disabled={isLoggingIn}
                 />
               </div>
+  
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="password">
@@ -240,6 +259,27 @@ router.push("/yen-purchase");
                   </button>
                 </div>
               </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Select Tenant
+  </label>
+  <select
+    className="w-full px-4 py-3 border border-gray-300 rounded-lg 
+focus:outline-none focus:ring-2 focus:ring-blue-500 
+focus:border-blue-500 transition-colors"
+
+    value={tenantId}
+    onChange={(e) => setTenantId(e.target.value)}
+    disabled={isLoggingIn}
+  >
+    <option value="">Select Tenant</option>
+    {tenants.map((tenant) => (
+      <option key={tenant._id} value={tenant._id}>
+        {tenant.tenantName}
+      </option>
+    ))}
+  </select>
+</div>
 
               <button
                 type="submit"

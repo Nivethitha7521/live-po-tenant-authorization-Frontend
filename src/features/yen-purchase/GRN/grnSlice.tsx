@@ -28,8 +28,8 @@ export const revertGrnToPO = createAsyncThunk<
   async (grnId: string, { rejectWithValue }) => {
     try {
       // Fix: Use /grn/ (singular) to match backend prefix
-      const response = await axios.patch<RevertGrnToPOResponse>(
-        `${BASE_URL}/grns/${grnId}/revert`  // Changed from /grns/ to /grn/
+      const response = await purchaseApi.patch<RevertGrnToPOResponse>(
+        `/grns/${grnId}/revert`  // Changed from /grns/ to /grn/
       );
       return response.data;
     } catch (error: any) {
@@ -350,6 +350,11 @@ export const updateItemDetails = createAsyncThunk(
       };
     } catch (error: any) {
       console.error("Update item details error:", error);
+       console.log("🔥 FULL ERROR OBJECT:", error);
+  console.log("🔥 ERROR RESPONSE:", error?.response);
+  console.log("🔥 ERROR STATUS:", error?.response?.status);
+  console.log("🔥 ERROR DATA:", error?.response?.data);
+  console.log("🔥 ERROR DETAIL:", error?.response?.data?.detail);
       return rejectWithValue(
         error.response?.data || "Failed to update item details",
       );

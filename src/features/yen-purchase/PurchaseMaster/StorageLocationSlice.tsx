@@ -1,22 +1,23 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import purchaseApi from "@/utils/api"; 
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
 import { initialState, StorageLocationItem,Location } from '@/Models/storagelocation';
 import { ImportResult } from '@/Models/importResult';
 
 export const fetchStorageLocations = createAsyncThunk('storageLocations/fetchStorageLocations', async () => {
-  const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/storagelocations/');
+  const response = await purchaseApi.get('/storagelocations/');
   return response.data;
 });
 
 export const fetchLocations = createAsyncThunk('locations/fetchLocations', async () => {
-  const response = await axios.get('https://yenerp.com/fastapi/branches/');
+  const response = await axios.get('https:yenerp.com/fastapi/branches/');
   return response.data;
 });
 
 export const addStorageLocation = createAsyncThunk<StorageLocationItem, StorageLocationItem>('storageLocations/addStorageLocation', async (locationData, { rejectWithValue }) => {
   try {
-    const response = await axios.post('http://127.0.0.1:8000/purchasetestapi/storagelocations/', locationData);
+    const response = await purchaseApi.post('/storagelocations/', locationData);
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -25,7 +26,7 @@ export const addStorageLocation = createAsyncThunk<StorageLocationItem, StorageL
 
 export const updateStorageLocation = createAsyncThunk<StorageLocationItem, StorageLocationItem>('storageLocations/updateStorageLocation', async (locationData, { rejectWithValue }) => {
   try {
-    const response = await axios.put(`http://127.0.0.1:8000/purchasetestapi/storagelocations/${locationData.storageLocationId}`, locationData);
+    const response = await purchaseApi.put(`/storagelocations/${locationData.storageLocationId}`, locationData);
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -34,7 +35,7 @@ export const updateStorageLocation = createAsyncThunk<StorageLocationItem, Stora
 
 export const deactivateStorageLocation = createAsyncThunk<StorageLocationItem, string>('storageLocations/deactivateStorageLocation', async (storageLocationId, { rejectWithValue }) => {
   try {
-    const response = await axios.put(`http://127.0.0.1:8000/purchasetestapi/storagelocations/${storageLocationId}`, { status: 'deactivated' });
+    const response = await purchaseApi.put(`/storagelocations/${storageLocationId}`, { status: 'deactivated' });
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -43,7 +44,7 @@ export const deactivateStorageLocation = createAsyncThunk<StorageLocationItem, s
 
 export const activateStorageLocation = createAsyncThunk<StorageLocationItem, string>('storageLocations/activateStorageLocation', async (storageLocationId, { rejectWithValue }) => {
   try {
-    const response = await axios.put(`http://127.0.0.1:8000/purchasetestapi/storagelocations/${storageLocationId}`, { status: 'active' });
+    const response = await purchaseApi.put(`/storagelocations/${storageLocationId}`, { status: 'active' });
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -61,7 +62,7 @@ export const importStorageLocation = createAsyncThunk<ImportResult, File>(
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await axios.post('http://127.0.0.1:8000/purchasetestapi/storagelocations/import-csv', formData, {
+      const response = await purchaseApi.post('/storagelocations/import-csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data as ImportResult;
@@ -75,8 +76,8 @@ export const exportStorageLocation = createAsyncThunk(
   'storageLocation/export',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
-        'http://127.0.0.1:8000/purchasetestapi/storagelocations/exportstoragelocation/export-csv',
+      const response = await purchaseApi.get(
+        '/storagelocations/exportstoragelocation/export-csv',
         { responseType: 'blob' }
       );
       const url = window.URL.createObjectURL(new Blob([response.data]));

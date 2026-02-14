@@ -283,7 +283,9 @@ export const addPurchaseItem = createAsyncThunk(
     } catch (error: any) {
       console.error('Failed to add purchase item:', error);
       console.error('Error response:', error.response?.data);
-      
+       console.error('❌ FULL Backend Response:', error.response);
+       console.error('❌ Backend Data:', error.response?.data);
+  console.error('❌ Backend Detail:', error.response?.data?.detail);
       // Return detailed error information
       return rejectWithValue({
         message: error.response?.data?.detail || error.response?.data?.message || 'Failed to add purchase item',

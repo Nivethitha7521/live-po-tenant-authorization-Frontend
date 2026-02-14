@@ -18,7 +18,7 @@ export const loadMoreStatuses = createAsyncThunk(
 
     dispatch(setStatusesLoading(true));
     try {
-      const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/apinvoices/statuses', {
+      const response = await purchaseApi.get('/apinvoices/statuses', {
         params: {
           search: statusSearch || '',
           page: currentPage,
@@ -48,7 +48,7 @@ export const fetchApStatuses = createAsyncThunk(
   async ({ search = '', page = 1 }: { search?: string; page?: number }, { dispatch, rejectWithValue }) => {
     dispatch(setStatusesLoading(true));
     try {
-      const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/apinvoices/statuses', {
+      const response = await purchaseApi.get('/apinvoices/statuses', {
         params: {
           search: search,
           page: page,

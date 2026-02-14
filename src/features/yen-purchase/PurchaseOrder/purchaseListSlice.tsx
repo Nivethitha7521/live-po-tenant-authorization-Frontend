@@ -198,7 +198,7 @@ export const fetchPendingPurchaseOrders = createAsyncThunk(
     }
 
     try {
-      const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/purchaseorders/pending/purchase', {
+      const response = await purchaseApi.get('/purchaseorders/pending/purchase', {
         params,
       });
 
