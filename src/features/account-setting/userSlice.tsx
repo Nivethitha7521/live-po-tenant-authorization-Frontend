@@ -43,7 +43,7 @@ interface UpdateUserStatusPayload {
 export const createUser = createAsyncThunk(
   'users/createUser',
   async (userData: CreateUserPayload): Promise<User> => {
-    const response = await fetch('https://yenerp.com/purchasetestapi/users', {
+    const response = await fetch('http://127.0.0.1:8000/purchasetestapi/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData)
@@ -55,7 +55,7 @@ export const createUser = createAsyncThunk(
 export const loginUser = createAsyncThunk(
   'users/loginUser',
   async (loginData: LoginPayload): Promise<User> => {
-    const response = await fetch('https://yenerp.com/purchasetestapi/users/login', {
+    const response = await fetch('http://127.0.0.1:8000/purchasetestapi/users/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(loginData)

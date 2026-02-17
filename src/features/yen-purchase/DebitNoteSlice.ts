@@ -4,7 +4,7 @@ import axios from 'axios';
 import { RootState } from '@/redux/store';
 import purchaseApi from "@/utils/api";
 
-const BASE_URL = 'https://yenerp.com/purchasetestapi';
+const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 
 interface DebitCreditNote {
   _id: string;

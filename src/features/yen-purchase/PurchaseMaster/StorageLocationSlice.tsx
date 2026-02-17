@@ -11,7 +11,7 @@ export const fetchStorageLocations = createAsyncThunk('storageLocations/fetchSto
 });
 
 export const fetchLocations = createAsyncThunk('locations/fetchLocations', async () => {
-  const response = await axios.get('https:yenerp.com/fastapi/branches/');
+  const response = await axios.get('https://yenerp.com/fastapi/branches/');
   return response.data;
 });
 
