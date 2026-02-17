@@ -33,7 +33,7 @@ const verifyOtp = async () => {
 
   try {
     const res = await fetch(
-      `http://127.0.0.1:8000/purchasetestapi/users/verify-otp?username=${username}&otp=${otp}`,
+      `https://yenerp.com/purchasetestapi/users/verify-otp?username=${username}&otp=${otp}`,
       { method: "POST" }
     );
 
@@ -57,7 +57,7 @@ const verifyOtp = async () => {
   const resendOtp = async () => {
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/purchasetestapi/users/resend-otp?username=${username}`,
+        `https://yenerp.com/purchasetestapi/users/resend-otp?username=${username}`,
         { method: "POST" }
       );
 

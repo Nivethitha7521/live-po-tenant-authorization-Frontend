@@ -788,7 +788,7 @@ return;
 
     console.log("📤 Sending role payload:", rolePayload);
 
-    const roleResponse = await fetch("http://127.0.0.1:8000/purchasetestapi/roles", {
+    const roleResponse = await fetch("https://yenerp.com/purchasetestapi/roles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(rolePayload)
@@ -836,7 +836,7 @@ return;
 
     console.log("📤 Sending permissions payload:", permissionPayload);
 
-    const permResponse = await fetch("http://127.0.0.1:8000/purchasetestapi/permissions", {
+    const permResponse = await fetch("https://yenerp.com/purchasetestapi/permissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(permissionPayload)

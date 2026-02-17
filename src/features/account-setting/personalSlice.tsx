@@ -2,13 +2,13 @@ import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { RootState } from "../../redux/store";
 import { Personal, initialState } from "@/Models/personalModel";
-
+import purchaseApi from "@/utils/api";
 // Async thunk to fetch all Personal items
 export const fetchPersonals = createAsyncThunk(
   "personals/fetchPersonals",
   async () => {
-    const response = await axios.get(
-      "http://127.0.0.1:8000/purchasetestapi/popersonals/",
+    const response = await purchaseApi.get(
+      "/popersonals/",
     ); // Adjust API endpoint as needed
     return response.data;
   },
@@ -18,8 +18,8 @@ export const fetchPersonals = createAsyncThunk(
 export const addPersonal = createAsyncThunk<Personal, Personal>(
   "personals/addPersonal",
   async (personalData) => {
-    const response = await axios.post(
-      "http://127.0.0.1:8000/purchasetestapi/popersonals/",
+    const response = await purchaseApi.post(
+      "/popersonals/",
       personalData,
     ); // Adjust API endpoint as needed
     return response.data;
@@ -30,8 +30,8 @@ export const addPersonal = createAsyncThunk<Personal, Personal>(
 export const updatePersonal = createAsyncThunk<Personal, Personal>(
   "personals/updatePersonal",
   async (personalData) => {
-    const response = await axios.patch(
-      `http://127.0.0.1:8000/purchasetestapi/popersonals/${personalData.personalId}`,
+    const response = await purchaseApi.patch(
+      `/popersonals/${personalData.personalId}`,
       personalData,
     ); // Adjust API endpoint as needed
     return response.data;

@@ -32,7 +32,7 @@ if (email.trim()) {
 }
 
 const res = await fetch(
-  `http://127.0.0.1:8000/purchasetestapi/users/forgot-password?${query.toString()}`,
+  `https://yenerp.com/purchasetestapi/users/forgot-password?${query.toString()}`,
   { method: "POST" }
 );
 
@@ -62,7 +62,7 @@ sessionStorage.setItem("fp_username", username);
  setIsAutoFetching(true);
   try {
     const res = await fetch(
-      `http://127.0.0.1:8000/purchasetestapi/users/email/${mail}/username`
+      `https://yenerp.com/purchasetestapi/users/email/${mail}/username`
     );
 
     if (!res.ok) {
@@ -87,7 +87,7 @@ const fetchEmailByUsername = async (uname: string) => {
  ;
   try {
     const res = await fetch(
-      `http://127.0.0.1:8000/purchasetestapi/users/username/${uname}/email`
+      `https://yenerp.com/purchasetestapi/users/username/${uname}/email`
     );
 
     if (!res.ok) {

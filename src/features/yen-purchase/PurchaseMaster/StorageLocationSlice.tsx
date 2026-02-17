@@ -35,7 +35,7 @@ export const updateStorageLocation = createAsyncThunk<StorageLocationItem, Stora
 
 export const deactivateStorageLocation = createAsyncThunk<StorageLocationItem, string>('storageLocations/deactivateStorageLocation', async (storageLocationId, { rejectWithValue }) => {
   try {
-    const response = await purchaseApi.put(`/storagelocations/${storageLocationId}`, { status: 'deactivated' });
+    const response = await purchaseApi.patch(`/storagelocations/${storageLocationId}/deactivate`);
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);
@@ -44,7 +44,7 @@ export const deactivateStorageLocation = createAsyncThunk<StorageLocationItem, s
 
 export const activateStorageLocation = createAsyncThunk<StorageLocationItem, string>('storageLocations/activateStorageLocation', async (storageLocationId, { rejectWithValue }) => {
   try {
-    const response = await purchaseApi.put(`/storagelocations/${storageLocationId}`, { status: 'active' });
+    const response = await purchaseApi.patch(`/storagelocations/${storageLocationId}/activate`);
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || error.message);

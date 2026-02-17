@@ -83,7 +83,7 @@ export const deactivatePurchaseGroupItem = createAsyncThunk<PurchaseGroupItem, s
   async (itemgroupId, { rejectWithValue }) => {
     try {
       const response = await purchaseApi.patch(
-        `/itemgroups/${itemgroupId}`, 
+        `/itemgroups/${itemgroupId}/status`,
         { status: 'deactivated' }
       ); // ✅ USE purchaseApi
       return response.data;
@@ -99,7 +99,7 @@ export const activatePurchaseGroupItem = createAsyncThunk<PurchaseGroupItem, str
   async (itemgroupId, { rejectWithValue }) => {
     try {
       const response = await purchaseApi.patch(
-        `/itemgroups/${itemgroupId}`,
+        `/itemgroups/${itemgroupId}/status`,
         { status: 'active' }
       ); // ✅ USE purchaseApi
       return response.data;

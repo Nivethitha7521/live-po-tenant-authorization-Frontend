@@ -13,7 +13,7 @@ export interface ItemUpdate {
   afTaxDiscount?: number;
   expiryDate?: Date | null;
 }
-const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
+const BASE_URL = 'https://yenerp.com/purchasetestapi';
 const customRoundOf = (value: number) => {
   return Math.round(value * 100) / 100; // Round to two decimal placeshttp://192.168.29.117:8000
 };
@@ -52,8 +52,8 @@ export const createQuantityBasedDebitNote = createAsyncThunk<
       console.log('Creating quantity-based debit note:', debitNoteData);
 
       // Quantity-based endpoint for item-wise returns
-      const response = await axios.post<DebitCreditNoteResponse>(
-        `${BASE_URL}/grns/returnprocess/DebitCreditNote/create`,
+      const response = await purchaseApi.post<DebitCreditNoteResponse>(
+        `/grns/returnprocess/DebitCreditNote/create`,
         debitNoteData
       );
 
@@ -81,8 +81,8 @@ export const createAmountOnlyDebitNote = createAsyncThunk<
       console.log('Creating amount-only debit note with data:', debitNoteData);
       console.log('Request URL:', `${BASE_URL}/grns/returnprocess/AmountDebitNote/create`);
 
-      const response = await axios.post<AmountDebitNoteResponse>(
-        `${BASE_URL}/grns/returnprocess/AmountDebitNote/create`,
+      const response = await purchaseApi.post<AmountDebitNoteResponse>(
+        `/grns/returnprocess/AmountDebitNote/create`,
         debitNoteData,
         {
           headers: {
@@ -482,8 +482,8 @@ export const createAmountDebitNote = createAsyncThunk<
     try {
       console.log('Creating amount-only debit note:', debitNoteData);
 
-      const response = await axios.post<AmountDebitNoteResponse>(
-        `${BASE_URL}/grns/returnprocess/AmountDebitNote/create`,
+      const response = await purchaseApi.post<AmountDebitNoteResponse>(
+        `/grns/returnprocess/AmountDebitNote/create`,
         debitNoteData
       );
 
@@ -510,8 +510,8 @@ export const createDebitCreditNote = createAsyncThunk<
     try {
       console.log('Creating quantity-based debit note:', debitNoteData);
 
-      const response = await axios.post<DebitCreditNoteResponse>(
-        `${BASE_URL}/grns/returnprocess/DebitCreditNote/create`,
+      const response = await purchaseApi.post<DebitCreditNoteResponse>(
+        `/grns/returnprocess/DebitCreditNote/create`,
         debitNoteData
       );
 
@@ -543,8 +543,8 @@ export const fetchDebitCreditNotesByDocument = createAsyncThunk<
   async ({ documentId, page, size, documentType = 'grn' }, { rejectWithValue }) => {
     try {
       // This endpoint can fetch both types of notes
-      const response = await axios.get<DebitCreditNote[]>(
-        `${BASE_URL}/grns/returnprocess/DebitCreditNote/by-document/${documentId}`,
+      const response = await purchaseApi.get<DebitCreditNote[]>(
+        `/grns/returnprocess/DebitCreditNote/by-document/${documentId}`,
         {
           params: {
             skip: (page - 1) * size,

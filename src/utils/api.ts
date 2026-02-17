@@ -2,7 +2,7 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 // Create axios instance for purchase API
 const purchaseApi = axios.create({
-  baseURL: "http://127.0.0.1:8000/purchasetestapi",
+  baseURL: "https://yenerp.com/purchasetestapi",
 });
 
 let isLoggingOut = false;

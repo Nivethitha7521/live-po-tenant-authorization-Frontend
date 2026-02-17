@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
 import { ImportResult } from '@/Models/itemgroup';
-
+import purchaseApi from '@/utils/api';
 // Interface for CSV operations state
 interface CSVOperationsState {
   importing: boolean;
@@ -45,7 +45,7 @@ export const importCSV = createAsyncThunk(
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await axios.post('http://127.0.0.1:8000/purchasetestapi/itemgroups/import-csv', formData, {
+      const response = await axios.post('https://yenerp.com/purchasetestapi/itemgroups/import-csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -62,7 +62,7 @@ export const importCSV = createAsyncThunk(
 // Async thunk for exporting CSV
 export const exportCSV = createAsyncThunk('csvOperations/exportCSV', async (_, { rejectWithValue }) => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/itemgroups/export-csv', {
+    const response = await purchaseApi.get('/purchasetestapi/itemgroups/export-csv', {
       responseType: 'blob',
     });
 

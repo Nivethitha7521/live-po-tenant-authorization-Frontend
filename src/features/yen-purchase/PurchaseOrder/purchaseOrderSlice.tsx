@@ -179,7 +179,7 @@ export const initialState: PurchaseOrderState = {
 let purchaseItemsCache: Map<string, { data: PurchaseItemSearchAdd[], timestamp: number }> = new Map();
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
-const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
+const BASE_URL = 'https://yenerp.com/purchasetestapi';
 
 // Async thunks for freight and PO calculations
 export const calculateFreightTotals = createAsyncThunk(
@@ -216,8 +216,8 @@ export const calculatePurchaseOrderTotals = createAsyncThunk(
 export const fetchPurchaseOrders = createAsyncThunk(
   "purchaseOrder/fetchPurchaseOrders",
   async () => {
-    const response = await axios.get<PurchaseOrderData[]>(
-      `${BASE_URL}/purchaseorders/`,
+    const response = await purchaseApi.get<PurchaseOrderData[]>(
+      `/purchaseorders/`,
     );
     return response.data;
   },
@@ -226,8 +226,8 @@ export const fetchVendorByName = createAsyncThunk<Vendor | undefined, string>(
   "vendors/fetchByName",
   async (vendorName: string) => {
     try {
-      const response = await axios.get<Vendor[]>(
-        "http://127.0.0.1:8000/purchasetestapi/purchaseorders/vendors/",
+      const response = await purchaseApi.get<Vendor[]>(
+        "/purchaseorders/vendors/",
       );
       const vendor = response.data.find((v) => v.vendorName === vendorName);
       return vendor; // Return the vendor if found, otherwise undefined
@@ -249,8 +249,8 @@ export const fetchAllVendors = createAsyncThunk(
     }
 
     // If not, make the API request to fetch vendors
-    const response = await axios.get<Vendor[]>(
-      `http://127.0.0.1:8000/purchasetestapi/vendors/`,
+    const response = await purchaseApi.get<Vendor[]>(
+      `/vendors/`,
     );
 
     // Store the fetched vendors in localStorage for future use
@@ -262,8 +262,8 @@ export const fetchAllVendors = createAsyncThunk(
 export const fetchPurchaseOrderById = createAsyncThunk(
   "purchaseOrder/fetchPurchaseOrderById",
   async (purchaseOrderId: string) => {
-    const response = await axios.get<PurchaseOrderData>(
-      `${BASE_URL}/purchaseorders/${purchaseOrderId}`,
+    const response = await purchaseApi.get<PurchaseOrderData>(
+      `/purchaseorders/${purchaseOrderId}`,
     );
     return response.data;
   },
@@ -278,8 +278,8 @@ export const updatePurchaseItem = createAsyncThunk<
   PurchaseItemSearchAdd,
   { id: string; data: Partial<PurchaseItemSearch> }
 >("purchaseOrder/updatePurchaseItem", async ({ id, data }) => {
-  const response = await axios.patch<PurchaseItemSearchAdd>(
-    `${BASE_URL}/rawMaterials/${id}`,
+  const response = await purchaseApi.patch<PurchaseItemSearchAdd>(
+    `/rawMaterials/${id}`,
     data,
   );
   return response.data;
@@ -337,7 +337,7 @@ export const calculateItemTotals = createAsyncThunk(
         params.afTaxDiscountAmount = afTaxDiscountAmount;
       }
 
-      const response = await axios.get<{
+      const response = await purchaseApi.get<{
         pendingTotalPrice: number;
         pendingBefTaxDiscountAmount: number;
         pendingAfTaxDiscountAmount: number;
@@ -351,7 +351,7 @@ export const calculateItemTotals = createAsyncThunk(
         afTaxDiscount: number;
         poQuantity: number;
         quantity: number;
-      }>(`${BASE_URL}/purchaseorders/items/totals`, { params });
+      }>(`/purchaseorders/items/totals`, { params });
 
       return response.data;
     } catch (error: any) {
@@ -404,8 +404,8 @@ export const downloadCsvTemplate = createAsyncThunk(
   "purchaseOrder/downloadCsvTemplate",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
-        `${BASE_URL}/poimport/download-csv-template`,
+      const response = await purchaseApi.get(
+        `/poimport/download-csv-template`,
         {
           responseType: "blob",
         },
