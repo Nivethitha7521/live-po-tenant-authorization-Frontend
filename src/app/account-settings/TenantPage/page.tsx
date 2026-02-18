@@ -206,10 +206,11 @@ const handleActivateTenant = async () => {
       </div>
 
     {/* 📋 TABLE CONTAINER */}
-<div className="max-h-[calc(100vh-260px)] overflow-y-auto">
+<div className="max-h-[calc(100vh-260px)] overflow-y-auto bg-white">
   
   {/* Header */}
-  <div className="grid grid-cols-5 bg-gray-50 text-xs font-semibold border-b sticky top-0 z-10">
+<div className="grid grid-cols-5 bg-white text-xs font-semibold border-b sticky top-0 z-0">
+
   <div className="px-4 py-3">S.NO</div>
   <div className="px-4 py-3">TENANT ID</div>
   <div className="px-4 py-3">TENANT NAME</div>
@@ -283,9 +284,20 @@ const handleActivateTenant = async () => {
 
 
       {/* 🧾 CREATE MODAL */}
-      {tenantModal && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
-          <div className="bg-white rounded-xl p-6 w-96 space-y-4">
+     {tenantModal && (
+  <div
+    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50"
+    onClick={() => {
+      setTenantModal(false);
+      setEditingTenantId(null);
+      setTenantName("");
+    }}
+  >
+    <div
+      className="bg-white rounded-xl p-6 w-96 space-y-4"
+      onClick={(e) => e.stopPropagation()}
+    >
+
            <h3 className="text-lg font-semibold">
   {editingTenantId ? "Edit Tenant" : "Create Tenant"}
 </h3>
@@ -294,7 +306,12 @@ const handleActivateTenant = async () => {
               placeholder="Tenant name"
               value={tenantName}
               onChange={(e) => setTenantName(e.target.value)}
-              className="w-full border p-2 rounded-lg"
+            className="w-full border border-gray-300 p-2 rounded-lg 
+focus:outline-none 
+focus:ring-2 
+focus:ring-blue-600 
+focus:border-blue-600"
+
             />
             <div className="flex justify-end gap-3">
              <button

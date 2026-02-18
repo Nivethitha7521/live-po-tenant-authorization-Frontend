@@ -865,7 +865,12 @@ const fetchUsersFromBackend = async () => {
   }
 }}
 
-                  className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+               className="w-full border border-gray-300 rounded-lg py-2.5 px-3 
+focus:outline-none 
+focus:ring-2 
+focus:ring-blue-600 
+focus:border-blue-600"
+
                 />
    {isUsernameInvalid && (
   <p className="text-xs text-red-500 mt-1">
@@ -893,11 +898,11 @@ const fetchUsersFromBackend = async () => {
   }
 }}
 
-   className={`w-full border rounded-lg py-2.5 px-3 focus:ring-2
+   className={`w-full border rounded-lg py-2.5 px-3 focus:outline-none focus:ring-2
   ${
     isEmailInvalid
-      ? "border-red-500 focus:ring-red-500"
-      : "border-gray-300 focus:ring-blue-500"
+      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+      : "border-gray-300 focus:ring-blue-600 focus:border-blue-600"
   }`}
 
   />
@@ -927,11 +932,13 @@ const fetchUsersFromBackend = async () => {
       setPasswordTouched(true);
     }
   }}
-  className={`w-full border rounded-lg py-2.5 px-3 pr-10 focus:ring-2
-    ${isPasswordInvalid
-      ? "border-red-500 focus:ring-red-500"
-      : "border-gray-300 focus:ring-blue-500"
-    }`}
+className={`w-full border rounded-lg py-2.5 px-3 pr-10 focus:outline-none focus:ring-2
+  ${
+    isPasswordInvalid
+      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+      : "border-gray-300 focus:ring-blue-600 focus:border-blue-600"
+  }`}
+
  />
 
     <button
@@ -966,8 +973,13 @@ const fetchUsersFromBackend = async () => {
       onChange={(e) =>
         setFormUser({ ...formUser, confirmPassword: e.target.value })
       }
-      className="w-full border border-gray-300 rounded-lg py-2.5 px-3 pr-10
-                 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+    className={`w-full border rounded-lg py-2.5 px-3 pr-10 focus:outline-none focus:ring-2
+  ${
+    isPasswordInvalid
+      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+      : "border-gray-300 focus:ring-blue-600 focus:border-blue-600"
+  }`}
+
     />
 
     <button
@@ -988,7 +1000,12 @@ const fetchUsersFromBackend = async () => {
                <select
             value={formUser.role}
             onChange={(e) => setFormUser({ ...formUser, role: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+           className="w-full border border-gray-300 rounded-lg py-2.5 px-3 
+focus:outline-none 
+focus:ring-2 
+focus:ring-blue-600 
+focus:border-blue-600"
+
           >
             <option value="">-- Select Role --</option>
             {roles.map((role) => (
