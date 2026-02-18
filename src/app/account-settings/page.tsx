@@ -10,6 +10,7 @@ import { RootState } from "@/redux/store";
 import { Typography } from "@mui/material";
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
+import TenantPage from './TenantPage/page';
 
 import UserAccounts from './UserAccount/page';
 import RoleManagementPage from '../account-settings/RoleManagementPage/page'; // Fixed import path
@@ -48,6 +49,12 @@ const subItems = useMemo(() => {
       path: '/account-settings/PersonalPage',
       component: 'personal-details'
     },
+    {
+  label: 'Tenant',
+  path: '/account-settings/TenantPage',
+  component: 'tenant'
+},
+
   ];
 }, [isAdmin]);
 
@@ -76,6 +83,9 @@ const renderActiveContent = () => {
       return <BusinessPage />;
     case 'personal-details':
       return <PersonalPage />; 
+      case 'tenant':
+  return <TenantPage />;
+
     default:
       return null;
   }

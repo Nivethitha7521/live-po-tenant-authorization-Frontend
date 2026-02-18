@@ -27,7 +27,10 @@ const Login: React.FC = () => {
 useEffect(() => {
   const fetchTenants = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/purchasetestapi/tenants");
+   const res = await fetch(
+  "http://127.0.0.1:8000/purchasetestapi/tenants?status=active"
+);
+
       const data = await res.json();
       setTenants(data);
     } catch (err) {
@@ -71,7 +74,10 @@ const handleLogin = async () => {
     toast.error('Please enter both username and password');
     return;
   }
-
+if (!trimmedTenant) {
+  toast.error("Please select a tenant");
+  return;
+}
   setIsLoggingIn(true);
 
   try {
