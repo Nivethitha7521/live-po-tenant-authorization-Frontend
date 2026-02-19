@@ -36,6 +36,8 @@ import {
   setSnackbarOpen,
   clearSnackbarMessage,
 } from "../../../../features/yen-purchase/Outgoing/advancePaymentSlice";
+import { fetchVendorTypeItems } from "@/features/yen-purchase/PurchaseMaster/VendorTypeSlice";
+
 import { AppDispatch, RootState } from "@/redux/store";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
@@ -88,6 +90,7 @@ const AdvancePaymentPage: React.FC = () => {
 
   useEffect(() => {
     dispatch(fetchVendorNames());
+  
     dispatch(
       fetchAdvances({
         filterBy: "createdDate",
