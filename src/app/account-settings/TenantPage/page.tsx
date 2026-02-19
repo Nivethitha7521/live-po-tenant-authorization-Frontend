@@ -347,10 +347,10 @@ focus:border-blue-600"
       </h2>
 
       {/* Description */}
-    <p className="text-sm text-gray-500 mb-6">
-  Are you sure you want to deactivate "
-  {tenants.find(t => t._id === deleteId)?.tenantName}"?
+  <p className="text-sm text-gray-500 mb-6">
+  {`Are you sure you want to deactivate "${tenants.find(t => t._id === deleteId)?.tenantName}"?`}
 </p>
+
 
 
       {/* Buttons */}
@@ -384,10 +384,10 @@ focus:border-blue-600"
       </h2>
 
       {/* Description */}
-      <p className="text-sm text-gray-500 mb-6">
-        Are you sure you want to restore "
-        {tenants.find(t => t._id === restoreId)?.tenantName}"?
-      </p>
+    <p className="text-sm text-gray-500 mb-6">
+  {`Are you sure you want to restore "${tenants.find(t => t._id === restoreId)?.tenantName}"?`}
+</p>
+
 
       {/* Buttons */}
       <div className="flex justify-center gap-4">

@@ -3,8 +3,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/redux/store';
 import { format } from 'date-fns';
-import { usePermissions } from "@/hooks/usePermissions";
-
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -12,6 +10,8 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import ClearIcon from "@mui/icons-material/Clear";
 import CheckIcon from '@mui/icons-material/Check';
+import { usePermissions } from "@/hooks/usePermissions";
+
 import {
   Box, Button, Typography, Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
   Paper, IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -74,7 +74,7 @@ interface AutoTableHookData {
   doc: jsPDF;
 }
 
-// Helper function to add footer  
+// Helper function to add footer
 const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
   const pageHeight = doc.internal.pageSize.height;
   const pageWidth = doc.internal.pageSize.width;
@@ -117,7 +117,6 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 
     descriptions.push({
       id: service.desc_ids?.[i] || `desc-${i}`,
-      include_tax: service.include_tax?.[i] ?? true,   // ← decide default
       sacCode: service.sacCode?.[i] || '',
       description: descriptionText,
       from_date: service.from_dates?.[i],
@@ -130,12 +129,13 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
       igst: service.desc_igst?.[i] || 0,
       total: service.desc_totals?.[i] || 0,
       taxAmount: service.desc_tax_amounts?.[i] || 0,
-      totalFee: service.desc_total_fees?.[i] || 0,
-      finalFee: service.desc_total_fees?.[i] || 0,
+      totalFee: service.desc_totals?.[i] || 0,
+      finalFee: service.base_amounts?.[i] || 0,
       discountAmount: service.desc_discount_amounts?.[i] || 0,
       remarks: service.remarks?.[i] || '',
       quantity: service.quantity?.[i] || 0,
-      base_amount: service.base_amounts?.[i] || 0
+      base_amount: service.base_amounts?.[i] || 0,
+      include_tax: false
     });
   }
 
@@ -144,7 +144,7 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 
 const ApprovedService: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { hasPermission, permissions } = usePermissions();
+   const { hasPermission, permissions } = usePermissions();
   // MODULE VISIBILITY
 const isApprovedModuleVisible =
   permissions?.yenerp?.serviceorders_approved &&
@@ -163,7 +163,6 @@ console.log("Approved Service Permissions:", {
   canRead,
   canEdit,
 });
-
   const serviceOrder = useSelector(selectServiceState);
   const { services, loading, error, snackbarMessage, snackbarOpen } = serviceOrder;
   const { businesses } = useSelector(selectBusinesses);
@@ -197,7 +196,7 @@ console.log("Approved Service Permissions:", {
   const [openMovePendingDialog, setOpenMovePendingDialog] = useState(false);
   const [openConvertToAPDialog, setOpenConvertToAPDialog] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState('');
-  const [apRoundOff, setApRoundOff] = useState(''); // Start empty for easy typing
+const [apRoundOff, setApRoundOff] = useState('0.00'); // Start with default value
   const [apRoundOffError, setApRoundOffError] = useState('');
   const [openConvertConfirmation, setOpenConvertConfirmation] = useState(false);
   const [apInvoiceDate, setApInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -314,38 +313,38 @@ console.log("Approved Service Permissions:", {
     setApRoundOffError('');
   }, [setApRoundOff, setApRoundOffError]);
 
-  const handleApRoundOffBlur = useCallback(() => {
-    // If empty, treat as 0 with no error
-    if (apRoundOff === '' || apRoundOff === '-') {
-      setApRoundOff('0.00');
-      setApRoundOffError('');
-      return;
-    }
-
-    // Parse the value
-    const parsed = parseFloat(apRoundOff);
-
-    // Check if valid number
-    if (isNaN(parsed)) {
-      setApRoundOffError('Please enter a valid number (e.g., 0.50, -0.25)');
-      setApRoundOff('');
-      return;
-    }
-
-    // Check range
-    if (parsed > 2 || parsed < -2) {
-      setApRoundOffError('Must be between -2.00 and +2.00');
-      // Auto-correct to nearest limit
-      const corrected = parsed > 2 ? '2.00' : '-2.00';
-      setApRoundOff(corrected);
-      return;
-    }
-
-    // Format to 2 decimal places
-    const formatted = parsed.toFixed(2);
-    setApRoundOff(formatted);
+ const handleApRoundOffBlur = useCallback(() => {
+  // If empty or just a minus sign, treat as 0
+  if (apRoundOff === '' || apRoundOff === '-') {
+    setApRoundOff('0.00');
     setApRoundOffError('');
-  }, [apRoundOff, setApRoundOff, setApRoundOffError]);
+    return;
+  }
+
+  // Parse the value
+  const parsed = parseFloat(apRoundOff);
+
+  // Check if valid number
+  if (isNaN(parsed)) {
+    setApRoundOffError('Please enter a valid number (e.g., 0.50, -0.25)');
+    setApRoundOff('0.00'); // Reset to default
+    return;
+  }
+
+  // Check range
+  if (parsed > 2 || parsed < -2) {
+    setApRoundOffError('Must be between -2.00 and +2.00');
+    // Auto-correct to nearest limit
+    const corrected = parsed > 2 ? '2.00' : '-2.00';
+    setApRoundOff(corrected);
+    return;
+  }
+
+  // Format to 2 decimal places and ensure it's a string
+  const formatted = parsed.toFixed(2);
+  setApRoundOff(formatted);
+  setApRoundOffError('');
+}, [apRoundOff]);
   // Clear all filters
   const handleFilterClose = useCallback(() => {
     setSelectionRange({
@@ -430,19 +429,18 @@ console.log("Approved Service Permissions:", {
     }
   };
 
-  const handleDialogClose = () => {
-    setSelectedOrder(null);
-    setSelectedDescriptions([]);
-    setOpenConvertToAPDialog(false);
-    setOpenConvertConfirmation(false);
-    setApInvoiceDate(format(new Date(), 'yyyy-MM-dd'));
-    setApInvoiceNo('');
-    setApRoundOff('0.00');
-    setApRoundOffError('');
-
-    // Also clear conversion states if needed
-    dispatch(clearConversionState());
-  };
+// Also update in handleDialogClose:
+const handleDialogClose = () => {
+  setSelectedOrder(null);
+  setSelectedDescriptions([]);
+  setOpenConvertToAPDialog(false);
+  setOpenConvertConfirmation(false);
+  setApInvoiceDate(format(new Date(), 'yyyy-MM-dd'));
+  setApInvoiceNo('');
+  setApRoundOff('0.00'); // Reset to default
+  setApRoundOffError('');
+  dispatch(clearConversionState());
+};
   const handleCloseSnackbar = () => {
     dispatch(setSnackbarOpen(false));
   };
@@ -472,32 +470,45 @@ console.log("Approved Service Permissions:", {
     }
   };
   const handleConfirmConvertToAP = () => {
-    if (!selectedOrder || !apInvoiceNo.trim()) return;
+  if (!selectedOrder || !apInvoiceNo.trim()) return;
 
-    const request = {
-      service_id: selectedOrder.mongoId,
-      apRoundOff: apRoundOff || '0.00',
-      invoiceNo: apInvoiceNo.trim(),
-      invoiceDate: apInvoiceDate
-    };
+  // Ensure apRoundOff is properly formatted
+  let roundOffValue = apRoundOff;
+  
+  // If apRoundOff is empty, set to "0.00"
+  if (!roundOffValue || roundOffValue === '') {
+    roundOffValue = '0.00';
+  }
+  
+  // Ensure it has exactly two decimal places
+  if (!roundOffValue.includes('.')) {
+    roundOffValue = parseFloat(roundOffValue).toFixed(2);
+  } else {
+    const parts = roundOffValue.split('.');
+    if (parts[1].length < 2) {
+      roundOffValue = parseFloat(roundOffValue).toFixed(2);
+    }
+  }
 
-    dispatch(convertServiceToAPOutgoing(request)).then((result) => {
-      if (result.meta.requestStatus === 'fulfilled') {
-        // Close confirmation dialog first
-        setOpenConvertConfirmation(false);
-
-        // Close the main details dialog
-        handleDialogClose();
-
-        // Fetch updated data
-        fetchApprovedServices();
-
-        // Show success message
-        dispatch(setSnackbarMessage('Service successfully converted to AP and Outgoing'));
-        dispatch(setSnackbarOpen(true));
-      }
-    });
+  const request = {
+    service_id: selectedOrder.mongoId,
+    apRoundOff: roundOffValue,
+    invoiceNo: apInvoiceNo.trim(),
+    invoiceDate: apInvoiceDate
   };
+
+  console.log('Sending conversion request:', request); // Debug log
+
+  dispatch(convertServiceToAPOutgoing(request)).then((result) => {
+    if (result.meta.requestStatus === 'fulfilled') {
+      setOpenConvertConfirmation(false);
+      handleDialogClose();
+      fetchApprovedServices();
+      dispatch(setSnackbarMessage('Service successfully converted to AP and Outgoing'));
+      dispatch(setSnackbarOpen(true));
+    }
+  });
+};
   // Generate PDF for vendorwise report
   const generatePDF = () => {
     const doc = new jsPDF();
@@ -723,10 +734,26 @@ console.log("Approved Service Permissions:", {
     document.body.removeChild(link);
     setDialogSummaryOpen(false);
   };
-  const handleOpenConvertConfirmation = () => {
-    setOpenConvertConfirmation(true);
-  };
-
+ const handleOpenConvertConfirmation = () => {
+  // Validate apRoundOff before opening confirmation
+  if (!apRoundOff || apRoundOff === '') {
+    setApRoundOff('0.00');
+  }
+  
+  // Ensure it's properly formatted
+  const parsed = parseFloat(apRoundOff || '0');
+  if (isNaN(parsed)) {
+    setApRoundOffError('Invalid round off value');
+    return;
+  }
+  
+  if (parsed > 2 || parsed < -2) {
+    setApRoundOffError('Must be between -2.00 and +2.00');
+    return;
+  }
+  
+  setOpenConvertConfirmation(true);
+};
 
   // Individual PDF download
   const handleDownload = (service: ServiceData) => {
@@ -883,7 +910,6 @@ if (!canRead) {
     </Box>
   );
 }
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -903,13 +929,14 @@ if (!canRead) {
         {/* Navigation Links */}
         <Grid container spacing={2} sx={{ mb: 1 }}>
           <Grid item xs={12} display="flex" alignItems="center">
-            {canReadPending && (
+           {canReadPending && (
 
             <Link href="/yen-purchase/ServiceOrder" passHref>
               <Button variant="contained" color="primary">
                 Pending
               </Button>
-            </Link> )}
+            </Link>
+           )}
             <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
               <Button
                 variant="contained"
@@ -925,12 +952,13 @@ if (!canRead) {
                 Approved
               </Button>
             </Link>
-            {canReadRejected && (
+              {canReadRejected && (
             <Link href="/yen-purchase/ServiceOrder/RejectedService" passHref>
               <Button variant="contained" color="primary" sx={{ ml: 1 }}>
                 Rejected
               </Button>
-            </Link> )}
+            </Link>
+              )}
           </Grid>
         </Grid>
 
@@ -1306,7 +1334,7 @@ if (!canRead) {
             <Button onClick={handleDialogClose} color="inherit">
               Close
             </Button>
-           <Button
+                      <Button
   onClick={canEdit ? handleOpenMovePendingDialog : undefined}
   variant="outlined"
   color="primary"
@@ -1323,8 +1351,7 @@ if (!canRead) {
 >
   Move to Pending
 </Button>
-
-           <Button
+               <Button
   onClick={canEdit ? handleOpenConvertConfirmation : undefined}
   variant="contained"
   color="success"

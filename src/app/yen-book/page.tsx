@@ -94,8 +94,8 @@ const hideBookMenu =
       <SideMenu
         onMenuClick={handleMenuClick}
         activePath={pathname || '/'} // Fallback to '/' if pathname is null
-          hideBookMenu={hideBookMenu}
-           hidePurchaseMenu={hidePurchaseMenu}
+        showBookMenu={!hideBookMenu}
+  showPurchaseMenu={!hidePurchaseMenu}
       />
 
       <div className="flex flex-wrap gap-2 mt-1 ml-5 mr:1 items-center justify-start">

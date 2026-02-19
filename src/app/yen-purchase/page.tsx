@@ -163,8 +163,8 @@ const hidePurchaseMenu =
       <SideMenu
         onMenuClick={handleMenuClick}
         activePath={pathname || "/"}
-         hidePurchaseMenu={hidePurchaseMenu}
-  hideBookMenu={hideBookMenu}
+        showPurchaseMenu={!hidePurchaseMenu}
+  showBookMenu={!hideBookMenu}
       />
       <div className="flex flex-wrap gap-2 ml-4 items-center justify-start">
         {subItems.map((item) => {

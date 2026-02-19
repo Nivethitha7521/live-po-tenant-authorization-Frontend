@@ -109,12 +109,12 @@ export const menuItems: MenuItem[] = [
 interface SideMenuProps {
   onMenuClick: (menuItem: { path: string; text: string }) => void;
   activePath: string;
-  hidePurchaseMenu?: boolean;
-  hideBookMenu?: boolean;
+  showPurchaseMenu?: boolean;
+  showBookMenu?: boolean;
 }
 
-const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick,hidePurchaseMenu,
-  hideBookMenu, }) => {
+const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick,showPurchaseMenu,
+  showBookMenu}) => {
     const role = useSelector((state: RootState) => state.auth.role);
   const isAdmin = role === "Admin";
 
@@ -184,23 +184,23 @@ const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick,hidePurchaseMenu,
         </div>
         <List>
           {menuItems
-           .filter((menuItem) => {
-              // ✅ hide YEN BOOK completely if no permission
-              if (menuItem.text === "YEN BOOK" && hideBookMenu) {
-                return false;
-              }
-              // ✅ hide YEN PURCHASE completely if no permission
-              if (menuItem.text === "YEN PURCHASE" && hidePurchaseMenu) {
-                return false;
-              }
+          .filter((menuItem) => {
 
-              // ❌ Non-admin ku Account Settings hide
-              if (menuItem.text === "ACCOUNT SETTINGS" && !isAdmin) {
-                return false;
-              }
+  if (menuItem.text === "YEN PURCHASE" && !showPurchaseMenu) {
+    return false;
+  }
 
-              return true;
-            })
+  if (menuItem.text === "YEN BOOK" && !showBookMenu) {
+    return false;
+  }
+
+  if (menuItem.text === "ACCOUNT SETTINGS" && !isAdmin) {
+    return false;
+  }
+
+  return true;
+})
+
           .map((menuItem, index) => (
             <React.Fragment key={index}>
               <ListItem

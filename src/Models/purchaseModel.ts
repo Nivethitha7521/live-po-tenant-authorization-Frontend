@@ -120,6 +120,19 @@ export interface PurchaseOrderData {
   locationName: string;
 totalFreightAmount:number;
 totalFreightTaxAmount:number;
+
+
+
+
+   // ADD THESE GRN-SPECIFIC FIELDS (MAKE THEM OPTIONAL)
+  poQuantitypendingTotalPrice?: number;
+  poQuantitypendingFinalPrice?: number;
+  poQuantityDiscountAmount?: number;
+  poQuantityTaxAmount?: number;
+  poQuantitysgst?: number;
+  poQuantitycgst?: number;
+  poQuantityigst?: number;
+
 }
 
 export type TaxDetails = Record<string, {
@@ -272,6 +285,8 @@ export interface PurchaseListState {
   pendingPurchaseList:PurchaseOrderData[];
   pendingTotalItems:number;
   purchaseOrders: PurchaseOrderData[];
+   totalGrnConvertedItems: number;
+  grnConvertedPurchaseList: PurchaseOrderData[];
   purchaseinvoice: PurchaseInvoice[];
   selectedPo: PoResponse | null;
   poDialogOpen: boolean;
@@ -310,6 +325,9 @@ export const initialState: PurchaseListState = {
   purchaseList: [],
   purchaseOrders: [],
   purchaseinvoice: [],
+  grnConvertedPurchaseList: [],
+  
+      totalGrnConvertedItems: 0,
   selectedPo: null,
   poDialogOpen: false,
   randomIds: [],

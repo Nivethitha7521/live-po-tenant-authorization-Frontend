@@ -24,12 +24,12 @@ const [isAutoFetching, setIsAutoFetching] = useState(false);
       const query = new URLSearchParams();
 
 if (username.trim()) {
-  query.append("username", username);
+  query.append("username", username.trim());
+} else if (email.trim()) {
+  query.append("email", email.trim());
 }
 
-if (email.trim()) {
-  query.append("email", email);
-}
+
 
 const res = await fetch(
   `http://127.0.0.1:8000/purchasetestapi/users/forgot-password?${query.toString()}`,
@@ -62,7 +62,8 @@ sessionStorage.setItem("fp_username", username);
  setIsAutoFetching(true);
   try {
     const res = await fetch(
-      `http://127.0.0.1:8000/purchasetestapi/users/email/${mail}/username`
+     `http://127.0.0.1:8000/purchasetestapi/users/email/${encodeURIComponent(mail)}/username`
+
     );
 
     if (!res.ok) {
@@ -87,7 +88,8 @@ const fetchEmailByUsername = async (uname: string) => {
  ;
   try {
     const res = await fetch(
-      `http://127.0.0.1:8000/purchasetestapi/users/username/${uname}/email`
+    `http://127.0.0.1:8000/purchasetestapi/users/username/${encodeURIComponent(uname)}/email`
+
     );
 
     if (!res.ok) {

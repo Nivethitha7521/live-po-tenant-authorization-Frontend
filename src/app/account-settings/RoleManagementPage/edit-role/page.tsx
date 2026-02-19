@@ -59,7 +59,12 @@ const HARD_MODULES: AppPermissions[] = [
         submodules: [
           { id: "po_pending", name: "Pending", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
           { id: "po_approved", name: "Approved", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
-          { id: "po_rejected", name: "Rejected", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } }
+          { id: "po_rejected", name: "Rejected", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
+          { 
+      id: "po_grn_converted", 
+      name: "GRN Converted", 
+      actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } 
+    }
         ]
       },
       {
@@ -612,6 +617,7 @@ const [confirmDialog, setConfirmDialog] = useState<{
     'po_pending': 'purchaseorders_pending',
     'po_approved': 'purchaseorders_approved',
     'po_rejected': 'purchaseorders_rejected',
+    'po_grn_converted': 'purchaseorders_grn_converted',
      // SERVICE ORDER
     'so_pending': 'serviceorders_pending',
     'so_approved': 'serviceorders_approved',

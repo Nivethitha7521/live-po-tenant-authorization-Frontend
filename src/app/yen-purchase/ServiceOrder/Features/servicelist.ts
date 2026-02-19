@@ -7,34 +7,43 @@ import { ServiceData } from "../Models/servicepo";
 // Interface for conversion request
 interface ServiceToAPRequest {
   service_id: string;
-  apInvoiceDate?: string; // Optional ISO string
-  outgoingDate?: string; // Optional ISO string
-  apRoundOff?: string; // String for decimal precision
+  apRoundOff?: string;
+  invoiceNo?: string;
+  invoiceDate?: string;
 }
+
+// Interface for conversion response
 interface ServiceToAPResponse {
+  success: boolean;
   message: string;
+  conversionType: 'new_conversion' | 'returned_reconversion';
+  timestamp: string;
   idMapping: {
     serviceId: string;
+    serviceObjectId: string;
+    vendorId: string;
     apInvoiceId: string;
     apRandomId: string;
+    apStatus: string;
     outgoingId: string;
     outgoingRandomId: string;
+    outgoingStatus: string;
   };
-  datesUsed: {           // Add this to see what dates backend used
+  datesUsed: {
     apInvoiceDate: string;
     outgoingDate: string;
     invoiceDate: string;
   };
   financialSummary: {
-    serviceAmount: string;
-    apRoundOffApplied: string;
-    apInvoiceAmount: string;
-    totalServiceFees: string;
-    totalTax: string;
-    totalDiscount: string;
-    totalFreightAmount: string;
-    totalFreightTax: string;
-    payableAmount: string;
+    serviceAmount: number;
+    apRoundOffApplied: number;
+    apInvoiceAmount: number;
+    totalServiceFees: number;
+    totalTax: number;
+    totalDiscount: number;
+    totalFreightAmount: number;
+    totalFreightTax: number;
+    payableAmount: number;
   };
   apInvoiceDetails: {
     invoiceId: string;
@@ -47,25 +56,110 @@ interface ServiceToAPResponse {
     outgoingId: string;
     status: string;
     randomId: string;
+    newStatus?: string;
   };
+  vendorUpdate?: any;
+}
+
+// Interface for conversion status check
+interface ConversionStatusResponse {
+  serviceId: string;
+  serviceIdField: string;
+  vendorName: string;
+  serviceStatus: string;
+  conversionStatus: 'NOT_CONVERTED' | 'CONVERTED_ACTIVE' | 'CONVERTED_RETURNED' | 'CONVERTED_PARTIAL';
+  canConvert: boolean;
+  lastUpdated?: string;
+  existingConversion?: {
+    apInvoice: {
+      id: string;
+      randomId: string;
+      invoiceNo: string;
+      invoiceAmount: number;
+      status: string;
+      createdDate: string;
+    };
+    outgoingPayment?: {
+      exists: boolean;
+      id?: string;
+      randomId?: string;
+      status?: string;
+      createdDate?: string;
+    } | null;
+  };
+}
+
+// Interface for validation response
+interface ValidationResponse {
+  canConvert: boolean;
+  serviceId: string;
+  serviceIdField: string;
+  vendorName: string;
+  currentServiceStatus: string;
+  conversionStatus: string;
+  validationPassed: boolean;
+  errorCode?: string;
+  message?: string;
+  existingApId?: string;
+  existingApRandomId?: string;
+  existingApStatus?: string;
+}
+
+// Interface for reversal response
+interface ReversalResponse {
+  success: boolean;
+  message: string;
+  serviceId: string;
+  previousConversionStatus: string;
+  reversalDetails: {
+    vendorReversal?: any;
+    documentsDeleted: {
+      count: number;
+      deletedIds: string[];
+    };
+    serviceStatus: {
+      updated: boolean;
+      newStatus: string;
+    };
+  };
+  canConvertAgain: boolean;
+}
+
+// Interface for service return request (by service ID)
+interface ServiceReturnRequest {
+  serviceId: string;
+  remarks?: string;
+}
+
+// NEW: Interface for service return by AP invoice request
+interface ServiceReturnByApRequest {
+  apInvoiceId: string;
+  remarks?: string;
+}
+
+// Interface for service return response
+interface ServiceReturnResponse {
+  success: boolean;
+  message: string;
+  serviceId: string;
+  status: string;
+  returnedDate: string;
+  remarks?: string;
 }
 
 // Interface for error response
 interface ConversionError {
   message: string;
   detail?: string;
-}
-// Update the request interface to match new requirements
-interface ServiceToAPRequest {
-  service_id: string;
-  apRoundOff?: string;
-  invoiceNo?: string;      // Add this
-  invoiceDate?: string;    // Add this (just the date string like "2025-11-01")
-  // Remove apInvoiceDate and outgoingDate since they're set in backend
+  error?: string;
+  existingConversion?: any;
 }
 
-// Convert Service to AP + Outgoing
-export const convertServiceToAPOutgoing = createAsyncThunk(
+export const convertServiceToAPOutgoing = createAsyncThunk<
+  ServiceToAPResponse,
+  ServiceToAPRequest,
+  { rejectValue: string }
+>(
   'serviceOrders/convertToAPOutgoing',
   async (request: ServiceToAPRequest, { rejectWithValue }) => {
     try {
@@ -73,18 +167,23 @@ export const convertServiceToAPOutgoing = createAsyncThunk(
       
       if (!service_id) throw new Error("Service ID is required");
 
-      // Build query parameters - ONLY pass these three parameters
+      // Build query parameters
       const params = new URLSearchParams();
-      params.append('apRoundOff', apRoundOff);
+      
+      // Ensure apRoundOff is a string with proper format
+      const roundOffValue = String(apRoundOff || "0.00");
+      params.append('apRoundOff', roundOffValue);
       
       // Only add invoiceNo and invoiceDate if provided
-      if (invoiceNo) {
-        params.append('invoiceNo', invoiceNo);
+      if (invoiceNo && invoiceNo.trim()) {
+        params.append('invoiceNo', invoiceNo.trim());
       }
       
       if (invoiceDate) {
-        params.append('invoiceDate', invoiceDate); // Just pass the date string
+        params.append('invoiceDate', invoiceDate);
       }
+
+      console.log('API Request params:', Object.fromEntries(params)); // Debug log
 
       const response = await purchaseApi.post<ServiceToAPResponse>(
         `/servicepo/convert-service-to-ap-outgoing/${service_id}`,
@@ -99,10 +198,137 @@ export const convertServiceToAPOutgoing = createAsyncThunk(
       
       return response.data;
     } catch (error: any) {
+      console.error('Conversion error:', error.response?.data || error);
+      
+      // Handle 409 Conflict (already converted) specially
+      if (error.response?.status === 409) {
+        const errorData = error.response?.data;
+        return rejectWithValue(JSON.stringify({
+          error: "SERVICE_ALREADY_CONVERTED",
+          message: errorData?.message || "Service already converted to active AP Invoice",
+          existingConversion: errorData?.existingConversion
+        }));
+      }
+      
       const errorMessage = error.response?.data?.detail || 
                           error.response?.data?.message || 
                           error.message || 
                           'Failed to convert service to AP and outgoing';
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+// Check conversion status
+export const checkConversionStatus = createAsyncThunk<
+  ConversionStatusResponse,
+  string,
+  { rejectValue: string }
+>(
+  'serviceOrders/checkConversionStatus',
+  async (service_id: string, { rejectWithValue }) => {
+    try {
+      if (!service_id) throw new Error("Service ID is required");
+
+      const response = await purchaseApi.get<ConversionStatusResponse>(
+        `/servicepo/service/${service_id}/conversion-status`
+      );
+      
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to check conversion status';
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+// Validate before conversion
+export const validateServiceConversion = createAsyncThunk<
+  ValidationResponse,
+  string,
+  { rejectValue: string }
+>(
+  'serviceOrders/validateConversion',
+  async (service_id: string, { rejectWithValue }) => {
+    try {
+      if (!service_id) throw new Error("Service ID is required");
+
+      const response = await purchaseApi.post<ValidationResponse>(
+        `/servicepo/validate-service-conversion/${service_id}`
+      );
+      
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to validate conversion';
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+// Reverse conversion (for returned invoices or to undo)
+export const reverseServiceConversion = createAsyncThunk<
+  ReversalResponse,
+  { service_id: string; deleteDocuments?: boolean },
+  { rejectValue: string }
+>(
+  'serviceOrders/reverseConversion',
+  async ({ service_id, deleteDocuments = true }, { rejectWithValue }) => {
+    try {
+      if (!service_id) throw new Error("Service ID is required");
+
+      const params = new URLSearchParams();
+      params.append('deleteDocuments', String(deleteDocuments));
+
+      const response = await purchaseApi.post<ReversalResponse>(
+        `/servicepo/reverse-service-conversion/${service_id}`,
+        null,
+        { params }
+      );
+      
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to reverse conversion';
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+export const returnServiceInvoice = createAsyncThunk<
+  ServiceReturnResponse,
+  { serviceId: string; remarks?: string },
+  { rejectValue: string }
+>(
+  'serviceOrders/returnServiceInvoice',
+  async ({ serviceId, remarks }, { rejectWithValue }) => {
+    try {
+      if (!serviceId) throw new Error("Service ID is required");
+
+      const response = await purchaseApi.patch<ServiceReturnResponse>(
+        `/servicepo/return-service/${serviceId}`,
+        { remarks },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Return service error:', error.response?.data || error);
+      
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to return service invoice';
       return rejectWithValue(errorMessage);
     }
   }
@@ -130,7 +356,7 @@ export const getAPInvoiceWithServiceDetails = createAsyncThunk(
   }
 );
 
-// Deactivate Service Order (from your existing code)
+// Deactivate Service Order
 export const deactivateServiceOrder = createAsyncThunk(
   'serviceOrders/deactivate',
   async (mongoId: string, { rejectWithValue }) => {
@@ -147,7 +373,7 @@ export const deactivateServiceOrder = createAsyncThunk(
   }
 );
 
-// Update Service Order Status to Pending (from your existing code)
+// Update Service Order Status to Pending
 export const updateServiceOrderStatusToPending = createAsyncThunk(
   'serviceOrders/updateStatusToPending',
   async (mongoId: string, { rejectWithValue }) => {
@@ -161,30 +387,26 @@ export const updateServiceOrderStatusToPending = createAsyncThunk(
     }
   }
 );
+
 export const fetchServiceById = createAsyncThunk(
   'service/fetchServiceById',
   async (identifier: string, { rejectWithValue }) => {
     try {
-      // Use your actual backend base URL
-      const response = await  purchaseApi.get(
+      const response = await purchaseApi.get(
         `/servicepo/getOutgoing/${identifier}`
-        // or `/api/service/getOutgoing/${identifier}` if using proxy
       );
 
       const data = response.data;
 
-      // Optional: Transform dates to ISO strings if backend returns Date objects
+      // Transform dates to ISO strings
       const transformed: ServiceData = {
         ...data,
-        // Ensure all datetime fields are strings
         createdDate: data.createdDate ? String(data.createdDate) : null,
         lastUpdatedDate: data.lastUpdatedDate ? String(data.lastUpdatedDate) : null,
         workOrderDate: data.workOrderDate ? String(data.workOrderDate) : null,
         approvedDate: data.approvedDate ? String(data.approvedDate) : null,
         rejectedDate: data.rejectedDate ? String(data.rejectedDate) : null,
         invoiceDate: data.invoiceDate ? String(data.invoiceDate) : null,
-
-        // Handle array dates
         from_dates: data.from_dates?.map((d: any) => (d ? String(d) : null)) || [],
         to_dates: data.to_dates?.map((d: any) => (d ? String(d) : null)) || [],
       };
@@ -198,7 +420,8 @@ export const fetchServiceById = createAsyncThunk(
     }
   }
 );
-// Update the servicepo.ts initial state to include conversion state
+
+// Update the servicepo.ts initial state interface
 interface ServicePOState {
   services: any[];
   loading: boolean;
@@ -211,6 +434,31 @@ interface ServicePOState {
   conversionError: string | null;
   conversionSuccess: boolean;
   conversionData: ServiceToAPResponse | null;
+  conversionType: 'new' | 'returned' | null;
+  
+  // Status check state
+  statusCheckLoading: boolean;
+  statusCheckData: ConversionStatusResponse | null;
+  
+  // Validation state
+  validationLoading: boolean;
+  validationData: ValidationResponse | null;
+  
+  // Reversal state
+  reversalLoading: boolean;
+  reversalData: ReversalResponse | null;
+  
+  // Return service state (by service ID)
+  returnServiceLoading: boolean;
+  returnServiceError: string | null;
+  returnServiceSuccess: boolean;
+  returnServiceData: ServiceReturnResponse | null;
+  
+  // NEW: Return service by AP state
+  returnByApLoading: boolean;
+  returnByApError: string | null;
+  returnByApSuccess: boolean;
+  returnByApData: ServiceReturnResponse | null;
   
   // AP Details state
   apDetailsLoading: boolean;
@@ -233,6 +481,31 @@ const serviceListSlice = createSlice({
     conversionError: null,
     conversionSuccess: false,
     conversionData: null,
+    conversionType: null,
+    
+    // Status check state
+    statusCheckLoading: false,
+    statusCheckData: null,
+    
+    // Validation state
+    validationLoading: false,
+    validationData: null,
+    
+    // Reversal state
+    reversalLoading: false,
+    reversalData: null,
+    
+    // Return service state
+    returnServiceLoading: false,
+    returnServiceError: null,
+    returnServiceSuccess: false,
+    returnServiceData: null,
+    
+    // NEW: Return by AP state
+    returnByApLoading: false,
+    returnByApError: null,
+    returnByApSuccess: false,
+    returnByApData: null,
     
     // AP Details state initialization
     apDetailsLoading: false,
@@ -240,7 +513,6 @@ const serviceListSlice = createSlice({
     apDetails: null,
   } as ServicePOState,
   reducers: {
-    // Your existing reducers...
     setSnackbarOpen: (state, action: PayloadAction<boolean>) => {
       state.snackbarOpen = action.payload;
     },
@@ -251,71 +523,223 @@ const serviceListSlice = createSlice({
       state.error = null;
       state.conversionError = null;
       state.apDetailsError = null;
+      state.returnServiceError = null;
+      state.returnByApError = null;
     },
     clearConversionState: (state) => {
       state.conversionLoading = false;
       state.conversionError = null;
       state.conversionSuccess = false;
       state.conversionData = null;
+      state.conversionType = null;
+    },
+    clearStatusCheck: (state) => {
+      state.statusCheckLoading = false;
+      state.statusCheckData = null;
+    },
+    clearValidation: (state) => {
+      state.validationLoading = false;
+      state.validationData = null;
+    },
+    clearReversal: (state) => {
+      state.reversalLoading = false;
+      state.reversalData = null;
+    },
+    clearReturnServiceState: (state) => {
+      state.returnServiceLoading = false;
+      state.returnServiceError = null;
+      state.returnServiceSuccess = false;
+      state.returnServiceData = null;
+    },
+    // NEW: Clear return by AP state
+    clearReturnByApState: (state) => {
+      state.returnByApLoading = false;
+      state.returnByApError = null;
+      state.returnByApSuccess = false;
+      state.returnByApData = null;
     },
     clearAPDetails: (state) => {
       state.apDetailsLoading = false;
       state.apDetailsError = null;
       state.apDetails = null;
     },
-    // Add service after successful creation
     addService: (state, action: PayloadAction<any>) => {
       state.services.unshift(action.payload);
     },
-    // Update service in list
     updateServiceInList: (state, action: PayloadAction<{ mongoId: string; updates: any }>) => {
       const index = state.services.findIndex(service => service.mongoId === action.payload.mongoId);
       if (index !== -1) {
         state.services[index] = { ...state.services[index], ...action.payload.updates };
       }
     },
-    // Remove service from list
     removeServiceFromList: (state, action: PayloadAction<string>) => {
       state.services = state.services.filter(service => service.mongoId !== action.payload);
     },
-
   },
   extraReducers: (builder) => {
-    // ... your existing extraReducers ...
-
     // Handle convertServiceToAPOutgoing
     builder.addCase(convertServiceToAPOutgoing.pending, (state) => {
       state.conversionLoading = true;
       state.conversionError = null;
       state.conversionSuccess = false;
       state.conversionData = null;
-      state.error = null; // Clear general error
+      state.conversionType = null;
+      state.error = null;
     });
     
     builder.addCase(convertServiceToAPOutgoing.fulfilled, (state, action) => {
       state.conversionLoading = false;
       state.conversionSuccess = true;
       state.conversionData = action.payload;
+      state.conversionType = action.payload.conversionType === 'returned_reconversion' ? 'returned' : 'new';
       
       // Update the service order status in the list to "APConverted"
-      const serviceId = action.payload.idMapping.serviceId;
+      const serviceObjectId = action.payload.idMapping.serviceObjectId;
       const index = state.services.findIndex(
-        service => service.mongoId === serviceId || service._id === serviceId
+        service => service._id === serviceObjectId || service.mongoId === serviceObjectId
       );
       if (index !== -1) {
         state.services[index].status = "APConverted";
         state.services[index].lastUpdatedDate = new Date().toISOString();
+        
+        // Store AP and Outgoing IDs for reference
+        state.services[index].apInvoiceId = action.payload.idMapping.apInvoiceId;
+        state.services[index].apRandomId = action.payload.idMapping.apRandomId;
+        state.services[index].outgoingId = action.payload.idMapping.outgoingId;
+        state.services[index].outgoingRandomId = action.payload.idMapping.outgoingRandomId;
       }
       
-      // Show success message
-      state.snackbarMessage = action.payload.message || 'Service successfully converted to AP and Outgoing';
+      // Show appropriate success message
+      const message = action.payload.conversionType === 'returned_reconversion' 
+        ? 'Returned invoice successfully reconverted to AP and Outgoing'
+        : action.payload.message || 'Service successfully converted to AP and Outgoing';
+      
+      state.snackbarMessage = message;
       state.snackbarOpen = true;
     });
     
     builder.addCase(convertServiceToAPOutgoing.rejected, (state, action) => {
       state.conversionLoading = false;
-      state.conversionError = action.payload as string || 'Failed to convert service to AP and outgoing';
-      state.snackbarMessage = action.payload as string || 'Failed to convert service to AP and outgoing';
+      
+      // Try to parse error if it's JSON string
+      try {
+        const errorData = JSON.parse(action.payload as string);
+        state.conversionError = errorData.message || 'Conversion failed';
+        
+        // If it's a 409 conflict, store the existing conversion data
+        if (errorData.error === 'SERVICE_ALREADY_CONVERTED' && errorData.existingConversion) {
+          state.statusCheckData = {
+            ...errorData.existingConversion,
+            canConvert: false,
+            conversionStatus: 'CONVERTED_ACTIVE'
+          } as ConversionStatusResponse;
+        }
+      } catch {
+        state.conversionError = action.payload as string || 'Failed to convert service to AP and outgoing';
+      }
+      
+      state.snackbarMessage = state.conversionError || 'Conversion failed';
+      state.snackbarOpen = true;
+    });
+
+    // Handle checkConversionStatus
+    builder.addCase(checkConversionStatus.pending, (state) => {
+      state.statusCheckLoading = true;
+      state.statusCheckData = null;
+    });
+    
+    builder.addCase(checkConversionStatus.fulfilled, (state, action) => {
+      state.statusCheckLoading = false;
+      state.statusCheckData = action.payload;
+    });
+    
+    builder.addCase(checkConversionStatus.rejected, (state, action) => {
+      state.statusCheckLoading = false;
+      state.statusCheckData = null;
+    });
+
+    // Handle validateServiceConversion
+    builder.addCase(validateServiceConversion.pending, (state) => {
+      state.validationLoading = true;
+      state.validationData = null;
+    });
+    
+    builder.addCase(validateServiceConversion.fulfilled, (state, action) => {
+      state.validationLoading = false;
+      state.validationData = action.payload;
+    });
+    
+    builder.addCase(validateServiceConversion.rejected, (state, action) => {
+      state.validationLoading = false;
+      state.validationData = null;
+    });
+
+    // Handle reverseServiceConversion
+    builder.addCase(reverseServiceConversion.pending, (state) => {
+      state.reversalLoading = true;
+      state.reversalData = null;
+    });
+    
+    builder.addCase(reverseServiceConversion.fulfilled, (state, action) => {
+      state.reversalLoading = false;
+      state.reversalData = action.payload;
+      
+      // Update service status in list
+      const index = state.services.findIndex(
+        service => service._id === action.payload.serviceId || service.mongoId === action.payload.serviceId
+      );
+      if (index !== -1) {
+        state.services[index].status = "Active";
+        state.services[index].lastUpdatedDate = new Date().toISOString();
+        
+        // Remove AP/Outgoing references
+        delete state.services[index].apInvoiceId;
+        delete state.services[index].apRandomId;
+        delete state.services[index].outgoingId;
+        delete state.services[index].outgoingRandomId;
+      }
+      
+      state.snackbarMessage = action.payload.message || 'Conversion reversed successfully';
+      state.snackbarOpen = true;
+    });
+    
+    builder.addCase(reverseServiceConversion.rejected, (state, action) => {
+      state.reversalLoading = false;
+      state.snackbarMessage = action.payload as string || 'Failed to reverse conversion';
+      state.snackbarOpen = true;
+    });
+
+    // Handle returnServiceInvoice (by service ID)
+    builder.addCase(returnServiceInvoice.pending, (state) => {
+      state.returnServiceLoading = true;
+      state.returnServiceError = null;
+      state.returnServiceSuccess = false;
+      state.returnServiceData = null;
+    });
+    
+    builder.addCase(returnServiceInvoice.fulfilled, (state, action) => {
+      state.returnServiceLoading = false;
+      state.returnServiceSuccess = true;
+      state.returnServiceData = action.payload;
+      
+      // Update service status in list to "Returned"
+      const index = state.services.findIndex(
+        service => service._id === action.payload.serviceId || service.mongoId === action.payload.serviceId
+      );
+      if (index !== -1) {
+        state.services[index].status = "Returned";
+        state.services[index].lastUpdatedDate = new Date().toISOString();
+        state.services[index].returnRemarks = action.payload.remarks;
+      }
+      
+      state.snackbarMessage = action.payload.message || 'Service invoice returned successfully';
+      state.snackbarOpen = true;
+    });
+    
+    builder.addCase(returnServiceInvoice.rejected, (state, action) => {
+      state.returnServiceLoading = false;
+      state.returnServiceError = action.payload as string || 'Failed to return service invoice';
+      state.snackbarMessage = state.returnServiceError;
       state.snackbarOpen = true;
     });
 
@@ -338,7 +762,7 @@ const serviceListSlice = createSlice({
       state.snackbarOpen = true;
     });
 
-    // Handle deactivateServiceOrder (from your existing code)
+    // Handle deactivateServiceOrder
     builder.addCase(deactivateServiceOrder.pending, (state) => {
       state.loading = true;
       state.error = null;
@@ -359,7 +783,7 @@ const serviceListSlice = createSlice({
       state.snackbarOpen = true;
     });
 
-    // Handle updateServiceOrderStatusToPending (from your existing code)
+    // Handle updateServiceOrderStatusToPending
     builder.addCase(updateServiceOrderStatusToPending.pending, (state) => {
       state.loading = true;
       state.error = null;
@@ -391,6 +815,11 @@ export const {
   setSnackbarMessage, 
   clearError, 
   clearConversionState,
+  clearStatusCheck,
+  clearValidation,
+  clearReversal,
+  clearReturnServiceState,
+  clearReturnByApState, // NEW: Export this
   clearAPDetails,
   addService,
   updateServiceInList,
@@ -415,6 +844,46 @@ export const selectConversionSuccess = (state: { serviceOrder: ServicePOState })
   state.serviceOrder.conversionSuccess;
 export const selectConversionData = (state: { serviceOrder: ServicePOState }) => 
   state.serviceOrder.conversionData;
+export const selectConversionType = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.conversionType;
+
+// Status check selectors
+export const selectStatusCheckLoading = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.statusCheckLoading;
+export const selectStatusCheckData = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.statusCheckData;
+
+// Validation selectors
+export const selectValidationLoading = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.validationLoading;
+export const selectValidationData = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.validationData;
+
+// Reversal selectors
+export const selectReversalLoading = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.reversalLoading;
+export const selectReversalData = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.reversalData;
+
+// Return service selectors (by service ID)
+export const selectReturnServiceLoading = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.returnServiceLoading;
+export const selectReturnServiceError = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.returnServiceError;
+export const selectReturnServiceSuccess = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.returnServiceSuccess;
+export const selectReturnServiceData = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.returnServiceData;
+
+// NEW: Return by AP selectors
+export const selectReturnByApLoading = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.returnByApLoading;
+export const selectReturnByApError = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.returnByApError;
+export const selectReturnByApSuccess = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.returnByApSuccess;
+export const selectReturnByApData = (state: { serviceOrder: ServicePOState }) => 
+  state.serviceOrder.returnByApData;
 
 // AP Details selectors
 export const selectAPDetailsLoading = (state: { serviceOrder: ServicePOState }) => 

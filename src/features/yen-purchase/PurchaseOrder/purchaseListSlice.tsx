@@ -72,6 +72,72 @@ function customRoundOff(value: number): number {
 //   }
 // }
 
+export const fetchGrnConvertedPurchaseOrders = createAsyncThunk(
+  'purchaseOrders/fetchGrnConverted',
+  async ({
+    page,
+    size,
+    fromDate,
+    toDate,
+    vendorName,
+    itemName,
+    randomId,
+  }: {
+    page: number;
+    size: number;
+    fromDate?: string | Date;
+    toDate?: string | Date;
+    vendorName?: string;
+    itemName?: string;
+    randomId?: string;
+  }) => {
+    const params: {
+      skip?: number;
+      limit?: number;
+      fromDate?: string;
+      toDate?: string;
+      vendorName?: string;
+      itemName?: string;
+      randomId?: string;
+    } = {};
+
+    // Pagination
+    params.skip = (page - 1) * size;
+    params.limit = size;
+
+    // Filters
+    if (vendorName) params.vendorName = vendorName;
+    if (itemName) params.itemName = itemName;
+    if (randomId) params.randomId = randomId;
+
+    // Handle date conversion
+    if (fromDate) {
+      const fromDateObj = typeof fromDate === 'string' ? new Date(fromDate) : fromDate;
+      params.fromDate = fromDateObj.toISOString();
+    }
+    
+    if (toDate) {
+      const toDateObj = typeof toDate === 'string' ? new Date(toDate) : toDate;
+      params.toDate = toDateObj.toISOString();
+    }
+
+    try {
+      const response = await purchaseApi.get('/purchaseorders/grnConverted/purchase', {
+        params,
+      });
+
+      if (response.data.purchaseOrders.length === 0) {
+        return [];
+      }
+
+      console.log('Fetched GRN Converted purchase orders:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching GRN converted purchase orders:', error);
+      throw new Error(error.response?.data?.detail || 'Error fetching GRN converted purchase orders');
+    }
+  }
+);
 export const fetchPurchaseOrders = createAsyncThunk(
   'purchaseOrders/fetch',
   async ({
@@ -1030,12 +1096,15 @@ export const selectImageUploadStatus = (state: RootState) => ({
   status: state.purchaseList.uploadStatus,
   error: state.purchaseList.uploadError
 });
+export const selectGrnConvertedPurchaseList = (state: RootState) => 
+  state.purchaseList.grnConvertedPurchaseList;
 
+export const selectTotalGrnConvertedItems = (state: RootState) => 
+  state.purchaseList.totalGrnConvertedItems;
 // Create a selector to access the state
 export const selectPurchaseListState = (state: RootState) => state.purchaseList;
 export const selectCurrentPage = (state: RootState) => state.purchaseList.currentPage;
 export const selectPageSize = (state: RootState) => state.purchaseList.pageSize;
 export const selectTotalItems = (state: RootState) => state.purchaseList.totalItems;
-
 
 export default purchaseListSlice.reducer;

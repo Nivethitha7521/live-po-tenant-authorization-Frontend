@@ -109,10 +109,7 @@ if (!isAdmin) {
 
   return (
     <div>
-      <SideMenu 
-        onMenuClick={handleMenuClick} 
-        activePath={pathname || ''} 
-      />
+     
 
       <div className="flex flex-start gap-2 mt-4 ml-4 items-center justify-start">
       {subItems.map((item) => {

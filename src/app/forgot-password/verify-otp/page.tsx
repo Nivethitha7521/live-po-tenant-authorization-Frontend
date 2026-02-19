@@ -32,10 +32,10 @@ const verifyOtp = async () => {
   setLoading(true);
 
   try {
-    const res = await fetch(
-      `http://127.0.0.1:8000/purchasetestapi/users/verify-otp?username=${username}&otp=${otp}`,
-      { method: "POST" }
-    );
+  const res = await fetch(
+  `http://127.0.0.1:8000/purchasetestapi/users/verify-otp?username=${encodeURIComponent(username!)}&otp=${otp}`,
+  { method: "POST" }
+);
 
     if (!res.ok) {
       const err = await res.json();
@@ -56,10 +56,11 @@ const verifyOtp = async () => {
 
   const resendOtp = async () => {
     try {
-      const res = await fetch(
-        `http://127.0.0.1:8000/purchasetestapi/users/resend-otp?username=${username}`,
-        { method: "POST" }
-      );
+     const res = await fetch(
+  `http://127.0.0.1:8000/purchasetestapi/users/resend-otp?username=${encodeURIComponent(username!)}`,
+  { method: "POST" }
+);
+
 
       if (!res.ok) {
         const err = await res.json();

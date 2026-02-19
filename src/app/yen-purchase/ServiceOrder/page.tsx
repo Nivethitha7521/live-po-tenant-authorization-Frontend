@@ -79,7 +79,7 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
   );
 
   for (let i = 0; i < maxLength; i++) {
-    const totalInclusive = service.fees?.[i] || 0; // This is amount INCLUDING tax
+    const totalInclusive = service.fees?.[i] || 0;
     const taxAmount = service.desc_tax_amounts?.[i] || 0;
     const taxPercent = service.desc_tax_pers?.[i] || 0;
 
@@ -88,38 +88,42 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
     if (taxPercent > 0) {
       baseAmount = Number((totalInclusive * 100 / (100 + taxPercent)).toFixed(2));
     }
-    // If taxAmount is available and more reliable, use subtraction (fallback)
     if (taxAmount > 0 && Math.abs(totalInclusive - taxAmount - baseAmount) > 1) {
       baseAmount = Number((totalInclusive - taxAmount).toFixed(2));
     }
 
     const descriptionText =
       service.descriptions?.[i] ||
-      service.descriptions?.[i] ||
       service.remarks?.[i] ||
       `Service ${i + 1}`;
 
     descriptions.push({
       id: service.desc_ids?.[i] || `desc-${i}`,
-      include_tax: service.include_tax?.[i] ?? true,   // ← decide default
       sacCode: service.sacCode?.[i] || '',
       description: descriptionText,
-      from_date: service.from_dates?.[i],
-      to_date: service.to_dates?.[i],
-      fee: totalInclusive, // Final amount (incl. tax)
+      from_date: service.from_dates?.[i] || null,
+      to_date: service.to_dates?.[i] || null,
+      fee: totalInclusive,
+      fee_with_tax: totalInclusive,
+      base_amount: baseAmount || 0, // FIXED: Ensure it's never undefined
+      include_tax: service.include_tax?.[i] ?? true, // FIXED: Added include_tax
       tax_type: service.desc_tax_types?.[i] as 'cgst_sgst' | 'igst' || 'cgst_sgst',
       tax_per: taxPercent,
       sgst: service.desc_sgst?.[i] || 0,
       cgst: service.desc_cgst?.[i] || 0,
       igst: service.desc_igst?.[i] || 0,
-      total: totalInclusive, // Same as fee (incl. tax)
+      total: totalInclusive,
       taxAmount: taxAmount,
-      base_amount: baseAmount, // Base before tax ← THIS IS KEY
       discountAmount: service.desc_discount_amounts?.[i] || 0,
+      discount_percentage: service.desc_discount_percentages?.[i] || 0,
+      discount_amount: service.desc_discount_amounts?.[i] || 0,
       remarks: service.remarks?.[i] || '',
-      quantity: service.quantity?.[i] || 0,
+      quantity: service.quantity?.[i] || 1,
       totalFee: 0,
-      finalFee: 0
+      finalFee: 0,
+      calculated_base_per_unit: 0,
+      calculated_tax_per_unit: 0,
+      calculated_total_per_unit: 0
     });
   }
 
@@ -128,7 +132,7 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 const ServiceList: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  const { hasPermission, permissions } = usePermissions();
+   const { hasPermission, permissions } = usePermissions();
 const isPendingModuleVisible =
   permissions?.yenerp?.serviceorders_pending &&
   !(
@@ -301,16 +305,21 @@ console.log("🔍 Service Order Pending Permissions:", {
     handleCloseAnchor();
   };
   const handleViewDetailsClick = (serviceId: string) => {
-  const selected = services.find((s: ServiceData) => s.serviceId === serviceId);
-  if (selected) {
-    setSelectedOrder(selected);
-    const descriptions = getDescriptionsFromFlatArrays(selected);
-    setSelectedDescriptions(descriptions);
-    
-    // Open simple view dialog (NOT the conversion dialog)
-    setDialogOpen(true); // You need to add this state
-  }
-};
+    const selected = services.find((s: ServiceData) => s.serviceId === serviceId);
+    if (selected) {
+      setSelectedOrder(selected);
+
+      // Get descriptions with proper fallback handling
+      const descriptions = getDescriptionsFromFlatArrays(selected);
+      setSelectedDescriptions(descriptions);
+
+      // Log for debugging
+      console.log('Selected service:', selected);
+      console.log('Generated descriptions:', descriptions);
+
+      setDialogOpen(true);
+    }
+  };
 
   const handleEditClick = (mongoId: string) => {
     router.push(`/yen-purchase/ServiceOrder/CreateService?edit=${mongoId}`);
@@ -682,7 +691,6 @@ if (!canRead) {
     </Box>
   );
 }
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -715,14 +723,14 @@ if (!canRead) {
                 Pending
               </Button>
             </Link>
-            {canReadApproved && (
+             {canReadApproved && (
             <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
               <Button variant="contained" sx={{ marginLeft: '10px' }} color="primary">
                 Approved
               </Button>
             </Link>
-            )}
-            {canReadRejected && (
+             )}
+              {canReadRejected && (
             <Button
               variant="contained"
               color="primary"
@@ -731,7 +739,7 @@ if (!canRead) {
             >
               Rejected
             </Button>
-            )}
+              )}
           </Grid>
         </Grid>
 
@@ -812,7 +820,7 @@ if (!canRead) {
 
           <Grid item xs="auto">
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <Button
+ <Button
   variant="contained"
   startIcon={<AddIcon />}
   onClick={() =>
@@ -821,17 +829,20 @@ if (!canRead) {
   }
   disabled={!canAdd}
   sx={{
-    color: canAdd ? "primary.main" : "#6e6e6e !important",
-    opacity: 1,
-    cursor: canAdd ? "pointer" : "not-allowed",
+    backgroundColor: canAdd ? "primary.main" : "#e0e0e0",
+    color: "#fff",   // 👈 always white text
+    "&:hover": {
+      backgroundColor: canAdd ? "primary.dark" : "#e0e0e0",
+    },
     "&.Mui-disabled": {
-      color: "#6e6e6e !important",
-      opacity: 1,
+      backgroundColor: "#e0e0e0",
+      color: "#9e9e9e",
     },
   }}
 >
   Create Service
 </Button>
+
             </Box>
           </Grid>
 
@@ -864,161 +875,95 @@ if (!canRead) {
           </Grid>
         </Grid>
 
-       {/* SIMPLE VIEW DIALOG - VIEW ONLY */}
-<Dialog
-  open={dialogOpen}
-  onClose={() => setDialogOpen(false)}
-  maxWidth="md"
-  fullWidth={true}
->
-  <DialogTitle>
-    Approved Service Order Details - {selectedOrder?.serviceId || ''}
-  </DialogTitle>
+        {/* VIEW DETAILS DIALOG - ULTRA SIMPLIFIED */}
+        <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="md" fullWidth={true}>
+          <DialogTitle>
+            Service Order Details - {selectedOrder?.serviceId || ''}
+          </DialogTitle>
 
-  <DialogContent dividers>
-    {/* Service Descriptions Table */}
-    <Typography variant="h6" gutterBottom>
-      Service Descriptions
-    </Typography>
-    <TableContainer component={Paper} sx={{ mb: 4 }}>
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell><b>S.No</b></TableCell>
-            <TableCell><b>SAC Code</b></TableCell>
-            <TableCell><b>Description</b></TableCell>
-            <TableCell><b>From Date</b></TableCell>
-            <TableCell><b>To Date</b></TableCell>
-            <TableCell align="right"><b>Base Amount</b></TableCell>
-            <TableCell align="right"><b>Tax Amount</b></TableCell>
-            <TableCell align="right"><b>Total</b></TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {selectedDescriptions.map((desc: ServiceDescription, index: number) => (
-            <TableRow key={desc.id || index}>
-              <TableCell>{index + 1}</TableCell>
-              <TableCell>{desc.sacCode}</TableCell>
-              <TableCell>{desc.description}</TableCell>
-              <TableCell>
-                {desc.from_date ? format(new Date(desc.from_date), 'dd-MM-yyyy') : ''}
-              </TableCell>
-              <TableCell>
-                {desc.to_date ? format(new Date(desc.to_date), 'dd-MM-yyyy') : ''}
-              </TableCell>
-              <TableCell align="right">{desc.base_amount?.toFixed(2) || desc.fee.toFixed(2)}</TableCell>
-              <TableCell align="right">{(desc.taxAmount || 0).toFixed(2)}</TableCell>
-              <TableCell align="right">{desc.total.toFixed(2)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+          <DialogContent dividers>
+            {/* Table */}
+            <Typography variant="h6" gutterBottom>Service Descriptions</Typography>
+            <TableContainer component={Paper} sx={{ mb: 3 }}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><b>S.No</b></TableCell>
+                    <TableCell><b>Description</b></TableCell>
+                    <TableCell><b>From Date</b></TableCell>
+                    <TableCell><b>To Date</b></TableCell>
+                    <TableCell align="right"><b>Fee</b></TableCell>
+                    <TableCell align="center"><b>Tax (%)</b></TableCell>
+                    <TableCell align="right"><b>Total</b></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {selectedDescriptions.map((desc: ServiceDescription, index: number) => (
+                    <TableRow key={desc.id || index}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{desc.description}</TableCell>
+                      <TableCell>
+                        {desc.from_date ? format(new Date(desc.from_date), 'dd-MM-yyyy') : ''}
+                      </TableCell>
+                      <TableCell>
+                        {desc.to_date ? format(new Date(desc.to_date), 'dd-MM-yyyy') : ''}
+                      </TableCell>
+                      <TableCell align="right">
+                        {desc.base_amount ? desc.base_amount.toFixed(2) : '0.00'}
+                      </TableCell>
+                      <TableCell align="center">{desc.tax_per}%</TableCell>
+                      <TableCell align="right">{desc.fee.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
 
-    {selectedOrder && (
-      <>
-        <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-          Order Summary
-        </Typography>
+            {/* SIMPLE SUMMARY */}
+            {selectedOrder && (
+              <>
+                <Typography variant="h6" gutterBottom>Order Summary</Typography>
 
-        <Table size="small" sx={{ mb: 3 }}>
-          <TableBody>
-            {/* Service Tax */}
-            <TableRow>
-              <TableCell sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap' }}>
-                Service Tax:
-              </TableCell>
-              <TableCell align="right" sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap', width: '150px' }}>
-                ₹ {selectedDescriptions.reduce((sum, d) => sum + (d.taxAmount || 0), 0).toFixed(2)}
-              </TableCell>
-            </TableRow>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography>Total Service Fee:</Typography>
+                  <Typography fontWeight="bold">
+                    ₹ {selectedDescriptions.reduce((sum, desc) => sum + desc.fee, 0).toFixed(2)}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography>Freight Amount:</Typography>
+                  <Typography fontWeight="bold">
+                    {selectedOrder.totalFreightAmount}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography>Total Tax:</Typography>
+                  <Typography fontWeight="bold">
+                    {selectedOrder.totalTax}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography>Total Discount:</Typography>
+                  <Typography fontWeight="bold">
+                    {selectedOrder.totalDiscount}
+                  </Typography>
+                </Box>
+                <Divider sx={{ my: 2 }} />
 
-            {/* Freight Amount */}
-            <TableRow>
-              <TableCell sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap' }}>
-                Freight Amount:
-              </TableCell>
-              <TableCell align="right" sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap', width: '150px' }}>
-                ₹ {(selectedOrder.totalFreightAmount || 0).toFixed(2)}
-              </TableCell>
-            </TableRow>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6">Grand Total:</Typography>
+                  <Typography variant="h5" fontWeight="bold" color="primary">
+                    ₹ {selectedOrder.totalAmount?.toFixed(2) || '0.00'}
+                  </Typography>
+                </Box>
+              </>
+            )}
+          </DialogContent>
 
-            {/* Total Service Amount (Sum of all description totals) */}
-            <TableRow>
-              <TableCell sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap' }}>
-                Total Service Amount:
-              </TableCell>
-              <TableCell align="right" sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap', width: '150px' }}>
-                ₹ {selectedDescriptions.reduce((sum, d) => sum + d.total, 0).toFixed(2)}
-              </TableCell>
-            </TableRow>
-
-            {/* Total Discount */}
-            <TableRow>
-              <TableCell sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap' }}>
-                Total Discount:
-              </TableCell>
-              <TableCell align="right" sx={{ border: 0, py: 0.5, whiteSpace: 'nowrap', width: '150px' }}>
-                ₹ {(selectedOrder.totalDiscount || 0).toFixed(2)}
-              </TableCell>
-            </TableRow>
-
-            {/* Grand Total - Highlighted */}
-            <TableRow sx={{ backgroundColor: '#e8f5e8', borderTop: '2px solid #ddd' }}>
-              <TableCell sx={{ border: 0, py: 1, whiteSpace: 'nowrap', fontWeight: 'bold' }}>
-                Grand Total:
-              </TableCell>
-              <TableCell align="right" sx={{ border: 0, py: 1, whiteSpace: 'nowrap', color: 'success.main' }}>
-                <strong style={{ fontSize: '1.25em' }}>
-                  ₹ {(selectedOrder.totalAmount || 0).toFixed(2)}
-                </strong>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-
-        {/* Additional Information */}
-        <Grid container spacing={2} sx={{ mt: 2 }}>
-          <Grid item xs={12} sm={6}>
-            <Typography variant="subtitle2" color="text.secondary">
-              Vendor Details:
-            </Typography>
-            <Typography variant="body2">
-              {selectedOrder.vendorName}
-            </Typography>
-            <Typography variant="body2">
-              {selectedOrder.address}
-            </Typography>
-          
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Typography variant="subtitle2" color="text.secondary">
-              Service Order Info:
-            </Typography>
-            <Typography variant="body2">
-              Work Order Date: {selectedOrder.workOrderDate ? format(new Date(selectedOrder.workOrderDate), 'dd-MM-yyyy') : ''}
-            </Typography>
-          
-            <Typography variant="body2">
-              Status: <Chip label={selectedOrder.status} color="success" size="small" />
-            </Typography>
-          </Grid>
-        </Grid>
-      </>
-    )}
-  </DialogContent>
-
-  <DialogActions sx={{ p: 2 }}>
-    <Button 
-      onClick={() => setDialogOpen(false)} 
-      variant="outlined" 
-      color="primary"
-    >
-      Close
-    </Button>
-   
-  </DialogActions>
-</Dialog>
+          <DialogActions>
+            <Button onClick={handleDialogClose} color="primary">Close</Button>
+          </DialogActions>
+        </Dialog>
 
         {/* VENDORWISE EXPORT DIALOG */}
         <Dialog open={dialogDownloadOpen} onClose={handleCloseDownload}>
@@ -1136,11 +1081,10 @@ if (!canRead) {
 >
   <EditIcon />
 </IconButton>
-
                         </Tooltip>
 
                         <Tooltip title="Approve Order">
-                         <IconButton
+                          <IconButton
   onClick={() =>
     canApprove &&
     handleApproveDialogOpen(service.mongoId)
@@ -1157,11 +1101,10 @@ if (!canRead) {
 >
   <CheckIcon />
 </IconButton>
-
                         </Tooltip>
 
                         <Tooltip title="Reject Order">
-                          <IconButton
+                           <IconButton
   onClick={() =>
     canApprove &&
     handleRejectDialogOpen(service.mongoId)

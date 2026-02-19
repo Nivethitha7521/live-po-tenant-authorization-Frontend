@@ -3,8 +3,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/redux/store';
 import { format } from 'date-fns';
-import { usePermissions } from "@/hooks/usePermissions";
-
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -16,14 +14,16 @@ import {
   Box, Button, Typography, Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
   Paper, IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
   CircularProgress, Tooltip,
-  Grid,Alert,
-  Snackbar,
+  Grid,
+  Snackbar,Alert,
   DialogContentText,
   Menu,
   MenuItem,
   Chip,
   Divider
 } from '@mui/material';
+import { usePermissions } from "@/hooks/usePermissions";
+
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
@@ -109,7 +109,6 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
     descriptions.push({
       id: service.desc_ids?.[i] || `desc-${i}`,
       sacCode: service.sacCode?.[i] || '',
-      include_tax: service.include_tax?.[i] ?? true,   // ← decide default
       description: descriptionText,
       from_date: service.from_dates?.[i],
       to_date: service.to_dates?.[i],
@@ -119,14 +118,15 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
       sgst: service.desc_sgst?.[i] || 0,
       cgst: service.desc_cgst?.[i] || 0,
       igst: service.desc_igst?.[i] || 0,
-      total: service.desc_totals?.[i] || 0,
+      total: service.desc_totals?.[i] || 0, // Changed from desc_total_fees to desc_totals
       taxAmount: service.desc_tax_amounts?.[i] || 0,
-      totalFee: service.desc_total_fees?.[i] || 0,
-      finalFee: service.desc_total_fees?.[i] || 0,
+      totalFee: service.desc_totals?.[i] || 0, // Changed from desc_total_fees to desc_totals
+      finalFee: service.desc_totals?.[i] || 0, // Changed from desc_total_fees to desc_totals
       discountAmount: service.desc_discount_amounts?.[i] || 0,
       remarks: service.remarks?.[i] || '',
       quantity: service.quantity?.[i] || 0,
-      base_amount:service.base_amounts?.[i] || 0,
+      base_amount: service.base_amounts?.[i] || 0,
+      include_tax: false
     });
   }
 
@@ -134,7 +134,7 @@ const getDescriptionsFromFlatArrays = (service: ServiceData): ServiceDescription
 };
 
 const RejectedService: React.FC = () => {
-  const { hasPermission, permissions } = usePermissions();
+    const { hasPermission, permissions } = usePermissions();
 // MODULE VISIBILITY
 const isRejectedModuleVisible =
   permissions?.yenerp?.serviceorders_rejected &&
@@ -790,7 +790,6 @@ if (!canRead) {
     </Box>
   );
 }
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -810,13 +809,13 @@ if (!canRead) {
         {/* Navigation Links */}
         <Grid container spacing={2} sx={{ mb: 1 }}>
           <Grid item xs={12} display="flex" alignItems="center">
-            {canReadPending && (
+          {canReadPending && (
             <Link href="/yen-purchase/ServiceOrder" passHref>
               <Button variant="contained" color="primary">
                 Pending
               </Button>
             </Link>
-            )}
+          )}
             {canReadApproved && (
             <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
               <Button variant="contained" color="primary" sx={{ ml: 1 }}>
@@ -1038,11 +1037,10 @@ if (!canRead) {
 >
   <CheckIcon />
 </IconButton>
-
                         </Tooltip>
 
                         <Tooltip title="Deactivate">
-                         <IconButton
+                                                  <IconButton
   onClick={
     canDelete
       ? () => handleOpenDeactivateDialog(service.mongoId)
@@ -1061,7 +1059,6 @@ if (!canRead) {
 >
   <BlockIcon />
 </IconButton>
-
                         </Tooltip>
                       </Box>
                     </TableCell>
@@ -1186,7 +1183,6 @@ if (!canRead) {
 >
   Move to Pending
 </Button>
-
             <Button onClick={handleDialogClose} color="primary">Close</Button>
           </DialogActions>
         </Dialog>

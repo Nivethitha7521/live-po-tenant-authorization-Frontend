@@ -74,9 +74,10 @@ const resetPassword = async () => {
   setLoading(true);
   try {
     const res = await fetch(
-      `http://127.0.0.1:8000/purchasetestapi/users/reset-password?username=${username}&new_password=${password}`,
-      { method: "POST" }
-    );
+  `http://127.0.0.1:8000/purchasetestapi/users/reset-password?username=${encodeURIComponent(username!)}&new_password=${encodeURIComponent(password)}`,
+  { method: "POST" }
+);
+
 
     if (!res.ok) {
       const err = await res.json();

@@ -43,6 +43,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   const isLoginRoute = useMemo(() => pathname === '/', [pathname]);
+  
   const isProtectedRoute = useMemo(() =>
     PROTECTED_ROUTES.some(route => pathname?.startsWith(route)),
     [pathname]
@@ -56,8 +57,46 @@ const permissions: string[] = Array.isArray(rawPermissions)
   ? rawPermissions
   : [];
 
-const hideBookMenu = !permissions.includes("YEN_BOOK_VIEW");
-const hidePurchaseMenu = !permissions.includes("YEN_PURCHASE_VIEW");
+const role = useSelector((state: RootState) => state.auth.role);
+const permissionObject = useSelector((state: RootState) => state.auth.permissions);
+
+const hasPurchaseAccess = useMemo(() => {
+  if (!permissionObject || !permissionObject.yenerp) return false;
+
+  const yenerp = permissionObject.yenerp as Record<
+    string,
+    { read?: boolean }
+  >;
+
+  return Object.keys(yenerp).some((key) => {
+    const perm = yenerp[key];
+    return perm?.read === true;
+  });
+}, [permissionObject]);
+
+
+const hasBookAccess = useMemo(() => {
+  if (!permissionObject || !permissionObject.yenerp) return false;
+
+  const yenerp = permissionObject.yenerp as Record<
+    string,
+    { read?: boolean }
+  >;
+
+  return Object.keys(yenerp).some((key) => {
+    const perm = yenerp[key];
+
+    return (
+      perm?.read === true &&
+      (key.includes("outgoing") ||
+        key.includes("payment") ||
+        key.includes("ledger"))
+    );
+  });
+}, [permissionObject]);
+
+
+
 
 
   // Session validation
@@ -121,15 +160,16 @@ useEffect(() => {
        <Toaster position="top-right" />
         <div className="flex h-screen overflow-hidden">
           {isMenuOpen && (
-            <SideMenu
-              onMenuClick={(menuItem) => {
-                setSelectedModule(menuItem.text);
-                router.push(menuItem.path);
-              }}
-              activePath={pathname || '/yen-purchase'}
-                hideBookMenu={hideBookMenu}
-  hidePurchaseMenu={hidePurchaseMenu}
-            />
+          <SideMenu
+  onMenuClick={(menuItem) => {
+    setSelectedModule(menuItem.text);
+    router.push(menuItem.path);
+  }}
+  activePath={pathname || '/yen-purchase'}
+  showPurchaseMenu={hasPurchaseAccess}
+  showBookMenu={hasBookAccess}
+/>
+
           )}
           <div className={`flex flex-col flex-1 overflow-hidden ${isMenuOpen ? 'pl-12' : 'pl-0'}`}>
             <Navbar
@@ -160,3 +200,24 @@ useEffect(() => {
 };
 
 export default ClientLayout;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
