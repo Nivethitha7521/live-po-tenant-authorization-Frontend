@@ -95,7 +95,12 @@ const Polist: React.FC = () => {
       permissions?.yenerp?.purchaseorders_pending?.hide === true ||
       permissions?.yenerp?.purchaseorders_pending?.hide === 1
     );
-
+const isGrnConvertedVisible =
+  permissions?.yenerp?.purchaseorders_grn_converted &&
+  !(
+    permissions?.yenerp?.purchaseorders_grn_converted?.hide === true ||
+    permissions?.yenerp?.purchaseorders_grn_converted?.hide === 1
+  );
   // READ hide values for PO modules
   const hidePending =
     permissions?.yenerp?.purchaseorders_pending?.hide === true;
@@ -1244,7 +1249,20 @@ useEffect(() => {
               Rejected
             </Button>
               )}
-           
+           {isGrnConvertedVisible && (
+           <Link href="/yen-purchase/PurchaseOrder/GrnConvertedPo" passHref>
+             <Button
+               variant="contained"
+               sx={{
+                 backgroundColor: "white",
+                 color: "black",
+                 "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.8)" }
+               }}
+             >
+               GRN Converted
+             </Button>
+           </Link>
+         )}
               
             {/* <Grid container justifyContent="flex-end">
               <Grid item>

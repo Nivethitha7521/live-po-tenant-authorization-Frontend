@@ -70,6 +70,7 @@ const isModuleVisible = (key: string) => {
     "purchaseorders_pending",
     "purchaseorders_approved",
     "purchaseorders_rejected",
+    "purchaseorders_grn_converted", 
   ];
 const serviceOrderKeys = [
   "serviceorders_pending",

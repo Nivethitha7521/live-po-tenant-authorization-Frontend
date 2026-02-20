@@ -1082,7 +1082,25 @@ const purchaseListSlice = createSlice({
     .addCase(calculateOverallDiscount.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload as string;
-    });
+    })
+    . addCase(fetchGrnConvertedPurchaseOrders.pending, (state) => {
+    console.log('Fetch GRN converted purchase orders - PENDING');
+    state.loading = true;
+    state.error = null;
+  })
+  .addCase(fetchGrnConvertedPurchaseOrders.fulfilled, (state, action) => {
+    console.log('Fetch GRN converted purchase orders - FULFILLED', action.payload);
+    state.loading = false;
+    state.grnConvertedPurchaseList = action.payload.purchaseOrders || [];
+    state.totalGrnConvertedItems = action.payload.totalItems || 0;
+    state.currentPage = action.meta.arg.page;
+    state.pageSize = action.meta.arg.size;
+  })
+  .addCase(fetchGrnConvertedPurchaseOrders.rejected, (state, action) => {
+    console.log('Fetch GRN converted purchase orders - REJECTED', action.error);
+    state.loading = false;
+    state.error = action.error.message || 'Failed to fetch GRN converted purchase orders';
+  });
   },
 });
 

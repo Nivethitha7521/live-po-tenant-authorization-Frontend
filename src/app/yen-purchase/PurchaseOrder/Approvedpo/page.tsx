@@ -320,7 +320,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
-  
+
   const handleQuantityBlur = useCallback(
     (itemId: string, field: "receivedQuantity", value: string | number) => {
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
@@ -986,6 +986,12 @@ const ApprovedPurchase: React.FC = () => {
   );
   const hasApprovedAccess = !hideApproved && canViewApproved;
 
+  const isGrnConvertedVisible =
+  permissions?.yenerp?.purchaseorders_grn_converted &&
+  !(
+    permissions?.yenerp?.purchaseorders_grn_converted?.hide === true ||
+    permissions?.yenerp?.purchaseorders_grn_converted?.hide === 1
+  );
   const dispatch = useDispatch<AppDispatch>();
   const { purchaseList, purchaseinvoice, error, snackbarOpen, snackbarMessage, searchQueryItem, randomIdSearch } = useSelector(selectPurchaseListState);
   const { businesses } = useSelector(selectBusinesses);
@@ -2738,6 +2744,20 @@ const handleSaveChanges = useCallback(async () => {
                 Rejected
               </Button>
           </Link>
+          )}
+          {isGrnConvertedVisible && (
+  <Link href="/yen-purchase/PurchaseOrder/GrnConvertedPo" passHref>
+    <Button
+      variant="contained"
+      sx={{
+        backgroundColor: "white",
+        color: "black",
+        "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.8)" }
+      }}
+    >
+      GRN Converted
+    </Button>
+  </Link>
           )}
         </Box>
         {/* Filter and search UI - keep as is */}

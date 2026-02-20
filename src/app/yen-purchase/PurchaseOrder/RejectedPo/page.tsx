@@ -137,12 +137,20 @@ const RejectedPo: React.FC = () => {
     "purchaseorders_approved",
     "read",
   );
+  const isGrnConvertedVisible =
+  permissions?.yenerp?.purchaseorders_grn_converted &&
+  !(
+    permissions?.yenerp?.purchaseorders_grn_converted?.hide === true ||
+    permissions?.yenerp?.purchaseorders_grn_converted?.hide === 1
+  );
   const hasRejectedAccess = canViewRejected && !isRejectedHidden;
   const isApprovedHidden =
     permissions?.yenerp?.purchaseorders_approved?.hide === true;
 
   const isPendingHidden =
     permissions?.yenerp?.purchaseorders_pending?.hide === true;
+
+    
   useEffect(() => {
     if (shouldFetch && !loading) {
       const action = fetchPurchaseOrders({ page: newPage, size: pageSize, dateField: dateField });
@@ -1202,7 +1210,20 @@ const RejectedPo: React.FC = () => {
               </Button>
             </Link>
                )}
-               
+                  {isGrnConvertedVisible && (
+  <Link href="/yen-purchase/PurchaseOrder/GrnConvertedPo" passHref>
+    <Button
+      variant="contained"
+      sx={{
+        backgroundColor: "white",
+        color: "black",
+        "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.8)" }
+      }}
+    >
+      GRN Converted
+    </Button>
+  </Link>
+)}
           </Box>
           
           <Box
