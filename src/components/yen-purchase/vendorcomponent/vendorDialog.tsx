@@ -31,7 +31,8 @@ import { resetLocationState } from '../../../features/locationAreaSlice';
 import { Vendor } from '@/Models/vendor';
 import { FormikErrors } from 'formik';
 import { fetchBank, selectOutgoings } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
-
+import { fetchVendorTypeItems } 
+from '@/features/yen-purchase/PurchaseMaster/VendorTypeSlice';
 const validationSchema = yup.object({
   vendorName: yup
     .string()
@@ -189,7 +190,11 @@ const VendorDialog = ({ loading, setLoading }: VendorDialogProps) => {
       setIsDirty(false);
     }
   }, [dialogOpen, vendorData.vendorId, dispatch]);
-
+useEffect(() => {
+  if (dialogOpen) {
+    dispatch(fetchVendorTypeItems({}));
+  }
+}, [dialogOpen, dispatch]);
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {

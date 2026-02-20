@@ -1,6 +1,8 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import purchaseApi from '@/utils/api';   // ✅ REPLACED axios with purchaseApi
 import { RootState } from '../../../redux/store';
+import { fetchVendorTypeItems } 
+from './VendorTypeSlice';
 import { format } from 'date-fns';
 import {
   CsvImportResponse,
@@ -291,19 +293,6 @@ export const exportVendorsCsv = createAsyncThunk(
 // ----------------------------------------------
 // FETCH VENDOR TYPES
 // ----------------------------------------------
-export const fetchVendorTypeItems = createAsyncThunk(
-  'vendorType/fetch',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await purchaseApi.get('/vendortypes/'); // FIXED
-      return response.data;
-    } catch (error: any) {
-      console.error("❌ Vendor types API error:", error);
-      console.error("❌ Error details:", error.response?.data);
-      return rejectWithValue(error.response?.data || 'Failed to fetch vendor types');
-    }
-  }
-);
 
 
 // ----------------------------------------------------
@@ -366,8 +355,10 @@ const vendorSlice = createSlice({
   // ----------------------------------------------------
   extraReducers: (builder) => {
     builder
-    .addCase(fetchVendorTypeItems.fulfilled, (state, action) => {
-  state.vendorTypeItems = action.payload;
+ .addCase(fetchVendorTypeItems.fulfilled, (state, action) => {
+  state.vendorTypeItems = action.payload.filter(
+    (v: any) => v.status === 'active'
+  );
 })
       // FETCH
       .addCase(fetchVendors.pending, (state) => {

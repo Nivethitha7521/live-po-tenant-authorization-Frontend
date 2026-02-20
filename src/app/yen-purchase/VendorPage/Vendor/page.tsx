@@ -5,9 +5,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Box, Snackbar, Alert } from '@mui/material';
 import { AppDispatch } from '../../../../redux/store';
 import {
-  fetchVendors, fetchVendorTypeItems, setSnackbarOpen, fetchVendorAll, selectCurrentPage,
+  fetchVendors,setSnackbarOpen, fetchVendorAll, selectCurrentPage,
   selectPageSize, selectTotalVendors, setPagination, selectVendorItems,
 } from '../../../../features/yen-purchase/PurchaseMaster/vendorSlice';
+import { fetchVendorTypeItems }
+from '../../../../features/yen-purchase/PurchaseMaster/VendorTypeSlice';
 import { fetchBank } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import MenuPage from '../page';
 import VendorToolbar from '../../../../components/yen-purchase/vendorcomponent/vendorToolbar';
@@ -44,7 +46,7 @@ const Vendor = memo(() => {
   
 
   useEffect(() => {
-    dispatch(fetchVendorTypeItems());
+    dispatch(fetchVendorTypeItems({}));
     dispatch(fetchBank());
   }, [dispatch]);
 
