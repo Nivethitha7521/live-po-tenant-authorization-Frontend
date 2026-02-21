@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from "next/navigation";
+import { getTenantPath } from "@/utils/tenantPath";
+
 import {
   Box, TextField, Button, Typography, Grid, Paper,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
@@ -1157,7 +1159,7 @@ const RejectedPo: React.FC = () => {
         <Button
           variant="contained"
           sx={{ mt: 3 }}
-          onClick={() => router.push("/yen-purchase/PurchaseOrder")}
+          onClick={() => router.push(getTenantPath("/yen-purchase/PurchaseOrder"))}
         >
           Back
         </Button>
@@ -1181,21 +1183,21 @@ const RejectedPo: React.FC = () => {
           >
             {/* Purchase Order Links */}
             {!isPendingHidden && (
-            <Link href="/yen-purchase/PurchaseOrder" passHref>
+            <Link href={getTenantPath("/yen-purchase/PurchaseOrder")}>
               <Button variant="contained" color="primary">
                 Pending
               </Button>
             </Link>
             )}
               {!isApprovedHidden && canViewApproved && (
-            <Link href="/yen-purchase/PurchaseOrder/Approvedpo" passHref>
+            <Link href={getTenantPath("/yen-purchase/PurchaseOrder/Approvedpo")}>
               <Button variant="contained" color="primary">
                 Approved
               </Button>
             </Link>
               )}
                {!isRejectedHidden && canViewRejected && (
-            <Link href="/yen-purchase/PurchaseOrder/RejectedPo" passHref>
+            <Link href={getTenantPath("/yen-purchase/PurchaseOrder/RejectedPo")}>
               <Button
                 variant="contained"
                 sx={{
@@ -1211,17 +1213,19 @@ const RejectedPo: React.FC = () => {
             </Link>
                )}
                   {isGrnConvertedVisible && (
-  <Link href="/yen-purchase/PurchaseOrder/GrnConvertedPo" passHref>
-    <Button
-      variant="contained"
-      sx={{
-        backgroundColor: "white",
-        color: "black",
-        "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.8)" }
-      }}
-    >
-      GRN Converted
-    </Button>
+  <Link href={getTenantPath("/yen-purchase/PurchaseOrder/GRNConvertedPO")}>
+  <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: 'white',
+                  color: 'black',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  },
+                }}
+              >
+               GRN Converted
+              </Button>
   </Link>
 )}
           </Box>

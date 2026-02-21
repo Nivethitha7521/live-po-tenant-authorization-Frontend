@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
+import { getTenantPath } from "@/utils/tenantPath";
 import {
   Box,
   TextField,
@@ -2705,7 +2706,7 @@ const handleSaveChanges = useCallback(async () => {
          <Button
           variant="contained"
           sx={{ mt: 3 }}
-          onClick={() => router.push("/yen-purchase/PurchaseOrder")}
+          onClick={() => router.push(getTenantPath("/yen-purchase/PurchaseOrder"))}
         >
           Back
         </Button>
@@ -2718,14 +2719,14 @@ const handleSaveChanges = useCallback(async () => {
       <Box sx={{ display: "flex", flexDirection: "column", px: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 1 }}>
             {!hidePending && (
-          <Link href="/yen-purchase/PurchaseOrder" passHref>
+          <Link href={getTenantPath("/yen-purchase/PurchaseOrder")}>
            <Button variant="contained" color="primary">
                 Pending
               </Button>
             </Link>
             )}
 
-          <Link href="/yen-purchase/PurchaseOrder/Approvedpo" passHref>
+          <Link href={getTenantPath("/yen-purchase/PurchaseOrder/Approvedpo")}>
             <Button
               variant="contained"
               sx={{
@@ -2739,24 +2740,26 @@ const handleSaveChanges = useCallback(async () => {
           </Link>
            
           {!hideRejected && canViewRejected && (
-            <Link href="/yen-purchase/PurchaseOrder/RejectedPo" passHref>
+            <Link href={getTenantPath("/yen-purchase/PurchaseOrder/RejectedPo")}>
               <Button variant="contained" color="primary">
                 Rejected
               </Button>
           </Link>
           )}
           {isGrnConvertedVisible && (
-  <Link href="/yen-purchase/PurchaseOrder/GrnConvertedPo" passHref>
-    <Button
-      variant="contained"
-      sx={{
-        backgroundColor: "white",
-        color: "black",
-        "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.8)" }
-      }}
-    >
-      GRN Converted
-    </Button>
+  <Link href={getTenantPath("/yen-purchase/PurchaseOrder/GRNConvertedPO")}>
+  <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: 'white',
+                  color: 'black',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  },
+                }}
+              >
+               GRN Converted
+              </Button>
   </Link>
           )}
         </Box>

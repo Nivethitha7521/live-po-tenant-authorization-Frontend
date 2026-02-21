@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
+import { getTenantPath } from "@/utils/tenantPath";
 import {
     Grid,
     Typography,
@@ -450,7 +451,7 @@ const PurchaseReturnPage = React.memo(() => {
             <Box display="flex" alignItems="center" justifyContent="space-between" marginTop={1}>
                 <Box display="flex" alignItems="center">
                     {isModuleVisible("yenerp", "outgoingpayment") && (
-            <Link href="/yen-book/OutgoingPaymentPage" passHref>
+            <Link href={getTenantPath("/yen-book/OutgoingPaymentPage")}>
               <Button
                 variant="contained"
                 color="primary"
@@ -461,35 +462,35 @@ const PurchaseReturnPage = React.memo(() => {
             </Link>
           )}
                   {isModuleVisible("yenerp", "advancepayment") && (
-            <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
+            <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/PreOutgoing")}>
               <Button variant="contained" color="primary" sx={{ mr: "2px" }}>
                 Advance Payment
               </Button>
             </Link>
           )}
                   {isModuleVisible("yenerp", "partialpayment") && (
-            <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
+            <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/PendingPayment")}>
               <Button variant="contained" color="primary" sx={{ mr: "2px" }}>
                 Partial Payment
               </Button>
             </Link>
           )}
                     {isModuleVisible("yenerp", "paymentdone") && (
-            <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
+            <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/PaidPayment")}>
               <Button variant="contained" color="primary" sx={{ mr: "2px" }}>
                 Payment Done
               </Button>
             </Link>
           )}
                      {isModuleVisible("yenerp", "ledger") && (
-            <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
+            <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/Ledger")}>
               <Button variant="contained" color="primary" sx={{ mr: "2px" }}>
                 Ledger
               </Button>
             </Link>
           )}
                       {canShowPurchaseReturn && (
-            <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
+            <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/PurchaseReturn")}>
               <Button
                 variant="contained"
                 sx={{

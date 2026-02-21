@@ -66,6 +66,8 @@ import { VendorSearch } from '@/Models/vendor';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import ItemSearchAutocomplete from './Component/ItemSearch';
+import { getTenantPath } from "@/utils/tenantPath";
+
 // Add the TypeScript declaration for autoTable (if necessary)
 declare module 'jspdf' {
   interface jsPDF {
@@ -568,7 +570,7 @@ useEffect(() => {
     }
   };
   const handleEditClick = (orderId: string) => {
-    router.push(`/yen-purchase/PurchaseOrder/Createpurchase?edit=${orderId}`);
+    router.push(getTenantPath(`/yen-purchase/PurchaseOrder/Createpurchase?edit=${orderId}`));
   };
   const handleOpen = () => {
     setDialogSummaryOpen(true);
@@ -1218,7 +1220,7 @@ useEffect(() => {
         <Grid container spacing={2} sx={{ mb: 1 }}>
           <Grid item xs={12} display="flex" alignItems="center">
             {!hidePending && (
-            <Link href="/yen-purchase/PurchaseOrder" passHref>
+            <Link href={getTenantPath("/yen-purchase/PurchaseOrder")}>
               <Button
                 variant="contained"
                 sx={{
@@ -1233,7 +1235,7 @@ useEffect(() => {
               </Button>
             </Link>)}
              {!hideApproved && (
-            <Link href="/yen-purchase/PurchaseOrder/Approvedpo" passHref>
+            <Link href={getTenantPath("/yen-purchase/PurchaseOrder/Approvedpo")}>
               <Button variant="contained" sx={{ marginLeft: '10px' }} color="primary">
                 Approved
               </Button>
@@ -1244,23 +1246,25 @@ useEffect(() => {
               variant="contained"
               color="primary"
               sx={{ marginLeft: '10px', marginRight: '10px' }}
-              onClick={() => router.push('/yen-purchase/PurchaseOrder/RejectedPo')}
+              onClick={() => router.push(getTenantPath('/yen-purchase/PurchaseOrder/RejectedPo'))}
             >
               Rejected
             </Button>
               )}
            {isGrnConvertedVisible && (
-           <Link href="/yen-purchase/PurchaseOrder/GrnConvertedPo" passHref>
-             <Button
-               variant="contained"
-               sx={{
-                 backgroundColor: "white",
-                 color: "black",
-                 "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.8)" }
-               }}
-             >
-               GRN Converted
-             </Button>
+           <Link href={getTenantPath("/yen-purchase/PurchaseOrder/GRNConvertedPO")}>
+        <Button
+                      variant="contained"
+                      sx={{
+                        backgroundColor: 'white',
+                        color: 'black',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        },
+                      }}
+                    >
+                     GRN Converted
+                    </Button>
            </Link>
          )}
               
@@ -1408,7 +1412,7 @@ useEffect(() => {
                 size="small"
                 onClick={() =>
                   canAdd &&
-                  router.push("/yen-purchase/PurchaseOrder/Createpurchase")
+                  router.push(getTenantPath("/yen-purchase/PurchaseOrder/Createpurchase"))
                 }
                 disabled={!canAdd}
                 sx={{

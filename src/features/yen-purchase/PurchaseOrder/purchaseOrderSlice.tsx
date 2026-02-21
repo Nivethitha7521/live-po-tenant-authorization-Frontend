@@ -365,6 +365,8 @@ export const calculateItemTotals = createAsyncThunk(
   }
 );
 
+
+
 export const calculateOverallDiscountForAllItems = createAsyncThunk<
   OverallDiscountResponse,
   CalculateOverallDiscountPayload,
@@ -399,7 +401,6 @@ export const calculateOverallDiscountForAllItems = createAsyncThunk<
     }
   }
 );
-
 export const downloadCsvTemplate = createAsyncThunk(
   "purchaseOrder/downloadCsvTemplate",
   async (_, { rejectWithValue }) => {

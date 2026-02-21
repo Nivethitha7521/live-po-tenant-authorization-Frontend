@@ -7,7 +7,7 @@ import { Button } from '@mui/material';
 import React from 'react';
 import { useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
-
+import { getTenantPath } from "@/utils/tenantPath";
 // Dynamically import SideMenu
 const SideMenu = dynamic(() => import('../../components/SideMenu'), {
   ssr: false, // Disable SSR if SideMenu is client-only
@@ -89,27 +89,27 @@ const serviceOrderKeys = [
       [
         {
           label: "Purchase Master",
-          path: "/yen-purchase/PurchaseMaster",
+          path: getTenantPath("/yen-purchase/PurchaseMaster"),
           visible: isAnyModuleVisible(purchaseMasterKeys),
         },
         {
           label: "Vendor",
-          path: "/yen-purchase/VendorPage",
+          path:getTenantPath("/yen-purchase/VendorPage"),
           visible: isAnyModuleVisible(vendorKeys),
         },
         {
           label: "Purchase Item",
-          path: "/yen-purchase/PurchaseItemPage",
+          path: getTenantPath("/yen-purchase/PurchaseItemPage"),
           visible: isAnyModuleVisible(purchaseitemKeys),
         },
         {
           label: "Purchase Order",
-          path: "/yen-purchase/PurchaseOrder",
+          path: getTenantPath("/yen-purchase/PurchaseOrder"),
           visible: isAnyModuleVisible(purchaseOrderKeys),
         },
  {
   label: "Service Order",
-  path: "/yen-purchase/ServiceOrder",
+  path: getTenantPath("/yen-purchase/ServiceOrder"),
   visible: isAnyModuleVisible(serviceOrderKeys),
 },
 
@@ -117,12 +117,12 @@ const serviceOrderKeys = [
 
         {
           label: "GRN Note",
-          path: "/yen-purchase/GrnPage",
+          path:getTenantPath("/yen-purchase/GrnPage"),
           visible: isAnyModuleVisible(grnKeys),
         },
         {
           label: "AP Invoice",
-          path: "/yen-purchase/ApInvoicePage",
+          path: getTenantPath("/yen-purchase/ApInvoicePage"),
           visible: isAnyModuleVisible(apInvoiceKeys),
         },
       ].filter((item) => item.visible),

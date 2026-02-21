@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
+import { getTenantPath } from "@/utils/tenantPath";
 import YenBookPage from "../../page";
 
 import {
@@ -125,7 +126,7 @@ const PaymentHistoryPage = () => {
       newParams.delete('payment_id');
     }
     newParams.set('page', '1'); // Reset to page 1 on filter
-    router.push(`?${newParams.toString()}`);
+    router.push(getTenantPath(`?${newParams.toString()}`));
   };
 
   // Handle clear filter
@@ -133,7 +134,7 @@ const PaymentHistoryPage = () => {
     setLocalFilter('');
     const newParams = new URLSearchParams();
     newParams.set('page', '1');
-    router.push(`?${newParams.toString()}`);
+    router.push(getTenantPath(`?${newParams.toString()}`));
   };
 
   // Format helpers (unchanged)
@@ -156,7 +157,7 @@ const PaymentHistoryPage = () => {
   const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
     const newParams = new URLSearchParams(searchParams || '');
     newParams.set('page', value.toString());
-    router.push(`?${newParams.toString()}`);
+    router.push(getTenantPath(`?${newParams.toString()}`));
   };
 if (!canRead) {
   return (

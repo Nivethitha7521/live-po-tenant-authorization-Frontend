@@ -8,6 +8,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import { getTenantPath } from "@/utils/tenantPath";
 import ClearIcon from "@mui/icons-material/Clear";
 import CheckIcon from '@mui/icons-material/Check';
 import { usePermissions } from "@/hooks/usePermissions";
@@ -931,13 +932,13 @@ if (!canRead) {
           <Grid item xs={12} display="flex" alignItems="center">
            {canReadPending && (
 
-            <Link href="/yen-purchase/ServiceOrder" passHref>
+            <Link href={getTenantPath("/yen-purchase/ServiceOrder")}>
               <Button variant="contained" color="primary">
                 Pending
               </Button>
             </Link>
            )}
-            <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
+            <Link href={getTenantPath("/yen-purchase/ServiceOrder/ApprovedService")}>
               <Button
                 variant="contained"
                 sx={{
@@ -953,7 +954,7 @@ if (!canRead) {
               </Button>
             </Link>
               {canReadRejected && (
-            <Link href="/yen-purchase/ServiceOrder/RejectedService" passHref>
+            <Link href={getTenantPath("/yen-purchase/ServiceOrder/RejectedService")}>
               <Button variant="contained" color="primary" sx={{ ml: 1 }}>
                 Rejected
               </Button>

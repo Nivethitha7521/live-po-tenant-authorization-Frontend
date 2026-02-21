@@ -1347,17 +1347,19 @@ if (!canRead) {
               </Button>
             </Link>
           {isGrnConvertedVisible && (
-  <Link href="/yen-purchase/PurchaseOrder/GrnConvertedPo" passHref>
-    <Button
-      variant="contained"
-      sx={{
-        backgroundColor: "white",
-        color: "black",
-        "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.8)" }
-      }}
-    >
-      GRN Converted
-    </Button>
+  <Link href="/yen-purchase/PurchaseOrder/GRNConvertedPO" passHref>
+  <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: 'white',
+                  color: 'black',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  },
+                }}
+              >
+               GRN Converted
+              </Button>
   </Link>
 )}
 

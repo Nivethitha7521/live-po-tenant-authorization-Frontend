@@ -2,6 +2,8 @@
 "use client";
 
 import React, { useMemo, useCallback } from 'react';
+
+import { getTenantPath } from "@/utils/tenantPath";
 import Link from 'next/link';
 import { Button } from '@mui/material';
 import { usePathname, useRouter } from 'next/navigation';
@@ -75,7 +77,7 @@ const hideBookMenu =
     [
       {
         label: "Outgoing Payment",
-        path: "/yen-book/OutgoingPaymentPage",
+        path: getTenantPath("/yen-book/OutgoingPaymentPage"),
         visible: isModuleVisible("outgoingpayment"),
       },
     ].filter((item) => item.visible),

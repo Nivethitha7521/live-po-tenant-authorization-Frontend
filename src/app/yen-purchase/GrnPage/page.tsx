@@ -1,6 +1,7 @@
 "use client";
 import React, { ChangeEvent, useEffect, MouseEvent, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { getTenantPath } from "@/utils/tenantPath";
 import Link from 'next/link';
 import {
   Box, TextField, Button, Grid, Paper,
@@ -1485,7 +1486,7 @@ const handleApRoundOffBlur = () => {
             {/* Buttons */}
             <Box display="flex" alignItems="center">
                {canRead && (
-              <Link href="/yen-purchase/GrnPage" passHref>
+              <Link href={getTenantPath("/yen-purchase/GrnPage")}>
                 <Button
                   variant="contained"
                   sx={{
@@ -1502,7 +1503,7 @@ const handleApRoundOffBlur = () => {
               </Link>
                )}
               {canReturnRead && (
-              <Link href="/yen-purchase/GrnPage/GrnReturn" passHref>
+              <Link href={getTenantPath("/yen-purchase/GrnPage/GrnReturn")}>
                 <Button variant="contained" color="primary" sx={{ mr: 2 }}>
                   Return GRN
                 </Button>

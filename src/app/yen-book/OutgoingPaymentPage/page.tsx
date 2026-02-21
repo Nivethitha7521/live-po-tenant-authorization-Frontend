@@ -57,6 +57,7 @@ import DateRangeDialog from '@/components/dateRange';
 import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css'; // theme css file
 import { ClearIcon } from '@mui/x-date-pickers/icons';
+import { getTenantPath } from "@/utils/tenantPath";
 import moment from 'moment';
 import { fetchItemwiseAps, fetchRandomIDApInvoices, selectApinvoice, setApDialogOpen, setSelectedinvoiceId } from '@/features/yen-purchase/AP/apInvoiceSlice';
 import { clearDebitCreditNotes, fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
@@ -1114,7 +1115,7 @@ const OutgoingPaymentComponent = React.memo(() => {
             <Box display="flex" alignItems="center">
              {isModuleVisible("yenerp", "outgoingpayment") && (
                 <Grid item>
-                  <Link href="/yen-book/OutgoingPaymentPage" passHref>
+                  <Link href={getTenantPath("/yen-book/OutgoingPaymentPage")}>
                     <Button
                       variant="contained"
                       sx={{
@@ -1131,8 +1132,8 @@ const OutgoingPaymentComponent = React.memo(() => {
               {isModuleVisible("yenerp", "advancepayment") && (
                 <Grid item>
                   <Link
-                    href="/yen-book/OutgoingPaymentPage/PreOutgoing"
-                    passHref
+                    href={getTenantPath("/yen-book/OutgoingPaymentPage/PreOutgoing"
+                    )}
                   >
                     <Button variant="contained" color="primary" sx={{ mr: 1 }}>
                       Advance Payment
@@ -1143,8 +1144,8 @@ const OutgoingPaymentComponent = React.memo(() => {
              {isModuleVisible("yenerp", "partialpayment") && (
                 <Grid item>
                   <Link
-                    href="/yen-book/OutgoingPaymentPage/PendingPayment"
-                    passHref
+                    href={getTenantPath("/yen-book/OutgoingPaymentPage/PendingPayment"
+                    )}
                   >
                     <Button variant="contained" color="primary" sx={{ mr: 1 }}>
                       Partial Payment
@@ -1155,8 +1156,8 @@ const OutgoingPaymentComponent = React.memo(() => {
               {isModuleVisible("yenerp", "paymentdone") && (
                 <Grid item>
                   <Link
-                    href="/yen-book/OutgoingPaymentPage/PaidPayment"
-                    passHref
+                    href={getTenantPath("/yen-book/OutgoingPaymentPage/PaidPayment"
+                    )}
                   >
                     <Button variant="contained" color="primary" sx={{ mr: 1 }}>
                       Payment Done
@@ -1166,14 +1167,14 @@ const OutgoingPaymentComponent = React.memo(() => {
               )}
               {isModuleVisible("yenerp", "paymenthistory") && (
               <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/PaymentHistory" passHref>
+                <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/PaymentHistory")}>
                   <Button variant="contained" color="primary" sx={{ mr: 1 }}>Payment History</Button>
                 </Link>
               </Grid>
               )}
              {isModuleVisible("yenerp", "ledger") && (
                 <Grid item>
-                  <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
+                  <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/Ledger")}>
                     <Button variant="contained" color="primary" sx={{ mr: 1 }}>
                       Ledger
                     </Button>
@@ -1183,8 +1184,8 @@ const OutgoingPaymentComponent = React.memo(() => {
                <Grid item>
                 {isModuleVisible("yenerp", "purchasereturn") && (
                   <Link
-                    href="/yen-book/OutgoingPaymentPage/PurchaseReturn"
-                    passHref
+                    href={getTenantPath("/yen-book/OutgoingPaymentPage/PurchaseReturn"
+                    )}
                   >
                     <Button variant="contained" color="primary">
                       Purchase Return

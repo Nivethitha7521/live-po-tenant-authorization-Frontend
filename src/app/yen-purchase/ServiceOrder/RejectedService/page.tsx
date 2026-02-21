@@ -10,6 +10,7 @@ import BlockIcon from '@mui/icons-material/Block';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import ClearIcon from "@mui/icons-material/Clear";
 import CheckIcon from '@mui/icons-material/Check';
+import { getTenantPath } from "@/utils/tenantPath";
 import {
   Box, Button, Typography, Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
   Paper, IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -810,20 +811,20 @@ if (!canRead) {
         <Grid container spacing={2} sx={{ mb: 1 }}>
           <Grid item xs={12} display="flex" alignItems="center">
           {canReadPending && (
-            <Link href="/yen-purchase/ServiceOrder" passHref>
+            <Link href={getTenantPath("/yen-purchase/ServiceOrder")}>
               <Button variant="contained" color="primary">
                 Pending
               </Button>
             </Link>
           )}
             {canReadApproved && (
-            <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
+            <Link href={getTenantPath("/yen-purchase/ServiceOrder/ApprovedService")}>
               <Button variant="contained" color="primary" sx={{ ml: 1 }}>
                 Approved
               </Button>
             </Link>
             )}
-            <Link href="/yen-purchase/ServiceOrder/RejectedService" passHref>
+            <Link href={getTenantPath("/yen-purchase/ServiceOrder/RejectedService")}>
               <Button
                 variant="contained"
                 sx={{

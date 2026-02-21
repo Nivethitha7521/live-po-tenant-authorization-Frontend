@@ -7,6 +7,7 @@ import {
   FormControlLabel, Radio, CircularProgress, Tooltip, Backdrop, Switch, FormControl, Select, MenuItem,
   Alert
 } from '@mui/material';
+import { getTenantPath } from "@/utils/tenantPath";
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -434,7 +435,7 @@ const CreateServicePage: React.FC = () => {
           console.error('Failed to load service order for edit:', error);
           dispatch(setSnackbarMessage('Failed to load service order data.'));
           dispatch(setSnackbarOpen(true));
-          router.push('/yen-purchase/ServiceOrder');
+          router.push(getTenantPath('/yen-purchase/ServiceOrder'));
         } finally {
           setLoadingStates(prev => ({ ...prev, initial: false }));
         }
@@ -1249,7 +1250,7 @@ const CreateServicePage: React.FC = () => {
     }
 
     if (isEditMode) {
-      router.push('/yen-purchase/ServiceOrder');
+      router.push(getTenantPath('/yen-purchase/ServiceOrder'));
     }
   }, [dispatch, isEditMode, router]);
 
@@ -1257,12 +1258,12 @@ const CreateServicePage: React.FC = () => {
     if (isFormDirty) {
       setPendingNavigation(() => () => {
         handleClear();
-        router.push('/yen-purchase/ServiceOrder');
+        router.push(getTenantPath('/yen-purchase/ServiceOrder'));
       });
       setShowNavigationConfirm(true);
     } else {
       handleClear();
-      router.push('/yen-purchase/ServiceOrder');
+      router.push(getTenantPath('/yen-purchase/ServiceOrder'));
     }
   }, [isFormDirty, handleClear, router]);
 
@@ -1362,7 +1363,7 @@ const CreateServicePage: React.FC = () => {
       handleClear(preventRefresh);
 
       setDialogOpen(false);
-      router.push('/yen-purchase/ServiceOrder');
+      router.push(getTenantPath('/yen-purchase/ServiceOrder'));
     } catch (error) {
       console.error('Submit error:', error);
       if (error instanceof Yup.ValidationError) {

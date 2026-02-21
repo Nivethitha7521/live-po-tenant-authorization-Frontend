@@ -1,6 +1,7 @@
 "use client";
 import React, { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { getTenantPath } from "@/utils/tenantPath";
 import {
   Box, Button, TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
   Typography, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
@@ -824,7 +825,7 @@ const generateSummaryPDF = () => {
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
             <Box display="flex" alignItems="center">
               {!isGrnListHidden && (
-                <Link href="/yen-purchase/GrnPage" passHref>
+                <Link href={getTenantPath("/yen-purchase/GrnPage")}>
                   <Button
                     variant="contained"
                     color="primary"
@@ -835,7 +836,7 @@ const generateSummaryPDF = () => {
                 </Link>
               )}
               {!returnGrnPermission.hide && (
-                <Link href="/yen-purchase/GrnPage/GrnReturn" passHref>
+                <Link href={getTenantPath("/yen-purchase/GrnPage/GrnReturn")}>
                   <Button
                     variant="contained"
                     sx={{

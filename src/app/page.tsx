@@ -112,7 +112,21 @@ const result = await response.json();
 // Save token
 localStorage.setItem("token", result.access_token);
 localStorage.setItem("tenant_id", trimmedTenant);
+let slug = "";
+// ⭐ Get selected tenant object
+const selectedTenant = tenants.find(t => t._id === trimmedTenant);
+
+if (selectedTenant) {
+  // ⭐ Create slug (lowercase + remove spaces)
+  slug = selectedTenant.tenantName
+    .toLowerCase()
+    .replace(/\s+/g, '');
+
+  localStorage.setItem("tenant_slug", slug);
+  document.cookie = `tenant_slug=${slug}; path=/`;
+}
 localStorage.setItem("username", result.username);
+
 localStorage.setItem("userPermissions", JSON.stringify(result.permissions));
 
 sessionStorage.setItem("accessToken", result.access_token);
@@ -134,8 +148,7 @@ dispatch(setSnackbarOpen(true));
 
 // Redirect
 toast.success("Login successful!");
-router.push("/yen-purchase");
-
+router.push(`/${slug}/yen-purchase`);
 
     
   } catch (error) {

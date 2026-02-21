@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { getTenantPath } from "@/utils/tenantPath";
 import {
   Grid,
   Typography,
@@ -478,7 +479,7 @@ if (!canReadLedger) {
           <Grid container spacing={1} alignItems="center">
              {isModuleVisible("yenerp", "outgoingpayment") && (
               <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage" passHref>
+                <Link href={getTenantPath("/yen-book/OutgoingPaymentPage")}>
                   <Button variant="contained" size="small">
                     Outgoing Payment
                   </Button>
@@ -487,7 +488,7 @@ if (!canReadLedger) {
             )}
             <Grid item>
               {isModuleVisible("yenerp", "advancepayment") && (
-                <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
+                <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/PreOutgoing")}>
                   <Button variant="contained" size="small">
                     Advance Payment
                   </Button>
@@ -497,8 +498,8 @@ if (!canReadLedger) {
             {isModuleVisible("yenerp", "partialpayment") && (
               <Grid item>
                 <Link
-                  href="/yen-book/OutgoingPaymentPage/PendingPayment"
-                  passHref
+                  href={getTenantPath("/yen-book/OutgoingPaymentPage/PendingPayment"
+                  )}
                 >
                   <Button variant="contained" size="small">
                     Partial Payment
@@ -508,7 +509,7 @@ if (!canReadLedger) {
             )}
              <Grid item>
               {isModuleVisible("yenerp", "paymentdone") && (
-                <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
+                <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/PaidPayment")}>
                   <Button variant="contained" size="small">
                     Payment Done
                   </Button>
@@ -517,6 +518,7 @@ if (!canReadLedger) {
             </Grid>
             {isModuleVisible("yenerp", "ledger") && (
               <Grid item>
+                
                 <Button
                   variant="contained"
                   size="small"
@@ -533,8 +535,8 @@ if (!canReadLedger) {
             <Grid item>
               {isModuleVisible("yenerp", "purchasereturn") && (
                 <Link
-                  href="/yen-book/OutgoingPaymentPage/PurchaseReturn"
-                  passHref
+                  href={getTenantPath("/yen-book/OutgoingPaymentPage/PurchaseReturn"
+                  )}
                 >
                   <Button variant="contained" size="small">
                     Purchase Return

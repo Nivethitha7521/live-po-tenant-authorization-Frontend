@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/redux/store';
+import { getTenantPath } from "@/utils/tenantPath";
 import { format } from 'date-fns';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -322,7 +323,7 @@ console.log("🔍 Service Order Pending Permissions:", {
   };
 
   const handleEditClick = (mongoId: string) => {
-    router.push(`/yen-purchase/ServiceOrder/CreateService?edit=${mongoId}`);
+    router.push(getTenantPath(`/yen-purchase/ServiceOrder/CreateService?edit=${mongoId}`));
   };
 
   const handleDialogClose = () => {
@@ -709,7 +710,7 @@ if (!canRead) {
       <Box sx={{ px: 2, py: 1 }}>
         <Grid container spacing={2} sx={{ mb: 1 }}>
           <Grid item xs={12} display="flex" alignItems="center">
-            <Link href="/yen-purchase/ServiceOrder" passHref>
+            <Link href={getTenantPath("/yen-purchase/ServiceOrder")}>
               <Button
                 variant="contained"
                 sx={{
@@ -724,7 +725,7 @@ if (!canRead) {
               </Button>
             </Link>
              {canReadApproved && (
-            <Link href="/yen-purchase/ServiceOrder/ApprovedService" passHref>
+            <Link href={getTenantPath("/yen-purchase/ServiceOrder/ApprovedService")}>
               <Button variant="contained" sx={{ marginLeft: '10px' }} color="primary">
                 Approved
               </Button>
@@ -735,7 +736,7 @@ if (!canRead) {
               variant="contained"
               color="primary"
               sx={{ marginLeft: '10px', marginRight: '10px' }}
-              onClick={() => router.push('/yen-purchase/ServiceOrder/RejectedService')}
+              onClick={() => router.push(getTenantPath('/yen-purchase/ServiceOrder/RejectedService'))}
             >
               Rejected
             </Button>
@@ -825,7 +826,7 @@ if (!canRead) {
   startIcon={<AddIcon />}
   onClick={() =>
     canAdd &&
-    router.push("/yen-purchase/ServiceOrder/CreateService")
+    router.push(getTenantPath("/yen-purchase/ServiceOrder/CreateService"))
   }
   disabled={!canAdd}
   sx={{

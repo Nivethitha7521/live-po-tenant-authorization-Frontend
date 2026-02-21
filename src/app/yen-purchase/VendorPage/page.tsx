@@ -6,6 +6,7 @@ import { Button, Box } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
 import YenPurchasePage from "../page";
 import { usePermissions } from "../../../hooks/usePermissions"; // Add this import
+import { getTenantPath } from "@/utils/tenantPath";
 
 const MenuPage = () => {
   const pathname = usePathname();
@@ -18,13 +19,13 @@ const MenuPage = () => {
       {
         id: 1,
         label: "Vendor Type",
-        path: "/yen-purchase/VendorPage/VendorType",
+        path: getTenantPath("/yen-purchase/VendorPage/VendorType"),
         module: "vendortype", // Add module name for permission check
       },
       {
         id: 2,
         label: "Vendors",
-        path: "/yen-purchase/VendorPage/Vendor",
+        path:getTenantPath ("/yen-purchase/VendorPage/Vendor"),
         module: "vendors", // Add module name for permission check
       },
     ],

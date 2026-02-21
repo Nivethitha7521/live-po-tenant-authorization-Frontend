@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { getTenantPath } from "@/utils/tenantPath";
 import {
   Box, TextField, Button, Typography, Grid, Paper,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
@@ -1410,7 +1411,7 @@ if (!canRead) {
         {/* First Row - AP Invoice List, Returned AP buttons, and Typography */}
         <Box display="flex" alignItems="center" mb={1} ml={1}>
           {!isModuleHidden && (
-            <Link href="/yen-purchase/ApInvoicePage" passHref>
+            <Link href={getTenantPath("/yen-purchase/ApInvoicePage")}>
               <Button
                 variant="contained"
                 sx={{

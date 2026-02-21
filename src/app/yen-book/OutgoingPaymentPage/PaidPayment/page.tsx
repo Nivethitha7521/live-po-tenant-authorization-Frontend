@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { getTenantPath } from "@/utils/tenantPath";
 import {
   Grid,
   Typography,
@@ -581,7 +582,7 @@ const handleDownload = async (outgoingId: string) => {
           <Grid container spacing={1} alignItems="center">
             {isModuleVisible("yenerp", "outgoingpayment") && (
               <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage" passHref>
+                <Link href={getTenantPath("/yen-book/OutgoingPaymentPage")}>
                   <Button variant="contained" color="primary">
                     Outgoing Payment
                   </Button>
@@ -590,7 +591,7 @@ const handleDownload = async (outgoingId: string) => {
             )}
             <Grid item>
               {isModuleVisible("yenerp", "advancepayment") && (
-                <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
+                <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/PreOutgoing")}>
                   <Button variant="contained" color="primary">
                     Advance Payment
                   </Button>
@@ -601,8 +602,8 @@ const handleDownload = async (outgoingId: string) => {
           {isModuleVisible("yenerp", "partialpayment") && (
               <Grid item>
                 <Link
-                  href="/yen-book/OutgoingPaymentPage/PendingPayment"
-                  passHref
+                  href={getTenantPath("/yen-book/OutgoingPaymentPage/PendingPayment"
+                  )}
                 >
                   <Button variant="contained" color="primary">
                     Partial Payment
@@ -612,7 +613,7 @@ const handleDownload = async (outgoingId: string) => {
             )}
            {isModuleVisible("yenerp", "paymentdone") && (
               <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
+                <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/PaidPayment")}>
                   <Button
                     variant="contained"
                     sx={{
@@ -630,7 +631,7 @@ const handleDownload = async (outgoingId: string) => {
             )}
              {isModuleVisible("yenerp", "ledger") && (
               <Grid item>
-                <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>
+                <Link href={getTenantPath("/yen-book/OutgoingPaymentPage/Ledger")}>
                   <Button variant="contained" color="primary">
                     Ledger
                   </Button>
@@ -640,8 +641,8 @@ const handleDownload = async (outgoingId: string) => {
             <Grid item>
               {isModuleVisible("yenerp", "purchasereturn") && (
                 <Link
-                  href="/yen-book/OutgoingPaymentPage/PurchaseReturn"
-                  passHref
+                  href={getTenantPath("/yen-book/OutgoingPaymentPage/PurchaseReturn"
+                  )}
                 >
                   <Button variant="contained" color="primary">
                     Purchase Return
