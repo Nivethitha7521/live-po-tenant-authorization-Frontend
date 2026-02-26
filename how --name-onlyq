@@ -1,0 +1,2101 @@
+[33mcommit d1519a9552a07bc8afd726199a15509426cfe536[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mDeveloper[m[33m, [m[1;31morigin/Developer[m[33m)[m
+Author: salini54321 <salinil@ngxcorp.com>
+Date:   Thu Sep 18 15:33:53 2025 +0530
+
+    Overall disocunt amount
+
+[1mdiff --git a/src/Models/purchaseModel.ts b/src/Models/purchaseModel.ts[m
+[1mindex 35cc145..4db3282 100644[m
+[1m--- a/src/Models/purchaseModel.ts[m
+[1m+++ b/src/Models/purchaseModel.ts[m
+[36m@@ -292,8 +292,11 @@[m [mexport const initialState: PurchaseListState = {[m
+   selectedPo: null,[m
+   poDialogOpen: false,[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ };[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ };[m
+ // Add this interface to your slice types[m
+ export interface ItemInput {[m
+[36m@@ -344,4 +347,7 @@[m [mexport interface OverallDiscountResponse {[m
+   };[m
+   error?: string;[m
+ }[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+[1mdiff --git a/src/app/yen-book/OutgoingPaymentPage/Ledger/page.tsx b/src/app/yen-book/OutgoingPaymentPage/Ledger/page.tsx[m
+[1mindex a20f657..e33c01e 100644[m
+[1m--- a/src/app/yen-book/OutgoingPaymentPage/Ledger/page.tsx[m
+[1m+++ b/src/app/yen-book/OutgoingPaymentPage/Ledger/page.tsx[m
+[36m@@ -22,15 +22,20 @@[m [mimport {[m
+   CircularProgress,[m
+   Dialog,[m
+   DialogActions,[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+   DialogContent,[m
+   DialogTitle,[m
+   IconButton,[m
+[32m+[m[32m=======[m
+[32m+[m[32m  DialogTitle,[m
+[32m+[m[32m  DialogContent,[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   Autocomplete,[m
+   TextField,[m
+[31m-  FormControl,[m
+   Card,[m
+   CardContent,[m
+[32m+[m[32m<<<<<<< HEAD[m
+ } from "@mui/material";[m
+ =======[m
+   DialogTitle,[m
+[36m@@ -39,6 +44,8 @@[m [mimport {[m
+   TextField,[m
+   Card,[m
+   CardContent,[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   Container,[m
+ } from '@mui/material';[m
+ >>>>>>> recover-branch[m
+[36m@@ -84,29 +91,58 @@[m [mimport moment from 'moment';[m
+ import Link from 'next/link';[m
+ import DateRangeDialog from '@/components/dateRange';[m
+ import YenBookPage from '../../page';[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ [m
+ const LedgerPage = () => {[m
+   const dispatch = useDispatch<AppDispatch>();[m
+   const { ledgerData, loading, error, selectedVendorName, transactions } = useSelector(selectLedger);[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+   const { businesses } = useSelector((state: any) => state.business);[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m  const { businesses } = useSelector((state: any) => state.business);[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   const [openDialog, setOpenDialog] = useState(false);[m
+   const [outgoingVendor, setOutgoingVendor] = useState<VendorDetail[]>([]);[m
+   const isFetchingRef = useRef(false);[m
+   const isInitialLoad = useRef(true);[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+[32m+[m[32m=======[m
+[32m+[m[32m  const today = new Date(); // Current date: September 15, 2025, 03:38 PM IST[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   const [selectionRange, setSelectionRange] = useState({[m
+[31m-    startDate: new Date(),[m
+[31m-    endDate: new Date(),[m
+[32m+[m[32m    startDate: startOfMonth(today), // Start of current month: September 1, 2025[m
+[32m+[m[32m    endDate: endOfDay(today),      // End of today: September 15, 2025, 11:59 PM[m
+     key: 'selection',[m
+   });[m
+[32m+[m[32m<<<<<<< HEAD[m
+[32m+[m[32m=======[m
+[32m+[m
+[32m+[m[32m  // Get business address dynamically[m
+[32m+[m[32m  const getBusinessAddress = () => {[m
+[32m+[m[32m    if (businesses && businesses.length > 0) {[m
+[32m+[m[32m      const business = businesses[0];[m
+[32m+[m[32m      const addressParts = [business.address, business.city, business.state, business.pincode].filter(part => part && part.trim() !== '');[m
+[32m+[m[32m      if (addressParts.length === 0) {[m
+[32m+[m[32m        return 'Your Company Address & Contact Details';[m
+[32m+[m[32m      }[m
+[32m+[m[32m      return addressParts.join(', ');[m
+[32m+[m[32m    }[m
+[32m+[m[32m    return 'Your Company Address & Contact Details';[m
+[32m+[m[32m  };[m
+[32m+[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   // Format date helper[m
+   const formatDate = (dateString: string | null): string => {[m
+[31m-    if (!dateString) return 'N/A';[m
+[32m+[m[32m    if (!dateString) return '';[m
+     try {[m
+[32m+[m[32m<<<<<<< HEAD[m
+       return format(parseISO(dateString), 'dd-MM-yyyy HH:mm:ss a');[m
+     } catch (error) {[m
+       return format(new Date(dateString), 'dd-MM-yyyy HH:mm:ss a');[m
+[36m@@ -139,11 +175,17 @@[m [mconst LedgerPage = () => {[m
+     } catch (error) {[m
+       return format(new Date(dateString), 'MMM dd, yyyy');[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m      return format(parseISO(dateString), 'MMM dd, yyyy');[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m      return format(new Date(dateString), 'MMM dd, yyyy');[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     }[m
+   };[m
+ [m
+   // Format currency helper[m
+   const formatCurrency = (amount: number): string => {[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+     return new Intl.NumberFormat('en-IN', {[m
+       style: 'currency',[m
+[36m@@ -182,6 +224,22 @@[m [mconst LedgerPage = () => {[m
+   useEffect(() => {[m
+     if (isInitialLoad.current) {[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m    return 'Rs. ' + formatAmount(amount);[m
+[32m+[m[32m  };[m
+[32m+[m
+[32m+[m[32m  // Format amount without symbol[m
+[32m+[m[32m  const formatAmount = (amount: number): string => {[m
+[32m+[m[32m    return new Intl.NumberFormat('en-IN', {[m
+[32m+[m[32m      minimumFractionDigits: 2,[m
+[32m+[m[32m      maximumFractionDigits: 2,[m
+[32m+[m[32m    }).format(amount);[m
+[32m+[m[32m  };[m
+[32m+[m
+[32m+[m[32m  // Initial data fetching[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    if (isInitialLoad.current) {[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       dispatch(fetchBusinesses());[m
+       dispatch(fetchVendorDetails({ fetchAll: true })).then((action) => {[m
+         if (fetchVendorDetails.fulfilled.match(action)) {[m
+[36m@@ -194,6 +252,7 @@[m [mconst LedgerPage = () => {[m
+ [m
+   // Fetch ledger data when vendor or date range changes[m
+   useEffect(() => {[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+     console.log('useEffect for fetchLedgerData triggered with dependencies:', {[m
+       selectedVendorName,[m
+[36m@@ -223,12 +282,24 @@[m [mconst LedgerPage = () => {[m
+         const endDate = moment(selectionRange.endDate).format('YYYY-MM-DD');[m
+         await dispatch(fetchLedgerData({ vendorName: selectedVendorName, startDate, endDate }));[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m    const fetchData = async () => {[m
+[32m+[m[32m      if (isFetchingRef.current || !selectedVendorName) return;[m
+[32m+[m[32m      isFetchingRef.current = true;[m
+[32m+[m[32m      try {[m
+[32m+[m[32m        const startDate = moment(selectionRange.startDate).format('YYYY-MM-DD');[m
+[32m+[m[32m        const endDate = moment(selectionRange.endDate).format('YYYY-MM-DD');[m
+[32m+[m[32m        await dispatch(fetchLedgerData({ vendorName: selectedVendorName, startDate, endDate }));[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       } catch (error) {[m
+         console.error('Error fetching ledger data:', error);[m
+       } finally {[m
+         isFetchingRef.current = false;[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+         console.log('isFetchingRef reset');[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       }[m
+     };[m
+ [m
+[36m@@ -253,12 +324,16 @@[m [mconst LedgerPage = () => {[m
+     fetchData();[m
+   }, [dispatch, selectedVendorName, selectionRange.startDate, selectionRange.endDate]);[m
+ [m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   const handleVendorChange = (event: React.SyntheticEvent, newValue: VendorDetail | null) => {[m
+     dispatch(setSelectedVendorName(newValue?.vendorName || null));[m
+   };[m
+ [m
+   const handleFilterClick = () => {[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+     if (!selectedVendorName) {[m
+       console.log('No vendor selected for filtering.');[m
+[36m@@ -266,11 +341,16 @@[m [mconst LedgerPage = () => {[m
+     }[m
+     dispatch(fetchLedgerData(selectedVendorName));[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     if (!selectedVendorName) return;[m
+     const startDate = moment(selectionRange.startDate).format('YYYY-MM-DD');[m
+     const endDate = moment(selectionRange.endDate).format('YYYY-MM-DD');[m
+     dispatch(fetchLedgerData({ vendorName: selectedVendorName, startDate, endDate }));[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   };[m
+ [m
+   const handleFilterClose = () => {[m
+[36m@@ -279,6 +359,7 @@[m [mconst LedgerPage = () => {[m
+ [m
+   const generateLedgerPDF = () => {[m
+     const doc = new jsPDF();[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+ [m
+     // Header[m
+[36m@@ -336,6 +417,33 @@[m [mconst LedgerPage = () => {[m
+     const columns = ['Date', 'Particulars', 'Debit', 'Credit', 'Balance'];[m
+     const rows = transactions?.map((transaction: Transaction) => [[m
+       formatDate(transaction.date),[m
+[32m+[m[32m=======[m
+[32m+[m[32m    doc.setFontSize(16);[m
+[32m+[m[32m    doc.setFont("helvetica", "bold");[m
+[32m+[m[32m    doc.text(`LEDGER`, 105, 20, { align: 'center' });[m
+[32m+[m[32m    doc.setFontSize(10);[m
+[32m+[m[32m    doc.text(getBusinessAddress(), 105, 28, { align: 'center' });[m
+[32m+[m[32m    doc.setFontSize(12);[m
+[32m+[m[32m    if (selectedVendorName) {[m
+[32m+[m[32m      doc.text(`Vendor: ${selectedVendorName}`, 20, 40);[m
+[32m+[m[32m    }[m
+[32m+[m[32m    const startDate = moment(selectionRange.startDate).format('DD-MM-YYYY');[m
+[32m+[m[32m    const endDate = moment(selectionRange.endDate).format('DD-MM-YYYY');[m
+[32m+[m[32m    doc.text(`Period: ${startDate} to ${endDate}`, 20, 47);[m
+[32m+[m
+[32m+[m[32m    // Add opening balance note[m
+[32m+[m[32m    const openingBalance = ledgerData?.outstandingAmount || 0;[m
+[32m+[m[32m    doc.text([m
+[32m+[m[32m      `Opening Balance as of ${startDate}: ${formatCurrency(Math.abs(openingBalance))} ${openingBalance >= 0 ? 'Dr' : 'Cr'}`,[m
+[32m+[m[32m      20,[m
+[32m+[m[32m      54[m
+[32m+[m[32m    );[m
+[32m+[m
+[32m+[m[32m    // Table[m
+[32m+[m[32m    const columns = ['Date', 'Particulars', 'Debit', 'Credit', 'Balance'];[m
+[32m+[m[32m    const rows = transactions?.map((transaction: Transaction) => [[m
+[32m+[m[32m      formatDate(transaction.date),[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       `${transaction.description}${transaction.notes ? `\n${transaction.notes}` : ''}`,[m
+       transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00',[m
+       transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00',[m
+[36m@@ -357,13 +465,17 @@[m [mconst LedgerPage = () => {[m
+       finalBalance === 0 [m
+         ? '0.00'[m
+         : `${formatAmount(Math.abs(finalBalance))} ${finalBalance >= 0 ? 'Dr' : 'Cr'}`,[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     ]);[m
+ [m
+     doc.autoTable({[m
+       head: [columns],[m
+       body: rows,[m
+       startY: 60,[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+       headStyles: {[m
+         fillColor: [0, 0, 128],[m
+[36m@@ -376,6 +488,8 @@[m [mconst LedgerPage = () => {[m
+ [m
+     doc.save(`${selectedVendorName || 'Vendor'}_Ledger_Report.pdf`);[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       styles: { fontSize: 10, cellPadding: 2, overflow: 'linebreak', lineWidth: 0.1, lineColor: [0, 0, 0] },[m
+       headStyles: { fillColor: [240, 240, 240], lineWidth: 0.1, lineColor: [0, 0, 0] },[m
+       columnStyles: {[m
+[36m@@ -388,11 +502,15 @@[m [mconst LedgerPage = () => {[m
+     });[m
+ [m
+     doc.save(`${selectedVendorName}_Ledger.pdf`);[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     setOpenDialog(false);[m
+   };[m
+ [m
+   const generateLedgerCSV = () => {[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+     const columns = ["S.No", "Date", "Type", "Reference", "Description", "Debit", "Credit", "Balance"];[m
+ [m
+[36m@@ -406,14 +524,32 @@[m [mconst LedgerPage = () => {[m
+       transaction.credit_amount || 0,[m
+       transaction.balance,[m
+     ]);[m
+[32m+[m[32m=======[m
+[32m+[m[32m    const columns = ['Date', 'Particulars', 'Debit', 'Credit', 'Balance'];[m
+[32m+[m[32m    const rows = transactions?.map((transaction: Transaction) => [[m
+[32m+[m[32m      formatDate(transaction.date),[m
+[32m+[m[32m      `${transaction.description}${transaction.notes ? ` - ${transaction.notes}` : ''}`,[m
+[32m+[m[32m      transaction.debit_amount || '0.00',[m
+[32m+[m[32m      transaction.credit_amount || '0.00',[m
+[32m+[m[32m      transaction.balance === 0[m[41m [m
+[32m+[m[32m        ? '0.00'[m
+[32m+[m[32m        : `${formatAmount(Math.abs(transaction.balance))} ${transaction.balance >= 0 ? 'Dr' : 'Cr'}`,[m
+[32m+[m[32m    ]) || [];[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ [m
+     const csvData = [columns, ...rows];[m
+     const csv = Papa.unparse(csvData);[m
+     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });[m
+     const url = URL.createObjectURL(blob);[m
+[32m+[m[32m<<<<<<< HEAD[m
+     const link = document.createElement("a");[m
+     link.setAttribute("href", url);[m
+     link.setAttribute("download", `${selectedVendorName || 'Vendor'}_Ledger_Report.csv`);[m
+[32m+[m[32m=======[m
+[32m+[m[32m    const link = document.createElement('a');[m
+[32m+[m[32m    link.setAttribute('href', url);[m
+[32m+[m[32m    link.setAttribute('download', `${selectedVendorName}_Ledger.csv`);[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     document.body.appendChild(link);[m
+     link.click();[m
+     document.body.removeChild(link);[m
+[36m@@ -421,8 +557,15 @@[m [mconst LedgerPage = () => {[m
+     setOpenDialog(false);[m
+   };[m
+ [m
+[32m+[m[32m  // Calculate totals[m
+[32m+[m[32m  const totalDebit = transactions?.reduce((sum, t) => sum + t.debit_amount, 0) || 0;[m
+[32m+[m[32m  const totalCredit = transactions?.reduce((sum, t) => sum + t.credit_amount, 0) || 0;[m
+[32m+[m[32m  const finalBalance = transactions?.[transactions.length - 1]?.balance || ledgerData?.outstandingAmount || 0;[m
+[32m+[m[32m  const openingBalance = ledgerData?.outstandingAmount || 0;[m
+[32m+[m
+   if (loading) {[m
+     return ([m
+[32m+[m[32m<<<<<<< HEAD[m
+       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">[m
+         <CircularProgress />[m
+       </Box>[m
+[36m@@ -459,17 +602,23 @@[m [mconst LedgerPage = () => {[m
+ [m
+   if (loading) {[m
+     return ([m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       <Container maxWidth="lg">[m
+         <Box display="flex" justifyContent="center" alignItems="center" height="50vh">[m
+           <CircularProgress size={60} />[m
+         </Box>[m
+       </Container>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     );[m
+   }[m
+ [m
+   if (error) {[m
+     return ([m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+       <Box p={2}>[m
+         <Typography color="error">Error: {error}</Typography>[m
+[36m@@ -478,6 +627,8 @@[m [mconst LedgerPage = () => {[m
+         </Button>[m
+       </Box>[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       <Container maxWidth="lg">[m
+         <Box p={4} textAlign="center">[m
+           <Typography color="error" variant="h6" gutterBottom>[m
+[36m@@ -488,11 +639,15 @@[m [mconst LedgerPage = () => {[m
+           </Button>[m
+         </Box>[m
+       </Container>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     );[m
+   }[m
+ [m
+   return ([m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+     <Box>[m
+             <YenBookPage />[m
+[36m@@ -561,6 +716,8 @@[m [mconst LedgerPage = () => {[m
+             <Autocomplete[m
+               value={outgoingVendor.find(v => v.vendorName === selectedVendorName) || null}[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     <Box maxWidth="xl" sx={{ py: 2 }}>[m
+       {/* Navigation Buttons */}[m
+       <YenBookPage />[m
+[36m@@ -629,7 +786,10 @@[m [mconst LedgerPage = () => {[m
+           <Grid item xs={12} md={4}>[m
+             <Autocomplete[m
+               value={outgoingVendor.find((v) => v.vendorName === selectedVendorName) || null}[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+               onChange={handleVendorChange}[m
+               options={outgoingVendor}[m
+               getOptionLabel={(option: VendorDetail) => option.vendorName || ''}[m
+[36m@@ -639,6 +799,7 @@[m [mconst LedgerPage = () => {[m
+                   label="Select Vendor"[m
+                   variant="outlined"[m
+                   size="small"[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+                 />[m
+               )}[m
+[36m@@ -695,6 +856,12 @@[m [mconst LedgerPage = () => {[m
+                 />[m
+               )}[m
+             />[m
+[32m+[m[32m=======[m
+[32m+[m[32m                  fullWidth[m
+[32m+[m[32m                />[m
+[32m+[m[32m              )}[m
+[32m+[m[32m            />[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+           </Grid>[m
+           <Grid item xs={12} md={4}>[m
+             <DateRangeDialog[m
+[36m@@ -750,13 +917,17 @@[m [mconst LedgerPage = () => {[m
+                 </Typography>[m
+                 <Typography variant="body2" color="textSecondary">[m
+                   Opening Balance {openingBalance >= 0 ? '(Dr)' : '(Cr)'}[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                 </Typography>[m
+               </CardContent>[m
+             </Card>[m
+           </Grid>[m
+           <Grid item xs={6} md={3}>[m
+             <Card>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+               <CardContent>[m
+                 <Typography variant="h6" color="success.main">[m
+[36m@@ -765,6 +936,8 @@[m [mconst LedgerPage = () => {[m
+                 <Typography variant="body2" color="textSecondary">[m
+                   Total Paid[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+               <CardContent sx={{ textAlign: 'center' }}>[m
+                 <Typography variant="h6" color="error.main">[m
+                   {formatCurrency(totalDebit)}[m
+[36m@@ -783,13 +956,17 @@[m [mconst LedgerPage = () => {[m
+                 </Typography>[m
+                 <Typography variant="body2" color="textSecondary">[m
+                   Total Bills/Invoices[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                 </Typography>[m
+               </CardContent>[m
+             </Card>[m
+           </Grid>[m
+           <Grid item xs={6} md={3}>[m
+             <Card>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+               <CardContent>[m
+                 <Typography variant="h6" color="info.main">[m
+[36m@@ -810,13 +987,18 @@[m [mconst LedgerPage = () => {[m
+                 <Typography variant="body2" color="textSecondary">[m
+                   Outstanding[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+               <CardContent sx={{ textAlign: 'center' }}>[m
+                 <Typography variant="h6" color="warning.main">[m
+                   {formatCurrency(Math.max(0, finalBalance))}[m
+                 </Typography>[m
+                 <Typography variant="body2" color="textSecondary">[m
+                   Outstanding Amount[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                 </Typography>[m
+               </CardContent>[m
+             </Card>[m
+[36m@@ -824,6 +1006,7 @@[m [mconst LedgerPage = () => {[m
+         </Grid>[m
+       )}[m
+ [m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+       {/* Transactions Table */}[m
+       <TableContainer component={Paper} sx={{ maxHeight: '60vh' }}>[m
+[36m@@ -929,6 +1112,8 @@[m [mconst LedgerPage = () => {[m
+         <DialogContent>[m
+           <Typography>Select the file format you want to download:</Typography>[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       {/* Ledger Table */}[m
+       <Paper sx={{ mb: 2,ml:2}}>[m
+         <TableContainer sx={{ maxHeight: 500 }}>[m
+[36m@@ -1027,38 +1212,53 @@[m [mconst LedgerPage = () => {[m
+         <DialogTitle>Download Ledger</DialogTitle>[m
+         <DialogContent>[m
+           <Typography>Choose format to download the ledger:</Typography>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+         </DialogContent>[m
+         <DialogActions>[m
+           <Button[m
+             onClick={generateLedgerPDF}[m
+             variant="contained"[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+             color="primary"[m
+             startIcon={<PictureAsPdfIcon />}[m
+           >[m
+             Download PDF[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+             startIcon={<PictureAsPdfIcon />}[m
+             color="primary"[m
+           >[m
+             PDF[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+           </Button>[m
+           <Button[m
+             onClick={generateLedgerCSV}[m
+             variant="contained"[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+             color="secondary"[m
+             startIcon={<DescriptionIcon />}[m
+           >[m
+             Download CSV[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+             startIcon={<DescriptionIcon />}[m
+             color="secondary"[m
+           >[m
+             CSV[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+           </Button>[m
+           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>[m
+         </DialogActions>[m
+[1mdiff --git a/src/app/yen-book/OutgoingPaymentPage/PreOutgoing/page.tsx b/src/app/yen-book/OutgoingPaymentPage/PreOutgoing/page.tsx[m
+[1mindex 9eb800a..247f692 100644[m
+[1m--- a/src/app/yen-book/OutgoingPaymentPage/PreOutgoing/page.tsx[m
+[1m+++ b/src/app/yen-book/OutgoingPaymentPage/PreOutgoing/page.tsx[m
+[36m@@ -31,12 +31,17 @@[m [mimport { AppDispatch } from '@/redux/store';[m
+ import { addNewVendorPayment, selectOutgoings } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';[m
+ import { Formik, Form } from 'formik';[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ import Add from '@mui/icons-material/Add'; // Import Add icon[m
+ import * as Yup from 'yup'; // For validation[m
+ =======[m
+ import Add from '@mui/icons-material/Add';[m
+ import * as Yup from 'yup';[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32mimport Add from '@mui/icons-material/Add';[m
+[32m+[m[32mimport * as Yup from 'yup';[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ import YenBookPage from '../../page';[m
+ import Link from 'next/link';[m
+ import VendorDialog from '@/components/yen-purchase/vendorcomponent/vendorDialog';[m
+[36m@@ -52,11 +57,15 @@[m [mconst VendorPage: React.FC = () => {[m
+   const [openPayDialog, setOpenPayDialog] = useState(false);[m
+   const [paymentDetails, setPaymentDetails] = useState<{[m
+     outgoingId: string;[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+     paymentType: 'full' | 'partial' | 'advance'; // Use the exact types required[m
+ =======[m
+     paymentType: 'full' | 'partial' | 'advance';[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m    paymentType: 'full' | 'partial' | 'advance';[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     amount: string;[m
+     paymentMethod: string;[m
+     chequeNo: number;[m
+[36m@@ -64,6 +73,7 @@[m [mconst VendorPage: React.FC = () => {[m
+     cashVoucherNo: string;[m
+     rtgsNo: string;[m
+     pettyCashAmount: number;[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+     hoCash: number,[m
+     impsNo: string;[m
+[36m@@ -76,6 +86,13 @@[m [mconst VendorPage: React.FC = () => {[m
+     transactionNumber: string;[m
+     remarks: string;[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m    hoCash: number;[m
+[32m+[m[32m    impsNo: string;[m
+[32m+[m[32m    upi: string;[m
+[32m+[m[32m    transactionNumber: string;[m
+[32m+[m[32m    remarks: string;[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   }>({[m
+     outgoingId: '',[m
+     paymentType: 'full',[m
+[36m@@ -91,9 +108,13 @@[m [mconst VendorPage: React.FC = () => {[m
+     rtgsNo: '',[m
+     transactionNumber: '',[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+     remarks: '',[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m    remarks: '',[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   });[m
+ [m
+   const [snackbarOpen, setSnackbarOpen] = useState(false);[m
+[36m@@ -109,6 +130,7 @@[m [mconst VendorPage: React.FC = () => {[m
+     dispatch(setDialogOpen('edit'));[m
+   };[m
+ [m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+ [m
+   const handleCreatePaymentOpen = () => {[m
+[36m@@ -119,18 +141,27 @@[m [mconst VendorPage: React.FC = () => {[m
+     setOpenPayDialog(true);[m
+     handlePayDialogClose();[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m  const handleCreatePaymentOpen = () => {[m
+[32m+[m[32m    setOpenPayDialog(true);[m
+[32m+[m[32m    handlePayDialogClose();[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   };[m
+ [m
+   const handleVendorSelect = (vendor: VendorNameGet) => {[m
+     setSelectedVendor(vendor);[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+     setPayDialogOpen(true); // Set to true to open the payment dialog[m
+[32m+[m[32m=======[m
+[32m+[m[32m    setPayDialogOpen(true);[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   };[m
+[31m-  // Close dialog for selected vendor without removing the vendor[m
+[32m+[m
+   const handlePayDialogClose = () => {[m
+[31m-    setPayDialogOpen(false); // Just close the dialog[m
+[31m-    // Don't reset the selected vendor[m
+[32m+[m[32m    setPayDialogOpen(false);[m
+   };[m
+[32m+[m[32m<<<<<<< HEAD[m
+   // Validation Schema[m
+   const validationSchema = Yup.object({[m
+     vendorName: Yup.string().required('Vendor Name is required'),[m
+[36m@@ -145,13 +176,18 @@[m [mconst VendorPage: React.FC = () => {[m
+     setPayDialogOpen(false);[m
+   };[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ [m
+   const handleDialogClose = () => {[m
+     setSelectedVendor(null);[m
+   };[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ const handleConfirmPayment = async (paymentData: any) => {[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ [m
+   const validationSchema = Yup.object({[m
+     vendorName: Yup.string().required('Vendor Name is required'),[m
+[36m@@ -165,7 +201,10 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+   });[m
+ [m
+   const handleConfirmPayment = async (paymentData: any) => {[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     if (!selectedVendor) {[m
+       setSnackbarMessage('No vendor selected.');[m
+       setSnackbarOpen(true);[m
+[36m@@ -198,20 +237,29 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+       grnId: paymentData.grnId || null,[m
+       isPreOutgoing: !paymentData.poId,[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+       remarks: paymentData.remarks,[m
+       paymentDate: new Date().toISOString(), // Set current date in ISO format[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m      remarks: paymentData.remarks,[m
+[32m+[m[32m      paymentDate: new Date().toISOString(), // Set current date in ISO format[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     };[m
+ [m
+     try {[m
+       const actionResult = await dispatch(addNewVendorPayment(dataToPost));[m
+       if (addNewVendorPayment.fulfilled.match(actionResult)) {[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+         setSnackbarMessage(`Payment processed successfully. Debit Note: ${actionResult.payload.selectedDebitNotes?.[0] || 'N/A'}`);[m
+ =======[m
+         setSnackbarMessage(`Payment processed successfully. Advance ID: ${actionResult.payload.randomId}`);[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m        setSnackbarMessage(`Payment processed successfully. Advance ID: ${actionResult.payload.randomId}`);[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+         setPaymentDetails({[m
+           outgoingId: '',[m
+           paymentType: 'full',[m
+[36m@@ -221,12 +269,18 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+           pettyCashAmount: 0,[m
+           hoCash: 0,[m
+           neftNo: '',[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+           cashVoucherNo: '',[m
+           rtgsNo: '',[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+           impsNo: '',[m
+           upi: '',[m
+[32m+[m[32m          cashVoucherNo: '',[m
+[32m+[m[32m          rtgsNo: '',[m
+           transactionNumber: '',[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+           impsNo: '',[m
+           upi: '',[m
+[36m@@ -235,6 +289,9 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+           transactionNumber: '',[m
+           remarks: '',[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m          remarks: '',[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+         });[m
+         setSelectedVendor(null);[m
+         setOpenPayDialog(false);[m
+[36m@@ -263,19 +320,21 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+       amount: '',[m
+       paymentType: 'full',[m
+       rtgsNo: '',[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+       upi: ''[m
+[32m+[m[32m=======[m
+[32m+[m[32m      upi: '',[m
+[32m+[m[32m      remarks: '',[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     });[m
+   };[m
+ [m
+[31m-  { loading && <CircularProgress /> }[m
+[31m-  { error && <Typography color="error">{error}</Typography> }[m
+[31m-[m
+   return ([m
+     <Box sx={{ backgroundColor: 'white' }}>[m
+       <YenBookPage />[m
+[31m-      {/* First Row - Outgoing Payment, Pre Outgoing, Advance Payment, Partial Payment, Payment Done, Ledger buttons, and Typography */}[m
+       <Box display="flex" alignItems="center" justifyContent="space-between" marginTop={1}>[m
+[32m+[m[32m<<<<<<< HEAD[m
+         {/* Buttons */}[m
+ =======[m
+       upi: '',[m
+[36m@@ -288,6 +347,8 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+       <YenBookPage />[m
+       <Box display="flex" alignItems="center" justifyContent="space-between" marginTop={1}>[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+         <Box display="flex" alignItems="center">[m
+           <Link href="/yen-book/OutgoingPaymentPage" passHref>[m
+             <Button variant="contained" color="primary" sx={{ mr: '5px', ml: '15px' }}>[m
+[36m@@ -298,14 +359,20 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+             <Button[m
+               variant="contained"[m
+               sx={{[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+                 backgroundColor: 'white', // White background[m
+                 color: 'black', // Black text[m
+[32m+[m[32m=======[m
+[32m+[m[32m                backgroundColor: 'white',[m
+[32m+[m[32m                color: 'black',[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                 '&:hover': {[m
+[31m-                  backgroundColor: 'rgba(255, 255, 255, 0.8)', // Slightly darker on hover[m
+[32m+[m[32m                  backgroundColor: 'rgba(255, 255, 255, 0.8)',[m
+                 },[m
+                 mr: 0.5,[m
+               }}[m
+[32m+[m[32m<<<<<<< HEAD[m
+ [m
+ =======[m
+                 backgroundColor: 'white',[m
+[36m@@ -316,38 +383,53 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                 mr: 0.5,[m
+               }}[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+             >[m
+               Pre Outgoing[m
+             </Button>[m
+           </Link>[m
+           <Link href="/yen-book/OutgoingPaymentPage/AdvancePayment" passHref>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+             <Button variant="contained" color="primary" sx={{ mr: '2px' }} >[m
+ =======[m
+             <Button variant="contained" color="primary" sx={{ mr: '2px' }}>[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m            <Button variant="contained" color="primary" sx={{ mr: '2px' }}>[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+               Advance Payment[m
+             </Button>[m
+           </Link>[m
+           <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+             <Button variant="contained" color="primary" sx={{ mr: '2px' }} >[m
+ =======[m
+             <Button variant="contained" color="primary" sx={{ mr: '2px' }}>[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m            <Button variant="contained" color="primary" sx={{ mr: '2px' }}>[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+               Partial Payment[m
+             </Button>[m
+           </Link>[m
+           <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+             <Button variant="contained" color="primary" sx={{ mr: '2px' }} >[m
+ =======[m
+             <Button variant="contained" color="primary" sx={{ mr: '2px' }}>[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m            <Button variant="contained" color="primary" sx={{ mr: '2px' }}>[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+               Payment Done[m
+             </Button>[m
+           </Link>[m
+           <Link href="/yen-book/OutgoingPaymentPage/Ledger" passHref>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+             <Button variant="contained" color="primary" sx={{ mr: '2px' }} >[m
+               Ledger[m
+[36m@@ -360,15 +442,24 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+             </Button>[m
+           </Link>[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m            <Button variant="contained" color="primary" sx={{ mr: '2px' }}>[m
+[32m+[m[32m              Ledger[m
+[32m+[m[32m            </Button>[m
+[32m+[m[32m          </Link>[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+           <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>[m
+             <Button variant="contained" color="primary">Purchase Return</Button>[m
+           </Link>[m
+         </Box>[m
+       </Box>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+       {/* Vendor Selection and Create Button */}[m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       <Box mt={2} ml={2} sx={{ maxWidth: 500 }} display="flex" justifyContent="space-between" alignItems="center">[m
+         <Autocomplete[m
+           options={vendorName}[m
+[36m@@ -376,6 +467,7 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+           isOptionEqualToValue={(option: VendorNameGet, value: VendorNameGet | null) => option.vendorId === value?.vendorId}[m
+           value={selectedVendor}[m
+           onChange={(event, newValue) => {[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+             // Only call handleVendorSelect if newValue is not null[m
+             if (newValue) {[m
+[36m@@ -388,6 +480,11 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+               handleVendorSelect(newValue);[m
+             } else {[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m            if (newValue) {[m
+[32m+[m[32m              handleVendorSelect(newValue);[m
+[32m+[m[32m            } else {[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+               setSelectedVendor(null);[m
+             }[m
+           }}[m
+[36m@@ -395,6 +492,7 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+             const lowercasedInput = inputValue.toLowerCase();[m
+             return options.filter(option => option.vendorName.toLowerCase().startsWith(lowercasedInput));[m
+           }}[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+           // Use renderOption to ensure that keys are unique based on vendorId[m
+           renderOption={(props, option) => ([m
+[36m@@ -403,6 +501,10 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+           renderOption={(props, option) => ([m
+             <li {...props} key={option.vendorId}>[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m          renderOption={(props, option) => ([m
+[32m+[m[32m            <li {...props} key={option.vendorId}>[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+               {option.vendorName}[m
+             </li>[m
+           )}[m
+[36m@@ -433,18 +535,24 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+           </Typography>[m
+         </Box>[m
+       </Box>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+       {/* Create Vendor Modal */}[m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       <VendorDialog[m
+         loading={dialogLoading}[m
+         setLoading={setDialogLoading}[m
+       />[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+       {/* Dialog for selected vendor */}[m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       <Modal open={dialogPayOpen} onClose={handlePayDialogClose}>[m
+         <Box[m
+           sx={{[m
+[36m@@ -474,6 +582,7 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+       </Modal>[m
+       <Dialog open={openPayDialog} onClose={handleClosePayDialog}>[m
+         <DialogTitle>Process Payment</DialogTitle>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+         <DialogContent>[m
+           <Formik[m
+[36m@@ -486,11 +595,19 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+         <DialogContent sx={{ width: '500px', maxHeight: '600px' }}>[m
+           <Formik[m
+             initialValues={{[m
+[32m+[m[32m=======[m
+[32m+[m[32m        <DialogContent sx={{ width: '500px', maxHeight: '600px' }}>[m
+[32m+[m[32m          <Formik[m
+[32m+[m[32m            initialValues={{[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+               paymentMode: 'Cash',[m
+               paymentType: 'full',[m
+               amount: 0,[m
+               paymentMethod: '',[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+               pettyCashAmount: 0,[m
+               hoCashAmount: 0,[m
+               chequeNo: 0,[m
+[36m@@ -502,15 +619,27 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+               impsNo: '',[m
+               upi: '',[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+[32m+[m[32m=======[m
+[32m+[m[32m              remarks: '',[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+             }}[m
+[32m+[m[32m            validationSchema={Yup.object({[m
+[32m+[m[32m              paymentMode: Yup.string().required('Payment Mode is required'),[m
+[32m+[m[32m              paymentType: Yup.string().required('Payment Type is required'),[m
+[32m+[m[32m              amount: Yup.number().required('Amount is required').min(0.01, 'Amount must be greater than 0'),[m
+[32m+[m[32m              paymentMethod: Yup.string().required('Payment Method is required'),[m
+[32m+[m[32m              remarks: Yup.string().required('Remarks is required').min(1, 'Remarks cannot be empty'),[m
+[32m+[m[32m            })}[m
+             onSubmit={async (values) => {[m
+               console.log('Submitting payment details:', values);[m
+[31m-              await handleConfirmPayment(values); // Pass the form values to the payment function[m
+[32m+[m[32m              await handleConfirmPayment(values);[m
+             }}[m
+           >[m
+[31m-            {({ values, handleChange, handleBlur, handleSubmit }) => ([m
+[32m+[m[32m            {({ values, handleChange, handleBlur, handleSubmit, errors, touched }) => ([m
+               <Form onSubmit={handleSubmit}>[m
+                 <Grid container spacing={2} mt={2}>[m
+[32m+[m[32m<<<<<<< HEAD[m
+                   {/* Payment Mode (Cash or Bank) */}[m
+ =======[m
+               remarks: '',[m
+[36m@@ -531,6 +660,8 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+               <Form onSubmit={handleSubmit}>[m
+                 <Grid container spacing={2} mt={2}>[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                   <Grid item xs={12}>[m
+                     <TextField[m
+                       label="Payment Mode"[m
+[36m@@ -541,21 +672,29 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                       onChange={handleChange}[m
+                       onBlur={handleBlur}[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+                       error={touched.paymentMode && !!errors.paymentMode}[m
+                       helperText={touched.paymentMode && errors.paymentMode}[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m                      error={touched.paymentMode && !!errors.paymentMode}[m
+[32m+[m[32m                      helperText={touched.paymentMode && errors.paymentMode}[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                       sx={{ marginBottom: 2 }}[m
+                     >[m
+                       <MenuItem value="Cash">Cash</MenuItem>[m
+                       <MenuItem value="Bank">Bank</MenuItem>[m
+                     </TextField>[m
+                   </Grid>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+ [m
+                   {/* Payment Type (Full, Partial, Advance) */}[m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                   <Grid item xs={12}>[m
+                     <TextField[m
+                       label="Payment Type"[m
+[36m@@ -566,10 +705,15 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                       onChange={handleChange}[m
+                       onBlur={handleBlur}[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+                       error={touched.paymentType && !!errors.paymentType}[m
+                       helperText={touched.paymentType && errors.paymentType}[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m                      error={touched.paymentType && !!errors.paymentType}[m
+[32m+[m[32m                      helperText={touched.paymentType && errors.paymentType}[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                       sx={{ marginBottom: 2 }}[m
+                     >[m
+                       <MenuItem value="partial">Partial Payment</MenuItem>[m
+[36m@@ -577,11 +721,14 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                       <MenuItem value="advance">Advance Payment</MenuItem>[m
+                     </TextField>[m
+                   </Grid>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+ [m
+                   {/* Amount Field */}[m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                   <Grid item xs={12}>[m
+                     <TextField[m
+                       label="Amount"[m
+[36m@@ -592,6 +739,7 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                       value={values.amount}[m
+                       onChange={handleChange}[m
+                       onBlur={handleBlur}[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+                       sx={{ marginBottom: 2 }}[m
+                     />[m
+[36m@@ -619,6 +767,27 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                     />[m
+                   </Grid>[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m                      error={touched.amount && !!errors.amount}[m
+[32m+[m[32m                      helperText={touched.amount && errors.amount}[m
+[32m+[m[32m                      sx={{ marginBottom: 2 }}[m
+[32m+[m[32m                    />[m
+[32m+[m[32m                  </Grid>[m
+[32m+[m[32m                  <Grid item xs={12}>[m
+[32m+[m[32m                    <TextField[m
+[32m+[m[32m                      label="Remarks"[m
+[32m+[m[32m                      fullWidth[m
+[32m+[m[32m                      name="remarks"[m
+[32m+[m[32m                      autoComplete='off'[m
+[32m+[m[32m                      value={values.remarks}[m
+[32m+[m[32m                      onChange={handleChange}[m
+[32m+[m[32m                      onBlur={handleBlur}[m
+[32m+[m[32m                      error={touched.remarks && !!errors.remarks}[m
+[32m+[m[32m                      helperText={touched.remarks && errors.remarks}[m
+[32m+[m[32m                      sx={{ marginBottom: 2 }}[m
+[32m+[m[32m                    />[m
+[32m+[m[32m                  </Grid>[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                   {values.paymentMode === 'Cash' && ([m
+                     <Grid item xs={12}>[m
+                       <TextField[m
+[36m@@ -631,10 +800,15 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                         onChange={handleChange}[m
+                         onBlur={handleBlur}[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+                         error={touched.paymentMethod && !!errors.paymentMethod}[m
+                         helperText={touched.paymentMethod && errors.paymentMethod}[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m                        error={touched.paymentMethod && !!errors.paymentMethod}[m
+[32m+[m[32m                        helperText={touched.paymentMethod && errors.paymentMethod}[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                         sx={{ marginBottom: 2 }}[m
+                       >[m
+                         <MenuItem value="pettyCash">Petty Cash</MenuItem>[m
+[36m@@ -642,11 +816,14 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                       </TextField>[m
+                     </Grid>[m
+                   )}[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+ [m
+                   {/* Payment Method (Bank-specific options) */}[m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                   {values.paymentMode === 'Bank' && ([m
+                     <>[m
+                       <Grid item xs={12}>[m
+[36m@@ -668,9 +845,12 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                         </TextField>[m
+                       </Grid>[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ [m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                       <Grid item xs={12}>[m
+                         <TextField[m
+                           label="Payment Method"[m
+[36m@@ -681,10 +861,15 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                           onChange={handleChange}[m
+                           onBlur={handleBlur}[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+                           error={touched.paymentMethod && !!errors.paymentMethod}[m
+                           helperText={touched.paymentMethod && errors.paymentMethod}[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m                          error={touched.paymentMethod && !!errors.paymentMethod}[m
+[32m+[m[32m                          helperText={touched.paymentMethod && errors.paymentMethod}[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                           sx={{ marginBottom: 2 }}[m
+                         >[m
+                           <MenuItem value="neft">NEFT</MenuItem>[m
+[36m@@ -693,11 +878,14 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                           <MenuItem value="upi">UPI</MenuItem>[m
+                         </TextField>[m
+                       </Grid>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+ [m
+                       {/* Conditional Fields for Bank Methods */}[m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                       {values.paymentMethod === 'neft' && ([m
+                         <Grid item xs={12}>[m
+                           <TextField[m
+[36m@@ -712,9 +900,12 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                         </Grid>[m
+                       )}[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ [m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                       {values.paymentMethod === 'rtgs' && ([m
+                         <Grid item xs={12}>[m
+                           <TextField[m
+[36m@@ -729,9 +920,12 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                         </Grid>[m
+                       )}[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ [m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                       {values.paymentMethod === 'imps' && ([m
+                         <Grid item xs={12}>[m
+                           <TextField[m
+[36m@@ -746,9 +940,12 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                         </Grid>[m
+                       )}[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ [m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                       {values.paymentMethod === 'upi' && ([m
+                         <Grid item xs={12}>[m
+                           <TextField[m
+[36m@@ -766,9 +963,12 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+                   )}[m
+                 </Grid>[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ [m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                 <DialogActions>[m
+                   <Button onClick={handleClosePayDialog}>Cancel</Button>[m
+                   <Button type="submit">Confirm Payment</Button>[m
+[36m@@ -778,11 +978,14 @@[m [mconst handleConfirmPayment = async (paymentData: any) => {[m
+           </Formik>[m
+         </DialogContent>[m
+       </Dialog>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+ [m
+       {/* Snackbar for notifications */}[m
+ =======[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       <Snackbar[m
+         open={snackbarOpen}[m
+         autoHideDuration={6000}[m
+[1mdiff --git a/src/app/yen-purchase/PurchaseOrder/Createpurchase/page.tsx b/src/app/yen-purchase/PurchaseOrder/Createpurchase/page.tsx[m
+[1mindex f7220b7..05bc98d 100644[m
+[1m--- a/src/app/yen-purchase/PurchaseOrder/Createpurchase/page.tsx[m
+[1m+++ b/src/app/yen-purchase/PurchaseOrder/Createpurchase/page.tsx[m
+[36m@@ -46,9 +46,13 @@[m [mimport * as Yup from 'yup';[m
+ import { useBeforeUnload } from 'react-use';[m
+ import { VendorSummary } from '@/Models/vendor';[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+ import ClearIcon from '@mui/icons-material/Clear'; // Add this import at the top with other MUI icon imports[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32mimport ClearIcon from '@mui/icons-material/Clear'; // Add this import at the top with other MUI icon imports[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ [m
+ // Validation schema[m
+ const validationSchema = Yup.object({[m
+[36m@@ -294,6 +298,14 @@[m [mconst PurchaseOrder: React.FC = () => {[m
+     }[m
+   };[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+[32m+[m
+[32m+[m[32m=======[m
+[32m+[m[32mconst handleOverallDiscountChange = async (e: ChangeEvent<HTMLInputElement>) => {[m
+[32m+[m[32m  const value = e.target.value;[m
+[32m+[m
+[32m+[m[32m  if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {[m
+[32m+[m[32m    const parsedValue = value === '' ? 0 : parseFloat(value) || 0;[m
+ [m
+ =======[m
+ const handleOverallDiscountChange = async (e: ChangeEvent<HTMLInputElement>) => {[m
+[36m@@ -302,6 +314,7 @@[m [mconst handleOverallDiscountChange = async (e: ChangeEvent<HTMLInputElement>) =>[m
+   if (value === '' || /^\d{0,6}(\.\d{0,2})?$/.test(value)) {[m
+     const parsedValue = value === '' ? 0 : parseFloat(value) || 0;[m
+ [m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     // Basic validation[m
+     if (overallDiscountMode === 'percentage' && parsedValue >= 100) {[m
+       dispatch(setSnackbarMessage('Overall discount percentage cannot be 100% or more.'));[m
+[36m@@ -607,6 +620,7 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+         hsnCode: item.hsnCode,[m
+         befTaxDiscount: 0,[m
+         afTaxDiscount: 0,[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+         pendingTotalPrice: 0,[m
+         taxType: 'cgst_sgst',[m
+[36m@@ -615,6 +629,8 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+       setQuantityInput('');[m
+       setNewPriceTypeInput(item.purchasePrice.toFixed(2)); // Initialize to 2 decimal places[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+         befTaxDiscountAmount: 0,[m
+         afTaxDiscountAmount: 0,[m
+         pendingTotalPrice: 0,[m
+[36m@@ -625,7 +641,10 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+       setCountInput('');[m
+       setQuantityInput('');[m
+       setNewPriceTypeInput(item.purchasePrice.toString()); // Use raw string, no .toFixed(2)[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     } else {[m
+       setNewItemsearch(null);[m
+       let updatedData = { ...purchaseOrderData, itemName: '' };[m
+[36m@@ -633,6 +652,7 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+       dispatch(setNewItemData({[m
+         itemId: '',[m
+         itemName: '',[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+         pendingCount: 0,[m
+         pendingQuantity: 0,[m
+[36m@@ -642,6 +662,11 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+         count: 0,[m
+         eachQuantity: 0,[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m        quantity: 0,[m
+[32m+[m[32m        count: 0,[m
+[32m+[m[32m        eachQuantity: 0,[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+         existingPrice: 0,[m
+         newPrice: 0,[m
+         taxPercentage: 0,[m
+[36m@@ -651,6 +676,7 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+         hsnCode: '',[m
+         befTaxDiscount: 0,[m
+         afTaxDiscount: 0,[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+         pendingTotalPrice: 0,[m
+         taxType: 'cgst_sgst',[m
+[36m@@ -662,6 +688,8 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+   };[m
+ [m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+         befTaxDiscountAmount: 0,[m
+         afTaxDiscountAmount: 0,[m
+         pendingTotalPrice: 0,[m
+[36m@@ -677,7 +705,10 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+       setNewPriceTypeInput(''); // Reset to empty string[m
+     }[m
+   };[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   const handleClear = () => {[m
+     dispatch(setPurchaseOrderData({[m
+       purchaseOrderId: '',[m
+[36m@@ -961,6 +992,7 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+   const handleShippingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, field: string) => {[m
+     setUpdatedShippingRow({ ...updatedShippingRow!, [field]: e.target.value });[m
+   };[m
+[32m+[m[32m<<<<<<< HEAD[m
+ [m
+   const handleEdit = (item: Item) => {[m
+     dispatch(setItemForEditing(item));[m
+[36m@@ -1011,6 +1043,43 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+     setTotals(calculateTotals);[m
+   };[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m  const handleEdit = (item: Item) => {[m
+[32m+[m[32m    const befDiscount = item.befTaxDiscount || 0;[m
+[32m+[m[32m    const afDiscount = item.afTaxDiscount || 0;[m
+[32m+[m[32m    const befDiscountAmount = item.befTaxDiscountAmount || 0;[m
+[32m+[m[32m    const afDiscountAmount = item.afTaxDiscountAmount || 0;[m
+[32m+[m[32m    let editedBef = discountMode === 'percentage' ? (befDiscount > 0 ? befDiscount : 0) : (befDiscountAmount > 0 ? befDiscountAmount : 0);[m
+[32m+[m[32m    let editedAf = discountMode === 'percentage' ? (afDiscount > 0 ? afDiscount : 0) : (afDiscountAmount > 0 ? afDiscountAmount : 0);[m
+[32m+[m[32m    if (editedBef > 0 && editedAf > 0) {[m
+[32m+[m[32m      editedAf = 0;[m
+[32m+[m[32m    }[m
+[32m+[m[32m    dispatch(setItemForEditing({[m
+[32m+[m[32m      ...item,[m
+[32m+[m[32m      befTaxDiscount: discountMode === 'percentage' ? editedBef : 0,[m
+[32m+[m[32m      afTaxDiscount: discountMode === 'percentage' ? editedAf : 0,[m
+[32m+[m[32m      befTaxDiscountAmount: discountMode === 'amount' ? editedBef : 0,[m
+[32m+[m[32m      afTaxDiscountAmount: discountMode === 'amount' ? editedAf : 0,[m
+[32m+[m[32m      befTaxDiscountType: discountMode,[m
+[32m+[m[32m      afTaxDiscountType: discountMode,[m
+[32m+[m[32m    }));[m
+[32m+[m[32m    const itemForSearch: PurchaseItemSearchAdd = {[m
+[32m+[m[32m      purchaseitemId: item.itemId,[m
+[32m+[m[32m      itemName: item.itemName,[m
+[32m+[m[32m      purchasePrice: item.newPrice,[m
+[32m+[m[32m      purchasetaxName: item.taxPercentage,[m
+[32m+[m[32m      uom: item.uom,[m
+[32m+[m[32m      purchasecategoryName: item.purchasecategoryName,[m
+[32m+[m[32m      purchasesubcategoryName: item.purchasesubcategoryName,[m
+[32m+[m[32m      hsnCode: item.hsnCode,[m
+[32m+[m[32m    };[m
+[32m+[m[32m    setNewItemsearch(itemForSearch);[m
+[32m+[m[32m    setCountInput(item.pendingCount.toString());[m
+[32m+[m[32m    setQuantityInput(item.pendingQuantity.toString());[m
+[32m+[m[32m    setNewPriceTypeInput(item.newPrice.toString()); // Use raw string, no .toFixed(2)[m
+[32m+[m[32m    setTotals(calculateTotals);[m
+[32m+[m[32m  };[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   const handleAddItem = useCallback(async () => {[m
+     setErrors({[m
+       itemName: !newItem.itemName,[m
+[36m@@ -1181,17 +1250,21 @@[m [mconst setOverallDiscountModeWithConversion = async (newMode: 'percentage' | 'amo[m
+         dispatch(setSnackbarOpen(true));[m
+       });[m
+   };[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+ [m
+   const handleSubmit = async () => {[m
+     setLoading(true);[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   const applyOverallDiscountToItems = () => {[m
+     if (overallDiscountValue <= 0) return;[m
+     const items = [...purchaseOrderData.items];[m
+     const totalOrderAmount = items.reduce((sum, item) => sum + (item.pendingTotalPrice || 0), 0);[m
+     if (totalOrderAmount <= 0) {[m
+       dispatch(setSnackbarMessage('Cannot apply discount to zero amount order'));[m
+[32m+[m[32m<<<<<<< HEAD[m
+       dispatch(setSnackbarOpen(true));[m
+       return;[m
+     }[m
+[36m@@ -1471,10 +1544,293 @@[m [mconst handleResetDiscounts = async () => {[m
+     const { roundedTotalOrderAmount, roundedTotalDiscount, roundedTotalTax } = calculateTotals;[m
+     if (!purchaseOrderData.items.length) {[m
+       dispatch(setSnackbarMessage('At least one item is required.'));[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+[32m+[m[32m      dispatch(setSnackbarOpen(true));[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m[32m<<<<<<< HEAD[m
+[32m+[m[32m=======[m
+[32m+[m[32m    const totalDiscount = overallDiscountMode === 'percentage'[m
+[32m+[m[32m      ? totalOrderAmount * (overallDiscountValue / 100)[m
+[32m+[m[32m      : overallDiscountValue;[m
+[32m+[m[32m    if (totalDiscount >= totalOrderAmount) {[m
+[32m+[m[32m      dispatch(setSnackbarMessage(`Discount cannot be ${overallDiscountValue}${overallDiscountMode === 'percentage' ? '%' : ''} as it would make the total negative.`));[m
+[32m+[m[32m      dispatch(setSnackbarOpen(true));[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m[32m    let remainingDiscount = totalDiscount;[m
+[32m+[m[32m    let appliedDiscount = 0;[m
+[32m+[m[32m    const updatedItems = items.map(item => {[m
+[32m+[m[32m      if (!item.pendingTotalPrice || item.pendingTotalPrice <= 0) return item;[m
+[32m+[m[32m      const itemShare = roundPrice((item.pendingTotalPrice / totalOrderAmount) * totalDiscount);[m
+[32m+[m[32m      const discountPercentage = roundPrice((itemShare / item.pendingTotalPrice) * 100);[m
+[32m+[m[32m      const discountAmount = Math.min(itemShare, item.pendingTotalPrice - 0.01); // prevent negative[m
+[32m+[m[32m      const updatedItem = { ...item };[m
+[32m+[m[32m      updatedItem.afTaxDiscount = discountPercentage;[m
+[32m+[m[32m      updatedItem.afTaxDiscountAmount = discountAmount;[m
+[32m+[m[32m      updatedItem.befTaxDiscount = 0;[m
+[32m+[m[32m      updatedItem.befTaxDiscountAmount = 0;[m
+[32m+[m[32m      const priceAfterDiscount = item.pendingTotalPrice - discountAmount;[m
+[32m+[m[32m      const taxPercentage = item.taxPercentage || 0;[m
+[32m+[m[32m      if (item.taxType === 'igst') {[m
+[32m+[m[32m        updatedItem.pendingIgst = roundPrice((taxPercentage / 100) * priceAfterDiscount);[m
+[32m+[m[32m        updatedItem.pendingSgst = 0;[m
+[32m+[m[32m        updatedItem.pendingCgst = 0;[m
+[32m+[m[32m      } else {[m
+[32m+[m[32m        const halfTax = taxPercentage / 2;[m
+[32m+[m[32m        updatedItem.pendingSgst = roundPrice((halfTax / 100) * priceAfterDiscount);[m
+[32m+[m[32m        updatedItem.pendingCgst = roundPrice((halfTax / 100) * priceAfterDiscount);[m
+[32m+[m[32m        updatedItem.pendingIgst = 0;[m
+[32m+[m[32m      }[m
+[32m+[m[32m      const taxAmount = (updatedItem.pendingSgst || 0) + (updatedItem.pendingCgst || 0) + (updatedItem.pendingIgst || 0);[m
+[32m+[m[32m      updatedItem.pendingDiscountAmount = roundPrice((item.pendingDiscountAmount || 0) + discountAmount); // add to existing if any[m
+[32m+[m[32m      updatedItem.pendingTaxAmount = roundPrice(taxAmount);[m
+[32m+[m[32m      updatedItem.pendingFinalPrice = roundPrice(priceAfterDiscount + taxAmount);[m
+[32m+[m[32m      updatedItem.pendingTotalPrice = roundPrice(priceAfterDiscount);[m
+[32m+[m[32m      appliedDiscount += discountAmount;[m
+[32m+[m[32m      remainingDiscount -= discountAmount;[m
+[32m+[m[32m      return updatedItem;[m
+[32m+[m[32m    });[m
+[32m+[m[32m    // Update the purchase order with discounted items[m
+[32m+[m[32m    dispatch(setPurchaseOrderData({[m
+[32m+[m[32m      ...purchaseOrderData,[m
+[32m+[m[32m      items: updatedItems,[m
+[32m+[m[32m      pendingDiscountAmount: roundPrice((purchaseOrderData.pendingDiscountAmount || 0) + appliedDiscount),[m
+[32m+[m[32m      pendingOrderAmount: roundPrice(purchaseOrderData.pendingOrderAmount - appliedDiscount)[m
+[32m+[m[32m    }));[m
+[32m+[m[32m    if (remainingDiscount > 0) {[m
+[32m+[m[32m      dispatch(setSnackbarMessage(`Applied ₹${appliedDiscount.toFixed(2)} of ₹${totalDiscount.toFixed(2)} discount`));[m
+[32m+[m[32m    } else {[m
+[32m+[m[32m      dispatch(setSnackbarMessage(`Successfully applied ₹${totalDiscount.toFixed(2)} discount across all items`));[m
+[32m+[m[32m    }[m
+[32m+[m[32m    dispatch(setSnackbarOpen(true));[m
+[32m+[m[32m    // Reset discount value after applying[m
+[32m+[m[32m    setOverallDiscountValue(0);[m
+[32m+[m[32m  };[m
+[32m+[m[32mconst handleApplyDiscount = async () => {[m
+[32m+[m[32m  if (overallDiscountValue <= 0) {[m
+[32m+[m[32m    dispatch(setSnackbarMessage('Please enter a discount amount'));[m
+[32m+[m[32m    dispatch(setSnackbarOpen(true));[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+[32m+[m[32m  if (purchaseOrderData.items.length === 0) {[m
+[32m+[m[32m    dispatch(setSnackbarMessage('Add items before applying discount'));[m
+[32m+[m[32m    dispatch(setSnackbarOpen(true));[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const allItems = purchaseOrderData.items.map(item => ({[m
+[32m+[m[32m      id: item.itemId,[m
+[32m+[m[32m      pendingTotalQuantity: item.pendingTotalQuantity || 0,[m
+[32m+[m[32m      poQuantity: item.pendingTotalQuantity || 0,[m
+[32m+[m[32m      newPrice: item.newPrice || 0,[m
+[32m+[m[32m      befTaxDiscount: item.befTaxDiscount || 0,[m
+[32m+[m[32m      afTaxDiscount: item.afTaxDiscount || 0,[m
+[32m+[m[32m      befTaxDiscountAmount: item.befTaxDiscountAmount || 0,[m
+[32m+[m[32m      afTaxDiscountAmount: item.afTaxDiscountAmount || 0,[m
+[32m+[m[32m      befTaxDiscountType: (item.befTaxDiscountType || 'percentage') as 'percentage' | 'amount',[m
+[32m+[m[32m      afTaxDiscountType: (item.afTaxDiscountType || 'percentage') as 'percentage' | 'amount',[m
+[32m+[m[32m      taxPercentage: item.taxPercentage || 0,[m
+[32m+[m[32m      taxType: item.taxType || 'cgst_sgst'[m
+[32m+[m[32m    }));[m
+[32m+[m
+[32m+[m[32m    const result = await dispatch(calculateOverallDiscountForAllItems({[m
+[32m+[m[32m      items: allItems,[m
+[32m+[m[32m      overallDiscountValue: overallDiscountValue,[m
+[32m+[m[32m      overallDiscountMode: overallDiscountMode,[m
+[32m+[m[32m      applyOverallDiscount: true[m
+[32m+[m[32m    })).unwrap();[m
+[32m+[m
+[32m+[m[32m    if (!result.success) {[m
+[32m+[m[32m      throw new Error(result.error || 'Failed to apply discount');[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Update items with calculated values[m
+[32m+[m[32m    const updatedItems = purchaseOrderData.items.map(item => {[m
+[32m+[m[32m      const calculatedItem = result.items.find(calc => calc.id === item.itemId);[m
+[32m+[m[32m      if (calculatedItem) {[m
+[32m+[m[32m        return {[m
+[32m+[m[32m          ...item,[m
+[32m+[m[32m          pendingFinalPrice: calculatedItem.pendingFinalPrice,[m
+[32m+[m[32m          pendingOrderAmount: calculatedItem.pendingOrderAmount,[m
+[32m+[m[32m          pendingAfTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,[m
+[32m+[m[32m          afTaxDiscount: calculatedItem.afTaxDiscount,[m
+[32m+[m[32m          pendingTaxAmount: calculatedItem.pendingTaxAmount,[m
+[32m+[m[32m          pendingDiscountAmount: calculatedItem.pendingDiscountAmount,[m
+[32m+[m[32m          pendingTotalPrice: calculatedItem.pendingTotalPrice,[m
+[32m+[m[32m          pendingSgst: calculatedItem.pendingSgst,[m
+[32m+[m[32m          pendingCgst: calculatedItem.pendingCgst,[m
+[32m+[m[32m          pendingIgst: calculatedItem.pendingIgst,[m
+[32m+[m[32m        };[m
+[32m+[m[32m      }[m
+[32m+[m[32m      return item;[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    dispatch(setPurchaseOrderData({[m
+[32m+[m[32m      ...purchaseOrderData,[m
+[32m+[m[32m      items: updatedItems,[m
+[32m+[m[32m      pendingOrderAmount: result.summary.totalFinalAmount,[m
+[32m+[m[32m      pendingDiscountAmount: result.summary.totalDiscountAmount,[m
+[32m+[m[32m      pendingTaxAmount: result.summary.totalTaxAmount,[m
+[32m+[m[32m    }));[m
+[32m+[m
+[32m+[m[32m    dispatch(setSnackbarMessage(`Successfully applied ₹${result.summary.overallDiscountTotalAmount.toFixed(2)} discount across all items`));[m
+[32m+[m[32m    dispatch(setSnackbarOpen(true));[m
+[32m+[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    console.error('Error applying overall discount:', error);[m
+[32m+[m[32m    dispatch(setSnackbarMessage('Error applying overall discount. Please try again.'));[m
+[32m+[m[32m    dispatch(setSnackbarOpen(true));[m
+[32m+[m[32m  }[m
+[32m+[m[32m};[m
+[32m+[m
+[32m+[m[32mconst removeOverallDiscount = async () => {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const allItems = purchaseOrderData.items.map(item => ({[m
+[32m+[m[32m      id: item.itemId,[m
+[32m+[m[32m      pendingTotalQuantity: item.pendingTotalQuantity || 0,[m
+[32m+[m[32m      poQuantity: item.pendingTotalQuantity || 0,[m
+[32m+[m[32m      newPrice: item.newPrice || 0,[m
+[32m+[m[32m      befTaxDiscount: item.befTaxDiscount || 0,[m
+[32m+[m[32m      afTaxDiscount: 0, // Reset after-tax discount[m
+[32m+[m[32m      befTaxDiscountAmount: item.befTaxDiscountAmount || 0,[m
+[32m+[m[32m      afTaxDiscountAmount: 0, // Reset after-tax discount amount[m
+[32m+[m[32m      befTaxDiscountType: (item.befTaxDiscountType || 'percentage') as 'percentage' | 'amount',[m
+[32m+[m[32m      afTaxDiscountType: (item.afTaxDiscountType || 'percentage') as 'percentage' | 'amount',[m
+[32m+[m[32m      taxPercentage: item.taxPercentage || 0,[m
+[32m+[m[32m      taxType: item.taxType || 'cgst_sgst'[m
+[32m+[m[32m    }));[m
+[32m+[m
+[32m+[m[32m    const result = await dispatch(calculateOverallDiscountForAllItems({[m
+[32m+[m[32m      items: allItems,[m
+[32m+[m[32m      overallDiscountValue: 0,[m
+[32m+[m[32m      overallDiscountMode: overallDiscountMode,[m
+[32m+[m[32m      applyOverallDiscount: false[m
+[32m+[m[32m    })).unwrap();[m
+[32m+[m
+[32m+[m[32m    if (result.success) {[m
+[32m+[m[32m      setOverallDiscountValue(0);[m
+[32m+[m
+[32m+[m[32m      const updatedItems = purchaseOrderData.items.map(item => {[m
+[32m+[m[32m        const calculatedItem = result.items.find(calc => calc.id === item.itemId);[m
+[32m+[m[32m        if (calculatedItem) {[m
+[32m+[m[32m          return {[m
+[32m+[m[32m            ...item,[m
+[32m+[m[32m            pendingFinalPrice: calculatedItem.pendingFinalPrice,[m
+[32m+[m[32m            pendingOrderAmount: calculatedItem.pendingOrderAmount,[m
+[32m+[m[32m            pendingAfTaxDiscountAmount: calculatedItem.pendingAfTaxDiscountAmount,[m
+[32m+[m[32m            afTaxDiscount: calculatedItem.afTaxDiscount,[m
+[32m+[m[32m            pendingTaxAmount: calculatedItem.pendingTaxAmount,[m
+[32m+[m[32m            pendingDiscountAmount: calculatedItem.pendingDiscountAmount,[m
+[32m+[m[32m            pendingTotalPrice: calculatedItem.pendingTotalPrice,[m
+[32m+[m[32m            pendingSgst: calculatedItem.pendingSgst,[m
+[32m+[m[32m            pendingCgst: calculatedItem.pendingCgst,[m
+[32m+[m[32m            pendingIgst: calculatedItem.pendingIgst,[m
+[32m+[m[32m          };[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return item;[m
+[32m+[m[32m      });[m
+[32m+[m
+[32m+[m[32m      dispatch(setPurchaseOrderData({[m
+[32m+[m[32m        ...purchaseOrderData,[m
+[32m+[m[32m        items: updatedItems,[m
+[32m+[m[32m        pendingOrderAmount: result.summary.totalFinalAmount,[m
+[32m+[m[32m        pendingDiscountAmount: result.summary.totalDiscountAmount,[m
+[32m+[m[32m        pendingTaxAmount: result.summary.totalTaxAmount,[m
+[32m+[m[32m      }));[m
+[32m+[m
+[32m+[m[32m      dispatch(setSnackbarMessage('Overall discount removed successfully'));[m
+[32m+[m[32m      dispatch(setSnackbarOpen(true));[m
+[32m+[m[32m    } else {[m
+[32m+[m[32m      throw new Error(result.error || 'Failed to remove discount');[m
+[32m+[m[32m    }[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    console.error('Error removing overall discount:', error);[m
+[32m+[m[32m    dispatch(setSnackbarMessage('Error removing overall discount. Please try again.'));[m
+[32m+[m[32m    dispatch(setSnackbarOpen(true));[m
+[32m+[m[32m  }[m
+[32m+[m[32m};[m
+[32m+[m
+[32m+[m[32mconst handleResetDiscounts = async () => {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    // Reset all discounts to zero[m
+[32m+[m[32m    const resetItems = purchaseOrderData.items.map(item => ({[m
+[32m+[m[32m      id: item.itemId,[m
+[32m+[m[32m      pendingTotalQuantity: item.pendingTotalQuantity || 0,[m
+[32m+[m[32m      poQuantity: item.pendingTotalQuantity || 0,[m
+[32m+[m[32m      newPrice: item.newPrice || 0,[m
+[32m+[m[32m      befTaxDiscount: 0,[m
+[32m+[m[32m      afTaxDiscount: 0,[m
+[32m+[m[32m      befTaxDiscountAmount: 0,[m
+[32m+[m[32m      afTaxDiscountAmount: 0,[m
+[32m+[m[32m      befTaxDiscountType: 'percentage' as 'percentage' | 'amount',[m
+[32m+[m[32m      afTaxDiscountType: 'percentage' as 'percentage' | 'amount',[m
+[32m+[m[32m      taxPercentage: item.taxPercentage || 0,[m
+[32m+[m[32m      taxType: item.taxType || 'cgst_sgst'[m
+[32m+[m[32m    }));[m
+[32m+[m
+[32m+[m[32m    const result = await dispatch(calculateOverallDiscountForAllItems({[m
+[32m+[m[32m      items: resetItems,[m
+[32m+[m[32m      overallDiscountValue: 0,[m
+[32m+[m[32m      overallDiscountMode: overallDiscountMode,[m
+[32m+[m[32m      applyOverallDiscount: false[m
+[32m+[m[32m    })).unwrap();[m
+[32m+[m
+[32m+[m[32m    if (result.success) {[m
+[32m+[m[32m      const updatedItems = purchaseOrderData.items.map(item => {[m
+[32m+[m[32m        const calculatedItem = result.items.find(calc => calc.id === item.itemId);[m
+[32m+[m[32m        if (calculatedItem) {[m
+[32m+[m[32m          return {[m
+[32m+[m[32m            ...item,[m
+[32m+[m[32m            befTaxDiscount: 0,[m
+[32m+[m[32m            afTaxDiscount: 0,[m
+[32m+[m[32m            befTaxDiscountAmount: 0,[m
+[32m+[m[32m            afTaxDiscountAmount: 0,[m
+[32m+[m[32m            pendingDiscountAmount: 0,[m
+[32m+[m[32m            pendingFinalPrice: calculatedItem.pendingFinalPrice,[m
+[32m+[m[32m            pendingTaxAmount: calculatedItem.pendingTaxAmount,[m
+[32m+[m[32m            pendingTotalPrice: calculatedItem.pendingTotalPrice,[m
+[32m+[m[32m            pendingSgst: calculatedItem.pendingSgst,[m
+[32m+[m[32m            pendingCgst: calculatedItem.pendingCgst,[m
+[32m+[m[32m            pendingIgst: calculatedItem.pendingIgst,[m
+[32m+[m[32m          };[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return item;[m
+[32m+[m[32m      });[m
+[32m+[m
+[32m+[m[32m      dispatch(setPurchaseOrderData({[m
+[32m+[m[32m        ...purchaseOrderData,[m
+[32m+[m[32m        items: updatedItems,[m
+[32m+[m[32m        pendingDiscountAmount: 0,[m
+[32m+[m[32m        pendingOrderAmount: result.summary.totalFinalAmount,[m
+[32m+[m[32m        pendingTaxAmount: result.summary.totalTaxAmount,[m
+[32m+[m[32m      }));[m
+[32m+[m
+[32m+[m[32m      setOverallDiscountValue(0);[m
+[32m+[m[32m      dispatch(setSnackbarMessage('All discounts reset'));[m
+[32m+[m[32m      dispatch(setSnackbarOpen(true));[m
+[32m+[m[32m    } else {[m
+[32m+[m[32m      throw new Error(result.error || 'Failed to reset discounts');[m
+[32m+[m[32m    }[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    console.error('Error resetting discounts:', error);[m
+[32m+[m[32m    dispatch(setSnackbarMessage('Error resetting discounts. Please try again.'));[m
+[32m+[m[32m    dispatch(setSnackbarOpen(true));[m
+[32m+[m[32m  }[m
+[32m+[m[32m};[m
+[32m+[m[32m  const handleSubmit = async () => {[m
+[32m+[m[32m    setLoading(true);[m
+[32m+[m[32m    // Recalculate totals to ensure they're up-to-date[m
+[32m+[m[32m    const { roundedTotalOrderAmount, roundedTotalDiscount, roundedTotalTax } = calculateTotals;[m
+[32m+[m[32m    if (!purchaseOrderData.items.length) {[m
+[32m+[m[32m      dispatch(setSnackbarMessage('At least one item is required.'));[m
+       dispatch(setSnackbarOpen(true));[m
+       setLoading(false);[m
+       return;[m
+     }[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     const dataToSubmit = {[m
+       ...purchaseOrderData,[m
+ <<<<<<< HEAD[m
+[36m@@ -1486,9 +1842,12 @@[m [mconst handleResetDiscounts = async () => {[m
+       pendingOrderAmount: roundedTotalOrderAmount,[m
+       pendingDiscountAmount: roundedTotalDiscount,[m
+       pendingTaxAmount: roundedTotalTax,[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+       isHoldOrder: roundedTotalOrderAmount > purchaseOrderData.creditLimit,[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       totalTax: roundedTotalTax,[m
+       isHoldOrder: roundedTotalOrderAmount > purchaseOrderData.creditLimit,[m
+       overallDiscountType: overallDiscountMode,[m
+[36m@@ -1497,7 +1856,10 @@[m [mconst handleResetDiscounts = async () => {[m
+       totalDiscount:roundedTotalDiscount,[m
+       roundOffValue: roundOffValue,[m
+       // Items already have the discount applied from the UI calculation[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     };[m
+     try {[m
+       const result = await dispatch(addPurchaseOrder(dataToSubmit)).unwrap();[m
+[36m@@ -1841,6 +2203,7 @@[m [mconst handleResetDiscounts = async () => {[m
+                     fullWidth[m
+                     label="New Price"[m
+                     name="newPrice"[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+                     type="number"[m
+                     value={newPriceInput}[m
+[36m@@ -1848,12 +2211,17 @@[m [mconst handleResetDiscounts = async () => {[m
+                     size="small"[m
+                     inputProps={{ step: '00000.01', min: '0' }}[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                     type="text"[m
+                     value={newPriceInput}[m
+                     onChange={handleItemChange}[m
+                     size="small"[m
+                     inputProps={{ min: '0' }}[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                     error={errors.newPrice}[m
+                     helperText={errors.newPrice ? 'New price is required' : ''}[m
+                   />[m
+[36m@@ -2054,7 +2422,10 @@[m [mconst handleResetDiscounts = async () => {[m
+                       </Button>[m
+                     </Box>[m
+                   </Box>[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+                   <Button[m
+                     variant="contained"[m
+                     color="primary"[m
+[1mdiff --git a/src/features/yen-purchase/Outgoing/ledgerData.ts b/src/features/yen-purchase/Outgoing/ledgerData.ts[m
+[1mindex ea0c0bd..f43d847 100644[m
+[1m--- a/src/features/yen-purchase/Outgoing/ledgerData.ts[m
+[1m+++ b/src/features/yen-purchase/Outgoing/ledgerData.ts[m
+[36m@@ -5,11 +5,15 @@[m [mimport { RootState } from '../../../redux/store';[m
+ // Define interfaces matching your API response[m
+ export interface Transaction {[m
+   date: string | null;[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+   type: string; // "invoice", "payment", "debit_note", "advance_payment"[m
+ =======[m
+   type: string; // "invoice", "payment", "debit_note", "advance_payment", "opening_balance"[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m  type: string; // "invoice", "payment", "debit_note", "advance_payment", "opening_balance"[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   reference_id: string;[m
+   description: string;[m
+   debit_amount: number;[m
+[36m@@ -18,11 +22,15 @@[m [mexport interface Transaction {[m
+   status: string;[m
+   payment_method?: string;[m
+   notes?: string;[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+   formatted_date?: string; // Add this if your API includes formatted dates[m
+ =======[m
+   formatted_date?: string;[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m  formatted_date?: string;[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ }[m
+ [m
+ export interface InvoiceDetail {[m
+[36m@@ -48,11 +56,15 @@[m [mexport interface VendorLedgerResponse {[m
+   totalCreditAmount: number;[m
+   outstandingAmount: number;[m
+   invoices: InvoiceDetail[];[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+   transactions: Transaction[]; // This should come from your API[m
+ =======[m
+   transactions: Transaction[];[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m  transactions: Transaction[];[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   lastTransactionDate: string | null;[m
+ }[m
+ [m
+[36m@@ -63,12 +75,18 @@[m [minterface LedgerState {[m
+   error: string | null;[m
+   selectedVendorName: string | null;[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   dateRange: {[m
+     startDate: Date | null;[m
+     endDate: Date | null;[m
+   };[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ }[m
+ [m
+ const initialState: LedgerState = {[m
+[36m@@ -78,16 +96,23 @@[m [mconst initialState: LedgerState = {[m
+   error: null,[m
+   selectedVendorName: null,[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+[32m+[m[32m=======[m
+ =======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+   dateRange: {[m
+     startDate: null,[m
+     endDate: null,[m
+   },[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ };[m
+ [m
+ export const fetchLedgerData = createAsyncThunk([m
+   'ledger/fetchLedgerData',[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+   async (vendorName: string, { rejectWithValue }) => {[m
+     try {[m
+[36m@@ -97,6 +122,10 @@[m [mexport const fetchLedgerData = createAsyncThunk([m
+ =======[m
+   async ({ vendorName, startDate, endDate }: { vendorName: string; startDate?: string; endDate?: string }, { rejectWithValue }) => {[m
+     try {[m
+[32m+[m[32m=======[m
+[32m+[m[32m  async ({ vendorName, startDate, endDate }: { vendorName: string; startDate?: string; endDate?: string }, { rejectWithValue }) => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       let url = `http://192.168.33.24:8000/purchaseapi/outgoingpayments/vendor/${encodeURIComponent(vendorName)}/ledger`;[m
+       [m
+       // Add date parameters if provided[m
+[36m@@ -109,7 +138,10 @@[m [mexport const fetchLedgerData = createAsyncThunk([m
+       }[m
+       [m
+       const response = await axios.get(url);[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       return response.data as VendorLedgerResponse;[m
+     } catch (error: any) {[m
+       console.error('API Error:', error.response?.data || error.message);[m
+[36m@@ -126,23 +158,35 @@[m [mconst ledgerSlice = createSlice({[m
+       state.selectedVendorName = action.payload;[m
+     },[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+     setDateRange: (state, action: PayloadAction<{ startDate: Date | null; endDate: Date | null }>) => {[m
+       state.dateRange = action.payload;[m
+     },[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m    setDateRange: (state, action: PayloadAction<{ startDate: Date | null; endDate: Date | null }>) => {[m
+[32m+[m[32m      state.dateRange = action.payload;[m
+[32m+[m[32m    },[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     resetLedgerData: (state) => {[m
+       state.ledgerData = null;[m
+       state.error = null;[m
+       state.selectedVendorName = null;[m
+       state.transactions = [];[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+[32m+[m[32m=======[m
+ =======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+       state.dateRange = {[m
+         startDate: null,[m
+         endDate: null,[m
+       };[m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+     },[m
+   },[m
+   extraReducers: (builder) => {[m
+[36m@@ -165,6 +209,7 @@[m [mconst ledgerSlice = createSlice({[m
+             type: 'invoice',[m
+             reference_id: invoice.invoiceNo,[m
+             description: `Invoice ${invoice.invoiceNo} - PO ${invoice.poId}`,[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+             debit_amount: invoice.totalPayableAmount,[m
+             credit_amount: invoice.paidAmount,[m
+[36m@@ -174,6 +219,11 @@[m [mconst ledgerSlice = createSlice({[m
+             credit_amount: invoice.totalPayableAmount,[m
+             balance: 0,[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m            debit_amount: 0,[m
+[32m+[m[32m            credit_amount: invoice.totalPayableAmount,[m
+[32m+[m[32m            balance: 0,[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+             status: invoice.status,[m
+             notes: `GRN: ${invoice.grnId}`,[m
+           })) || [];[m
+[36m@@ -187,10 +237,14 @@[m [mconst ledgerSlice = createSlice({[m
+   },[m
+ });[m
+ [m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+ export const { setSelectedVendorName, resetLedgerData } = ledgerSlice.actions;[m
+ =======[m
+ export const { setSelectedVendorName, setDateRange, resetLedgerData } = ledgerSlice.actions;[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32mexport const { setSelectedVendorName, setDateRange, resetLedgerData } = ledgerSlice.actions;[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ export const selectLedger = (state: RootState) => state.outgoingLedger as LedgerState;[m
+ export default ledgerSlice.reducer;[m
+\ No newline at end of file[m
+[1mdiff --git a/src/features/yen-purchase/Outgoing/outgoingPaymentSlice.tsx b/src/features/yen-purchase/Outgoing/outgoingPaymentSlice.tsx[m
+[1mindex e377180..e0bb220 100644[m
+[1m--- a/src/features/yen-purchase/Outgoing/outgoingPaymentSlice.tsx[m
+[1m+++ b/src/features/yen-purchase/Outgoing/outgoingPaymentSlice.tsx[m
+[36m@@ -397,11 +397,15 @@[m [mexport const addNewVendorPayment = createAsyncThunk([m
+   async (paymentData: any, { rejectWithValue }) => {[m
+     console.log('addNewPayment called with data:', paymentData);[m
+     try {[m
+[32m+[m[32m<<<<<<< HEAD[m
+ <<<<<<< HEAD[m
+       const response = await axios.post('http://192.168.33.24:8000/purchaseapi/outgoingpayments/addvendorpayment/', {[m
+ =======[m
+       const response = await axios.post('http://192.168.33.24:8000/purchaseapi/outgoingpayments/advance/', {[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m      const response = await axios.post('http://192.168.33.24:8000/purchaseapi/outgoingpayments/advance/', {[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+         ...paymentData,[m
+         isPreOutgoing: !paymentData.poId,[m
+       });[m
+[1mdiff --git a/src/features/yen-purchase/PurchaseOrder/purchaseOrderSlice.tsx b/src/features/yen-purchase/PurchaseOrder/purchaseOrderSlice.tsx[m
+[1mindex 3ca7e07..eba3d1e 100644[m
+[1m--- a/src/features/yen-purchase/PurchaseOrder/purchaseOrderSlice.tsx[m
+[1m+++ b/src/features/yen-purchase/PurchaseOrder/purchaseOrderSlice.tsx[m
+[36m@@ -2,6 +2,7 @@[m
+ import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';[m
+ import axios from 'axios';[m
+ import { RootState } from '@/redux/store'; // Adjust the import path accordingly[m
+[32m+[m[32m<<<<<<< HEAD[m
+ import { Item, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'[m
+ =======[m
+ import { createSlice, PayloadAction, createAsyncThunk, createAction } from '@reduxjs/toolkit';[m
+[36m@@ -9,6 +10,9 @@[m [mimport axios from 'axios';[m
+ import { RootState } from '@/redux/store'; // Adjust the import path accordingly[m
+ import { Item, ItemInput, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32mimport { Item, ItemInput, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor } from '../../../Models/purchaseModel'[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ [m
+ export interface PurchaseItemSearch {[m
+   purchaseitemId: string;[m
+[36m@@ -336,7 +340,10 @@[m [mexport const calculateItemTotals = createAsyncThunk([m
+   }[m
+ );[m
+ <<<<<<< HEAD[m
+[32m+[m[32m<<<<<<< HEAD[m
+ =======[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ export const calculateOverallDiscountForAllItems = createAsyncThunk([m
+   'purchaseOrder/calculateOverallDiscountForAllItems',[m
+   async (payload: {[m
+[36m@@ -402,7 +409,10 @@[m [mexport const calculateOverallDiscountForAllItems = createAsyncThunk([m
+ );[m
+ [m
+ [m
+[32m+[m[32m<<<<<<< HEAD[m
+ >>>>>>> recover-branch[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> d185c94 (Overall disocunt amount)[m
+ export const downloadCsvTemplate = createAsyncThunk([m
+   'purchaseOrder/downloadCsvTemplate',[m
+   async (_, { rejectWithValue }) => {[m

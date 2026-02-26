@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+message Item {
+  string ItemCode = 1;
+  string UOM = 2;
+  float Qty = 3;
+  string RowId = 4;
+}

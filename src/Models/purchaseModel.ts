@@ -1,0 +1,425 @@
+import { List } from "postcss/lib/list";
+import { GrnData } from "./grnModel";
+export interface Freight {
+  id: string;
+  name: string;
+  tCode: string;
+  amt: number;
+  tAmt: number;
+  totalAmt: number;
+  taxType: 'cgst_sgst' | 'igst';
+  sgst: number;
+  cgst: number;
+  igst: number;
+  taxPercentage: number;
+}
+export interface Item {
+  itemId: string;
+  itemCode: string;
+  itemName: string;
+  quantity: number;
+  poQuantity: number;
+  count: number;
+  expiryDate: string | null;  // FIXED: Changed from Date | null to string | null (ISO format)
+  eachQuantity: number;
+  receivedQuantity?: string | number;
+  damagedQuantity: number;
+  purchasecategoryName: string;
+  purchasesubcategoryName: any;
+  existingPrice: number;
+  newPrice: number;
+  priceVariance: number;
+  hsnCode: string;
+  discountAmount: number;
+  taxAmount: number;
+  totalDiscount?: number;
+  uom: string;
+  taxPercentage: number;
+  grnPrice: number;
+  totalPrice: number;
+  finalPrice: number;
+  befTaxDiscountAmount: number;
+  afTaxDiscountAmount: number;
+  befTaxDiscount: number,
+  afTaxDiscount: number,
+  barcode: string,
+  sgst: number,
+  cgst: number,
+  igst: number;
+  pendingCount: number;
+  pendingQuantity: number;
+  poQuantityTaxAmount: number;
+  poQuantityDiscountAmount: number;
+  poQuantitypendingTotalPrice: number;
+  poQuantitypendingFinalPrice: number;
+  poQuantitysgst: number;
+  poQuantitycgst: number;
+  poQuantityigst: number;
+  pendingTotalQuantity: number;
+  pendingTaxAmount?: number;
+  pendingSgst?: number;
+  pendingCgst?: number;
+  pendingIgst?: number;
+  pendingTotalPrice: number;
+  pendingFinalPrice: number;
+  pendingBefTaxDiscountAmount?: number;
+  pendingAfTaxDiscountAmount?: number;
+  befTaxDiscountType?: string;
+  afTaxDiscountType?: string;
+  pendingDiscountAmount: number;
+  taxType: 'cgst_sgst' | 'igst';
+  additionalTaxes?: { [key: string]: number }; // Optional additional taxes
+  status: string;
+  randomId: string;
+}
+
+export interface PurchaseOrderData {
+  purchaseOrderId: string;
+  vendorName: string;
+  vendorId:string;
+  vendorContact: string;
+  vendorCode:string;
+  orderDate: string | null;  // FIXED: Changed from Date | null to string | null (ISO format)
+  approvedDate: string | null;  // FIXED: Changed from Date | null
+  rejectedDate: string | null;  // FIXED: Changed from Date | null
+  expectedDeliveryDate: string | null;  // FIXED: Changed from Date | null to string | null (ISO format)
+  poStatus: string;
+  items: Item[];
+  invoiceDate: string | null;  // FIXED: Changed from Date | null
+  invoiceNo: string;
+  creditLimit: number;
+  totalOrderAmount: number;
+  totalDiscount: number;
+  totalTax: number;
+  discountPrice: number;
+  paymentTerms: string;
+  shippingAddress: string;
+  billingAddress: string;
+  comments: string;
+  randomId: string;
+  imageUrl?: string;
+  address: string;
+  country: string;
+  state: string;
+  city: string;
+  postalCode: number;
+  gstNumber: string;
+  contactpersonEmail: string;
+  itemStatus: string;
+  termsandConditions: string[];
+  freights: Freight[];
+  pendingOrderAmount: number;
+  pendingDiscountAmount: number;
+  pendingTaxAmount: number;
+  poCreatedPerson: string;
+  poApprovedPerson: string;
+  poRejectedPerson: string;
+  discountMode: 'percentage' | 'amount'; // Added to track discount type
+  roundOffValue: number;
+  overallDiscountValue: number;
+  locationName: string;
+totalFreightAmount:number;
+totalFreightTaxAmount:number;
+
+
+
+
+   // ADD THESE GRN-SPECIFIC FIELDS (MAKE THEM OPTIONAL)
+  poQuantitypendingTotalPrice?: number;
+  poQuantitypendingFinalPrice?: number;
+  poQuantityDiscountAmount?: number;
+  poQuantityTaxAmount?: number;
+  poQuantitysgst?: number;
+  poQuantitycgst?: number;
+  poQuantityigst?: number;
+
+}
+
+export type TaxDetails = Record<string, {
+  amount: number;
+  percentage: number;
+  type: string;
+}>;
+
+export interface Vendor {
+  vendorId: string;
+  randomId:string;
+  vendorName: string;
+  contactpersonPhone: string;
+  paymentTerms: string;
+  address: string;
+  country: string;
+  state: string;
+  city: string;
+  postalCode: number;
+  gstNumber: string;
+  contactpersonEmail: string;
+  creditLimit:number;
+}
+
+export interface PurchaseItemSearchAdd {
+  purchaseitemId: string;
+  itemCode: string;
+  itemName: string;
+  purchasetaxName: number;
+  purchasePrice: number;
+  purchasecategoryName: string;
+  purchasesubcategoryName: any;
+  uom: string;
+  hsnCode: string;
+  randomId: string;
+}
+
+// Add these interfaces to your purchaseModel.ts
+interface FreightCalculationResponse {
+  Amt: number;
+  TAmt: number;
+  TotalAmt: number;
+  sgst: number;
+  cgst: number;
+  igst: number;
+  taxPercentage: number;
+}
+
+interface PurchaseOrderTotalsResponse {
+  subTotal: number;
+  totalDiscount: number;
+  totalTax: number;
+  totalFreightAmount: number;
+  totalFreightTaxAmount: number;
+  finalAmount: number;
+  itemTaxAmount: number;
+  freightTaxAmount: number;
+  amountAfterDiscount: number;
+}
+
+// Update your PurchaseOrderState interface
+export interface PurchaseOrderState {
+  purchaseOrderData: PurchaseOrderData;
+  newItem: Item;
+  purchaseorderitems: PurchaseOrderData[];
+  vendors: Vendor[];
+  purchaseitems: PurchaseItemSearchAdd[];
+  loading: boolean;
+  error: string | null;
+  successMessage: string | null;
+  searchQuery: string;
+  snackbarMessage: string;
+  snackbarOpen: boolean;
+  totalPrice: number;
+  totalDiscount: number;
+  totalTax: number;
+  total: number;
+  skip: number;
+  limit: number;
+  importDialogOpen: boolean;
+  importDuplicates: string[];
+  importWarnings: string[];
+  importErrors: string[];
+  importSuccessMessages: string[];
+  importUpdatedItems: string[];
+  discountMode: string;
+  
+  // ADD THESE NEW PROPERTIES:
+  freightCalculationLoading: boolean;
+  poTotalsLoading: boolean;
+  calculatedTotals: PurchaseOrderTotalsResponse | null;
+}
+
+export interface PurchaseRandomId {
+  purchaseOrderId: string;
+  randomId: string;
+}
+export interface PurchaseInvoice {
+  purchaseOrderId: string;
+  invoiceNo: string;
+  vendorName?: string; // Add vendorName as optional
+}
+// Photo interfaces
+export interface PhotoInfo {
+  index: number;
+  ftp_path: string;
+}
+
+export interface PhotosResponse {
+  imageUrls: string[];
+}
+
+export interface PhotoResponse {
+  imageUrl: string;
+}
+
+export interface UploadResponse {
+  message: string;
+  uploaded_photos: PhotoInfo[];
+}
+
+export interface ImageUrlsState {
+  [purchaseOrderId: string]: string[];
+}
+// Models/poModel.ts
+export interface ItemDetailResponsePO {
+  itemId?: string;
+  itemName?: string;
+  poQuantity?: number;
+  newPrice?: number;
+  totalPrice?: number;
+  purchasetaxName?: number;
+  receivedQuantity: number;
+  taxPercentage: number;
+  taxAmount?: number;
+  discountAmount?: number;
+  finalPrice?: number;
+}
+
+export interface PoResponse {
+  purchaseOrderId: string;
+  randomId: string;
+  vendorName?: string;
+  orderDate?: string | null;  // FIXED: Ensure string | null
+  itemDetails: ItemDetailResponsePO[];
+}
+// Define the structure of the state for purchaseList
+export interface PurchaseListState {
+  purchaseList: PurchaseOrderData[];
+  pendingPurchaseList:PurchaseOrderData[];
+  pendingTotalItems:number;
+  purchaseOrders: PurchaseOrderData[];
+   totalGrnConvertedItems: number;
+  grnConvertedPurchaseList: PurchaseOrderData[];
+  purchaseinvoice: PurchaseInvoice[];
+  selectedPo: PoResponse | null;
+  poDialogOpen: boolean;
+  grnList: GrnData[];
+  loading: boolean;
+  photoData: any;
+  error: string | null;
+  searchQueryItem: string;
+  randomIdSearch: string;
+  poRandomIds: PurchaseOrderData[], // List of poRandomIds
+  selectedOrder: any | null;
+  selectedPurchaseId: string | null;
+  snackbarMessage: string,
+  snackbarOpen: boolean,
+  currentPage: number; // New
+  pageSize: number; // New
+  totalItems: number; // New
+  imageUrls: ImageUrlsState;
+  fetchedPurchaseOrderIds: string[]; // Back to using an array
+  selectedImageIndex: number | null;
+  uploadStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+  uploadError: string | null; randomIds: PurchaseRandomId[];
+  page: number;
+  hasMore: boolean;
+  searchQuery: string;
+  previousSearches: string[];
+  importDuplicates: string[];
+  importWarnings: string[];
+  importErrors: string[];
+  importSuccessMessages: string[]; // Added for success messages
+  importUpdatedItems: string[]; // Added for updated items
+  calculatedOverallDiscount: OverallDiscountResponse | null;
+  isCalculatingDiscount: boolean;
+}
+export const initialState: PurchaseListState = {
+  purchaseList: [],
+  purchaseOrders: [],
+  purchaseinvoice: [],
+  grnConvertedPurchaseList: [],
+  
+      totalGrnConvertedItems: 0,
+  selectedPo: null,
+  poDialogOpen: false,
+  randomIds: [],
+  grnList: [],
+  loading: false,
+  photoData: {},
+  error: null,
+  searchQueryItem: '',
+  imageUrls: {},
+  fetchedPurchaseOrderIds: [], // Initialize as an empty array
+  selectedImageIndex: null,
+  uploadStatus: 'idle',
+  uploadError: null,
+  randomIdSearch: '',
+  poRandomIds: [], // List of poRandomIds
+  selectedOrder: null,
+  selectedPurchaseId: null,
+  snackbarMessage: '',
+  snackbarOpen: false,
+  currentPage: 1,
+  pageSize: 50,
+  totalItems: 0,
+  page: 0,
+  hasMore: true,
+  searchQuery: '',
+  previousSearches: [],
+  importDuplicates: [],
+  importErrors: [],
+  importWarnings: [],
+  importSuccessMessages: [], // Initialize success messages
+  importUpdatedItems: [], // Initialize updated items
+  calculatedOverallDiscount: null,
+  isCalculatingDiscount: false,
+  pendingPurchaseList: [],
+  pendingTotalItems: 0
+};
+// Define the Item type for the payload
+export interface PurchaseOrderItem {
+  id: string;
+  pendingTotalQuantity: number;
+  poQuantity: number;
+  newPrice: number;
+  befTaxDiscount: number;
+  afTaxDiscount: number;
+  befTaxDiscountAmount: number;
+  afTaxDiscountAmount: number;
+  befTaxDiscountType: 'percentage' | 'amount';
+  afTaxDiscountType: 'percentage' | 'amount';
+  taxPercentage: number;
+  taxType: 'cgst_sgst' | 'igst';
+}
+
+// Define the response type for the thunk
+export interface OverallDiscountResponse {
+  success: boolean;
+  error?: string;
+  items: Array<{
+    id: string;
+    pendingTotalQuantity: number;
+    poQuantity: number;
+    newPrice: number;
+    befTaxDiscount: number;
+    afTaxDiscount: number;
+    befTaxDiscountAmount: number;
+    afTaxDiscountAmount: number;
+    pendingFinalPrice: number;
+    pendingOrderAmount: number;
+    pendingTaxAmount: number;
+    pendingAfTaxDiscountAmount: number;
+    pendingDiscountAmount: number;
+    pendingTotalPrice: number;
+    pendingSgst: number;
+    pendingCgst: number;
+    pendingIgst: number;
+  }>;
+  summary: {
+    totalSubtotal: number;
+    overallDiscountTotalAmount: number;
+    overallDiscountPercentage: number;
+    totalFinalAmount: number;
+    totalTaxAmount: number;
+    totalDiscountAmount: number;
+    totalItems: number;
+  };
+}
+
+// Define the payload type for the thunk
+export interface CalculateOverallDiscountPayload {
+  items: PurchaseOrderItem[];
+  overallDiscount: number;
+  overallDiscountAmount: number;
+  overallDiscountType: 'percentage' | 'amount';
+  applyOverallDiscount: boolean;
+  
+}
