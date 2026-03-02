@@ -32,6 +32,9 @@ import {
   setSelectedHeaders,
   ItemUpdate,
   revertGrnToPO,
+   setShowStockUpdateDialog,
+  setShowReturnStockUpdateDialog,
+  clearLastReturnData,
 } from '../../../features/yen-purchase/GRN/grnSlice';
 import { ArrowDownward, ArrowUpward, ChevronLeft, ChevronRight, FilterList as FilterListIcon } from '@mui/icons-material';
 import '../../../components/common.css';
@@ -50,12 +53,23 @@ import moment from 'moment';
 import VendorSearchAutocomplete from '@/components/vendorsearchautocomplete';
 import GrnReturnDialog from '../../../components/yen-purchase/grncomponent/grnReturnDialog';
 import { VendorSearch } from '@/Models/vendor';
-import { fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
+import {  fetchAllDebitNotesComprehensive, fetchAllDebitNotesForDocument as fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
 import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import SmartDatePicker from '@/components/SmartDatePicker';
 import ConfirmationDialog from '@/components/confirmationDialog';
+import StockUpdateDialog from './Components/StockUpdate';
+import ReturnStockUpdateDialog from './Components/ReturnStockUpdateDialog';
+import { fetchPoById, selectPurchaseListState, setPoDialogOpen, setSelectedPo } from '@/features/yen-purchase/PurchaseOrder/purchaseListSlice';
+import { ItemDetailResponsePO, PoResponse } from '@/Models/purchaseModel';
+// Change this import
+import {
+  setSnackbarMessage as setOutgoingSnackbarMessage,
+  setSnackbarOpen as setOutgoingSnackbarOpen
+} from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
+import PODialog from '@/components/yen-purchase/OutgoingComponent/PODialog';
+
 const customRound = (amount: number) => {
   const roundedAmount = Math.round(amount);
   if (roundedAmount - amount < 0.03) {
@@ -95,7 +109,12 @@ const headerDisplayNames: { [key: string]: string } = {
 };
 const GrnPage = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { purchaseorders, loading, error, snackbarMessageGRN, snackbarOpenGRN, selectedHeaders } = useSelector(selectGrn);
+  const { purchaseorders, loading, error, snackbarMessageGRN, snackbarOpenGRN, selectedHeaders,lastRevertStockUpdates,
+    lastRevertedGrnId,
+    showStockUpdateDialog, // ADD THESE THREE LINES
+    showReturnStockUpdateDialog,
+    lastReturnStockUpdates,
+    lastReturnedGrnId } = useSelector(selectGrn);
   const { businesses } = useSelector(selectBusinesses);
   const [dialogueviewOpen, setDialogueViewOpen] = React.useState(false);
   const grns = useSelector((state: RootState) => state.grn.grns);
@@ -105,6 +124,8 @@ const GrnPage = () => {
       nos: number; igst: number; eachQuantity: number; hsnCode: string; quantity: number; receivedQuantity: number, returnedQuantity: number, taxType: 'cgst_sgst' | 'igst'; damagedQuantity: number, expiryDate: Date | string | null; unitPrice: number, discount: number, totalPrice: number, purchasetaxName: number, sgst: number, cgst: number, discountAmount: number; taxAmount: number; finalPrice: number, befTaxDiscount: number; afTaxDiscount: number; befTaxDiscountAmount: number; afTaxDiscountAmount: number; purchasecategoryName: string; purchasesubcategoryName: any; returnReason?: string; // Add return reason
     }
   }>({});
+    const { selectedPo, poDialogOpen } = useSelector(selectPurchaseListState);
+
   const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogSaveOpen, setDialogSaveOpen] = useState(false);
@@ -232,6 +253,16 @@ const grnsPermission = useSelector(
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
+  // Add this useEffect to monitor state changes
+  useEffect(() => {
+    console.log('🔄 Redux State Monitor:', {
+      showReturnStockUpdateDialog,
+      lastReturnStockUpdates: lastReturnStockUpdates ? 'Has Data' : 'No Data',
+      lastReturnedGrnId,
+      stockUpdatesType: lastReturnStockUpdates ? typeof lastReturnStockUpdates : 'null',
+      stockUpdatesKeys: lastReturnStockUpdates ? Object.keys(lastReturnStockUpdates) : []
+    });
+  }, [showReturnStockUpdateDialog, lastReturnStockUpdates, lastReturnedGrnId]);
    useEffect(() => {
     if (!canRead) return; // 🔥 IMPORTANT LINE (STEP 3)
 
@@ -380,12 +411,17 @@ const handleApRoundOffBlur = () => {
     });
     return statusMap;
   }, [grns, debitCreditNotes]);
-  const handleViewCreditNotes = (grnId: string) => {
-    console.log('Opening DebitCreditNoteDialog for grnId:', grnId);
-    dispatch(setDebitCreditDocumentId(grnId)); // Set documentId
-    dispatch(setDebitCreditDocumentType('GRN')); // Set documentType
-    dispatch(setDebitCreditDialogOpen(true)); // Open dialog
-    dispatch(fetchDebitCreditNotesByDocument({ documentId: grnId, page: 1, size: 50 }));
+ const handleViewCreditNotes = (grnId: string) => {
+    dispatch(setDebitCreditDocumentId(grnId));
+    dispatch(setDebitCreditDocumentType('grn'));
+    dispatch(setDebitCreditDialogOpen(true));
+
+    dispatch(fetchAllDebitNotesComprehensive({
+      documentId: grnId,
+      documentType: 'grn',  // ADD THIS LINE
+      includeCleared: true,
+      includeActive: true
+    }));
   };
   const toggleSortOrder = () => {
     setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
@@ -871,6 +907,9 @@ const handleApRoundOffBlur = () => {
       const result = await dispatch(revertGrnToPO(grnId)).unwrap();
       // Fixed: result is an object, not a string. Assume always 'updated' (or check result.poAction if backend adds it)
       let message = `GRN successfully reverted to PO`;
+       if (result.stockUpdates) {
+        message += ` (Stock updated: ${result.stockUpdates.purchaseitem_updates} items, ${result.stockUpdates.inventory_updates} locations)`;
+      }
       // If backend adds poAction: if (result.poAction === 'created') { message = `... (New PO created: ${result.purchaseOrderId})`; }
       setSnackbarMessage(message);
       setSnackbarOpen(true);
@@ -879,13 +918,24 @@ const handleApRoundOffBlur = () => {
       // ADD THESE LINES: Close the main view dialog ONLY on success
       dispatch(setSelectedGrnId(null));
       setDialogueViewOpen(false);
-      console.log('Reversion successful:', result);
+      dispatch(setShowStockUpdateDialog(true));
+      console.log('Reversion successful with stock updates:', result.stockUpdates);
     } catch (error: any) {
       console.error('Reversion failed:', error);
       setSnackbarMessage(error || 'Failed to revert GRN to PO');
       setSnackbarOpen(true);
       // NO CLOSING HERE: Keep the main dialog open on failure so user can retry
     }
+  };
+   const handleCloseStockDialog = () => {
+    dispatch(setShowStockUpdateDialog(false));
+    // Optional: Clear the data after closing
+    // dispatch(clearLastRevertData());
+  };
+  // ADD THIS NEW HANDLER FUNCTION
+  const handleCloseReturnStockDialog = () => {
+    dispatch(setShowReturnStockUpdateDialog(false));
+    dispatch(clearLastReturnData()); // This will clear the stock updates from state
   };
   // New: Handler for button click - opens dialog
   const handleOpenConfirmDialog = () => {
@@ -2280,6 +2330,26 @@ const handleApRoundOffBlur = () => {
           description="Are you sure you want to revert the selected GRN to PO?"
           confirmText="Revert to PO" // Custom text
           cancelText="Cancel"
+        />
+         <StockUpdateDialog
+          open={showStockUpdateDialog || false}
+          stockUpdates={lastRevertStockUpdates}
+          grnId={lastRevertedGrnId}
+          onClose={handleCloseStockDialog}
+        />
+        {/* Make sure this is at the end of your JSX, before the closing Box */}
+        <ReturnStockUpdateDialog
+          open={showReturnStockUpdateDialog || false}
+          stockUpdates={lastReturnStockUpdates}
+          grnId={lastReturnedGrnId}
+          onClose={handleCloseReturnStockDialog}
+        />
+        <PODialog
+          open={poDialogOpen}
+          onClose={() => {
+            dispatch(setPoDialogOpen(false));
+          }}
+          po={selectedPo}
         />
       </Box>
     </Box>

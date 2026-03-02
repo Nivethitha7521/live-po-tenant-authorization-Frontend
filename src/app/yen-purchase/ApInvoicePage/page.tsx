@@ -70,7 +70,7 @@ import { fetchAllVendors, selectPurchaseOrderState } from '@/features/yen-purcha
 import moment from 'moment';
 import VendorSearchAutocomplete from '@/components/vendorsearchautocomplete';
 import { VendorSearch } from '@/Models/vendor';
-import { fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
+import { fetchAllDebitNotesForDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
 import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
@@ -413,12 +413,40 @@ const handlePageChange = useCallback((newPage: number) => {
 
 
   // View Credit Notes handler
-  const handleViewCreditNotes = (invoiceId: string) => {
-    console.log('Opening DebitCreditNoteDialog for invoiceId:', invoiceId);
-    dispatch(setDebitCreditDocumentId(invoiceId));
-    dispatch(setDebitCreditDocumentType('AP Invoice'));
-    dispatch(setDebitCreditDialogOpen(true));
-    dispatch(fetchDebitCreditNotesByDocument({ documentId: invoiceId, page: 1, size: 50 }));
+  const handleViewCreditNotes = async (invoiceId: string) => {
+    console.log('Opening DebitCreditNoteDialog for AP Invoice ID:', invoiceId);
+
+    try {
+      const invoice = apInvoices.find(inv => inv.invoiceId === invoiceId);
+      if (!invoice) {
+        console.error('Invoice not found:', invoiceId);
+        return;
+      }
+
+      // Set document details
+      dispatch(setDebitCreditDocumentId(invoiceId));
+      dispatch(setDebitCreditDocumentType('ap_invoice'));
+
+      // Open the dialog
+      dispatch(setDebitCreditDialogOpen(true));
+
+      // Fetch data with the required document_type parameter
+      dispatch(fetchAllDebitNotesForDocument({
+        documentId: invoiceId,
+        documentType: 'ap_invoice',
+        includeCleared: true,
+        includeActive: true
+      })).then((result) => {
+        if (fetchAllDebitNotesForDocument.fulfilled.match(result)) {
+          console.log('✅ Debit notes loaded successfully');
+        } else {
+          console.error('❌ Failed to load debit notes');
+        }
+      });
+
+    } catch (error) {
+      console.error('Error in handleViewCreditNotes:', error);
+    }
   };
 
   const handleCloseDetailsDialog = () => {

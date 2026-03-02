@@ -76,9 +76,9 @@ export interface Item {
 export interface PurchaseOrderData {
   purchaseOrderId: string;
   vendorName: string;
-  vendorId:string;
+  vendorId: string;
   vendorContact: string;
-  vendorCode:string;
+  vendorCode: string;
   orderDate: string | null;  // FIXED: Changed from Date | null to string | null (ISO format)
   approvedDate: string | null;  // FIXED: Changed from Date | null
   rejectedDate: string | null;  // FIXED: Changed from Date | null
@@ -118,13 +118,10 @@ export interface PurchaseOrderData {
   roundOffValue: number;
   overallDiscountValue: number;
   locationName: string;
-totalFreightAmount:number;
-totalFreightTaxAmount:number;
+  totalFreightAmount: number;
+  totalFreightTaxAmount: number;
 
-
-
-
-   // ADD THESE GRN-SPECIFIC FIELDS (MAKE THEM OPTIONAL)
+  // ADD THESE GRN-SPECIFIC FIELDS (MAKE THEM OPTIONAL)
   poQuantitypendingTotalPrice?: number;
   poQuantitypendingFinalPrice?: number;
   poQuantityDiscountAmount?: number;
@@ -143,7 +140,7 @@ export type TaxDetails = Record<string, {
 
 export interface Vendor {
   vendorId: string;
-  randomId:string;
+  randomId: string;
   vendorName: string;
   contactpersonPhone: string;
   paymentTerms: string;
@@ -154,7 +151,7 @@ export interface Vendor {
   postalCode: number;
   gstNumber: string;
   contactpersonEmail: string;
-  creditLimit:number;
+  creditLimit: number;
 }
 
 export interface PurchaseItemSearchAdd {
@@ -180,7 +177,46 @@ interface FreightCalculationResponse {
   igst: number;
   taxPercentage: number;
 }
-
+// Add this to your purchaseModel.ts
+export interface ImportCsvResponse {
+  success: boolean;
+  message: string;
+  imported_items: Array<{
+    itemId: string;
+    itemCode: string;
+    itemName: string;
+    purchasecategoryName: string;
+    purchasesubcategoryName: any;
+    uom: string;
+    pendingCount: number;
+    pendingQuantity: number;
+    pendingTotalQuantity: number;
+    newPrice: number;
+    existingPrice: number;
+    priceVariance: number;
+    taxPercentage: number;
+    taxType: 'cgst_sgst' | 'igst';
+    befTaxDiscount: number;
+    afTaxDiscount: number;
+    pendingTaxAmount: number;
+    pendingSgst: number;
+    pendingCgst: number;
+    pendingIgst: number;
+    pendingTotalPrice: number;
+    pendingFinalPrice: number;
+    pendingBefTaxDiscountAmount: number;
+    pendingAfTaxDiscountAmount: number;
+    randomId: string;
+  }>;
+  total_pending_order_amount: number;
+  totalTax: number;
+  totalDiscount: number;
+  duplicates_merged: string[];
+  errors: string[];
+  updated_items: string[];
+  warnings: string[];
+  success_messages: string[];
+}
 interface PurchaseOrderTotalsResponse {
   subTotal: number;
   totalDiscount: number;
@@ -219,7 +255,7 @@ export interface PurchaseOrderState {
   importSuccessMessages: string[];
   importUpdatedItems: string[];
   discountMode: string;
-  
+
   // ADD THESE NEW PROPERTIES:
   freightCalculationLoading: boolean;
   poTotalsLoading: boolean;
@@ -279,14 +315,47 @@ export interface PoResponse {
   orderDate?: string | null;  // FIXED: Ensure string | null
   itemDetails: ItemDetailResponsePO[];
 }
+
+//stock update
+// stock update - This interface matches what your backend sends
+export interface StockUpdateItemFromBackend {
+  randomId: string;
+  itemName: string;
+  stockChange: number;
+  newStock: number;
+  priceUpdated: boolean;
+  reason?: string;
+}
+// In your purchaseModel.ts or where StockUpdateItem is defined
+export interface StockUpdateItem {
+  randomId: string;
+  itemName: string;
+  stockChange: number;           // Item Master stock change
+  newStock: number;               // Item Master new total stock
+  locationStockChange?: number;   // Location-specific stock change
+  newLocationStock?: number;      // Location-specific new stock
+  locationId?: string;            // Location ID
+  priceUpdated: boolean;
+  status: 'success' | 'failed';
+  reason?: string;
+}
+export interface StockUpdateResult {
+  success: boolean;
+  totalProcessed: number;
+  successful: number;
+  failed: number;
+  items: StockUpdateItem[];
+  timestamp: string;
+}
+
 // Define the structure of the state for purchaseList
 export interface PurchaseListState {
   purchaseList: PurchaseOrderData[];
-  pendingPurchaseList:PurchaseOrderData[];
-  pendingTotalItems:number;
-  purchaseOrders: PurchaseOrderData[];
-   totalGrnConvertedItems: number;
+  pendingPurchaseList: PurchaseOrderData[];
   grnConvertedPurchaseList: PurchaseOrderData[];
+  totalGrnConvertedItems: number;
+  pendingTotalItems: number;
+  purchaseOrders: PurchaseOrderData[];
   purchaseinvoice: PurchaseInvoice[];
   selectedPo: PoResponse | null;
   poDialogOpen: boolean;
@@ -320,14 +389,14 @@ export interface PurchaseListState {
   importUpdatedItems: string[]; // Added for updated items
   calculatedOverallDiscount: OverallDiscountResponse | null;
   isCalculatingDiscount: boolean;
+  stockUpdateResult: StockUpdateResult | null;
+  showStockUpdateDialog: boolean;
+
 }
 export const initialState: PurchaseListState = {
   purchaseList: [],
   purchaseOrders: [],
   purchaseinvoice: [],
-  grnConvertedPurchaseList: [],
-  
-      totalGrnConvertedItems: 0,
   selectedPo: null,
   poDialogOpen: false,
   randomIds: [],
@@ -362,7 +431,11 @@ export const initialState: PurchaseListState = {
   calculatedOverallDiscount: null,
   isCalculatingDiscount: false,
   pendingPurchaseList: [],
-  pendingTotalItems: 0
+  pendingTotalItems: 0,
+  grnConvertedPurchaseList: [],
+  totalGrnConvertedItems: 0,
+  stockUpdateResult: null,
+  showStockUpdateDialog: false,
 };
 // Define the Item type for the payload
 export interface PurchaseOrderItem {
@@ -421,5 +494,5 @@ export interface CalculateOverallDiscountPayload {
   overallDiscountAmount: number;
   overallDiscountType: 'percentage' | 'amount';
   applyOverallDiscount: boolean;
-  
+
 }

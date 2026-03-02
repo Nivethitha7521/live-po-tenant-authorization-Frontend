@@ -3,6 +3,7 @@ import onlinePartnersReducer from '../features/onlinePartnersSlice';
 import billReceiptsReducer from '../features/billReceiptsSlice';
 import purchaseOrderReducer from '../features/yen-purchase/PurchaseOrder/purchaseOrderSlice';
 import grnReducer from '../features/yen-purchase/GRN/grnSlice';
+import debitNoteReducer from '../features/debitNotesAllSlice';
 import apInvoiceReducer from '../features/yen-purchase/AP/apInvoiceSlice';
 import outgoingPaymentReducer from '../features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import vendorReducer from '../features/yen-purchase/PurchaseMaster/vendorSlice';
@@ -164,6 +165,7 @@ const store = configureStore({
     vendorMaster:vendorMasterReducer,
     purchaseOrderItems:poitemRedcuer,
     csvOperations:csvOperationsReducer,
+    debitNotesAll:debitNoteReducer,
     debitCreditNote:debitCreditNoteReducer,
     outgoingLedger:outgoingLedgerReducer,
     advances: advancePaymentReducer, // Make sure this is correctly named

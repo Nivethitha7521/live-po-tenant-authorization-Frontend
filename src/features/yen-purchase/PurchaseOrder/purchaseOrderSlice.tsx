@@ -184,14 +184,15 @@ const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
 // Async thunks for freight and PO calculations
 export const calculateFreightTotals = createAsyncThunk(
   'purchaseOrder/calculateFreightTotals',
-  async (request: FreightCalculationRequest) => {
+  async (request: FreightCalculationRequest): Promise<FreightCalculationResponse> => {
+    const params = new URLSearchParams({
+      amt: request.amt.toString(),
+      tCode: request.tCode,
+      taxType: request.taxType,
+    });
 
-    const response = await purchaseApi.get(
-      `/purchaseorders/freight/totals`,
-      { params: request }
-    );
-
-    return response.data;
+    const response = await purchaseApi.get(`/purchaseorders/freight/totals?${params}`);
+      return response.data;
   }
 );
 
@@ -433,7 +434,7 @@ export const importCsvItems = createAsyncThunk(
     try {
       const state = getState() as { purchaseOrder: PurchaseOrderState };
       const currentPurchaseOrderData = state.purchaseOrder.purchaseOrderData;
-
+ 
       const formData = new FormData();
       formData.append('file', file);
    const response = await purchaseApi.post(
@@ -444,7 +445,7 @@ export const importCsvItems = createAsyncThunk(
         },
       );
       const { success, message, imported_items, duplicates_merged, errors, updated_items, warnings, success_messages } = response.data;
-
+ 
       if (success && imported_items.length > 0) {
         const state = getState() as { purchaseOrder: PurchaseOrderState };
         const currentPurchaseOrderData = state.purchaseOrder.purchaseOrderData;
@@ -483,6 +484,7 @@ export const importCsvItems = createAsyncThunk(
           receivedQuantity: 0,
           damagedQuantity: 0,
           discountAmount: 0,
+          randomId: item.randomId || '', // CRITICAL: Include randomId
           taxAmount: item.pendingTaxAmount || 0,
           cgst: item.pendingCgst || 0,
           sgst: item.pendingSgst || 0,
@@ -490,7 +492,7 @@ export const importCsvItems = createAsyncThunk(
           barcode: '',
           expiryDate: null,
         }));
-
+ 
         dispatch(setPurchaseOrderData({
           ...currentPurchaseOrderData,
           items: mappedItems,
@@ -499,7 +501,7 @@ export const importCsvItems = createAsyncThunk(
           pendingDiscountAmount: response.data.totalDiscount || 0,
         }));
       }
-
+ 
       return {
         success,
         message,
@@ -514,7 +516,6 @@ export const importCsvItems = createAsyncThunk(
     }
   }
 );
-
 export const addPurchaseOrder = createAsyncThunk(
   "purchaseOrders/add",
   async (
@@ -536,6 +537,9 @@ export const updatePurchaseOrder = createAsyncThunk(
     purchaseOrderId: string;
     purchaseOrder: Partial<PurchaseOrderData>;
   }) => {
+     const purchaseOrderToUpdate = {
+      ...purchaseOrder,
+    };
     const response = await purchaseApi.patch(
       `/purchaseorders/${purchaseOrderId}`,
       purchaseOrder,
@@ -556,6 +560,9 @@ const purchaseOrderSlice = createSlice({
     setPurchaseOrderData(state, action: PayloadAction<Partial<PurchaseOrderData>>) {
       state.purchaseOrderData = { ...state.purchaseOrderData, ...action.payload };
     },
+    setFreights(state, action: PayloadAction<Freight[]>) {
+  state.purchaseOrderData.freights = action.payload;
+},
     setNewItemData(state, action: PayloadAction<Partial<Item>>) {
       state.newItem = { ...state.newItem, ...action.payload };
     },
@@ -879,6 +886,7 @@ export const {
   // New freight calculation actions
   setCalculatedTotals,
   clearCalculatedTotals,
+  setFreights,
 } = purchaseOrderSlice.actions;
 
 export const selectPurchaseOrderState = (state: RootState) => state.purchaseOrder;

@@ -80,6 +80,7 @@ export interface GrnData {
   paymentTerms: string;
   gstNumber: string;
   contactpersonEmail: string;
+  grnVerifiedPerson: string;
   grnReturnedPerson: string;
   totalDebitAmount?: number;
   totalReturnedAmount?: number;
@@ -330,14 +331,35 @@ export interface ApInvoice {
   gstNumber: string;
   contactpersonEmail: string;
 }
-
-export interface ItemUpdate {
-  itemId: string;
-  befTaxDiscount?: number;
-  afTaxDiscount?: number;
-  expiryDate?: Date | null;
+// Add this interface for detailed stock update items
+export interface StockUpdateItem {
+  randomId: string;
+  itemName: string;
+  stockChange: number;           // Item Master stock change (negative for revert)
+  newStock: number;               // Item Master new total stock
+  locationStockChange?: number;   // Location-specific stock change (negative for revert)
+  newLocationStock?: number;      // Location-specific new stock
+  locationId?: string;            // Location ID
+  priceUpdated: boolean;
+  status: 'success' | 'failed';
+  reason?: string;
 }
 
+// Update the StockUpdateResult interface
+export interface StockUpdateResult {
+  success: boolean;
+  totalProcessed: number;
+  successful: number;
+  failed: number;
+  items: StockUpdateItem[];       // Detailed item-level information
+  timestamp: string;
+  purchaseitem_updates: number;
+  inventory_updates: number;
+  inventory_creates: number;
+  errors: number;
+}
+
+// Update the RevertGrnToPOResponse interface
 export interface RevertGrnToPOResponse {
   message: string;
   purchaseOrderId: string;
@@ -347,8 +369,32 @@ export interface RevertGrnToPOResponse {
   revertedItemsCount: number;
   pendingOrderAmount: number;
   totalOrderAmount?: number;
+  stockUpdates?: StockUpdateResult; // Add this optional property
+  canBeReUpdated?: boolean;
+  pendingGrnId?: string;
+}
+// Add this interface near the top of your grnSlice.ts file
+export interface ReturnStockUpdateResult {
+  purchaseitem_updates: number;
+  inventory_updates: number;
+  inventory_not_found: number;
+  inventory_errors: number;
+  items?: ReturnStockUpdateItem[];
+  message?: string;  // Add this line
+  success?: boolean;  // Add this line
 }
 
+export interface ReturnStockUpdateItem {
+  randomId: string;
+  itemName: string;
+  quantityToReduce: number;
+  status: 'success' | 'failed';
+  reason?: string;
+  beforeStock?: number;
+  afterStock?: number;
+  beforeLocationStock?: number;
+  afterLocationStock?: number;
+}
 // ====== FETCH INTERFACES ======
 export interface FetchGrnsReturnPayload {
   grns: GrnData[];
@@ -432,6 +478,15 @@ export interface GrnState {
   debitCreditNoteLoading: boolean;
   amountDebitNoteError: string | null;
   debitCreditNoteError: string | null;
+
+  lastRevertStockUpdates?: StockUpdateResult;
+  lastRevertedGrnId?: string | null;
+  showStockUpdateDialog?: boolean;
+
+    // RETURN STOCK UPDATES - ADD THESE LINES
+  lastReturnStockUpdates?: ReturnStockUpdateResult;
+  lastReturnedGrnId?: string | null;
+  showReturnStockUpdateDialog: boolean;
 }
 
 // ====== INITIAL STATE ======
@@ -510,4 +565,11 @@ export const initialState: GrnState = {
   debitCreditNoteLoading: false,
   amountDebitNoteError: null,
   debitCreditNoteError: null,
+  lastRevertStockUpdates: undefined,
+  lastRevertedGrnId: null,
+  showStockUpdateDialog: false,
+  lastReturnStockUpdates: undefined,
+  lastReturnedGrnId: null,
+  showReturnStockUpdateDialog: false,
+
 };

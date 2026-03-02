@@ -59,7 +59,7 @@ import 'react-date-range/dist/theme/default.css'; // theme css file
 import { ClearIcon } from '@mui/x-date-pickers/icons';
 import moment from 'moment';
 import { fetchItemwiseAps, fetchRandomIDApInvoices, selectApinvoice, setApDialogOpen, setSelectedinvoiceId } from '@/features/yen-purchase/AP/apInvoiceSlice';
-import { clearDebitCreditNotes, fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
+import { clearDebitCreditNotes,fetchAllDebitNotesComprehensive, fetchAllDebitNotesForDocument,selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
 import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import GrnDialog from '@/components/yen-purchase/OutgoingComponent/GRNDialog';
 import ApInvoiceDialog from '@/components/yen-purchase/OutgoingComponent/APDialog';
@@ -282,7 +282,7 @@ const OutgoingPaymentComponent = React.memo(() => {
       console.error('Service fetch error:', error);
     }
   };
-  const handleViewCreditNotes = (outgoingId: string, grnId?: string, apInvoiceId?: string) => {
+  const handleViewCreditNotes = async (outgoingId: string, grnId?: string, apInvoiceId?: string) => {
     console.log('Opening DebitCreditNoteDialog:', {
       outgoingId,
       grnId,
@@ -292,43 +292,92 @@ const OutgoingPaymentComponent = React.memo(() => {
     // Clear any previous data first
     dispatch(clearDebitCreditNotes());
 
-    // Determine which document ID to use
-    // Priority: GRN > AP Invoice > Outgoing Payment
+    // Determine which document ID to use based on availability
     let documentIdToUse = '';
     let documentTypeToUse = '';
+
+    // Priority logic:
+    // 1. If GRN exists, use GRN for item-wise notes
+    // 2. If AP Invoice exists, use AP Invoice for amount-wise notes
+    // 3. Otherwise, use Outgoing Payment for amount-wise notes
 
     if (grnId) {
       // Item-wise debit note for GRN
       documentIdToUse = grnId;
       documentTypeToUse = 'grn';
+      console.log('🔍 Using GRN for item-wise debit notes:', grnId);
     } else if (apInvoiceId) {
       // Amount-wise debit note for AP Invoice
       documentIdToUse = apInvoiceId;
       documentTypeToUse = 'ap_invoice';
+      console.log('🔍 Using AP Invoice for amount-wise debit notes:', apInvoiceId);
     } else {
       // Amount-wise debit note for Outgoing Payment
       documentIdToUse = outgoingId;
       documentTypeToUse = 'outgoing_payment';
+      console.log('🔍 Using Outgoing Payment for amount-wise debit notes:', outgoingId);
     }
 
-    console.log('Using document:', {
+    console.log('📌 Using document:', {
       documentId: documentIdToUse,
       documentType: documentTypeToUse
     });
 
-    // Set document details
+    // Set document details in Redux
     dispatch(setDebitCreditDocumentId(documentIdToUse));
     dispatch(setDebitCreditDocumentType(documentTypeToUse));
 
-    // Open dialog
+    // Open the dialog
     dispatch(setDebitCreditDialogOpen(true));
 
-    // Fetch data
-    dispatch(fetchDebitCreditNotesByDocument({
-      documentId: documentIdToUse,
-      page: 1,
-      size: 50
-    }));
+    try {
+      // IMPORTANT: Use the correct thunk that requires documentType
+      console.log('📤 Fetching debit notes with params:', {
+        documentId: documentIdToUse,
+        documentType: documentTypeToUse,
+        includeCleared: true,
+        includeActive: true,
+      });
+
+      // Use fetchAllDebitNotesComprehensive which requires documentType parameter
+      await dispatch(fetchAllDebitNotesComprehensive({
+        documentId: documentIdToUse,
+        documentType: documentTypeToUse, // This is REQUIRED
+        includeCleared: true,
+        includeActive: true,
+      })).unwrap();
+
+      console.log('✅ Debit notes loaded successfully');
+
+    } catch (error: any) {
+      console.error('❌ Error fetching debit notes:', error);
+
+      // Fallback: Try the older endpoint if comprehensive fails
+      try {
+        console.log('🔄 Trying fallback API...');
+        await dispatch(fetchAllDebitNotesForDocument({
+          documentId: documentIdToUse,
+          documentType: 'outgoing',  // This is now required
+          includeCleared: true,
+          includeActive: true,
+        })).unwrap();
+        console.log('✅ Fallback succeeded');
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
+
+        // Show appropriate error message
+        let errorMessage = 'Failed to load debit notes';
+
+        if (error?.includes('422')) {
+          errorMessage = 'Document type is required for this request';
+        } else if (error?.includes('404')) {
+          errorMessage = 'No debit notes found for this document';
+        }
+
+        dispatch(setSnackbarMessage(errorMessage));
+        dispatch(setSnackbarOpen(true));
+      }
+    }
   };
   // Precompute isDisabled and tooltipTitle based on hasDebitCreditNotes
   const outgoingCreditNoteStatus = useMemo(() => {

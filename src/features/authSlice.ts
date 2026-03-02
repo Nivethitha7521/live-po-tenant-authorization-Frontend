@@ -76,6 +76,7 @@ export const logout = createAsyncThunk(
       sessionStorage.setItem("isReloading", "false");
 
       if (token && logoutReason !== "page_reload") {
+        const browserSessionId = localStorage.getItem("browserSessionId");
         await axios.post(
           `${BASE_URL}/logout`,
           {},
@@ -83,6 +84,7 @@ export const logout = createAsyncThunk(
             headers: {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
+              "x-browser-session-id": browserSessionId,
             },
             timeout: 5000,
           }
@@ -91,12 +93,22 @@ export const logout = createAsyncThunk(
     } catch (error: any) {
       console.error("Logout API call failed:", error);
     } finally {
-      if (logoutReason !== "page_reload") {
-        sessionStorage.clear();
-       
-      }
-    }
+  if (logoutReason !== "page_reload") {
+    const username = sessionStorage.getItem("username");
+    const tenantId = sessionStorage.getItem("tenant_id");
 
+    sessionStorage.clear();
+
+    localStorage.setItem(
+      "forceLogout",
+      JSON.stringify({
+        username,
+        tenantId,
+        time: Date.now(),
+      })
+    );
+  }
+}
     return logoutReason;
   }
 );
