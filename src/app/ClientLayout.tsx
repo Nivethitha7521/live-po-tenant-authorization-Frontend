@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../redux/store';
+import { setupAxios } from "@/lib/axiosSetup";
+import { forceLogout } from "../features/authSlice";
 import { initializeAuth, validateToken, clearSnackbar } from '../features/authSlice';
 import SideMenu from '@/components/SideMenu';
 import Navbar from '@/components/Navbar';
@@ -116,8 +118,33 @@ const hasBookAccess = useMemo(() => {
 
 
 
+useEffect(() => {
+  setupAxios();
+}, []);
+useEffect(() => {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === "forceLogout" && event.newValue) {
+      try {
+        const logoutData = JSON.parse(event.newValue);
 
+        const currentUsername = sessionStorage.getItem("username");
+        const currentTenant = sessionStorage.getItem("tenant_id");
 
+        // ⭐ logout ONLY if same session
+        if (
+          logoutData.username === currentUsername &&
+          logoutData.tenantId === currentTenant
+        ) {
+          dispatch(forceLogout());
+          router.replace("/");
+        }
+      } catch {}
+    }
+  };
+
+  window.addEventListener("storage", handleStorage);
+  return () => window.removeEventListener("storage", handleStorage);
+}, [dispatch, router]);
   // Session validation
 // Session validation (FIX 3)
 useEffect(() => {
@@ -242,24 +269,3 @@ const handleLogout = async () => {
 };
 
 export default ClientLayout;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

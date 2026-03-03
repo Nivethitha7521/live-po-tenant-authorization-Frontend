@@ -1308,8 +1308,13 @@ const CreatePurchasePage: React.FC = () => {
       const orderDate = purchaseOrderData.orderDate || new Date().toISOString();
       const expectedDeliveryDate =
         purchaseOrderData.expectedDeliveryDate || new Date().toISOString();
-
+      console.log("🚚 FREIGHTS BEFORE SUBMIT:", freights);
+console.log("🧾 FULL PO PAYLOAD:", {
+  ...purchaseOrderData,
+  freights
+});
       const dataToSubmit = {
+        
         ...purchaseOrderData,
         orderDate,
         expectedDeliveryDate,

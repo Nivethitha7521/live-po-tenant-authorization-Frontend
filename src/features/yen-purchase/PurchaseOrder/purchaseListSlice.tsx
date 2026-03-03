@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '@/redux/store';
 import { format } from 'date-fns';
-import { initialState, PhotoResponse, PhotosResponse, Item, PurchaseInvoice, PurchaseOrderData, PurchaseRandomId, UploadResponse } from '@/Models/purchaseModel';
+import { initialState, PhotoResponse, PhotosResponse, Item, PurchaseInvoice, PurchaseOrderData, PurchaseRandomId, UploadResponse, StockUpdateItem} from '@/Models/purchaseModel';
 import { GrnData } from '@/Models/grnModel';
 import { OverallDiscountRequest, OverallDiscountResponse } from '@/app/yen-purchase/PurchaseOrder/Models/Itemcalculation';
 import { FreightData } from '@/app/yen-purchase/PurchaseOrder/Component/freightSelectionDialog';
@@ -348,6 +348,12 @@ export const updatePurchaseOrder = createAsyncThunk(
     purchaseOrder: Partial<PurchaseOrderData>;
   }) => {
     try {
+      const currentDate = new Date();
+      const formattedDate = formatDate(currentDate);
+      const purchaseOrderToUpdate = {
+        ...purchaseOrder,
+
+      };
       const response = await purchaseApi.patch(
         `/purchaseorders/${purchaseOrderId}`,
         purchaseOrder,
@@ -792,6 +798,14 @@ const purchaseListSlice = createSlice({
     setSelectedPo: (state, action) => {
       state.selectedPo = action.payload;
     },
+     setStockUpdateResult: (state, action) => {
+      state.stockUpdateResult = action.payload;
+      state.showStockUpdateDialog = true;
+    },
+    closeStockUpdateDialog: (state) => {
+      state.showStockUpdateDialog = false;
+      state.stockUpdateResult = null;
+    },
 
   },
   extraReducers: (builder) => {
@@ -853,12 +867,136 @@ const purchaseListSlice = createSlice({
       })
       .addCase(updateReceivedDamagedQuantities.fulfilled, (state, action) => {
         state.loading = false;
-        const updatedOrder = action.payload;
-        console.log('Updated Order from Backend:', updatedOrder); // Log the updated order
-        const orderIndex = state.purchaseList.findIndex(order => order.purchaseOrderId === updatedOrder.purchaseOrderId);
+        const response = action.payload;
+
+        // Update the purchase order in the list
+        const orderIndex = state.purchaseList.findIndex(
+          order => order.purchaseOrderId === response.purchaseOrderId
+        );
+
         if (orderIndex !== -1) {
-          state.purchaseList[orderIndex] = updatedOrder;
+          state.purchaseList[orderIndex] = response;
         }
+
+        // Initialize items array
+        let items: StockUpdateItem[] = [];
+
+        // Check if stockUpdate exists in the response
+        if (response.stockUpdate) {
+
+          const stockData = response.stockUpdate;
+
+          // CASE 1: If backend returns 'items' array directly
+          if (stockData.items && Array.isArray(stockData.items) && stockData.items.length > 0) {
+            items = stockData.items.map((item: any) => ({
+              randomId: item.randomId || 'Unknown',
+              itemName: item.itemName || 'Unknown Item',
+              stockChange: item.stockChange || 0,
+              newStock: item.newStock || 0,
+              // CRITICAL: Map location stock fields
+              locationStockChange: item.locationStockChange || 0,
+              newLocationStock: item.newLocationStock || 0,
+              locationId: item.locationId || 'Unknown',
+              priceUpdated: item.priceUpdated || false,
+              reason: item.reason,
+              status: item.status || 'success'
+            }));
+          }
+          // CASE 2: Process success_items from backend
+          else if (stockData.success_items && Array.isArray(stockData.success_items) && stockData.success_items.length > 0) {
+
+            stockData.success_items.forEach((item: any) => {
+              items.push({
+                randomId: item.randomId || 'Unknown',
+                itemName: item.itemName || 'Unknown Item',
+                stockChange: item.stockChange || 0,
+                newStock: item.newStock || 0,
+                // CRITICAL: Map location stock fields
+                locationStockChange: item.locationStockChange || 0,
+                newLocationStock: item.newLocationStock || 0,
+                locationId: item.locationId || 'WH001',
+                priceUpdated: item.priceUpdated || false,
+                status: 'success' as const
+              });
+            });
+          }
+
+          // Process failed_items from backend
+          if (stockData.failed_items && Array.isArray(stockData.failed_items) && stockData.failed_items.length > 0) {
+
+            stockData.failed_items.forEach((item: any) => {
+              items.push({
+                randomId: item.randomId || 'Unknown',
+                itemName: item.itemName || 'Unknown Item',
+                stockChange: item.stockChange || 0,
+                newStock: item.newStock || 0,
+                // CRITICAL: Map location stock fields
+                locationStockChange: item.locationStockChange || 0,
+                newLocationStock: item.newLocationStock || 0,
+                locationId: item.locationId || 'WH001',
+                priceUpdated: item.priceUpdated || false,
+                reason: item.reason || 'Unknown error',
+                status: 'failed' as const
+              });
+            });
+          }
+        }
+
+        // If no items from stockUpdate but there are newlyReceivedItems, create basic items
+        if (items.length === 0 && response.newlyReceivedItems && response.newlyReceivedItems.length > 0) {
+          response.newlyReceivedItems.forEach((item: any) => {
+            items.push({
+              randomId: item.item_random_id || 'Unknown',
+              itemName: item.itemName || 'Unknown Item',
+              stockChange: item.receivedQuantity || 0,
+              newStock: item.new_total || item.receivedQuantity || 0,
+              // For newlyReceivedItems, we don't have location stock info yet
+              locationStockChange: item.receivedQuantity || 0,
+              newLocationStock: 0, // This would need to come from backend
+              locationId: 'WH001',
+              priceUpdated: response.priceChanges?.some((p: any) => p.randomId === item.item_random_id) || false,
+              status: 'success'
+            });
+          });
+        }
+
+        // If still no items but there are price changes, add them
+        if (items.length === 0 && response.priceChanges && response.priceChanges.length > 0) {
+          response.priceChanges.forEach((change: any) => {
+            items.push({
+              randomId: change.randomId || 'Unknown',
+              itemName: change.itemName || 'Unknown Item',
+              stockChange: 0,
+              newStock: 0,
+              locationStockChange: 0,
+              newLocationStock: 0,
+              locationId: 'WH001',
+              priceUpdated: true,
+              status: 'success',
+              reason: `Price changed from ${change.oldPrice} to ${change.newPrice}`
+            });
+          });
+        }
+
+
+        // Set the stock update result
+        state.stockUpdateResult = {
+          success: items.filter(i => i.status === 'failed').length === 0,
+          totalProcessed: items.length,
+          successful: items.filter(i => i.status === 'success').length,
+          failed: items.filter(i => i.status === 'failed').length,
+          items: items,
+          timestamp: new Date().toISOString()
+        };
+
+        // ALWAYS show the dialog if we have items
+        if (items.length > 0) {
+          state.showStockUpdateDialog = true;
+          console.log('✅ SHOWING DIALOG with', items.length, 'items');
+        } else {
+          console.log('⚠️ No items to show in dialog');
+        }
+
       })
       // Handle rejected state for updating received and damaged quantities
       .addCase(updateReceivedDamagedQuantities.rejected, (state, action) => {
@@ -1104,7 +1242,7 @@ const purchaseListSlice = createSlice({
   },
 });
 
-export const { setSearchQueryItem, setRandomQueryItem, resetPurchaseOrderState, setSelectedOrder, setOrderImageUrls, setPoRandomIds, clearSelectedOrder,resetRandomIds,setPagination, clearSnackbarMessage, addGrn, updateInvoiceDetails, setImageUrls,setPoDialogOpen,setSelectedPo
+export const { setSearchQueryItem, setRandomQueryItem, resetPurchaseOrderState, setSelectedOrder, setOrderImageUrls, setPoRandomIds, closeStockUpdateDialog, clearSelectedOrder, resetRandomIds, setPagination, clearSnackbarMessage, addGrn, updateInvoiceDetails, setImageUrls, setPoDialogOpen, setSelectedPo
 } = purchaseListSlice.actions;
 
 export const selectOrderImages = (purchaseOrderId: string) => (state: RootState) =>

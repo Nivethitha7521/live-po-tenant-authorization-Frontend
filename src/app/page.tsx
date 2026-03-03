@@ -81,7 +81,13 @@ if (!trimmedTenant) {
   return;
 }
   setIsLoggingIn(true);
+// ⭐ ONE browser = ONE session id
+let browserSessionId = localStorage.getItem("browserSessionId");
 
+if (!browserSessionId) {
+  browserSessionId = crypto.randomUUID();
+  localStorage.setItem("browserSessionId", browserSessionId);
+}
   try {
     // ✅ CORRECT URL - Call your FastAPI backend on port 8000
  const response = await fetch('http://127.0.0.1:8000/purchasetestapi/login', {
@@ -89,7 +95,7 @@ if (!trimmedTenant) {
   headers: {
     'Authorization': `Basic ${btoa(`${trimmedUsername}:${trimmedPassword}`)}`,
     'tenant-id': trimmedTenant,   // 🔥 THIS IS THE IMPORTANT FIX
-  'x-browser-session-id': crypto.randomUUID(),
+  'x-browser-session-id':browserSessionId,
   },
 });
 
@@ -140,18 +146,19 @@ localStorage.setItem("userRole", result.role_name);
 dispatch(jwtLoginSuccess({
   username: result.username,
   permissions: result.permissions,
-   role: result.role_name
+  role: result.role_name
 }));
 
+toast.success(
+  `${result.role_name || "User"} logged in successfully!`
+);
 
 
 
-// ⭐ SHOW ROLE-BASED SNACKBAR HERE
-dispatch(setSnackbarMessage(`LOGIN_SUCCESS: ${result.role_name || "User"} logged in successfully!`));
-dispatch(setSnackbarOpen(true));
 
-// Redirect
-toast.success("Login successful!");
+
+
+
 console.log("REDIRECTING TO 👉", `/${slug}/yen-purchase`);
 router.push(`/${slug}/yen-purchase`);
 
@@ -353,17 +360,3 @@ focus:border-blue-500 transition-colors"
 };
 
 export default Login;
-
-
-
-
-
-
-
-
-
-
-
-
-
-

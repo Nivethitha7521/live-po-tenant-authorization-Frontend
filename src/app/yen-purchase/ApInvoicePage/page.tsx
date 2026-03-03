@@ -38,7 +38,6 @@ import {
   selectTotalItems,
   selectCurrentPage,
   selectPageSize,
-  postOutgoingAndUpdateDiscount,
   fetchApStatuses,
   selectStatuses,
   selectStatusesLoading,
@@ -70,12 +69,21 @@ import { fetchAllVendors, selectPurchaseOrderState } from '@/features/yen-purcha
 import moment from 'moment';
 import VendorSearchAutocomplete from '@/components/vendorsearchautocomplete';
 import { VendorSearch } from '@/Models/vendor';
-import { fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
+import { fetchAllDebitNotesForDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
 import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import { debounce } from 'lodash';
 import { usePathname } from "next/navigation";
+import { GrnResponse, ItemDetail, ItemDetailResponse } from '@/Models/grnModel';
+import { fetchGrnById, selectGrn } from '@/features/yen-purchase/GRN/grnSlice';
+import { fetchPoById, selectPurchaseListState, setPoDialogOpen, setSelectedPo } from '@/features/yen-purchase/PurchaseOrder/purchaseListSlice';
+import { ItemDetailResponsePO, PoResponse } from '@/Models/purchaseModel';
+import { fetchServiceById } from '@/app/yen-purchase/ServiceOrder/Features/servicelist';
+import { ServiceData } from '@/app/yen-purchase/ServiceOrder/Models/servicepo';
+import GrnDialog from '@/components/yen-purchase/OutgoingComponent/GRNDialog';
+import PODialog from '@/components/yen-purchase/OutgoingComponent/PODialog';
+import ServiceDialog from '@/app/yen-purchase/ServiceOrder/Components/ServiceDialog';
 
 interface TaxAmounts {
   sgst: { [key: string]: number };
@@ -83,76 +91,11 @@ interface TaxAmounts {
   igst: { [key: string]: number };
 }
 
-const initialApInvoiceState: ApInvoice = {
-  invoiceId: '',
-  purchaseOrderId: '',
-  vendorName: '',
-  apinvoiceDate: null,
-  invoiceDate: null,
-  invoiceNo: '',
-  dueDate: null,
-  itemDetails: [],
-  comments: '',
-  attachments: null,
-  createdDate: null,
-  poDate: null,
-  lastUpdatedDate: null,
-  status: '',
-  invoiceAmount: 0,
-  taxDetails: 0,
-  discountDetails: 0,
-  paymentTerms: '',
-  paymentStatus: '',
-  randomId: '',
-  discountPrice: 0,
-  grnId: '',
-  grnDate: null,
-  apDiscountPrice: 0,
-  address: '',
-  country: '',
-  state: '',
-  city: '',
-  postalCode: 0,
-  gstNumber: '',
-  contactpersonEmail: '',
-  shippingAddress: '',
-  billingAddress: '',
-  apReturnedDate: null,
-  apPerson: '',
-  apReturnedPerson: '',
-  poRandomId: '',
-  grnRandomId: '',
-  apRandomId: '',
-  debitAmount: 0,
-  hasDebitCreditNotes: false,
-  apRoundOff: 0,
-  totalFreightAmount: 0,
-  totalFreightTaxAmount: 0,
-  invoiceType: 'goods',
-  serviceId: '',
-  sacCode: [],
-  descriptions: [],
-  from_dates: [],
-  to_dates: [],
-  fees: [],
-  remarks: [],
-  quantity: [],
-  desc_tax_types: [],
-  desc_tax_pers: [],
-  desc_sgst: [],
-  desc_cgst: [],
-  desc_igst: [],
-  desc_tax_amounts: [],
-  desc_totals: [],
-  desc_total_fees: [],
-  totalServiceFees: 0,
-  totalServiceTax: 0,
-  totalServiceDiscount: 0,
-};
+
 
 const VerifiedApInvoicePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-    const pathname = usePathname() ?? "";
+  const pathname = usePathname() ?? "";
   const isApListActive =
     pathname.startsWith("/yen-purchase/ApInvoicePage") &&
     !pathname.startsWith("/yen-purchase/ApInvoicePage/ReturnAp");
@@ -160,7 +103,7 @@ const VerifiedApInvoicePage: React.FC = () => {
   const isReturnApActive = pathname.startsWith(
     "/yen-purchase/ApInvoicePage/ReturnAp",
   );
- const apPermission = useSelector(
+  const apPermission = useSelector(
     (state: RootState) => state.auth.permissions?.yenerp?.apinvoices,
   );
   const returnPermission = useSelector(
@@ -209,8 +152,10 @@ const VerifiedApInvoicePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVendorName, setSelectedVendorName] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<VendorSearch | null>(null);
-    const [filteredAp, setFilteredAp] = useState<ApInvoice[]>([]); // Explicit type declaration
-
+  const [filteredAp, setFilteredAp] = useState<ApInvoice[]>([]); // Explicit type declaration
+  const { selectedPo, poDialogOpen } = useSelector(selectPurchaseListState);
+  const [selectedService, setSelectedService] = useState<ServiceData | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogDownloadOpen, setDialogDownloadOpen] = useState(false);
   const [dialogSummaryOpen, setDialogSummaryOpen] = useState(false);
   const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<string>('all');
@@ -222,6 +167,8 @@ const VerifiedApInvoicePage: React.FC = () => {
   });
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [selectedGrn, setSelectedGrn] = useState<GrnResponse | null>(null);
+  const [viewItemsDialogOpen, setViewItemsDialogOpen] = useState(false);
 
   const debitCreditNotes = useSelector((state: RootState) => selectDebitCreditNote(state).debitCreditNotes);
   const dateField = 'apinvoiceDate';
@@ -238,10 +185,10 @@ const VerifiedApInvoicePage: React.FC = () => {
       : undefined,
     [selectionRange]
   );
-const totalPages = useMemo(() => {
-  if (totalItems === 0) return 1;
-  return Math.ceil(totalItems / pageSize);
-}, [totalItems, pageSize]);
+  const totalPages = useMemo(() => {
+    if (totalItems === 0) return 1;
+    return Math.ceil(totalItems / pageSize);
+  }, [totalItems, pageSize]);
   // Debounced search for statuses
   const debouncedStatusSearch = useMemo(
     () =>
@@ -251,57 +198,57 @@ const totalPages = useMemo(() => {
       }, 300),
     [dispatch]
   );
-const initialSelectionRange = useMemo(() => ({
-  startDate: new Date(),
-  endDate: new Date(),
-  key: 'selection',
-}), []);
+  const initialSelectionRange = useMemo(() => ({
+    startDate: new Date(),
+    endDate: new Date(),
+    key: 'selection',
+  }), []);
 
 
-const isDateFilterActive = useMemo(() => {
-  // If you have initial/default dates, compare with them
-  const defaultStartDate = new Date();
-  const defaultEndDate = new Date();
-  
-  const isStartDifferent = selectionRange.startDate.getTime() !== defaultStartDate.getTime();
-  const isEndDifferent = selectionRange.endDate.getTime() !== defaultEndDate.getTime();
-  
-  return isStartDifferent || isEndDifferent;
-}, [selectionRange]);
-// Update the initial fetch in the useEffect
-useEffect(() => {
-  const initializeData = async () => {
-    dispatch(fetchBusinesses());
-    dispatch(fetchAllVendors());
-    dispatch(fetchApStatuses({ page: 1 }));
+  const isDateFilterActive = useMemo(() => {
+    // If you have initial/default dates, compare with them
+    const defaultStartDate = new Date();
+    const defaultEndDate = new Date();
 
-    // Fetch initial AP invoices WITHOUT date filters
-    dispatch(fetchApInvoices({
-      page: 1,
-      limit: pageSize,
-      // Don't include date filters initially
-    }));
+    const isStartDifferent = selectionRange.startDate.getTime() !== defaultStartDate.getTime();
+    const isEndDifferent = selectionRange.endDate.getTime() !== defaultEndDate.getTime();
 
-    setIsInitialLoad(false);
-  };
+    return isStartDifferent || isEndDifferent;
+  }, [selectionRange]);
+  // Update the initial fetch in the useEffect
+  useEffect(() => {
+    const initializeData = async () => {
+      dispatch(fetchBusinesses());
+      dispatch(fetchAllVendors());
+      dispatch(fetchApStatuses({ page: 1 }));
 
-  initializeData();
+      // Fetch initial AP invoices WITHOUT date filters
+      dispatch(fetchApInvoices({
+        page: 1,
+        limit: pageSize,
+        // Don't include date filters initially
+      }));
 
-  return () => {
-    dispatch(resetStatuses());
-  };
-}, [dispatch, pageSize]); // Add pageSize dependency
-useEffect(() => {
-  // Don't fetch on initial load
-  if (isInitialLoad) return;
-  
-  // Debounce the fetch to avoid too many requests
-  const timer = setTimeout(() => {
-    refetchWithFilters();
-  }, 300);
-  
-  return () => clearTimeout(timer);
-}, [selectedStatus, dispatch]); // Watch for status changes
+      setIsInitialLoad(false);
+    };
+
+    initializeData();
+
+    return () => {
+      dispatch(resetStatuses());
+    };
+  }, [dispatch, pageSize]); // Add pageSize dependency
+  useEffect(() => {
+    // Don't fetch on initial load
+    if (isInitialLoad) return;
+
+    // Debounce the fetch to avoid too many requests
+    const timer = setTimeout(() => {
+      refetchWithFilters();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [selectedStatus, dispatch]); // Watch for status changes
 
   // Fetch business photos
   useEffect(() => {
@@ -341,64 +288,66 @@ useEffect(() => {
     setSelectedInvoice(invoice);
     setDetailsDialogOpen(true);
   };
-const refetchWithFilters = useCallback((
-  
-  page: number = currentPage,
-  fromDateOverride?: string,
-  toDateOverride?: string
-) => { 
-  const filters: any = {
-    page,
-    limit: pageSize,
-  };
+  const refetchWithFilters = useCallback((
 
-  // Use override if provided (from date picker), else use current selection
-  const fromDate = fromDateOverride 
-    ?? (selectionRange.startDate ? moment(selectionRange.startDate).startOf('day').toISOString() : undefined);
-  const toDate = toDateOverride 
-    ?? (selectionRange.endDate ? moment(selectionRange.endDate).endOf('day').toISOString() : undefined);
+    page: number = currentPage,
+    fromDateOverride?: string,
+    toDateOverride?: string
+  ) => {
+    const filters: any = {
+      page,
+      limit: pageSize,
+    };
 
-  // Only add date filters if both dates exist
-  if (fromDate && toDate) {
-    filters.date_filter_field = dateField;
-    filters.fromDate = fromDate;
-    filters.toDate = toDate;
-  }
+    // Use override if provided (from date picker), else use current selection
+    const fromDate = fromDateOverride
+      ?? (selectionRange.startDate ? moment(selectionRange.startDate).startOf('day').toISOString() : undefined);
+    const toDate = toDateOverride
+      ?? (selectionRange.endDate ? moment(selectionRange.endDate).endOf('day').toISOString() : undefined);
 
-  if (selectedVendorName) filters.vendorName = selectedVendorName;
-  if (invoiceTypeFilter !== 'all') filters.invoiceType = invoiceTypeFilter;
-  if (selectedStatus && selectedStatus.trim() !== '') filters.status = selectedStatus;
+    // Only add date filters if both dates exist
+    if (fromDate && toDate) {
+      filters.date_filter_field = dateField;
+      filters.fromDate = fromDate;
+      filters.toDate = toDate;
+    }
 
-  dispatch(setCurrentPage(page));
-  dispatch(fetchApInvoices(filters));
-}, [
-  dispatch, pageSize, currentPage,
-  selectionRange, selectedVendorName, invoiceTypeFilter, selectedStatus
-]);
+    if (selectedVendorName) filters.vendorName = selectedVendorName;
+    if (invoiceTypeFilter !== 'all') filters.invoiceType = invoiceTypeFilter;
+    if (selectedStatus && selectedStatus.trim() !== '') filters.status = selectedStatus;
 
-const handlePageChange = useCallback((newPage: number) => {
-  if (newPage < 1 || newPage > totalPages || loading) return;
-  
-  const filters: any = {
-    page: newPage,
-    limit: pageSize,
-  };
-  
-  {!(moment(selectionRange.startDate).isSame(moment(), 'day') && 
-   moment(selectionRange.endDate).isSame(moment(), 'day')) && (
-  <Chip label="Date Filtered" color="primary" size="small" />
-)}
-  
-  // Add other filters
-  if (selectedVendorName) filters.vendorName = selectedVendorName;
-  if (invoiceTypeFilter !== 'all') filters.invoiceType = invoiceTypeFilter;
-  if (selectedStatus && selectedStatus.trim() !== '') filters.status = selectedStatus;
-  
-  console.log('Page change with filters:', filters);
-  
-  dispatch(setCurrentPage(newPage));
-  dispatch(fetchApInvoices(filters));
-}, [dispatch, pageSize, totalPages, loading, selectionRange, selectedVendorName, invoiceTypeFilter, selectedStatus]);
+    dispatch(setCurrentPage(page));
+    dispatch(fetchApInvoices(filters));
+  }, [
+    dispatch, pageSize, currentPage,
+    selectionRange, selectedVendorName, invoiceTypeFilter, selectedStatus
+  ]);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || loading) return;
+
+    const filters: any = {
+      page: newPage,
+      limit: pageSize,
+    };
+
+    {
+      !(moment(selectionRange.startDate).isSame(moment(), 'day') &&
+        moment(selectionRange.endDate).isSame(moment(), 'day')) && (
+          <Chip label="Date Filtered" color="primary" size="small" />
+        )
+    }
+
+    // Add other filters
+    if (selectedVendorName) filters.vendorName = selectedVendorName;
+    if (invoiceTypeFilter !== 'all') filters.invoiceType = invoiceTypeFilter;
+    if (selectedStatus && selectedStatus.trim() !== '') filters.status = selectedStatus;
+
+    console.log('Page change with filters:', filters);
+
+    dispatch(setCurrentPage(newPage));
+    dispatch(fetchApInvoices(filters));
+  }, [dispatch, pageSize, totalPages, loading, selectionRange, selectedVendorName, invoiceTypeFilter, selectedStatus]);
   const handleNextPage = useCallback(() => {
     if (currentPage < totalPages) {
       handlePageChange(currentPage + 1);
@@ -413,12 +362,40 @@ const handlePageChange = useCallback((newPage: number) => {
 
 
   // View Credit Notes handler
-  const handleViewCreditNotes = (invoiceId: string) => {
-    console.log('Opening DebitCreditNoteDialog for invoiceId:', invoiceId);
-    dispatch(setDebitCreditDocumentId(invoiceId));
-    dispatch(setDebitCreditDocumentType('AP Invoice'));
-    dispatch(setDebitCreditDialogOpen(true));
-    dispatch(fetchDebitCreditNotesByDocument({ documentId: invoiceId, page: 1, size: 50 }));
+  const handleViewCreditNotes = async (invoiceId: string) => {
+    console.log('Opening DebitCreditNoteDialog for AP Invoice ID:', invoiceId);
+
+    try {
+      const invoice = apInvoices.find(inv => inv.invoiceId === invoiceId);
+      if (!invoice) {
+        console.error('Invoice not found:', invoiceId);
+        return;
+      }
+
+      // Set document details
+      dispatch(setDebitCreditDocumentId(invoiceId));
+      dispatch(setDebitCreditDocumentType('ap_invoice'));
+
+      // Open the dialog
+      dispatch(setDebitCreditDialogOpen(true));
+
+      // Fetch data with the required document_type parameter
+      dispatch(fetchAllDebitNotesForDocument({
+        documentId: invoiceId,
+        documentType: 'ap_invoice',
+        includeCleared: true,
+        includeActive: true
+      })).then((result) => {
+        if (fetchAllDebitNotesForDocument.fulfilled.match(result)) {
+          console.log('✅ Debit notes loaded successfully');
+        } else {
+          console.error('❌ Failed to load debit notes');
+        }
+      });
+
+    } catch (error) {
+      console.error('Error in handleViewCreditNotes:', error);
+    }
   };
 
   const handleCloseDetailsDialog = () => {
@@ -446,23 +423,23 @@ const handlePageChange = useCallback((newPage: number) => {
     });
     return statusMap;
   }, [apInvoices, debitCreditNotes]);
-const handleStatusChange = (event: React.SyntheticEvent, newValue: string | null) => {
-  console.log('Status changed:', newValue);
-  
-  if (newValue === null) {
-    dispatch(clearStatus());
-    // Wait a bit before refetching to ensure state is cleared
-    setTimeout(() => {
-      refetchWithFilters();
-    }, 100);
-  } else {
-    dispatch(setSelectedStatus(newValue));
-    // Immediately refetch with new status
-    setTimeout(() => {
-      refetchWithFilters();
-    }, 100);
-  }
-};
+  const handleStatusChange = (event: React.SyntheticEvent, newValue: string | null) => {
+    console.log('Status changed:', newValue);
+
+    if (newValue === null) {
+      dispatch(clearStatus());
+      // Wait a bit before refetching to ensure state is cleared
+      setTimeout(() => {
+        refetchWithFilters();
+      }, 100);
+    } else {
+      dispatch(setSelectedStatus(newValue));
+      // Immediately refetch with new status
+      setTimeout(() => {
+        refetchWithFilters();
+      }, 100);
+    }
+  };
 
   // Vendor change handler
   const handleVendorChange = (vendor: VendorSearch | null) => {
@@ -474,44 +451,44 @@ const handleStatusChange = (event: React.SyntheticEvent, newValue: string | null
   const handleInvoiceTypeChange = (value: string) => {
     setInvoiceTypeFilter(value);
   };
-const handleFilterClick = () => {
-  if (!canRead) return;  
-  dispatch(setCurrentPage(1));
-  
-  const fromDate = selectionRange.startDate 
-    ? moment(selectionRange.startDate).startOf('day').toISOString() 
-    : undefined;
-  const toDate = selectionRange.endDate 
-    ? moment(selectionRange.endDate).endOf('day').toISOString() 
-    : undefined;
+  const handleFilterClick = () => {
+    if (!canRead) return;
+    dispatch(setCurrentPage(1));
 
-  refetchWithFilters(1, fromDate, toDate);
-};
-const handleFilterClose = () => {
-  const today = new Date();
-  setSelectionRange({
-    startDate: today,
-    endDate: today,
-    key: 'selection',
-  });
+    const fromDate = selectionRange.startDate
+      ? moment(selectionRange.startDate).startOf('day').toISOString()
+      : undefined;
+    const toDate = selectionRange.endDate
+      ? moment(selectionRange.endDate).endOf('day').toISOString()
+      : undefined;
 
-  setSelectedVendor(null);
-  setSelectedVendorName('');
-  setInvoiceTypeFilter('all');
-  dispatch(clearStatus());
+    refetchWithFilters(1, fromDate, toDate);
+  };
+  const handleFilterClose = () => {
+    const today = new Date();
+    setSelectionRange({
+      startDate: today,
+      endDate: today,
+      key: 'selection',
+    });
 
-  dispatch(setCurrentPage(1));
-  
-  // Explicitly refetch WITHOUT date filters
-  dispatch(fetchApInvoices({
-    page: 1,
-    limit: pageSize,
-    vendorName: undefined,
-    invoiceType: undefined,
-    status: undefined,
-    // No date_filter_field, fromDate, toDate → backend ignores date filter
-  }));
-};  // Download handlers
+    setSelectedVendor(null);
+    setSelectedVendorName('');
+    setInvoiceTypeFilter('all');
+    dispatch(clearStatus());
+
+    dispatch(setCurrentPage(1));
+
+    // Explicitly refetch WITHOUT date filters
+    dispatch(fetchApInvoices({
+      page: 1,
+      limit: pageSize,
+      vendorName: undefined,
+      invoiceType: undefined,
+      status: undefined,
+      // No date_filter_field, fromDate, toDate → backend ignores date filter
+    }));
+  };  // Download handlers
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorElDownload(event.currentTarget as HTMLElement);
   };
@@ -530,165 +507,6 @@ const handleFilterClose = () => {
     handleCloseAnchor();
   };
 
-  // PDF generation functions
-  const generateInvoicePDF = () => {
-    const doc = new jsPDF();
-    let yOffset = 7;
-    const business = businesses.length > 0 ? businesses[0] : null;
-    if (!business) {
-      console.error('Business info not found!');
-      return;
-    }
-
-    if (business.imageUrl) {
-      try {
-        doc.addImage(business.imageUrl, 'JPEG', 14, yOffset, 20, 20);
-      } catch (e) {
-        console.error("Image failed to load:", e);
-      }
-    }
-
-    yOffset += 10;
-
-    const title = invoiceTypeFilter === 'all'
-      ? "Verified AP Invoice Vendorwise Summary"
-      : invoiceTypeFilter === 'goods'
-        ? "Verified Goods AP Invoice Vendorwise Summary"
-        : "Verified Service AP Invoice Vendorwise Summary";
-    const pageWidth = doc.internal.pageSize.width;
-    const fontSize = doc.getFontSize();
-    const titleWidth = doc.getStringUnitWidth(title) * fontSize / doc.internal.scaleFactor;
-    const titleX = (pageWidth - titleWidth) / 2;
-    doc.text(title, titleX, yOffset);
-
-    const underlineOffset = 3;
-    doc.setLineWidth(0.1);
-    doc.line(titleX, yOffset + underlineOffset, titleX + titleWidth, yOffset + underlineOffset);
-    yOffset += 15;
-
-    const today = new Date();
-    const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-
-    let filteredInvoices = apInvoices;
-    if (invoiceTypeFilter !== 'all') {
-      filteredInvoices = filteredInvoices.filter(ap => ap.invoiceType === invoiceTypeFilter);
-    }
-
-    const totalInvoiceAmount = filteredInvoices.reduce((sum, order) => {
-      const orderInvoiceAmount = order.invoiceAmount || 0;
-      return sum + orderInvoiceAmount;
-    }, 0);
-
-    doc.setFontSize(10);
-    doc.text(`Total Invoice Amount: ${totalInvoiceAmount.toFixed(2)}`, 14, yOffset);
-    const totalWidth = doc.getStringUnitWidth(`Total Invoice Amount: ${totalInvoiceAmount.toFixed(2)}`) * fontSize / doc.internal.scaleFactor;
-    const dateX = pageWidth - totalWidth - 14;
-    doc.text(`Date: ${currentDate}`, dateX, yOffset);
-    yOffset += 5;
-
-    const headers = invoiceTypeFilter === 'service'
-      ? [["S.No", "AP.No", "Invoice Date", "InvoiceNo", "Vendor Name", "Service Type", "Total Amount"]]
-      : [["S.No", "AP.No", "Invoice Date", "InvoiceNo", "Vendor Name", "TotalItems", "Total Amount"]];
-
-    const rows = filteredInvoices.map((ap, index) => {
-      if (ap.invoiceType === 'service') {
-        return [
-          (index + 1).toString(),
-          ap.randomId.toString(),
-          ap.invoiceDate ? format(new Date(ap.invoiceDate), 'dd-MM-yyyy') : '',
-          ap.invoiceNo,
-          ap.vendorName.toString(),
-          ap.descriptions.length > 0 ? ap.descriptions[0] : 'Service',
-          ap.invoiceAmount.toFixed(2),
-        ];
-      } else {
-        const totalItemsQuantity = Array.isArray(ap.itemDetails) && ap.itemDetails.length > 0
-          ? ap.itemDetails.reduce((sum, item) => sum + (item.quantity || 0), 0)
-          : 0;
-
-        return [
-          (index + 1).toString(),
-          ap.randomId.toString(),
-          ap.invoiceDate ? format(new Date(ap.invoiceDate), 'dd-MM-yyyy') : '',
-          ap.invoiceNo,
-          ap.vendorName.toString(),
-          totalItemsQuantity.toString(),
-          ap.invoiceAmount.toFixed(2),
-        ];
-      }
-    });
-
-    doc.autoTable({
-      head: headers,
-      body: rows,
-      startY: yOffset,
-      styles: {
-        fillColor: [30, 144, 255],
-        textColor: [255, 255, 255],
-        lineColor: [0, 0, 0],
-        fontSize: 8
-      },
-      headStyles: {
-        fillColor: [0, 0, 128],
-        textColor: [255, 255, 255]
-      },
-      bodyStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0]
-      },
-      columnStyles: {
-        0: { halign: 'center' },
-        1: { halign: 'left' },
-        2: { halign: 'left' },
-        3: { halign: 'left' },
-        4: { halign: 'left' },
-        5: { halign: invoiceTypeFilter === 'service' ? 'left' : 'right' },
-        6: { halign: 'right' },
-      }
-    });
-
-    const totalPages = doc.getNumberOfPages();
-    const pageHeight = doc.internal.pageSize.height;
-    const footerY = pageHeight - 20;
-    const computerGeneratedY = pageHeight - 10;
-
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      const pageText = `Page ${i} of ${totalPages}`;
-      const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
-      const pageX = (pageWidth - pageTextWidth) / 2;
-      doc.text(pageText, pageX, footerY, { align: 'center' });
-
-      const compText = "This is computer generated";
-      const compTextWidth = doc.getStringUnitWidth(compText) * doc.getFontSize() / doc.internal.scaleFactor;
-      const compX = (pageWidth - compTextWidth) / 2;
-      doc.text(compText, compX, computerGeneratedY);
-    }
-
-    const typeLabel = invoiceTypeFilter === 'all' ? '' : invoiceTypeFilter === 'goods' ? 'Goods' : 'Service';
-    const pdfFilename = `VerifiedApVendorwise${typeLabel ? '_' + typeLabel : ''}.pdf`;
-    doc.save(pdfFilename);
-    setDialogDownloadOpen(false);
-  };
-const handleDateRangeChange = (ranges: any) => {
-  const { startDate, endDate } = ranges.selection;
-
-  setSelectionRange({
-    startDate,
-    endDate,
-    key: 'selection',
-  });
-
-  // Always consider the selected range as active filter
-  // Auto-apply immediately
-  dispatch(setCurrentPage(1));
-
-  const fromDate = moment(startDate).startOf('day').toISOString();
-  const toDate = moment(endDate).endOf('day').toISOString();
-
-  refetchWithFilters(1, fromDate, toDate);
-};
   const handleDownload = async (apinvoiceId: string) => {
     const apinvoice = apInvoices.find((invoice: ApInvoice) => invoice.invoiceId === apinvoiceId);
     if (!apinvoice) {
@@ -796,7 +614,7 @@ const handleDateRangeChange = (ranges: any) => {
           apinvoice.sacCode[index] || '',
           apinvoice.from_dates[index] ? format(new Date(apinvoice.from_dates[index]), 'dd-MM-yyyy') : '',
           apinvoice.to_dates[index] ? format(new Date(apinvoice.to_dates[index]), 'dd-MM-yyyy') : '',
-          apinvoice.quantity[index] || 1,
+          (apinvoice.quantity[index] || 1).toString(),
           (apinvoice.fees[index] || 0).toFixed(2),
           (apinvoice.desc_tax_amounts[index] || 0).toFixed(2),
           (apinvoice.desc_totals[index] || 0).toFixed(2),
@@ -810,19 +628,19 @@ const handleDateRangeChange = (ranges: any) => {
         theme: 'grid',
         styles: {
           fontSize: 8,
-          halign: 'center',
+          halign: 'left', // Default left alignment
           cellPadding: 2,
         },
         columnStyles: {
-          0: { halign: 'center' },
-          1: { halign: 'left' },
-          2: { halign: 'center' },
-          3: { halign: 'center' },
-          4: { halign: 'center' },
-          5: { halign: 'right' },
-          6: { halign: 'right' },
-          7: { halign: 'right' },
-          8: { halign: 'right' },
+          0: { halign: 'center' }, // SI No - center
+          1: { halign: 'left' }, // Description - left
+          2: { halign: 'center' }, // SAC Code - center
+          3: { halign: 'center' }, // From Date - center
+          4: { halign: 'center' }, // To Date - center
+          5: { halign: 'right' }, // Quantity - RIGHT ALIGNED
+          6: { halign: 'right' }, // Amount - RIGHT ALIGNED
+          7: { halign: 'right' }, // Tax - RIGHT ALIGNED
+          8: { halign: 'right' }, // Total - RIGHT ALIGNED
         },
         headStyles: {
           fillColor: [0, 0, 128],
@@ -845,12 +663,12 @@ const handleDateRangeChange = (ranges: any) => {
           `${index + 1}`,
           item.itemName || 'Item Description',
           item.hsnCode,
-          item.nos,
+          (item.nos || '').toString(),
           `${item.eachQuantity || 0} ${item.uom || 'Kgs'}`,
           `${item.stockQuantity} ${item.uom || 'Kgs'}`,
-          `${unitPrice.toFixed(2)}`,
+          unitPrice.toFixed(2),
           `${item.purchasetaxName}%`,
-          `${totalAmount.toFixed(2)}`,
+          totalAmount.toFixed(2),
         ];
       });
 
@@ -861,19 +679,19 @@ const handleDateRangeChange = (ranges: any) => {
         theme: 'grid',
         styles: {
           fontSize: 8,
-          halign: 'center',
+          halign: 'left', // Default left alignment
           cellPadding: 2,
         },
         columnStyles: {
-          0: { halign: 'center' },
-          1: { halign: 'left' },
-          2: { halign: 'center' },
-          3: { halign: 'center' },
-          4: { halign: 'left' },
-          5: { halign: 'right' },
-          6: { halign: 'right' },
-          7: { halign: 'center' },
-          8: { halign: 'right' },
+          0: { halign: 'center' }, // SI No - center
+          1: { halign: 'left' }, // Description - left
+          2: { halign: 'center' }, // HsnCode - center
+          3: { halign: 'center' }, // Pkt Count - center
+          4: { halign: 'left' }, // Qty - left (with UOM)
+          5: { halign: 'right' }, // Stock Qty - RIGHT ALIGNED
+          6: { halign: 'right' }, // Unit Price - RIGHT ALIGNED
+          7: { halign: 'center' }, // Tax - center
+          8: { halign: 'right' }, // Amount - RIGHT ALIGNED
         },
         headStyles: {
           fillColor: [0, 0, 128],
@@ -938,6 +756,7 @@ const handleDateRangeChange = (ranges: any) => {
       [`Total Discount`, apinvoice.discountDetails?.toFixed(2) || '0'],
     ];
 
+    // Add item taxes
     taxRates.CGST.forEach((amount, rate) => {
       taxSummary.push([`CGST @${rate}%`, amount.toFixed(2)]);
     });
@@ -950,7 +769,30 @@ const handleDateRangeChange = (ranges: any) => {
       taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]);
     });
 
+    // Calculate subtotal (items total with tax)
+    const itemsTotalWithTax = totalWithoutTax +
+      Array.from(taxRates.CGST.values()).reduce((sum, amount) => sum + amount, 0) +
+      Array.from(taxRates.SGST.values()).reduce((sum, amount) => sum + amount, 0) +
+      Array.from(taxRates.IGST.values()).reduce((sum, amount) => sum + amount, 0);
+
+    // Add freight charges
+    const totalFreightAmount = apinvoice.totalFreightAmount || 0;
+    if (totalFreightAmount > 0) {
+      taxSummary.push([`Freight Charges`, totalFreightAmount.toFixed(2)]);
+    }
+
+    // Add freight tax
+    const totalFreightTaxAmount = apinvoice.totalFreightTaxAmount || 0;
+    if (totalFreightTaxAmount > 0) {
+      taxSummary.push([`Freight Tax`, totalFreightTaxAmount.toFixed(2)]);
+    }
+
+    // Calculate total with tax including freight
+    const subtotalWithFreight = itemsTotalWithTax + totalFreightAmount + totalFreightTaxAmount;
+
+    // Add round off
     taxSummary.push([`Round off Amount`, apinvoice.apRoundOff?.toFixed(2) || '0']);
+
     taxSummary.push([`Total [Including Tax]`, apinvoice.invoiceAmount?.toFixed(2) || '0']);
 
     doc.autoTable({
@@ -967,8 +809,8 @@ const handleDateRangeChange = (ranges: any) => {
         fontStyle: 'bold',
       },
       columnStyles: {
-        0: { halign: 'left' },
-        1: { halign: 'right' },
+        0: { halign: 'left' }, // Description - left aligned
+        1: { halign: 'right' }, // Amount - RIGHT ALIGNED
       },
       headStyles: {
         fillColor: [255, 255, 255],
@@ -1006,7 +848,7 @@ const handleDateRangeChange = (ranges: any) => {
     const typeLabel = apinvoice.invoiceType === 'service' ? 'Service' : '';
     doc.save(`${apinvoice.vendorName} ${apinvoice.randomId}${typeLabel ? ' ' + typeLabel : ''}.pdf`);
   };
-
+  
   const handleExportCSV = () => {
     let filteredInvoices = apInvoices;
     if (invoiceTypeFilter !== 'all') {
@@ -1104,7 +946,7 @@ const handleDateRangeChange = (ranges: any) => {
 
     doc.setFontSize(10);
     doc.text(`Total Invoice Amount: ${totalAmount.toFixed(2)}`, 14, currentYOffset);
-    doc.text(`Date: ${currentDate}`, pageWidth - 14, currentYOffset, { align: 'right' });
+    doc.text(`Date: ${currentDate}`, pageWidth - 50, currentYOffset);
     currentYOffset += 5;
 
     if (invoiceTypeFilter === 'service') {
@@ -1133,7 +975,8 @@ const handleDateRangeChange = (ranges: any) => {
           fillColor: [30, 144, 255],
           textColor: [255, 255, 255],
           lineColor: [0, 0, 0],
-          fontSize: 8
+          fontSize: 8,
+          halign: 'left',
         },
         headStyles: {
           fillColor: [0, 0, 128],
@@ -1144,16 +987,16 @@ const handleDateRangeChange = (ranges: any) => {
           textColor: [0, 0, 0],
         },
         columnStyles: {
-          0: { halign: 'center' },
-          1: { halign: 'center' },
-          2: { halign: 'left' },
-          3: { halign: 'left' },
-          4: { halign: 'center' },
-          5: { halign: 'center' },
-          6: { halign: 'center' },
-          7: { halign: 'right' },
-          8: { halign: 'right' },
-          9: { halign: 'right' },
+          0: { halign: 'center' }, // S.No - center
+          1: { halign: 'center' }, // AP.No - center
+          2: { halign: 'left' }, // Vendor Name - left
+          3: { halign: 'left' }, // Service Description - left
+          4: { halign: 'center' }, // SAC Code - center
+          5: { halign: 'center' }, // From Date - center
+          6: { halign: 'center' }, // To Date - center
+          7: { halign: 'right' }, // Amount - RIGHT ALIGNED
+          8: { halign: 'right' }, // Tax - RIGHT ALIGNED
+          9: { halign: 'right' }, // Total - RIGHT ALIGNED
         }
       });
     } else {
@@ -1165,11 +1008,11 @@ const handleDateRangeChange = (ranges: any) => {
           invoice.randomId.toString(),
           invoice.vendorName,
           item.itemName,
-          item.stockQuantity,
-          item.unitPrice,
+          item.stockQuantity.toString(),
+          item.unitPrice.toFixed(2),
           `${item.purchasetaxName}%`,
-          item.discountAmount,
-          item.totalPrice
+          (item.discountAmount || 0).toFixed(2),
+          item.totalPrice.toFixed(2),
         ]);
       }).flat();
 
@@ -1181,7 +1024,8 @@ const handleDateRangeChange = (ranges: any) => {
           fillColor: [30, 144, 255],
           textColor: [255, 255, 255],
           lineColor: [0, 0, 0],
-          fontSize: 8
+          fontSize: 8,
+          halign: 'left',
         },
         headStyles: {
           fillColor: [0, 0, 128],
@@ -1192,15 +1036,15 @@ const handleDateRangeChange = (ranges: any) => {
           textColor: [0, 0, 0],
         },
         columnStyles: {
-          0: { halign: 'center' },
-          1: { halign: 'center' },
-          2: { halign: 'left' },
-          3: { halign: 'left' },
-          4: { halign: 'right' },
-          5: { halign: 'right' },
-          6: { halign: 'right' },
-          7: { halign: 'right' },
-          8: { halign: 'right' },
+          0: { halign: 'center' }, // S.No - center
+          1: { halign: 'center' }, // AP.No - center
+          2: { halign: 'left' }, // Vendor Name - left
+          3: { halign: 'left' }, // Item Name - left
+          4: { halign: 'right' }, // Quantity - RIGHT ALIGNED
+          5: { halign: 'right' }, // Price - RIGHT ALIGNED
+          6: { halign: 'center' }, // Tax - center
+          7: { halign: 'right' }, // Discount - RIGHT ALIGNED
+          8: { halign: 'right' }, // Total - RIGHT ALIGNED
         }
       });
     }
@@ -1264,11 +1108,11 @@ const handleDateRangeChange = (ranges: any) => {
           invoice.randomId.toString(),
           invoice.vendorName,
           item.itemName,
-          item.stockQuantity,
-          item.unitPrice,
+          item.stockQuantity.toString(),
+          item.unitPrice.toFixed(2),
           `${item.purchasetaxName}%`,
-          item.discountAmount,
-          item.totalPrice
+          (item.discountAmount || 0).toFixed(2),
+          item.totalPrice.toFixed(2),
         ]);
       }).flat();
     }
@@ -1287,7 +1131,235 @@ const handleDateRangeChange = (ranges: any) => {
     document.body.removeChild(link);
     handleClose();
   };
+  
+  const generateInvoicePDF = () => {
+    const doc = new jsPDF();
+    let yOffset = 7;
+    const business = businesses.length > 0 ? businesses[0] : null;
+    if (!business) {
+      console.error('Business info not found!');
+      return;
+    }
 
+    if (business.imageUrl) {
+      try {
+        doc.addImage(business.imageUrl, 'JPEG', 14, yOffset, 20, 20);
+      } catch (e) {
+        console.error("Image failed to load:", e);
+      }
+    }
+
+    yOffset += 10;
+
+    const title = invoiceTypeFilter === 'all'
+      ? "Verified AP Invoice Vendorwise Summary"
+      : invoiceTypeFilter === 'goods'
+        ? "Verified Goods AP Invoice Vendorwise Summary"
+        : "Verified Service AP Invoice Vendorwise Summary";
+    const pageWidth = doc.internal.pageSize.width;
+    const fontSize = doc.getFontSize();
+    const titleWidth = doc.getStringUnitWidth(title) * fontSize / doc.internal.scaleFactor;
+    const titleX = (pageWidth - titleWidth) / 2;
+    doc.text(title, titleX, yOffset);
+
+    const underlineOffset = 3;
+    doc.setLineWidth(0.1);
+    doc.line(titleX, yOffset + underlineOffset, titleX + titleWidth, yOffset + underlineOffset);
+    yOffset += 15;
+
+    const today = new Date();
+    const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+
+    let filteredInvoices = apInvoices;
+    if (invoiceTypeFilter !== 'all') {
+      filteredInvoices = filteredInvoices.filter(ap => ap.invoiceType === invoiceTypeFilter);
+    }
+
+    const totalInvoiceAmount = filteredInvoices.reduce((sum, order) => {
+      const orderInvoiceAmount = order.invoiceAmount || 0;
+      return sum + orderInvoiceAmount;
+    }, 0);
+
+    doc.setFontSize(10);
+    doc.text(`Total Invoice Amount: ${totalInvoiceAmount.toFixed(2)}`, 14, yOffset);
+    const totalWidth = doc.getStringUnitWidth(`Total Invoice Amount: ${totalInvoiceAmount.toFixed(2)}`) * fontSize / doc.internal.scaleFactor;
+    const dateX = pageWidth - totalWidth - 14;
+    doc.text(`Date: ${currentDate}`, dateX, yOffset);
+    yOffset += 5;
+
+    const headers = invoiceTypeFilter === 'service'
+      ? [["S.No", "AP.No", "Invoice Date", "InvoiceNo", "Vendor Name", "Service Type", "Total Amount"]]
+      : [["S.No", "AP.No", "Invoice Date", "InvoiceNo", "Vendor Name", "TotalItems", "Total Amount"]];
+
+    const rows = filteredInvoices.map((ap, index) => {
+      if (ap.invoiceType === 'service') {
+        return [
+          (index + 1).toString(),
+          ap.randomId.toString(),
+          ap.invoiceDate ? format(new Date(ap.invoiceDate), 'dd-MM-yyyy') : '',
+          ap.invoiceNo,
+          ap.vendorName.toString(),
+          ap.descriptions.length > 0 ? ap.descriptions[0] : 'Service',
+          ap.invoiceAmount.toFixed(2),
+        ];
+      } else {
+        const totalItemsQuantity = Array.isArray(ap.itemDetails) && ap.itemDetails.length > 0
+          ? ap.itemDetails.reduce((sum, item) => sum + (item.quantity || 0), 0)
+          : 0;
+
+        return [
+          (index + 1).toString(),
+          ap.randomId.toString(),
+          ap.invoiceDate ? format(new Date(ap.invoiceDate), 'dd-MM-yyyy') : '',
+          ap.invoiceNo,
+          ap.vendorName.toString(),
+          totalItemsQuantity.toString(),
+          ap.invoiceAmount.toFixed(2),
+        ];
+      }
+    });
+
+    doc.autoTable({
+      head: headers,
+      body: rows,
+      startY: yOffset,
+      styles: {
+        fillColor: [30, 144, 255],
+        textColor: [255, 255, 255],
+        lineColor: [0, 0, 0],
+        fontSize: 8,
+        halign: 'left',
+      },
+      headStyles: {
+        fillColor: [0, 0, 128],
+        textColor: [255, 255, 255]
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0]
+      },
+      columnStyles: {
+        0: { halign: 'center' }, // S.No - center
+        1: { halign: 'center' }, // AP.No - center
+        2: { halign: 'left' }, // Invoice Date - left
+        3: { halign: 'left' }, // InvoiceNo - left
+        4: { halign: 'left' }, // Vendor Name - left
+        5: { halign: invoiceTypeFilter === 'service' ? 'left' : 'right' }, // Service Type (left) or TotalItems (right)
+        6: { halign: 'right' }, // Total Amount - RIGHT ALIGNED
+      }
+    });
+
+    const totalPages = doc.getNumberOfPages();
+    const pageHeight = doc.internal.pageSize.height;
+    const footerY = pageHeight - 20;
+    const computerGeneratedY = pageHeight - 10;
+
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      const pageText = `Page ${i} of ${totalPages}`;
+      const pageTextWidth = doc.getStringUnitWidth(pageText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const pageX = (pageWidth - pageTextWidth) / 2;
+      doc.text(pageText, pageX, footerY, { align: 'center' });
+
+      const compText = "This is computer generated";
+      const compTextWidth = doc.getStringUnitWidth(compText) * doc.getFontSize() / doc.internal.scaleFactor;
+      const compX = (pageWidth - compTextWidth) / 2;
+      doc.text(compText, compX, computerGeneratedY);
+    }
+
+    const typeLabel = invoiceTypeFilter === 'all' ? '' : invoiceTypeFilter === 'goods' ? 'Goods' : 'Service';
+    const pdfFilename = `VerifiedApVendorwise${typeLabel ? '_' + typeLabel : ''}.pdf`;
+    doc.save(pdfFilename);
+    setDialogDownloadOpen(false);
+  };
+  const handleGrnClick = async (grnId: string) => {
+    try {
+      const result = await dispatch(fetchGrnById(grnId)).unwrap();
+      if (result) {
+        const transformedGrn: GrnResponse = {
+          grnId: result.grnId,
+          randomId: result.randomId,
+          vendorName: result.vendorName,
+          grnDate: typeof result.grnDate === 'string' ? new Date(result.grnDate) : result.grnDate,
+          itemDetails: result.itemDetails.map((item: ItemDetail) => ({
+            itemId: item.itemId,
+            itemName: item.itemName ?? 'Unknown',
+            receivedQuantity: Number(item.receivedQuantity) || 0,
+            returnedQuantity: Number(item.returnedQuantity) || 0,
+            quantity: Number(item.quantity) || 0,
+            unitPrice: Number(item.unitPrice) || 0,
+            totalPrice: Number(item.totalPrice) || 0,
+            purchasetaxName: item.purchasetaxName || 'N/A',
+            discountAmount: Number(item.discountAmount) || 0,
+            finalPrice: Number(item.finalPrice) || 0,
+          })) as ItemDetailResponse[],
+        };
+        setSelectedGrn(transformedGrn);
+        setViewItemsDialogOpen(true);
+      } else {
+        dispatch(setSnackbarMessage('GRN not found.'));
+        dispatch(setSnackbarOpen(true));
+      }
+    } catch (error) {
+      dispatch(setSnackbarMessage('Failed to fetch GRN details.'));
+      dispatch(setSnackbarOpen(true));
+      console.error('Failed to fetch GRN details:', error);
+    }
+  };
+
+  const handlePoClick = async (poId: string) => {
+    try {
+      const result = await dispatch(fetchPoById(poId)).unwrap();
+      if (result) {
+        const transformedPo: PoResponse = {
+          purchaseOrderId: result.purchaseOrderId,
+          randomId: result.randomId,
+          vendorName: result.vendorName,
+          orderDate: typeof result.orderDate === 'string' ? result.orderDate : result.orderDate?.toISOString() || null,
+          itemDetails: result.itemDetails.map((item: ItemDetailResponsePO) => ({
+            itemId: item.itemId ?? 'N/A',
+            itemName: item.itemName ?? 'Unknown',
+            receivedQuantity: Number(item.receivedQuantity) || 0,
+            poQuantity: Number(item.poQuantity) || 0,
+            newPrice: Number(item.newPrice) || 0,
+            totalPrice: Number(item.totalPrice) || 0,
+            purchasetaxName: Number(item.purchasetaxName) || 0,
+            taxPercentage: Number(item.taxPercentage) || 0,
+            taxAmount: Number(item.taxAmount) || 0,
+            discountAmount: Number(item.discountAmount) || 0,
+            finalPrice: Number(item.finalPrice) || 0,
+          })) as ItemDetailResponsePO[],
+        };
+        dispatch(setSelectedPo(transformedPo));
+        setPoDialogOpen(true);
+      } else {
+        dispatch(setSnackbarMessage('Purchase Order not found.'));
+        dispatch(setSnackbarOpen(true));
+      }
+    } catch (error) {
+      dispatch(setSnackbarMessage('Failed to fetch PO details.'));
+      dispatch(setSnackbarOpen(true));
+      console.error('Failed to fetch PO details:', error);
+    }
+  };
+  const handleServiceClick = async (serviceId: string) => {
+    if (!serviceId) {
+      dispatch(setSnackbarMessage('Invalid Service ID'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    try {
+      const result = await dispatch(fetchServiceById(serviceId)).unwrap();
+      setSelectedService(result);
+      setDialogOpen(true);
+    } catch (error) {
+      dispatch(setSnackbarMessage('Failed to load service details'));
+      dispatch(setSnackbarOpen(true));
+      console.error('Service fetch error:', error);
+    }
+  };
   // Return AP handler
   const handleReturnAp = async () => {
     if (!selectedInvoice) return;
@@ -1324,22 +1396,22 @@ const handleDateRangeChange = (ranges: any) => {
 
     return filtered;
   }, [apInvoices, invoiceTypeFilter, selectedStatus]);
- // Add this useEffect to debug filter state
-useEffect(() => {
-  console.log('Filter state:', {
-    currentPage,
-    appliedFromDate: appliedFromDate ? new Date(appliedFromDate).toLocaleDateString() : 'undefined',
-    appliedToDate: appliedToDate ? new Date(appliedToDate).toLocaleDateString() : 'undefined',
-    selectedVendorName,
-    invoiceTypeFilter,
-    selectedStatus,
-    isDateFilterActive,
-    selectionRange: {
-      start: selectionRange.startDate.toLocaleDateString(),
-      end: selectionRange.endDate.toLocaleDateString()
-    }
-  });
-}, [currentPage, appliedFromDate, appliedToDate, selectedVendorName, invoiceTypeFilter, selectedStatus, isDateFilterActive, selectionRange]);
+  // Add this useEffect to debug filter state
+  useEffect(() => {
+    console.log('Filter state:', {
+      currentPage,
+      appliedFromDate: appliedFromDate ? new Date(appliedFromDate).toLocaleDateString() : 'undefined',
+      appliedToDate: appliedToDate ? new Date(appliedToDate).toLocaleDateString() : 'undefined',
+      selectedVendorName,
+      invoiceTypeFilter,
+      selectedStatus,
+      isDateFilterActive,
+      selectionRange: {
+        start: selectionRange.startDate.toLocaleDateString(),
+        end: selectionRange.endDate.toLocaleDateString()
+      }
+    });
+  }, [currentPage, appliedFromDate, appliedToDate, selectedVendorName, invoiceTypeFilter, selectedStatus, isDateFilterActive, selectionRange]);
   // Tax calculations
   const taxAmounts: TaxAmounts = selectedInvoice
     ? (selectedInvoice.invoiceType === 'service'
@@ -1387,19 +1459,19 @@ useEffect(() => {
     ...Object.keys(taxAmounts.cgst),
     ...Object.keys(taxAmounts.igst),
   ]);
- const filterAp = filteredAp.length > 0 ? filteredAp : apInvoices;
+  const filterAp = filteredAp.length > 0 ? filteredAp : apInvoices;
   /* ================= HIDE MODULE ================= */
   if (isModuleHidden) return null;
 
-if (!canRead) {
-  return (
-    <Box p={2}>
-      <Typography color="error">
-        You do not have access to AP Invoice module.
-      </Typography>
-    </Box>
-  );
-}
+  if (!canRead) {
+    return (
+      <Box p={2}>
+        <Typography color="error">
+          You do not have access to AP Invoice module.
+        </Typography>
+      </Box>
+    );
+  }
 
   /* =============================================== */
 
@@ -1466,59 +1538,59 @@ if (!canRead) {
               </Select>
             </FormControl>
           </Grid>
-<Grid item xs={2}>
-  <FormControl fullWidth size="small">
-    <Autocomplete
-      options={statuses}
-      loading={statusesLoading}
-      value={selectedStatus || null}
-      inputValue={selectedStatus || ''}  // KEY FIX: Show selected value as text
-      onChange={(event, newValue) => {
-        console.log('Status selected:', newValue);
-        if (newValue === null) {
-          dispatch(clearStatus());
-        } else {
-          dispatch(setSelectedStatus(newValue));
-        }
-        // Do NOT refetch here — only on Filter button
-      }}
-      onInputChange={(event, newInputValue, reason) => {
-        // Only update search when user types (not when selecting)
-        if (reason === 'input') {
-          dispatch(setStatusSearch(newInputValue));
-          if (newInputValue.trim() === '') {
-            dispatch(resetStatuses());
-            dispatch(fetchApStatuses({ page: 1 }));
-          } else {
-            debouncedStatusSearch(newInputValue);
-          }
-        }
-        // Ignore 'reset' or 'clear' reasons here
-      }}
-      onOpen={() => {
-        if (statuses.length === 0) {
-          dispatch(fetchApStatuses({ page: 1 }));
-        }
-      }}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          label="Status"
-          size="small"
-          InputProps={{
-            ...params.InputProps,
-        
-          }}
-        />
-      )}
-      // Rest of your PaperComponent, renderOption, etc.
-      freeSolo={false}
-      clearOnBlur={false}
-      clearOnEscape={true} // Optional: allows Escape to clear
-      fullWidth
-    />
-  </FormControl>
-</Grid>
+          <Grid item xs={2}>
+            <FormControl fullWidth size="small">
+              <Autocomplete
+                options={statuses}
+                loading={statusesLoading}
+                value={selectedStatus || null}
+                inputValue={selectedStatus || ''}  // KEY FIX: Show selected value as text
+                onChange={(event, newValue) => {
+                  console.log('Status selected:', newValue);
+                  if (newValue === null) {
+                    dispatch(clearStatus());
+                  } else {
+                    dispatch(setSelectedStatus(newValue));
+                  }
+                  // Do NOT refetch here — only on Filter button
+                }}
+                onInputChange={(event, newInputValue, reason) => {
+                  // Only update search when user types (not when selecting)
+                  if (reason === 'input') {
+                    dispatch(setStatusSearch(newInputValue));
+                    if (newInputValue.trim() === '') {
+                      dispatch(resetStatuses());
+                      dispatch(fetchApStatuses({ page: 1 }));
+                    } else {
+                      debouncedStatusSearch(newInputValue);
+                    }
+                  }
+                  // Ignore 'reset' or 'clear' reasons here
+                }}
+                onOpen={() => {
+                  if (statuses.length === 0) {
+                    dispatch(fetchApStatuses({ page: 1 }));
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Status"
+                    size="small"
+                    InputProps={{
+                      ...params.InputProps,
+
+                    }}
+                  />
+                )}
+                // Rest of your PaperComponent, renderOption, etc.
+                freeSolo={false}
+                clearOnBlur={false}
+                clearOnEscape={true} // Optional: allows Escape to clear
+                fullWidth
+              />
+            </FormControl>
+          </Grid>
           {/* Filter Icon */}
           <Grid item>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -1625,17 +1697,17 @@ if (!canRead) {
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell>S.No</TableCell>
-                  <TableCell>POID/SOID</TableCell>
-                  <TableCell>GRN ID</TableCell>
-                  <TableCell>AP ID</TableCell>
-                  <TableCell>Invoice ID</TableCell>
-                  <TableCell>Vendor Name</TableCell>
-                  <TableCell>Invoice Date</TableCell>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Total Amount</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Action</TableCell>
+                  <TableCell align="center">S.No</TableCell>
+                  <TableCell align="left">POID/SOID</TableCell>
+                  <TableCell align="left">GRN ID</TableCell>
+                  <TableCell align="left">AP ID</TableCell>
+                  <TableCell align="left">Invoice ID</TableCell>
+                  <TableCell align="left">Vendor Name</TableCell>
+                  <TableCell align="left">Invoice Date</TableCell>
+                  <TableCell align="center">Type</TableCell>
+                  <TableCell align="right">Total Amount</TableCell>
+                  <TableCell align="center">Status</TableCell>
+                  <TableCell align="center">Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -1670,27 +1742,67 @@ if (!canRead) {
                     };
                     return (
                       <TableRow key={invoice.randomId}>
-                        <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell>
-                        <TableCell>{invoice.poRandomId || invoice.serviceId}</TableCell>
-                        <TableCell>{invoice.grnRandomId || 'N/A'}</TableCell>
-                        <TableCell>{invoice.randomId}</TableCell>
-                        <TableCell>{invoice.invoiceNo}</TableCell>
-                        <TableCell>{invoice.vendorName}</TableCell>
-                        <TableCell>
+                        <TableCell align="center">{(currentPage - 1) * pageSize + index + 1}</TableCell>
+                        <TableCell align="left">
+                          {invoice.invoiceType === 'service' ? (
+                            invoice.serOId ? (
+                              <span
+                                style={{
+                                  color: '#9c27b0',
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  fontWeight: '600',
+                                }}
+                                onClick={() => handleServiceClick(invoice.serOId)}
+                              >
+                                {invoice.serviceId || invoice.poRandomId}
+                              </span>
+                            ) : (
+                              invoice.serviceId || invoice.poRandomId || '-'
+                            )
+                          ) : (
+                            invoice.purchaseOrderId ? (
+                              <span
+                                style={{ color: 'purple', cursor: 'pointer', textDecoration: 'underline' }}
+                                onClick={() => handlePoClick(invoice.purchaseOrderId)}
+                              >
+                                {invoice.poRandomId}
+                              </span>
+                            ) : (
+                              invoice.poRandomId || '-'
+                            )
+                          )}
+                        </TableCell>
+                        <TableCell align="left">
+                          {invoice.grnId ? (
+                            <span
+                              style={{ color: 'blue', cursor: 'pointer', textDecoration: 'underline' }}
+                              onClick={() => handleGrnClick(invoice.grnId)}
+                            >
+                              {invoice.grnRandomId || '-'}
+                            </span>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+                        <TableCell align="left">{invoice.randomId}</TableCell>
+                        <TableCell align="left">{invoice.invoiceNo}</TableCell>
+                        <TableCell align="left">{invoice.vendorName}</TableCell>
+                        <TableCell align="left">
                           {invoice.invoiceDate ? format(new Date(invoice.invoiceDate), 'dd-MM-yyyy') : ''}
                         </TableCell>
-                        <TableCell>
+                        <TableCell align="center">
                           {invoice.invoiceType === 'service' ? 'Service' : 'Goods'}
                         </TableCell>
-                        <TableCell>{invoice.invoiceAmount.toFixed(2)}</TableCell>
-                        <TableCell>{invoice.status}</TableCell>
+                        <TableCell align="right">{invoice.invoiceAmount.toFixed(2)}</TableCell>
+                        <TableCell align="center">{invoice.status}</TableCell>
                         <TableCell>
                           <Box display="flex" alignItems="center">
                             <Tooltip title="View Detail">
                               <IconButton
                                 color="primary"
                                 onClick={() => handleViewDetails(invoice)}
-                                 disabled={!canRead}
+                                disabled={!canRead}
                               >
                                 <VisibilityIcon />
                               </IconButton>
@@ -1699,7 +1811,7 @@ if (!canRead) {
                               <IconButton
                                 color="primary"
                                 onClick={() => handleDownload(invoice.invoiceId)}
-                                  disabled={!canRead}
+                                disabled={!canRead}
                               >
                                 <PictureAsPdfIcon />
                               </IconButton>
@@ -2004,18 +2116,18 @@ if (!canRead) {
             {selectedInvoice?.invoiceType === 'goods' &&
               selectedInvoice?.status === 'Outgoing Posted' && (
                 <Tooltip title={canEdit ? "Return GRN" : "You don’t have permission"}>
-  <span>
-    <Button
-      variant="contained"
-      color="primary"
-      onClick={() => setReturnDialogOpen(true)}
-      sx={{ minWidth: '150px' }}
-      disabled={!canEdit}
-    >
-      Return GRN
-    </Button>
-  </span>
-</Tooltip>
+                  <span>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => setReturnDialogOpen(true)}
+                      sx={{ minWidth: '150px' }}
+                      disabled={!canEdit}
+                    >
+                      Return GRN
+                    </Button>
+                  </span>
+                </Tooltip>
               )}
             <Button variant="contained" onClick={handleCloseDetailsDialog}>Close</Button>
           </DialogActions>
@@ -2122,7 +2234,25 @@ if (!canRead) {
             </Button>
           </DialogActions>
         </Dialog>
+        <GrnDialog
+          open={viewItemsDialogOpen}
+          onClose={() => setViewItemsDialogOpen(false)}
+          grn={selectedGrn}
+        />
 
+        <PODialog
+          open={poDialogOpen}
+          onClose={() => {
+            dispatch(setPoDialogOpen(false));
+          }}
+          po={selectedPo}
+        />
+
+        <ServiceDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          service={selectedService}
+        />
         <DebitCreditNoteDialog />
         <Snackbar
           open={snackbarOpen}

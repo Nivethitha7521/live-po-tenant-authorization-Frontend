@@ -47,6 +47,14 @@ import 'react-date-range/dist/theme/default.css';
 import { VendorSearch } from '@/Models/vendor';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import {
+  setSnackbarMessage as setOutgoingSnackbarMessage,
+  setSnackbarOpen as setOutgoingSnackbarOpen
+} from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
+import PODialog from '@/components/yen-purchase/OutgoingComponent/PODialog';
+import { fetchPoById, selectPurchaseListState, setPoDialogOpen, setSelectedPo } from '@/features/yen-purchase/PurchaseOrder/purchaseListSlice';
+import { ItemDetailResponsePO, PoResponse } from '@/Models/purchaseModel';
+
 const getReturnGrnPermission = (permissions: any) => {
   return (
     permissions?.yenerp?.grns_return ?? {
@@ -57,7 +65,7 @@ const getReturnGrnPermission = (permissions: any) => {
 };
 const GrnReturn: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-    const permissions = useSelector((state: RootState) => state.auth.permissions);
+  const permissions = useSelector((state: RootState) => state.auth.permissions);
   const returnGrnPermission = useMemo(
     () => getReturnGrnPermission(permissions),
     [permissions],
@@ -104,29 +112,30 @@ const GrnReturn: React.FC = () => {
   // Memoize dependencies
   const memoizedFromDate = useMemo(() => fromDate, [fromDate]);
   const memoizedToDate = useMemo(() => toDate, [toDate]);
+  const { selectedPo, poDialogOpen } = useSelector(selectPurchaseListState);
 
- useEffect(() => {
-  if (!returnGrnPermission.read) return;
+  useEffect(() => {
+    if (!returnGrnPermission.read) return;
 
-  if (shouldFetch && !loading) {
-    dispatch(
-      fetchReturnedGrns({
-        page: newPage,
-        size: pageSize,
-        dateFilterField: dateField,
-      })
-    );
-    setShouldFetch(false);
-  }
-}, [
-  returnGrnPermission.read,
-  dispatch,
-  newPage,
-  pageSize,
-  dateField,
-  loading,
-  shouldFetch,
-]);
+    if (shouldFetch && !loading) {
+      dispatch(
+        fetchReturnedGrns({
+          page: newPage,
+          size: pageSize,
+          dateFilterField: dateField,
+        })
+      );
+      setShouldFetch(false);
+    }
+  }, [
+    returnGrnPermission.read,
+    dispatch,
+    newPage,
+    pageSize,
+    dateField,
+    loading,
+    shouldFetch,
+  ]);
 
   useEffect(() => {
     dispatch(fetchRandomNumbers());
@@ -163,7 +172,7 @@ const GrnReturn: React.FC = () => {
   const handleSearchChange = (event: React.ChangeEvent<{}>, newValue: string) => {
     setSearchQuery(newValue);
   };
-const toggleFullScreen = () => {
+  const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
   const handleVendorSelect = (vendor: VendorSearch | null) => {
@@ -279,7 +288,42 @@ const toggleFullScreen = () => {
   const handleClose = () => {
     setDialogSummaryOpen(false);
   };
-
+  const handlePoClick = async (poId: string) => {
+    try {
+      const result = await dispatch(fetchPoById(poId)).unwrap();
+      if (result) {
+        const transformedPo: PoResponse = {
+          purchaseOrderId: result.purchaseOrderId,
+          randomId: result.randomId,
+          vendorName: result.vendorName,
+          orderDate: typeof result.orderDate === 'string' ? result.orderDate : result.orderDate?.toISOString() || null,
+          itemDetails: result.itemDetails.map((item: ItemDetailResponsePO) => ({
+            itemId: item.itemId ?? 'N/A',
+            itemName: item.itemName ?? 'Unknown',
+            receivedQuantity: Number(item.receivedQuantity) || 0,
+            poQuantity: Number(item.poQuantity) || 0,
+            newPrice: Number(item.newPrice) || 0,
+            totalPrice: Number(item.totalPrice) || 0,
+            purchasetaxName: Number(item.purchasetaxName) || 0,
+            taxPercentage: Number(item.taxPercentage) || 0,
+            taxAmount: Number(item.taxAmount) || 0,
+            discountAmount: Number(item.discountAmount) || 0,
+            finalPrice: Number(item.finalPrice) || 0,
+          })) as ItemDetailResponsePO[],
+        };
+        console.log('transformedPo:', transformedPo);
+        dispatch(setSelectedPo(transformedPo));
+        setPoDialogOpen(true);
+      } else {
+        dispatch(setOutgoingSnackbarMessage('Purchase Order not found.'));
+        dispatch(setOutgoingSnackbarOpen(true));
+      }
+    } catch (error) {
+      dispatch(setOutgoingSnackbarMessage('Failed to fetch PO details.'));
+      dispatch(setOutgoingSnackbarOpen(true));
+      console.error('Failed to fetch PO details:', error);
+    }
+  };
   const getRandomId = (purchaseOrderId: string): string | undefined => {
     const order = purchaseorders.find(po => po.purchaseOrderId === purchaseOrderId);
     return order?.randomId;
@@ -335,129 +379,129 @@ const toggleFullScreen = () => {
   const handleFilterClose = () => {
     setSelectedVendor(null);
     setSelectedVendorName('');
-    dispatch(fetchReturnedGrns({ page: newPage, size: pageSize, status, dateFilterField: dateField}));
+    dispatch(fetchReturnedGrns({ page: newPage, size: pageSize, status, dateFilterField: dateField }));
     setFilteredGrn([]);
   };
-const generatePDF = () => {
-  const doc = new jsPDF();
-  let yOffset = 10;
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    let yOffset = 10;
 
-  const business = businesses.length > 0 ? businesses[0] : null;
+    const business = businesses.length > 0 ? businesses[0] : null;
 
-  if (!business) {
-    console.error('Business info not found!');
-    return;
-  }
-
-  if (business.imageUrl) {
-    try {
-      doc.addImage(business.imageUrl, 'JPEG', 10, yOffset - 5, 20, 20);
-    } catch (e) {
-      console.error("Image failed to load:", e);
-    }
-  }
-
-  doc.setFontSize(12);
-  const title = "Returned GRN Order Summary";
-  const pageWidth = doc.internal.pageSize.width;
-  const logoWidth = 20;
-  const logoOffsetX = 10;
-  const titleStartX = logoOffsetX + logoWidth + 5;
-  const titleWidth = doc.getStringUnitWidth(title) * 12 / doc.internal.scaleFactor;
-  const centerX = (pageWidth - titleStartX) / 2 + titleStartX - titleWidth / 2;
-
-  doc.text(title, centerX, yOffset);
-  doc.setLineWidth(0.5);
-  doc.line(centerX, yOffset + 2, centerX + titleWidth, yOffset + 2);
-  yOffset += 15;
-
-  const today = new Date();
-  const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-
-  const totalReceivedAmount = (filteredGrn.length > 0 ? filteredGrn : itemwise).reduce((sum, order) => {
-    const totalOrderAmount = order.totalReceivedAmount || 0;
-    return sum + totalOrderAmount;
-  }, 0);
-
-  doc.setFontSize(10);
-  const dateX = 10;
-  const totalReceivedX = pageWidth - 10 - doc.getStringUnitWidth(`Total Returned: ${totalReceivedAmount.toFixed(2)}`) * 10 / doc.internal.scaleFactor;
-
-  doc.text(`Date: ${currentDate}`, dateX, yOffset);
-  doc.text(`Total Returned: ${totalReceivedAmount.toFixed(2)}`, totalReceivedX, yOffset);
-  yOffset += 10;
-
-  const headers = [
-    ["S.No", "GrnId", "Vendor Name", "Total Items Quantity", "Ordered Date", "Total Returned Amount"],
-  ];
-
-  const rows = (filteredGrn.length > 0 ? filteredGrn : itemwise).map((grn, index) => {
-    const totalItemsQuantity = Array.isArray(grn.itemDetails) && grn.itemDetails.length > 0
-      ? grn.itemDetails.reduce((sum, item) => sum + (item.returnedQuantity || 0), 0)
-      : 0;
-
-    const totalOrderAmount = grn.totalReturnedAmount || 0;
-    const totalDiscount = grn.totalReturnedDiscount || 0;
-    const finalAmount = totalOrderAmount - totalDiscount;
-
-    if (!grn.randomId || !grn.vendorName || !grn.grnDate || totalOrderAmount <= 0) {
-      return null;
+    if (!business) {
+      console.error('Business info not found!');
+      return;
     }
 
-    return [
-      `${index + 1}`,
-      grn.randomId.toString(),
-      grn.vendorName.toString(),
-      totalItemsQuantity.toString(),
-      grn.grnDate ? format(new Date(grn.grnDate), 'dd-MM-yyyy') : '',
-      finalAmount.toFixed(2).toString(),
-    ];
-  }).filter(row => row !== null);
-
-  doc.autoTable({
-    head: headers,
-    body: rows,
-    startY: 30,
-    styles: {
-      fillColor: [30, 144, 255],
-      textColor: [255, 255, 255],
-      lineColor: [0, 0, 0],
-      fontSize: 8
-    },
-    headStyles: {
-      fillColor: [0, 0, 128],
-      textColor: [255, 255, 255]
-    },
-    bodyStyles: {
-      fillColor: [255, 255, 255],
-      textColor: [0, 0, 0]
-    },
-    columnStyles: {
-      4: { halign: 'right' },
+    if (business.imageUrl) {
+      try {
+        doc.addImage(business.imageUrl, 'JPEG', 10, yOffset - 5, 20, 20);
+      } catch (e) {
+        console.error("Image failed to load:", e);
+      }
     }
-  });
 
-  // Add page numbers and computer generated note to all pages
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
+    doc.setFontSize(12);
+    const title = "Returned GRN Order Summary";
     const pageWidth = doc.internal.pageSize.width;
-    const pageCenterX = pageWidth / 2;
-    const bottomY = doc.internal.pageSize.height - 10;
-    const computerGeneratedY = bottomY - 5;
+    const logoWidth = 20;
+    const logoOffsetX = 10;
+    const titleStartX = logoOffsetX + logoWidth + 5;
+    const titleWidth = doc.getStringUnitWidth(title) * 12 / doc.internal.scaleFactor;
+    const centerX = (pageWidth - titleStartX) / 2 + titleStartX - titleWidth / 2;
 
-    // Add "This is computer generated" centered above page number
-    doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+    doc.text(title, centerX, yOffset);
+    doc.setLineWidth(0.5);
+    doc.line(centerX, yOffset + 2, centerX + titleWidth, yOffset + 2);
+    yOffset += 15;
 
-    // Add page number centered below
-    doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
-  }
+    const today = new Date();
+    const currentDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
 
-  const pdfFilename = `GrnReturn.pdf`;
-  doc.save(pdfFilename);
-  setDialogDownloadOpen(false);
-};
+    const totalReceivedAmount = (filteredGrn.length > 0 ? filteredGrn : itemwise).reduce((sum, order) => {
+      const totalOrderAmount = order.totalReceivedAmount || 0;
+      return sum + totalOrderAmount;
+    }, 0);
+
+    doc.setFontSize(10);
+    const dateX = 10;
+    const totalReceivedX = pageWidth - 10 - doc.getStringUnitWidth(`Total Returned: ${totalReceivedAmount.toFixed(2)}`) * 10 / doc.internal.scaleFactor;
+
+    doc.text(`Date: ${currentDate}`, dateX, yOffset);
+    doc.text(`Total Returned: ${totalReceivedAmount.toFixed(2)}`, totalReceivedX, yOffset);
+    yOffset += 10;
+
+    const headers = [
+      ["S.No", "GrnId", "Vendor Name", "Total Items Quantity", "Ordered Date", "Total Returned Amount"],
+    ];
+
+    const rows = (filteredGrn.length > 0 ? filteredGrn : itemwise).map((grn, index) => {
+      const totalItemsQuantity = Array.isArray(grn.itemDetails) && grn.itemDetails.length > 0
+        ? grn.itemDetails.reduce((sum, item) => sum + (item.returnedQuantity || 0), 0)
+        : 0;
+
+      const totalOrderAmount = grn.totalReturnedAmount || 0;
+      const totalDiscount = grn.totalReturnedDiscount || 0;
+      const finalAmount = totalOrderAmount - totalDiscount;
+
+      if (!grn.randomId || !grn.vendorName || !grn.grnDate || totalOrderAmount <= 0) {
+        return null;
+      }
+
+      return [
+        `${index + 1}`,
+        grn.randomId.toString(),
+        grn.vendorName.toString(),
+        totalItemsQuantity.toString(),
+        grn.grnDate ? format(new Date(grn.grnDate), 'dd-MM-yyyy') : '',
+        finalAmount.toFixed(2).toString(),
+      ];
+    }).filter(row => row !== null);
+
+    doc.autoTable({
+      head: headers,
+      body: rows,
+      startY: 30,
+      styles: {
+        fillColor: [30, 144, 255],
+        textColor: [255, 255, 255],
+        lineColor: [0, 0, 0],
+        fontSize: 8
+      },
+      headStyles: {
+        fillColor: [0, 0, 128],
+        textColor: [255, 255, 255]
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0]
+      },
+      columnStyles: {
+        4: { halign: 'right' },
+      }
+    });
+
+    // Add page numbers and computer generated note to all pages
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      const pageWidth = doc.internal.pageSize.width;
+      const pageCenterX = pageWidth / 2;
+      const bottomY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = bottomY - 5;
+
+      // Add "This is computer generated" centered above page number
+      doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+
+      // Add page number centered below
+      doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
+    }
+
+    const pdfFilename = `GrnReturn.pdf`;
+    doc.save(pdfFilename);
+    setDialogDownloadOpen(false);
+  };
 
 
   const generateSummaryCSV = () => {
@@ -468,14 +512,14 @@ const generatePDF = () => {
       (grn.itemDetails || []).map((item) => {
         const returnHistoryText = Array.isArray(item.returnHistory) && item.returnHistory.length > 0
           ? item.returnHistory.map((history, idx) =>
-              `Return ${idx + 1}: Date: ${history.date ? format(new Date(history.date), 'dd-MM-yyyy HH:mm:ss') : 'N/A'}, By: ${history.by }, Qty: ${history.totalUnits || 0} ${item.uom }, Reason: ${history.reason }`
-            ).join('; ')
+            `Return ${idx + 1}: Date: ${history.date ? format(new Date(history.date), 'dd-MM-yyyy HH:mm:ss') : 'N/A'}, By: ${history.by}, Qty: ${history.totalUnits || 0} ${item.uom}, Reason: ${history.reason}`
+          ).join('; ')
           : 'No return history';
         return [
           `${index + 1}`,
-          grn.randomId ,
-          grn.vendorName ,
-          item.itemName ,
+          grn.randomId,
+          grn.vendorName,
+          item.itemName,
           item.quantity || 0,
           item.returnedQuantity || 0,
           (item.unitPrice || 0).toFixed(2),
@@ -498,94 +542,94 @@ const generatePDF = () => {
     setDialogSummaryOpen(false);
   };
 
-const generateSummaryPDF = () => {
-  const doc = new jsPDF();
-  let yOffset = 10;
-  const business = businesses.length > 0 ? businesses[0] : null;
+  const generateSummaryPDF = () => {
+    const doc = new jsPDF();
+    let yOffset = 10;
+    const business = businesses.length > 0 ? businesses[0] : null;
 
-  if (!business) {
-    dispatch(setSnackbarMessageGRN('Business info not found!'));
-    dispatch(setSnackbarOpenGRN(true));
-    return;
-  }
-
-  if (business.imageUrl) {
-    try {
-      doc.addImage(business.imageUrl, 'JPEG', 14, yOffset, 20, 20);
-    } catch (e) {
-      console.error("Image failed to load:", e);
+    if (!business) {
+      dispatch(setSnackbarMessageGRN('Business info not found!'));
+      dispatch(setSnackbarOpenGRN(true));
+      return;
     }
-  }
 
-  yOffset += 10;
-  doc.setFontSize(12);
-  const title = "Returned GRN Order Detailed Summary";
-  const pageWidth = doc.internal.pageSize.width;
-  const titleWidth = doc.getStringUnitWidth(title) * 12 / doc.internal.scaleFactor;
-  doc.text(title, (pageWidth - titleWidth) / 2, yOffset);
-  doc.setLineWidth(0.1);
-  doc.line((pageWidth - titleWidth) / 2, yOffset + 2, (pageWidth + titleWidth) / 2, yOffset + 2);
-  yOffset += 15;
+    if (business.imageUrl) {
+      try {
+        doc.addImage(business.imageUrl, 'JPEG', 14, yOffset, 20, 20);
+      } catch (e) {
+        console.error("Image failed to load:", e);
+      }
+    }
 
-  const today = new Date();
-  const currentDate = format(today, 'dd/MM/yyyy');
-  const totalReturnedAmount = (filteredGrn.length > 0 ? filteredGrn : itemwise).reduce((sum, order) => sum + (order.totalReturnedAmount || 0), 0);
-
-  doc.setFontSize(10);
-  doc.text(`Total Returned Amount: ${totalReturnedAmount.toFixed(2)}`, 14, yOffset);
-  doc.text(`Date: ${currentDate}`, pageWidth - 50, yOffset);
-  yOffset += 10;
-
-  const headers = [
-    ["S.No", "GRN No", "Vendor Name", "Item Name", "ReceivedQuantity", "Returned", "Price", "Tax", "Discount", "Final Price"],
-  ];
-  const rows = (filteredGrn.length > 0 ? filteredGrn : itemwise).flatMap((grn, index) =>
-    (grn.itemDetails || []).map((item) => {
-      return [
-        `${index + 1}`,
-        grn.randomId ,
-        grn.vendorName ,
-        item.itemName ,
-        item.receivedQuantity || 0,
-        item.returnedQuantity || 0,
-        (item.unitPrice || 0).toFixed(2),
-        `${item.purchasetaxName || 0}%`,
-        item.discount || 0,
-        ((item.unitPrice || 0) * (item.returnedQuantity || 0) * (1 - (item.discount || 0) / 100)).toFixed(2),
-      ];
-    })
-  );
-
-  doc.autoTable({
-    head: headers,
-    body: rows,
-    startY: yOffset,
-    styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-    headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255] },
-    bodyStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0] },
-    columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 10: { cellWidth: 60 } },
-  });
-
-  // Add page numbers and computer generated note to all pages
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
+    yOffset += 10;
+    doc.setFontSize(12);
+    const title = "Returned GRN Order Detailed Summary";
     const pageWidth = doc.internal.pageSize.width;
-    const pageCenterX = pageWidth / 2;
-    const bottomY = doc.internal.pageSize.height - 10;
-    const computerGeneratedY = bottomY - 5;
+    const titleWidth = doc.getStringUnitWidth(title) * 12 / doc.internal.scaleFactor;
+    doc.text(title, (pageWidth - titleWidth) / 2, yOffset);
+    doc.setLineWidth(0.1);
+    doc.line((pageWidth - titleWidth) / 2, yOffset + 2, (pageWidth + titleWidth) / 2, yOffset + 2);
+    yOffset += 15;
 
-    // Add "This is computer generated" centered above page number
-    doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+    const today = new Date();
+    const currentDate = format(today, 'dd/MM/yyyy');
+    const totalReturnedAmount = (filteredGrn.length > 0 ? filteredGrn : itemwise).reduce((sum, order) => sum + (order.totalReturnedAmount || 0), 0);
 
-    // Add page number centered below
-    doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
-  }
+    doc.setFontSize(10);
+    doc.text(`Total Returned Amount: ${totalReturnedAmount.toFixed(2)}`, 14, yOffset);
+    doc.text(`Date: ${currentDate}`, pageWidth - 50, yOffset);
+    yOffset += 10;
 
-  doc.save('ReturnedGRNItemwise.pdf');
-  setDialogSummaryOpen(false);
-};
+    const headers = [
+      ["S.No", "GRN No", "Vendor Name", "Item Name", "ReceivedQuantity", "Returned", "Price", "Tax", "Discount", "Final Price"],
+    ];
+    const rows = (filteredGrn.length > 0 ? filteredGrn : itemwise).flatMap((grn, index) =>
+      (grn.itemDetails || []).map((item) => {
+        return [
+          `${index + 1}`,
+          grn.randomId,
+          grn.vendorName,
+          item.itemName,
+          item.receivedQuantity || 0,
+          item.returnedQuantity || 0,
+          (item.unitPrice || 0).toFixed(2),
+          `${item.purchasetaxName || 0}%`,
+          item.discount || 0,
+          ((item.unitPrice || 0) * (item.returnedQuantity || 0) * (1 - (item.discount || 0) / 100)).toFixed(2),
+        ];
+      })
+    );
+
+    doc.autoTable({
+      head: headers,
+      body: rows,
+      startY: yOffset,
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+      headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255] },
+      bodyStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0] },
+      columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 10: { cellWidth: 60 } },
+    });
+
+    // Add page numbers and computer generated note to all pages
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      const pageWidth = doc.internal.pageSize.width;
+      const pageCenterX = pageWidth / 2;
+      const bottomY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = bottomY - 5;
+
+      // Add "This is computer generated" centered above page number
+      doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+
+      // Add page number centered below
+      doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
+    }
+
+    doc.save('ReturnedGRNItemwise.pdf');
+    setDialogSummaryOpen(false);
+  };
 
   const handleVendorChange = (vendor: VendorSearch | null) => {
     setSelectedVendor(vendor);
@@ -593,164 +637,164 @@ const generateSummaryPDF = () => {
   };
 
   const handleDownload = async (grnId: string) => {
-  console.log('handleDownload called with grnId:', grnId);
-  const grn = itemwise.find((g) => g.grnId === grnId);
-  if (!grn) {
-    dispatch(setSnackbarMessageGRN('GRN not found!'));
-    dispatch(setSnackbarOpenGRN(true));
-    return;
-  }
-
-  const business = businesses.length > 0 ? businesses[0] : null;
-  if (!business) {
-    dispatch(setSnackbarMessageGRN('Business info not found!'));
-    dispatch(setSnackbarOpenGRN(true));
-    return;
-  }
-
-  const doc = new jsPDF();
-  let yOffset = 10;
-
-  // Add business logo
-  if (business.imageUrl) {
-    try {
-      doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
-    } catch (e) {
-      console.error("Image failed to load:", e);
+    console.log('handleDownload called with grnId:', grnId);
+    const grn = itemwise.find((g) => g.grnId === grnId);
+    if (!grn) {
+      dispatch(setSnackbarMessageGRN('GRN not found!'));
+      dispatch(setSnackbarOpenGRN(true));
+      return;
     }
-  }
 
-  // Add header
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 128);
-  doc.text('Goods Receipt Note - Return History', 90, yOffset + 5);
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.text(business.companyName , 90, yOffset + 10);
-  doc.setFontSize(8);
-  doc.text(business.address1 , 90, yOffset + 15);
-  doc.text(`Tel.No: ${business.phoneNo }`, 90, yOffset + 20);
-  doc.text(`E-Mail: ${business.emailId }`, 90, yOffset + 25);
-  doc.text(`GSTIN: ${business.gstIn }`, 90, yOffset + 30);
-  yOffset += 40;
+    const business = businesses.length > 0 ? businesses[0] : null;
+    if (!business) {
+      dispatch(setSnackbarMessageGRN('Business info not found!'));
+      dispatch(setSnackbarOpenGRN(true));
+      return;
+    }
 
-  // Add GRN details
-  const createdDate = grn.createdDate ? new Date(grn.createdDate) : new Date('2025-06-30');
-  const paymentTermsDays = grn.paymentTerms ? parseInt(grn.paymentTerms, 10) : 15;
-  const dueDate = addDays(createdDate, paymentTermsDays);
+    const doc = new jsPDF();
+    let yOffset = 10;
 
-  const columnWidth = 60.6;
-  const tableHeader = [['Vendor Details', 'Shipping Address', 'GRN Details']];
-  const vendorDetailsRows = [[
-    `Name: ${grn.vendorName  || ''}\nGSTIN: ${grn.gstNumber || '' }\nAddress: ${grn.address || ''}\nCity: ${grn.city || ''}\nState: ${grn.state || ''}\nCountry: ${grn.country || ''}\nEmail: ${grn.contactpersonEmail || ''}`,
-    `Shipping Address: ${grn.shippingAddress || ''}`,
-    `Po No: ${grn.poRandomID }\nGRN No: ${grn.randomId }\nGRN Date: ${grn.createdDate ? format(new Date(grn.createdDate), 'dd-MM-yyyy') : 'N/A'}\nPayment Terms: ${grn.paymentTerms || '15'} \nDue Date: ${format(dueDate, 'dd-MM-yyyy')}\nCurrency: INR`,
-  ]];
-
-  doc.autoTable({
-    head: tableHeader,
-    body: vendorDetailsRows,
-    startY: yOffset,
-    theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 4, halign: 'left', valign: 'top', overflow: 'linebreak' },
-    columnStyles: { 0: { cellWidth: columnWidth }, 1: { cellWidth: columnWidth }, 2: { cellWidth: columnWidth } },
-    headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], fontStyle: 'bold' },
-    bodyStyles: { lineWidth: 0.1, lineColor: [0, 0, 0], minCellHeight: 15 },
-  });
-
-  yOffset = doc.autoTable.previous.finalY;
-
-  // Add items table matching dialog structure
-  const itemHeader = ['Item Name', 'UOM', 'Quantity', 'Returned Quantity', 'Unit Price', 'Return Date', 'Returned By', 'Return Quantity', 'Reason'];
-  const itemRows = (grn.itemDetails || [])
-    .filter(item => item.returnedQuantity > 0 && Array.isArray(item.returnHistory) && item.returnHistory.length > 0)
-    .flatMap((item, index) =>
-      (item.returnHistory || []).map((history, historyIndex) => [
-        item.itemName ,
-        item.uom ,
-       `${item.quantity || 0} ${item.uom || 'Kgs'}`,
-        (item.returnedQuantity || 0).toString(),
-        (item.unitPrice || 0).toFixed(2),
-        history.date ? format(new Date(history.date), 'dd-MM-yyyy HH:mm:ss') : 'N/A',
-        history.by ,
-        `${history.totalUnits || 0} ${item.uom }`,
-        history.reason ,
-      ])
-    );
-
-  doc.autoTable({
-    head: [itemHeader],
-    body: itemRows,
-    startY: yOffset,
-    theme: 'grid',
-    styles: { fontSize: 8, halign: 'center', cellPadding: 2, overflow: 'linebreak' },
-    headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], lineWidth: { top: 0, right: 0.1, bottom: 0.1, left: 0.1 } },
-    bodyStyles: { lineColor: [0, 0, 0], lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 } },
-    columnStyles: {
-      0: { halign: 'left' },
-      2: { halign: 'right' },
-      3: { halign: 'right' },
-      4: { halign: 'right' },
-      7: { halign: 'right' },
-      8: { cellWidth: 40 },
-    },
-  });
-
-  yOffset = doc.autoTable.previous.finalY;
-
-  // Add tax summary using calculateTaxDetails
-  const taxDetails = calculateTaxDetails();
-  const taxSummary = [
-    ['Total Discount', (grn.totalReturnedDiscount || 0).toFixed(2)],
-    ...Object.entries(taxDetails).flatMap(([rate, { sgstAmount, cgstAmount, igstAmount }]) => {
-      const rows = [];
-      if (sgstAmount > 0 || cgstAmount > 0) {
-        rows.push([`SGST (${(parseFloat(rate) / 2).toFixed(2)}%)`, sgstAmount.toFixed(2)]);
-        rows.push([`CGST (${(parseFloat(rate) / 2).toFixed(2)}%)`, cgstAmount.toFixed(2)]);
+    // Add business logo
+    if (business.imageUrl) {
+      try {
+        doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
+      } catch (e) {
+        console.error("Image failed to load:", e);
       }
-      if (igstAmount > 0) {
-        rows.push([`IGST (${parseFloat(rate)}%)`, igstAmount.toFixed(2)]);
-      }
-      return rows;
-    }),
-    ['Final Returned Amount', (grn.totalReturnedAmount || 0).toFixed(2)],
-  ];
+    }
 
-  doc.autoTable({
-    body: taxSummary,
-    startY: yOffset,
-    theme: 'grid',
-    styles: { fontSize: 8, halign: 'right', cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1 },
-  });
-
-  // Add declaration
-  doc.text("Declaration:", 15, doc.autoTable.previous.finalY + 5);
-  doc.text("We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.", 15, doc.autoTable.previous.finalY + 10);
-  doc.text("Authorized Signatory:", 120, doc.autoTable.previous.finalY + 18);
-  doc.text("_____________________", 120, doc.autoTable.previous.finalY + 25);
-
-  // Add page numbers and computer generated note to all pages
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
+    // Add header
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 128);
+    doc.text('Goods Receipt Note - Return History', 90, yOffset + 5);
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(business.companyName, 90, yOffset + 10);
     doc.setFontSize(8);
-    const pageWidth = doc.internal.pageSize.width;
-    const pageCenterX = pageWidth / 2;
-    const bottomY = doc.internal.pageSize.height - 10;
-    const computerGeneratedY = bottomY - 5;
+    doc.text(business.address1, 90, yOffset + 15);
+    doc.text(`Tel.No: ${business.phoneNo}`, 90, yOffset + 20);
+    doc.text(`E-Mail: ${business.emailId}`, 90, yOffset + 25);
+    doc.text(`GSTIN: ${business.gstIn}`, 90, yOffset + 30);
+    yOffset += 40;
 
-    // Add "This is computer generated" centered above page number
-    doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+    // Add GRN details
+    const createdDate = grn.createdDate ? new Date(grn.createdDate) : new Date('2025-06-30');
+    const paymentTermsDays = grn.paymentTerms ? parseInt(grn.paymentTerms, 10) : 15;
+    const dueDate = addDays(createdDate, paymentTermsDays);
 
-    // Add page number centered below
-    doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
-  }
+    const columnWidth = 60.6;
+    const tableHeader = [['Vendor Details', 'Shipping Address', 'GRN Details']];
+    const vendorDetailsRows = [[
+      `Name: ${grn.vendorName || ''}\nGSTIN: ${grn.gstNumber || ''}\nAddress: ${grn.address || ''}\nCity: ${grn.city || ''}\nState: ${grn.state || ''}\nCountry: ${grn.country || ''}\nEmail: ${grn.contactpersonEmail || ''}`,
+      `Shipping Address: ${grn.shippingAddress || ''}`,
+      `Po No: ${grn.poRandomID}\nGRN No: ${grn.randomId}\nGRN Date: ${grn.createdDate ? format(new Date(grn.createdDate), 'dd-MM-yyyy') : 'N/A'}\nPayment Terms: ${grn.paymentTerms || '15'} \nDue Date: ${format(dueDate, 'dd-MM-yyyy')}\nCurrency: INR`,
+    ]];
 
-  doc.save(`${grn.vendorName} ${grn.randomId}_ReturnHistory.pdf`);
-};
+    doc.autoTable({
+      head: tableHeader,
+      body: vendorDetailsRows,
+      startY: yOffset,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 4, halign: 'left', valign: 'top', overflow: 'linebreak' },
+      columnStyles: { 0: { cellWidth: columnWidth }, 1: { cellWidth: columnWidth }, 2: { cellWidth: columnWidth } },
+      headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], fontStyle: 'bold' },
+      bodyStyles: { lineWidth: 0.1, lineColor: [0, 0, 0], minCellHeight: 15 },
+    });
 
-    const calculateItemTotal = (receivedQuantity: number, damagedQuantity: number, unitPrice: number): number => {
+    yOffset = doc.autoTable.previous.finalY;
+
+    // Add items table matching dialog structure
+    const itemHeader = ['Item Name', 'UOM', 'Quantity', 'Returned Quantity', 'Unit Price', 'Return Date', 'Returned By', 'Return Quantity', 'Reason'];
+    const itemRows = (grn.itemDetails || [])
+      .filter(item => item.returnedQuantity > 0 && Array.isArray(item.returnHistory) && item.returnHistory.length > 0)
+      .flatMap((item, index) =>
+        (item.returnHistory || []).map((history, historyIndex) => [
+          item.itemName,
+          item.uom,
+          `${item.quantity || 0} ${item.uom || 'Kgs'}`,
+          (item.returnedQuantity || 0).toString(),
+          (item.unitPrice || 0).toFixed(2),
+          history.date ? format(new Date(history.date), 'dd-MM-yyyy HH:mm:ss') : 'N/A',
+          history.by,
+          `${history.totalUnits || 0} ${item.uom}`,
+          history.reason,
+        ])
+      );
+
+    doc.autoTable({
+      head: [itemHeader],
+      body: itemRows,
+      startY: yOffset,
+      theme: 'grid',
+      styles: { fontSize: 8, halign: 'center', cellPadding: 2, overflow: 'linebreak' },
+      headStyles: { fillColor: [0, 0, 128], textColor: [255, 255, 255], lineWidth: { top: 0, right: 0.1, bottom: 0.1, left: 0.1 } },
+      bodyStyles: { lineColor: [0, 0, 0], lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 } },
+      columnStyles: {
+        0: { halign: 'left' },
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        7: { halign: 'right' },
+        8: { cellWidth: 40 },
+      },
+    });
+
+    yOffset = doc.autoTable.previous.finalY;
+
+    // Add tax summary using calculateTaxDetails
+    const taxDetails = calculateTaxDetails();
+    const taxSummary = [
+      ['Total Discount', (grn.totalReturnedDiscount || 0).toFixed(2)],
+      ...Object.entries(taxDetails).flatMap(([rate, { sgstAmount, cgstAmount, igstAmount }]) => {
+        const rows = [];
+        if (sgstAmount > 0 || cgstAmount > 0) {
+          rows.push([`SGST (${(parseFloat(rate) / 2).toFixed(2)}%)`, sgstAmount.toFixed(2)]);
+          rows.push([`CGST (${(parseFloat(rate) / 2).toFixed(2)}%)`, cgstAmount.toFixed(2)]);
+        }
+        if (igstAmount > 0) {
+          rows.push([`IGST (${parseFloat(rate)}%)`, igstAmount.toFixed(2)]);
+        }
+        return rows;
+      }),
+      ['Final Returned Amount', (grn.totalReturnedAmount || 0).toFixed(2)],
+    ];
+
+    doc.autoTable({
+      body: taxSummary,
+      startY: yOffset,
+      theme: 'grid',
+      styles: { fontSize: 8, halign: 'right', cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1 },
+    });
+
+    // Add declaration
+    doc.text("Declaration:", 15, doc.autoTable.previous.finalY + 5);
+    doc.text("We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.", 15, doc.autoTable.previous.finalY + 10);
+    doc.text("Authorized Signatory:", 120, doc.autoTable.previous.finalY + 18);
+    doc.text("_____________________", 120, doc.autoTable.previous.finalY + 25);
+
+    // Add page numbers and computer generated note to all pages
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      const pageWidth = doc.internal.pageSize.width;
+      const pageCenterX = pageWidth / 2;
+      const bottomY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = bottomY - 5;
+
+      // Add "This is computer generated" centered above page number
+      doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+
+      // Add page number centered below
+      doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
+    }
+
+    doc.save(`${grn.vendorName} ${grn.randomId}_ReturnHistory.pdf`);
+  };
+
+  const calculateItemTotal = (receivedQuantity: number, damagedQuantity: number, unitPrice: number): number => {
     const netQuantity = receivedQuantity - damagedQuantity;
     return netQuantity * unitPrice;
   };
@@ -805,7 +849,7 @@ const generateSummaryPDF = () => {
     return <Typography>Error: {error}</Typography>;
   }
 
- if (!returnGrnPermission.read) {
+  if (!returnGrnPermission.read) {
     return (
       <Box p={3}>
         <Typography variant="h6" color="error">
@@ -970,7 +1014,7 @@ const generateSummaryPDF = () => {
                 <TableCell>Total Quantity</TableCell>
                 <TableCell>Returned Quantity</TableCell>
                 <TableCell>Total Price</TableCell>
-               {!returnGrnPermission.hide && <TableCell>Actions</TableCell>}
+                {!returnGrnPermission.hide && <TableCell>Actions</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -987,7 +1031,22 @@ const generateSummaryPDF = () => {
                   <TableRow key={grn.grnId}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{grn.randomId || 'N/A'}</TableCell>
-                    <TableCell>{getRandomId(grn.purchaseOrderId) || 'N/A'}</TableCell>
+                    <TableCell align="left">
+                      {grn.purchaseOrderId ? (
+                        <span
+                          style={{
+                            color: 'purple',
+                            cursor: 'pointer',
+                            textDecoration: 'underline'
+                          }}
+                          onClick={() => handlePoClick(grn.purchaseOrderId)}
+                        >
+                          {grn.poRandomID}
+                        </span>
+                      ) : (
+                        grn.poRandomID || 'N/A'
+                      )}
+                    </TableCell>
                     <TableCell>{grn.vendorName || 'N/A'}</TableCell>
                     <TableCell>{grn.createdDate ? format(new Date(grn.createdDate), 'dd-MM-yyyy') : 'N/A'}</TableCell>
                     <TableCell>{grn.itemDetails?.length || 0}</TableCell>
@@ -1035,7 +1094,7 @@ const generateSummaryPDF = () => {
             </IconButton>
           </Box>
         </Grid>
-  <Dialog
+        <Dialog
           open={viewItemsDialogOpen}
           onClose={handleClose}
           maxWidth={false}
@@ -1076,7 +1135,7 @@ const generateSummaryPDF = () => {
             },
           }}
         >
-            <DialogTitle sx={{
+          <DialogTitle sx={{
             fontWeight: 'bold',
             display: 'flex',
             justifyContent: 'space-between',
@@ -1085,101 +1144,101 @@ const generateSummaryPDF = () => {
           }}>GRN Return History      <IconButton onClick={toggleFullScreen} color="primary" edge="end">
               {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
             </IconButton></DialogTitle>
-      <DialogContent sx={{
+          <DialogContent sx={{
             padding: isFullScreen ? '0 24px' : '20px', // Adjust content padding
             height: isFullScreen ? 'calc(100vh - 120px)' : 'auto', // Account for header/footer height
             overflow: 'auto'
           }}>
-    {selectedGrn && (
-      <Box>
-        {/* Header Information */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="h6">
-            <strong>PO ID:</strong> {selectedGrn.poRandomID || 'N/A'}
-          </Typography>
-          <Typography variant="h6">
-            <strong>GRN ID:</strong> {selectedGrn.randomId }
-          </Typography>
-          <Typography variant="h6">
-            <strong>Vendor:</strong> {selectedGrn.vendorName }
-          </Typography>
-        </Box>
-        
-        {selectedGrn && selectedGrn.itemDetails && (
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Item Name</TableCell>
-                <TableCell>UOM</TableCell>
-                <TableCell>Quantity</TableCell>
-                <TableCell>Overall Returned Qty</TableCell>
-                <TableCell>Unit Price</TableCell>
-                <TableCell>Return Date</TableCell>
-                <TableCell>Returned By</TableCell>
-                <TableCell>Return Qty</TableCell>
-                <TableCell>Reason</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {selectedGrn.itemDetails
-                .filter(item => item.returnedQuantity > 0 && Array.isArray(item.returnHistory) && item.returnHistory.length > 0)
-                .flatMap(item =>
-                  item.returnHistory?.map((history, idx) => (
-                    <TableRow key={`${item.itemId}-return-${idx}`}>
-                      <TableCell>{item.itemName || 'N/A'}</TableCell>
-                      <TableCell>{item.uom || 'N/A'}</TableCell>
-                      <TableCell>{item.quantity || 0}</TableCell>
-                      <TableCell>{item.returnedQuantity || 0}</TableCell>
-                      <TableCell>{(item.unitPrice || 0).toFixed(2)}</TableCell>
-                      <TableCell>{history.date ? format(new Date(history.date), 'dd-MM-yyyy HH:mm:ss') : 'N/A'}</TableCell>
-                      <TableCell>{history.by || 'N/A'}</TableCell>
-                      <TableCell>{`${history.totalUnits || 0} ${item.uom || 'N/A'}`}</TableCell>
-                      <TableCell>{history.reason || 'N/A'}</TableCell>
-                    </TableRow>
-                  ))
+            {selectedGrn && (
+              <Box>
+                {/* Header Information */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6">
+                    <strong>PO ID:</strong> {selectedGrn.poRandomID || 'N/A'}
+                  </Typography>
+                  <Typography variant="h6">
+                    <strong>GRN ID:</strong> {selectedGrn.randomId}
+                  </Typography>
+                  <Typography variant="h6">
+                    <strong>Vendor:</strong> {selectedGrn.vendorName}
+                  </Typography>
+                </Box>
+
+                {selectedGrn && selectedGrn.itemDetails && (
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Item Name</TableCell>
+                        <TableCell>UOM</TableCell>
+                        <TableCell>Quantity</TableCell>
+                        <TableCell>Overall Returned Qty</TableCell>
+                        <TableCell>Unit Price</TableCell>
+                        <TableCell>Return Date</TableCell>
+                        <TableCell>Returned By</TableCell>
+                        <TableCell>Return Qty</TableCell>
+                        <TableCell>Reason</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {selectedGrn.itemDetails
+                        .filter(item => item.returnedQuantity > 0 && Array.isArray(item.returnHistory) && item.returnHistory.length > 0)
+                        .flatMap(item =>
+                          item.returnHistory?.map((history, idx) => (
+                            <TableRow key={`${item.itemId}-return-${idx}`}>
+                              <TableCell>{item.itemName || 'N/A'}</TableCell>
+                              <TableCell>{item.uom || 'N/A'}</TableCell>
+                              <TableCell>{item.quantity || 0}</TableCell>
+                              <TableCell>{item.returnedQuantity || 0}</TableCell>
+                              <TableCell>{(item.unitPrice || 0).toFixed(2)}</TableCell>
+                              <TableCell>{history.date ? format(new Date(history.date), 'dd-MM-yyyy HH:mm:ss') : 'N/A'}</TableCell>
+                              <TableCell>{history.by || 'N/A'}</TableCell>
+                              <TableCell>{`${history.totalUnits || 0} ${item.uom || 'N/A'}`}</TableCell>
+                              <TableCell>{history.reason || 'N/A'}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      <TableRow>
+                        <TableCell colSpan={8} align="right"><strong>Total Discount:</strong></TableCell>
+                        <TableCell>{totalDiscount.toFixed(2)}</TableCell>
+                      </TableRow>
+                      {Object.entries(taxDetails).map(([rate, { sgstAmount, cgstAmount, igstAmount }]) => (
+                        <React.Fragment key={rate}>
+                          {(sgstAmount > 0 || cgstAmount > 0) && (
+                            <>
+                              <TableRow>
+                                <TableCell colSpan={8} align="right"><strong>SGST ({(parseFloat(rate) / 2).toFixed(2)}%):</strong></TableCell>
+                                <TableCell>{sgstAmount.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell colSpan={8} align="right"><strong>CGST ({(parseFloat(rate) / 2).toFixed(2)}%):</strong></TableCell>
+                                <TableCell>{cgstAmount.toFixed(2)}</TableCell>
+                              </TableRow>
+                            </>
+                          )}
+                          {igstAmount > 0 && (
+                            <TableRow>
+                              <TableCell colSpan={8} align="right"><strong>IGST ({parseFloat(rate)}%):</strong></TableCell>
+                              <TableCell>{igstAmount.toFixed(2)}</TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      ))}
+                      <TableRow>
+                        <TableCell colSpan={8} align="right"><strong>Final Returned Amount:</strong></TableCell>
+                        <TableCell>{totalReturnedAmount.toFixed(2)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
                 )}
-              <TableRow>
-                <TableCell colSpan={8} align="right"><strong>Total Discount:</strong></TableCell>
-                <TableCell>{totalDiscount.toFixed(2)}</TableCell>
-              </TableRow>
-              {Object.entries(taxDetails).map(([rate, { sgstAmount, cgstAmount, igstAmount }]) => (
-                <React.Fragment key={rate}>
-                  {(sgstAmount > 0 || cgstAmount > 0) && (
-                    <>
-                      <TableRow>
-                        <TableCell colSpan={8} align="right"><strong>SGST ({(parseFloat(rate) / 2).toFixed(2)}%):</strong></TableCell>
-                        <TableCell>{sgstAmount.toFixed(2)}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={8} align="right"><strong>CGST ({(parseFloat(rate) / 2).toFixed(2)}%):</strong></TableCell>
-                        <TableCell>{cgstAmount.toFixed(2)}</TableCell>
-                      </TableRow>
-                    </>
-                  )}
-                  {igstAmount > 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} align="right"><strong>IGST ({parseFloat(rate)}%):</strong></TableCell>
-                      <TableCell>{igstAmount.toFixed(2)}</TableCell>
-                    </TableRow>
-                  )}
-                </React.Fragment>
-              ))}
-              <TableRow>
-                <TableCell colSpan={8} align="right"><strong>Final Returned Amount:</strong></TableCell>
-                <TableCell>{totalReturnedAmount.toFixed(2)}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        )}
-      </Box>
-    )}
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={handleCloseViewItemsDialog} color="primary">
-      Close
-    </Button>
-  </DialogActions>
-</Dialog>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseViewItemsDialog} color="primary">
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
         <Dialog open={dialogDownloadOpen} onClose={() => setDialogDownloadOpen(false)}>
           <DialogTitle>Select Export Format</DialogTitle>
           <DialogContent>
@@ -1267,6 +1326,13 @@ const generateSummaryPDF = () => {
           message={snackbarMessageGRN}
           autoHideDuration={3000}
           onClose={() => dispatch(clearSnackbarMessage())}
+        />
+           <PODialog
+          open={poDialogOpen}
+          onClose={() => {
+            dispatch(setPoDialogOpen(false));
+          }}
+          po={selectedPo}
         />
       </Box>
     </Box>

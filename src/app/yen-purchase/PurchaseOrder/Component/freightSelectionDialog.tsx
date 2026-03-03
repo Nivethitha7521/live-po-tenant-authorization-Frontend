@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { setFreights } from '@/features/yen-purchase/PurchaseOrder/purchaseOrderSlice';
+
+
 import {
   Dialog,
   DialogTitle,
@@ -172,10 +175,16 @@ const FreightSelectionDialog: React.FC<FreightSelectionDialogProps> = ({
     resetForm();
   };
 
-  const handleSaveAll = () => {
-    onAddFreights(previewFreights);
-    handleClose();
-  };
+const handleSaveAll = () => {
+  // 1️⃣ Save to Redux (MAIN FIX)
+  dispatch(setFreights(previewFreights));
+
+  // 2️⃣ optional callback (already existing flow)
+  onAddFreights(previewFreights);
+
+  // 3️⃣ close dialog
+  handleClose();
+};
 
   const handleClose = () => {
     setPreviewFreights([]);

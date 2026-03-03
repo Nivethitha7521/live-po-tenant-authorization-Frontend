@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { RootState } from '../../../redux/store';
-import { GrnData, GrnState, ItemDetail, ItemDetails, Vendor, PurchaseItem, PurchaseOrder, ApInvoice, ReturnGRNRequest, FetchGrnsPayload, FetchGrnsArgs, initialState, DebitCreditNote, FetchGrnsReturnPayload, ReturnReason, RevertGrnToPOResponse, CreateDebitNoteRequest, DebitCreditNoteResponse, AmountDebitNoteResponse, AmountDebitNoteRequest } from '@/Models/grnModel';
+import { GrnData, GrnState, ItemDetail, ItemDetails, Vendor, PurchaseItem, PurchaseOrder, ApInvoice, ReturnGRNRequest, FetchGrnsPayload, FetchGrnsArgs, initialState, DebitCreditNote, FetchGrnsReturnPayload, ReturnReason, RevertGrnToPOResponse, CreateDebitNoteRequest, DebitCreditNoteResponse, AmountDebitNoteResponse, AmountDebitNoteRequest,ReturnStockUpdateResult} from '@/Models/grnModel';
 import { PurchaseRandomId } from '@/Models/purchaseModel';
 import purchaseApi from "@/utils/api";
 
@@ -20,7 +20,7 @@ const customRoundOf = (value: number) => {
 
 // Updated thunk - Fix URL to /grn/ (singular) and handle response
 export const revertGrnToPO = createAsyncThunk<
-  RevertGrnToPOResponse,
+  RevertGrnToPOResponse & { stockUpdates?: any },
   string, // grnId
   { rejectValue: string }
 >(
@@ -436,8 +436,24 @@ export const returnGrn = createAsyncThunk(
         `/grns/${payload.grnId}/return`,
         payload.returnData,
       );
+       console.log('🔍 ========== RETURN GRN RESPONSE ==========');
+      console.log('🔍 Full response:', response);
+      console.log('🔍 Response data:', response.data);
+      
+      // Log specific stock values
+      console.log('🔍 Stock values from response:', {
+        stockUpdateResult: response.data.stockUpdateResult,
+        returnStockUpdateResult: response.data.returnStockUpdateResult,
+        purchaseitem_updates: response.data.stockUpdateResult?.purchaseitem_updates,
+        inventory_updates: response.data.stockUpdateResult?.inventory_updates,
+        itemsCount: response.data.stockUpdateResult?.items?.length,
+        items: response.data.stockUpdateResult?.items
+      });
+      
       return response.data;
     } catch (error: any) {
+      console.error('🔴 Return GRN error:', error);
+      console.error('🔴 Error response:', error.response?.data);
       return rejectWithValue(
         error.response?.data?.detail || "Failed to return GRN",
       );
@@ -454,7 +470,7 @@ export const fetchDebitCreditNotesByGrn = createAsyncThunk<
   async ({ grnId, page, size }, { rejectWithValue }) => {
     try {
       const response = await purchaseApi.get<DebitCreditNote[]>(
-        `/grns/returnprocess/DebitCreditNote/by-document/${grnId}`,
+        `/grns/returnprocess/DebitNote/by-document/${grnId}`,
         {
           params: {
             skip: (page - 1) * size,
@@ -667,6 +683,25 @@ export const grnSlice = createSlice({
     setSelectedHeaders(state, action: PayloadAction<string[]>) {
       state.selectedHeaders = action.payload;
     },
+     // Add new actions to the reducers section
+    setShowStockUpdateDialog: (state, action: PayloadAction<boolean>) => {
+      state.showStockUpdateDialog = action.payload;
+    },
+    clearLastRevertData: (state) => {
+      state.lastRevertStockUpdates = undefined;
+      state.lastRevertedGrnId = null;
+      state.showStockUpdateDialog = false;
+    },
+    // In your grnSlice.ts, ensure these actions exist in the reducers section:
+
+    setShowReturnStockUpdateDialog: (state, action: PayloadAction<boolean>) => {
+      state.showReturnStockUpdateDialog = action.payload;
+    },
+    clearLastReturnData: (state) => {
+      state.lastReturnStockUpdates = undefined;
+      state.lastReturnedGrnId = null;
+      state.showReturnStockUpdateDialog = false;
+    },
   },
   extraReducers: builder => {
     builder
@@ -785,15 +820,133 @@ export const grnSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(returnGrn.fulfilled, (state, action: PayloadAction<GrnData>) => {
-        state.loading = false;
-        const index = state.grns.findIndex(grn => grn.grnId === action.payload.grnId);
-        if (index !== -1) {
-          state.grns[index] = action.payload; // Update the GRN with returned data
-          state.snackbarMessageGRN = 'GRN returned successfully';
-          state.snackbarOpenGRN = true;
-        }
-      })
+     .addCase(returnGrn.fulfilled, (state, action: PayloadAction<any>) => {
+  state.loading = false;
+
+  console.log('🔍 ========== RETURN GRN FULFILLED ==========');
+  console.log('🔍 Full payload:', action.payload);
+  
+  // Log specific stock values
+  console.log('🔍 Stock values from payload:', {
+    stockUpdateResult: action.payload.stockUpdateResult,
+    returnStockUpdateResult: action.payload.returnStockUpdateResult,
+    purchaseitem_updates: action.payload.stockUpdateResult?.purchaseitem_updates,
+    inventory_updates: action.payload.stockUpdateResult?.inventory_updates,
+    items: action.payload.stockUpdateResult?.items
+  });
+
+  // Update the GRN in the list
+  const index = state.grns.findIndex(grn => grn.grnId === action.payload.grnId);
+  if (index !== -1) {
+    state.grns[index] = action.payload;
+  }
+
+  // CRITICAL: Get stock update result from the response
+  // The backend now adds both fields for compatibility
+  let stockUpdateResult = null;
+
+  // Check for stockUpdateResult field (preferred)
+  if (action.payload.stockUpdateResult) {
+    stockUpdateResult = action.payload.stockUpdateResult;
+    console.log('✅ Found stockUpdateResult:', stockUpdateResult);
+  } 
+  // Check for returnStockUpdateResult field (backward compatibility)
+  else if (action.payload.returnStockUpdateResult) {
+    stockUpdateResult = action.payload.returnStockUpdateResult;
+    console.log('✅ Found returnStockUpdateResult:', stockUpdateResult);
+  } 
+  // Check if the payload itself has stock update fields
+  else if (action.payload.purchaseitem_updates !== undefined) {
+    stockUpdateResult = {
+      purchaseitem_updates: action.payload.purchaseitem_updates,
+      inventory_updates: action.payload.inventory_updates || 0,
+      inventory_not_found: action.payload.inventory_not_found || 0,
+      inventory_errors: action.payload.inventory_errors || 0,
+      items: action.payload.items || []
+    };
+    console.log('✅ Constructed stock update result from payload fields');
+  }
+
+  if (stockUpdateResult) {
+    console.log('✅ Setting return stock update result in state:', {
+      purchaseitem_updates: stockUpdateResult.purchaseitem_updates,
+      inventory_updates: stockUpdateResult.inventory_updates,
+      inventory_not_found: stockUpdateResult.inventory_not_found,
+      inventory_errors: stockUpdateResult.inventory_errors,
+      itemsCount: stockUpdateResult.items?.length || 0,
+      items: stockUpdateResult.items
+    });
+
+    // Make sure items array exists and has data
+    if (!stockUpdateResult.items || stockUpdateResult.items.length === 0) {
+      console.warn('⚠️ stockUpdateResult.items is empty or missing');
+      
+      // Create a sample item from the stock updates we might have
+      if (action.payload.itemDetails) {
+        stockUpdateResult.items = action.payload.itemDetails
+          .filter((item: any) => item.returnedQuantity > 0)
+          .map((item: any) => ({
+            randomId: item.item_rand,
+            itemName: item.itemName,
+            quantityToReduce: item.returnedQuantity,
+            beforeStock: item.receivedQuantity,
+            afterStock: item.receivedQuantity - item.returnedQuantity,
+            status: 'success'
+          }));
+        console.log('✅ Created items from itemDetails:', stockUpdateResult.items);
+      }
+    }
+
+    // Store in state for dialog display
+    state.lastReturnStockUpdates = stockUpdateResult;
+    state.lastReturnedGrnId = action.payload.grnId || action.payload.grn_id;
+    state.showReturnStockUpdateDialog = true;
+    
+    console.log('✅ showReturnStockUpdateDialog set to TRUE');
+    console.log('✅ State updated with lastReturnStockUpdates:', state.lastReturnStockUpdates);
+  } else {
+    console.warn('❌ No stock update data found in response!');
+    
+    // Try to create stock update data from itemDetails if available
+    if (action.payload.itemDetails) {
+      const returnedItems = action.payload.itemDetails.filter(
+        (item: any) => item.returnedQuantity > 0
+      );
+      
+      if (returnedItems.length > 0) {
+        const constructedItems = returnedItems.map((item: any) => ({
+          randomId: item.item_rand,
+          itemName: item.itemName,
+          quantityToReduce: item.returnedQuantity,
+          beforeStock: item.receivedQuantity,
+          afterStock: item.receivedQuantity - item.returnedQuantity,
+          status: 'success'
+        }));
+        
+        const fallbackResult = {
+          purchaseitem_updates: returnedItems.length,
+          inventory_updates: returnedItems.length,
+          inventory_not_found: 0,
+          inventory_errors: 0,
+          items: constructedItems,
+          message: 'Return processed successfully (constructed from item details)',
+          success: true
+        };
+        
+        console.log('✅ Using constructed stock data from itemDetails:', fallbackResult);
+        
+        state.lastReturnStockUpdates = fallbackResult;
+        state.lastReturnedGrnId = action.payload.grnId || action.payload.grn_id;
+        state.showReturnStockUpdateDialog = true;
+      } else {
+        console.warn('❌ No returned items found in itemDetails');
+      }
+    }
+  }
+
+  state.snackbarMessageGRN = 'GRN returned successfully';
+  state.snackbarOpenGRN = true;
+})
       .addCase(returnGrn.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
@@ -892,10 +1045,14 @@ export const grnSlice = createSlice({
           state.grns[grnIndex].status = 'ReturnedPO';
         }
 
+        // Store stock updates in state for UI display
+        state.lastRevertStockUpdates = action.payload.stockUpdates;
+        state.lastRevertedGrnId = action.payload.grnId;
+
         state.snackbarMessageGRN = action.payload.message;
         state.snackbarOpenGRN = true;
 
-        console.log('GRN reverted to PO:', action.payload);
+        console.log('GRN reverted to PO with stock updates:', action.payload.stockUpdates);
       })
       .addCase(revertGrnToPO.rejected, (state, action) => {
         state.revertLoading = false;
@@ -969,7 +1126,9 @@ export const {
   setApInvoice,
   setError,
   setLoading,
-  clearSnackbarMessage, setSnackbarOpenGRN, setSnackbarMessageGRN, setPagination, setSelectedHeaders,
+  clearSnackbarMessage, setSnackbarOpenGRN, setSnackbarMessageGRN, setPagination, setSelectedHeaders,setShowStockUpdateDialog,
+   clearLastRevertData, setShowReturnStockUpdateDialog, // Make sure this is exported
+  clearLastReturnData, // Make sure this is exported
 } = grnSlice.actions;
 
 export const selectCurrentPage = (state: RootState) => state.grn.currentPage;

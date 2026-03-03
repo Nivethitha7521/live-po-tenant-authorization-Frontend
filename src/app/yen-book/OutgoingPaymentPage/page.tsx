@@ -59,7 +59,7 @@ import 'react-date-range/dist/theme/default.css'; // theme css file
 import { ClearIcon } from '@mui/x-date-pickers/icons';
 import moment from 'moment';
 import { fetchItemwiseAps, fetchRandomIDApInvoices, selectApinvoice, setApDialogOpen, setSelectedinvoiceId } from '@/features/yen-purchase/AP/apInvoiceSlice';
-import { clearDebitCreditNotes, fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
+import { clearDebitCreditNotes, fetchAllDebitNotesComprehensive, fetchAllDebitNotesForDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
 import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import GrnDialog from '@/components/yen-purchase/OutgoingComponent/GRNDialog';
 import ApInvoiceDialog from '@/components/yen-purchase/OutgoingComponent/APDialog';
@@ -76,7 +76,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { Alert } from "@mui/material";
 const OutgoingPaymentComponent = React.memo(() => {
   const dispatch = useDispatch<AppDispatch>();
-   const { hasPermission, isModuleVisible } = usePermissions();
+  const { hasPermission, isModuleVisible } = usePermissions();
 
   const canRead = hasPermission("yenerp", "outgoingpayment", "read");
   const { outgoings, snackbarMessage, snackbarOpen, selection, outgoingvendor, banks // ADD THIS IF MISSING
@@ -141,7 +141,7 @@ const OutgoingPaymentComponent = React.memo(() => {
   }, [selectedinvoiceId, itemwiseap]);
   // Fix useEffect that fetches initial data to include default sorting
   useEffect(() => {
-     if (!canRead) return; 
+    if (!canRead) return;
     if (loadingState === 'idle') {
       // Set default sorting if not set
       const defaultSortBy = sortColumn ? sortColumn : 'createdDate';
@@ -169,7 +169,7 @@ const OutgoingPaymentComponent = React.memo(() => {
     }
   }, [dispatch, loadingState, dateField, newPage, pageSize, sortColumn, sortOrder]);
   useEffect(() => {
-     if (!canRead) return;
+    if (!canRead) return;
     if (loadingState === 'idle') {
       dispatch(fetchItemwiseGrns());
       dispatch(fetchRandomIDApInvoices());
@@ -282,7 +282,7 @@ const OutgoingPaymentComponent = React.memo(() => {
       console.error('Service fetch error:', error);
     }
   };
-  const handleViewCreditNotes = (outgoingId: string, grnId?: string, apInvoiceId?: string) => {
+  const handleViewCreditNotes = async (outgoingId: string, grnId?: string, apInvoiceId?: string) => {
     console.log('Opening DebitCreditNoteDialog:', {
       outgoingId,
       grnId,
@@ -292,43 +292,92 @@ const OutgoingPaymentComponent = React.memo(() => {
     // Clear any previous data first
     dispatch(clearDebitCreditNotes());
 
-    // Determine which document ID to use
-    // Priority: GRN > AP Invoice > Outgoing Payment
+    // Determine which document ID to use based on availability
     let documentIdToUse = '';
     let documentTypeToUse = '';
+
+    // Priority logic:
+    // 1. If GRN exists, use GRN for item-wise notes
+    // 2. If AP Invoice exists, use AP Invoice for amount-wise notes
+    // 3. Otherwise, use Outgoing Payment for amount-wise notes
 
     if (grnId) {
       // Item-wise debit note for GRN
       documentIdToUse = grnId;
       documentTypeToUse = 'grn';
+      console.log('🔍 Using GRN for item-wise debit notes:', grnId);
     } else if (apInvoiceId) {
       // Amount-wise debit note for AP Invoice
       documentIdToUse = apInvoiceId;
       documentTypeToUse = 'ap_invoice';
+      console.log('🔍 Using AP Invoice for amount-wise debit notes:', apInvoiceId);
     } else {
       // Amount-wise debit note for Outgoing Payment
       documentIdToUse = outgoingId;
       documentTypeToUse = 'outgoing_payment';
+      console.log('🔍 Using Outgoing Payment for amount-wise debit notes:', outgoingId);
     }
 
-    console.log('Using document:', {
+    console.log('📌 Using document:', {
       documentId: documentIdToUse,
       documentType: documentTypeToUse
     });
 
-    // Set document details
+    // Set document details in Redux
     dispatch(setDebitCreditDocumentId(documentIdToUse));
     dispatch(setDebitCreditDocumentType(documentTypeToUse));
 
-    // Open dialog
+    // Open the dialog
     dispatch(setDebitCreditDialogOpen(true));
 
-    // Fetch data
-    dispatch(fetchDebitCreditNotesByDocument({
-      documentId: documentIdToUse,
-      page: 1,
-      size: 50
-    }));
+    try {
+      // IMPORTANT: Use the correct thunk that requires documentType
+      console.log('📤 Fetching debit notes with params:', {
+        documentId: documentIdToUse,
+        documentType: documentTypeToUse,
+        includeCleared: true,
+        includeActive: true,
+      });
+
+      // Use fetchAllDebitNotesComprehensive which requires documentType parameter
+      await dispatch(fetchAllDebitNotesComprehensive({
+        documentId: documentIdToUse,
+        documentType: documentTypeToUse, // This is REQUIRED
+        includeCleared: true,
+        includeActive: true,
+      })).unwrap();
+
+      console.log('✅ Debit notes loaded successfully');
+
+    } catch (error: any) {
+      console.error('❌ Error fetching debit notes:', error);
+
+      // Fallback: Try the older endpoint if comprehensive fails
+      try {
+        console.log('🔄 Trying fallback API...');
+        await dispatch(fetchAllDebitNotesForDocument({
+          documentId: documentIdToUse,
+          documentType: 'outgoing',  // This is now required
+          includeCleared: true,
+          includeActive: true,
+        })).unwrap();
+        console.log('✅ Fallback succeeded');
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
+
+        // Show appropriate error message
+        let errorMessage = 'Failed to load debit notes';
+
+        if (error?.includes('422')) {
+          errorMessage = 'Document type is required for this request';
+        } else if (error?.includes('404')) {
+          errorMessage = 'No debit notes found for this document';
+        }
+
+        dispatch(setSnackbarMessage(errorMessage));
+        dispatch(setSnackbarOpen(true));
+      }
+    }
   };
   // Precompute isDisabled and tooltipTitle based on hasDebitCreditNotes
   const outgoingCreditNoteStatus = useMemo(() => {
@@ -343,7 +392,7 @@ const OutgoingPaymentComponent = React.memo(() => {
     return statusMap;
   }, [outgoings, debitCreditNotes]);
   useEffect(() => {
-     if (!canRead) return; 
+    if (!canRead) return;
     dispatch(fetchBusinesses());
     dispatch(fetchBank());
   }, [dispatch]);
@@ -511,7 +560,7 @@ const OutgoingPaymentComponent = React.memo(() => {
       filterParams.status = status.trim();
     }
     console.log('Applying filters with sorting:', filterParams);
-        if (!canRead) return;
+    if (!canRead) return;
 
     dispatch(fetchOutgoings(filterParams));
   };
@@ -538,7 +587,7 @@ const OutgoingPaymentComponent = React.memo(() => {
       vendorName: 'vendorName'
     };
     const backendSortField = sortColumn ? sortFieldMap[sortColumn] : 'createdDate';
-        if (!canRead) return;
+    if (!canRead) return;
 
     dispatch(fetchOutgoings({
       page: currentPage,
@@ -836,7 +885,7 @@ const OutgoingPaymentComponent = React.memo(() => {
   const handleClearAllSelections = () => {
     dispatch(clearSelection());
   };
-  const handleDownload = async (outgoingId: string) => {
+ const handleDownload = async (outgoingId: string) => {
     const outgoingdetail = outgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
     if (!outgoingdetail) {
       console.error('Outgoing not found!');
@@ -940,9 +989,9 @@ const OutgoingPaymentComponent = React.memo(() => {
         const taxAmount = withoutTaxValue * (item.purchasetaxName / 100);
         const withTaxValue = withoutTaxValue + taxAmount;
         return [
-          outgoingdetail.invoiceNo || 'N/A', // Invoice No
+          outgoingdetail.invoiceNo || '-', // Invoice No
           outgoingdetail.invoiceDate ? format(new Date(outgoingdetail.invoiceDate), 'dd-MM-yyyy') : 'Not Provided', // Invoice Date
-          outgoingdetail.vendorName || 'N/A', // Vendor Name
+          outgoingdetail.vendorName || '-', // Vendor Name
           item.itemName,
           `${item.purchasetaxName}%`, // Tax Details
           taxAmount.toFixed(2), // Tax Amount
@@ -954,9 +1003,9 @@ const OutgoingPaymentComponent = React.memo(() => {
         [
           outgoingdetail.invoiceNo || '', // Invoice No
           outgoingdetail.invoiceDate ? format(new Date(outgoingdetail.invoiceDate), 'dd-MM-yyyy') : 'Not Provided', // Invoice Date
-          outgoingdetail.vendorName || 'N/A', // Vendor Name
-          'N/A',
-          'N/A', // Tax Details (No items, no tax)
+          outgoingdetail.vendorName || '-', // Vendor Name
+          '-',
+          '-', // Tax Details (No items, no tax)
           '0.00', // Tax Amount
           '0.00', // Without Tax Value
           '0.00', // With Tax Value
@@ -1112,7 +1161,7 @@ const OutgoingPaymentComponent = React.memo(() => {
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={1} ml={1}>
             {/* Buttons */}
             <Box display="flex" alignItems="center">
-             {isModuleVisible("yenerp", "outgoingpayment") && (
+              {isModuleVisible("yenerp", "outgoingpayment") && (
                 <Grid item>
                   <Link href={"/yen-book/OutgoingPaymentPage"}>
                     <Button
@@ -1140,7 +1189,7 @@ const OutgoingPaymentComponent = React.memo(() => {
                   </Link>
                 </Grid>
               )}
-             {isModuleVisible("yenerp", "partialpayment") && (
+              {isModuleVisible("yenerp", "partialpayment") && (
                 <Grid item>
                   <Link
                     href={"/yen-book/OutgoingPaymentPage/PendingPayment"
@@ -1165,13 +1214,13 @@ const OutgoingPaymentComponent = React.memo(() => {
                 </Grid>
               )}
               {isModuleVisible("yenerp", "paymenthistory") && (
-              <Grid item>
-                <Link href={"/yen-book/OutgoingPaymentPage/PaymentHistory"}>
-                  <Button variant="contained" color="primary" sx={{ mr: 1 }}>Payment History</Button>
-                </Link>
-              </Grid>
+                <Grid item>
+                  <Link href={"/yen-book/OutgoingPaymentPage/PaymentHistory"}>
+                    <Button variant="contained" color="primary" sx={{ mr: 1 }}>Payment History</Button>
+                  </Link>
+                </Grid>
               )}
-             {isModuleVisible("yenerp", "ledger") && (
+              {isModuleVisible("yenerp", "ledger") && (
                 <Grid item>
                   <Link href={"/yen-book/OutgoingPaymentPage/Ledger"}>
                     <Button variant="contained" color="primary" sx={{ mr: 1 }}>
@@ -1180,7 +1229,7 @@ const OutgoingPaymentComponent = React.memo(() => {
                   </Link>
                 </Grid>
               )}
-               <Grid item>
+              <Grid item>
                 {isModuleVisible("yenerp", "purchasereturn") && (
                   <Link
                     href={"/yen-book/OutgoingPaymentPage/PurchaseReturn"
@@ -1403,6 +1452,7 @@ Description:<br />
               <IconButton
                 color='primary'
                 className='icon-button-outline'
+
                 onClick={handlePayClick} // Trigger the pay click
                 size="small"
                 sx={{ p: 0.3 }}
@@ -1459,31 +1509,31 @@ Description:<br />
                     <TableCell>Type</TableCell>
                     <TableCell>Invoice No</TableCell>
                     <TableCell>Invoice Date</TableCell>
-                    <TableCell>Invoice Amount</TableCell>
+                    <TableCell align="right">Invoice Amount</TableCell> {/* ADD align="right" */}
                     <TableCell>Tax Details</TableCell>
-                    <TableCell>Discount Amount</TableCell>
-                    <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('payableAmount')}>
+                    <TableCell align="right">Discount Amount</TableCell> {/* ADD align="right" */}
+                    <TableCell align="right" sx={{ cursor: 'pointer' }} onClick={() => handleSort('payableAmount')}>
                       Total {sortColumn === 'payableAmount' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
                     </TableCell>
-                    <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('totalPaid')}>
+                    <TableCell align="right" sx={{ cursor: 'pointer' }} onClick={() => handleSort('totalPaid')}>
                       Paid Amount {sortColumn === 'totalPaid' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
                     </TableCell>
-                    <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('remainingAmount')}>
+                    <TableCell align="right" sx={{ cursor: 'pointer' }} onClick={() => handleSort('remainingAmount')}>
                       Remaining Amount {sortColumn === 'remainingAmount' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
                     </TableCell>
-                    <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('dueDays')}>
+                    <TableCell align="center" sx={{ cursor: 'pointer' }} onClick={() => handleSort('dueDays')}>
                       Due Days {sortColumn === 'dueDays' ? (sortOrder === 'asc' ? '↑' : '↓') : '↑'}
                     </TableCell>
-                    <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('paymentTerms')}>
+                    <TableCell align="center" sx={{ cursor: 'pointer' }} onClick={() => handleSort('paymentTerms')}>
                       Payment Terms {sortColumn === 'paymentTerms' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
                     </TableCell>
-                    <TableCell>Action</TableCell>
+                    <TableCell align="center">Action</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {filteredPayments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={18} style={{ textAlign: 'center' }}> 
+                      <TableCell colSpan={18} style={{ textAlign: 'center' }}>
                         No data available
                       </TableCell>
                     </TableRow>
@@ -1495,14 +1545,14 @@ Description:<br />
                       };
                       return (
                         <TableRow key={payment.outgoingId || index}>
-                          <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell> 
-                          <TableCell>
+                            <TableCell align="center">{(currentPage - 1) * pageSize + index + 1}</TableCell> {/* ADD align="center" */}
+                          <TableCell align="center"> {/* ADD align="center" */}
                             <Checkbox
                               checked={selectedRows.includes(payment.outgoingId || '')}
                               onChange={() => handleRowSelect(payment.outgoingId || '')}
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell align="left"> {/* ADD align="left" */}
                             {payment.poRandomId ? (
                               <span
                                 style={{ color: 'purple', cursor: 'pointer', textDecoration: 'underline' }}
@@ -1523,10 +1573,10 @@ Description:<br />
                                 {payment.serviceId}
                               </span>
                             ) : (
-                              'N/A'
+                              '-'
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell align="left"> {/* ADD align="left" */}
                             {payment.grnId ? (
                               <span
                                 style={{ color: 'blue', cursor: 'pointer' }}
@@ -1535,10 +1585,10 @@ Description:<br />
                                 {payment.grnRandomId}
                               </span>
                             ) : (
-                              'N/A'
+                              '-'
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell align="left"> {/* ADD align="left" */}
                             {payment.invoiceId ? (
                               <span
                                 style={{ color: 'green', cursor: 'pointer' }}
@@ -1547,29 +1597,75 @@ Description:<br />
                                 {payment.apRandomId}
                               </span>
                             ) : (
-                              'N/A'
+                              '-'
                             )}
                           </TableCell>
-                          <TableCell>{payment.randomId}</TableCell>
-                          <TableCell>{payment.vendorName}</TableCell>
-                          <TableCell>{payment.invoiceType}</TableCell>
-                          <TableCell>{payment.invoiceNo || 'N/A'}</TableCell>
-                          <TableCell>
+                          <TableCell align="left">{payment.randomId}</TableCell> {/* ADD align="left" */}
+                          <TableCell align="left">{payment.vendorName}</TableCell> {/* ADD align="left" */}
+                          <TableCell align="left">{payment.invoiceType}</TableCell> {/* ADD align="left" */}
+                          <TableCell align="left">{payment.invoiceNo || '-'}</TableCell> {/* ADD align="left" */}
+                          <TableCell align="left"> {/* ADD align="left" */}
                             {payment.invoiceDate ? format(new Date(payment.invoiceDate), 'dd-MM-yyyy') : ''}
                           </TableCell>
-                          <TableCell>{(payment.totalPrice || 0).toFixed(2)}</TableCell>
-                          <TableCell>
-                            <Tooltip title={payment.taxDetails || 'N/A'} placement="top" arrow>
-                              <Typography variant="body2" component="span" sx={{ cursor: 'pointer', fontSize: '12px !important' }}>
-                                {payment.taxDetails || 'N/A'}
+                          <TableCell align="right">{(payment.totalPrice || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
+                          <TableCell align="left"> {/* ADD align="left" */}
+                               <Tooltip
+                              title={
+                                Array.isArray(payment.itemDetails) && payment.itemDetails.length > 0 ? (
+                                  <React.Fragment>
+                                    {Object.entries(
+                                      payment.itemDetails.reduce<
+                                        Record<
+                                          string,
+                                          { sgst: number; cgst: number; igst: number; totalAmount: number; purchasetaxName: number }
+                                        >
+                                      >((acc, itemDetail) => {
+                                        const key = itemDetail.purchasetaxName;
+                                        if (!acc[key]) {
+                                          acc[key] = {
+                                            sgst: itemDetail.sgst,
+                                            cgst: itemDetail.cgst,
+                                            igst: itemDetail.igst,
+                                            totalAmount: itemDetail.taxAmount,
+                                            purchasetaxName: itemDetail.purchasetaxName,
+                                          };
+                                        } else {
+                                          acc[key].sgst += itemDetail.sgst;
+                                          acc[key].cgst += itemDetail.cgst;
+                                          acc[key].igst += itemDetail.igst;
+                                          acc[key].totalAmount += itemDetail.taxAmount;
+                                        }
+                                        return acc;
+                                      }, {})
+                                    ).map(([key, taxDetail], index) => {
+                                      const halfTaxPercentage = taxDetail.purchasetaxName / 2;
+                                      return (
+                                        <div key={key} style={{ fontSize: '14px' }}>
+                                          SGST ({halfTaxPercentage}%): {taxDetail.sgst.toFixed(2)} | CGST ({halfTaxPercentage}%):{' '}
+                                          {taxDetail.cgst.toFixed(2)} | IGST ({taxDetail.purchasetaxName}%): {taxDetail.igst.toFixed(2)} - Total:{' '}
+                                          {taxDetail.totalAmount.toFixed(2)}
+                                        </div>
+                                      );
+                                    })}
+                                  </React.Fragment>
+                                ) : (
+                                  <span style={{ fontSize: '14px' }}>No tax details available</span>
+                                )
+                              }
+                              placement="top"
+                              arrow
+                            >
+                              <Typography variant="body2" sx={{ cursor: 'pointer', fontSize: '12px !important' }}>
+                                {payment.taxDetails || '-'}
                               </Typography>
                             </Tooltip>
                           </TableCell>
-                          <TableCell>{(payment.discountDetails || 0).toFixed(2)}</TableCell>
-                          <TableCell>{(payment.payableAmount || 0).toFixed(2)}</TableCell>
-                          <TableCell>{(payment.totalPaid || 0).toFixed(2)}</TableCell>
-                          <TableCell>{(payment.remainingAmount || 0).toFixed(2)}</TableCell>
+                          <TableCell align="right">{(payment.discountDetails || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
+                          <TableCell align="right">{(payment.payableAmount || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
+                          <TableCell align="right">{(payment.paidAmount || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
+                          <TableCell align="right">{(payment.remainingAmount || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
                           <TableCell
+                            align="center"
                             sx={{
                               fontWeight: 'bold',
                               color: getColorByDueDays(payment.intimationDays?.toString() || '0'),
@@ -1577,7 +1673,7 @@ Description:<br />
                           >
                             {payment.intimationDays}
                           </TableCell>
-                          <TableCell>{payment.paymentTerms}</TableCell>
+                          <TableCell align="center">{payment.paymentTerms}</TableCell> {/* ADD align="center" */}
                           <TableCell>
                             <Box display="flex" alignItems="center">
                               <Tooltip title="Pay">
@@ -1674,7 +1770,7 @@ Description:<br />
             <DialogTitle>Choose a file format</DialogTitle>
             <DialogContent>
               <Typography component="span">
-              Select the file format you want to download:
+                Select the file format you want to download:
               </Typography>
             </DialogContent>
             <DialogActions>
@@ -1723,7 +1819,7 @@ Description:<br />
             pageSize={pageSize}
             dateField={dateField}
             onPaymentSuccess={() => {
-               if (!canRead) return;
+              if (!canRead) return;
               dispatch(fetchOutgoings({
                 page: currentPage,
                 size: pageSize,

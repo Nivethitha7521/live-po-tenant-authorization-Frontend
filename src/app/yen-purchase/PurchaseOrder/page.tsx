@@ -1254,13 +1254,7 @@ useEffect(() => {
            <Link href={"/yen-purchase/PurchaseOrder/GRNConvertedPO"}>
         <Button
                       variant="contained"
-                      sx={{
-                        backgroundColor: 'white',
-                        color: 'black',
-                        '&:hover': {
-                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                        },
-                      }}
+                      color='primary'
                     >
                      GRN Converted
                     </Button>

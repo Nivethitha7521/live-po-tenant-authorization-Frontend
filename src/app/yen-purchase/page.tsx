@@ -87,9 +87,9 @@ const serviceOrderKeys = [
     () =>
       [
         {
-          label: "Purchase Master",
-          path: "/yen-purchase/PurchaseMaster",
-          visible: isAnyModuleVisible(purchaseMasterKeys),
+           label: "Purchase Master",
+        path: "/yen-purchase/PurchaseMaster",
+        visible: isAnyModuleVisible(purchaseMasterKeys),
         },
         {
           label: "Vendor",
@@ -121,7 +121,7 @@ const serviceOrderKeys = [
         },
         {
           label: "AP Invoice",
-          path: "/yen-purchase/ApInvoicePage",
+          path:"/yen-purchase/ApInvoicePage",
           visible: isAnyModuleVisible(apInvoiceKeys),
         },
       ].filter((item) => item.visible),
@@ -138,22 +138,30 @@ const purchaseKeys: string[] = [
   ...apInvoiceKeys,
  
 ];
+const normalizedPath = useMemo(() => {
+  if (!pathname) return "";
+  const parts = pathname.split("/").filter(Boolean);
 
+  if (parts.length > 1) {
+    return "/" + parts.slice(1).join("/");
+  }
+  return pathname;
+}, [pathname]);
  // ✅ ADD THIS - correct hidePurchaseMenu logic
 const hidePurchaseMenu =
   permissionsLoaded &&
   !purchaseKeys.some((key:string) => isModuleVisible(key));
-  React.useEffect(() => {
-    if (pathname === "/yen-purchase" || pathname === "/yen-purchase/") {
-      const firstVisible = subItems[0];
-      if (firstVisible) router.replace(firstVisible.path);
-    }
-  }, [pathname, router, subItems]);
+React.useEffect(() => {
+  if (normalizedPath === "/yen-purchase") {
+    const firstVisible = subItems[0];
+    if (firstVisible) router.replace(firstVisible.path);
+  }
+}, [normalizedPath, router, subItems]);
 
 
 
-  const isActiveRoute = (itemPath: string) => (pathname || '').startsWith(itemPath);
-
+const isActiveRoute = (itemPath: string) =>
+  pathname?.startsWith(itemPath ?? "");
   const handleMenuClick = useCallback((menuItem: { path: string }) => {
     router.push(menuItem.path);
   }, [router]);

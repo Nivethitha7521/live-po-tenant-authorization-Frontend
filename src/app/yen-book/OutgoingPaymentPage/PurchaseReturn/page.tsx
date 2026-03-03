@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo,useCallback} from 'react';
 import {
     Grid,
     Typography,
@@ -28,6 +28,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ReturnIcon from '@mui/icons-material/KeyboardReturn';
+
 import { ClearIcon } from '@mui/x-date-pickers/icons';
 import {
     fetchOutgoings,
@@ -48,10 +49,11 @@ import {
     fetchReturnReasons,
     setSnackbarMessageGRN,
     setSnackbarOpenGRN,
+    clearLastReturnData,
 } from '@/features/yen-purchase/GRN/grnSlice';
 import { AppDispatch, RootState } from '@/redux/store';
 import { Outgoing, VendorDetail } from '@/Models/outgoingModel';
-import { ItemDetail } from '@/Models/grnModel';
+import { GrnResponse, ItemDetail,ItemDetailResponse } from '@/Models/grnModel';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
@@ -69,7 +71,17 @@ import Link from 'next/link';
 import ReturnOptionDialog from '@/components/yen-purchase/OutgoingComponent/ReturnOptionDialog';
 import AmountReturnDialog from '@/components/yen-purchase/OutgoingComponent/AmountReturnDialog.tsx';
 import { usePermissions } from "@/hooks/usePermissions";
+import ReturnStockUpdateDialog from '@/app/yen-purchase/GrnPage/Components/ReturnStockUpdateDialog';
+import GrnDialog from '@/components/yen-purchase/OutgoingComponent/GRNDialog';
 
+// Define interface for ReturnActionButton props
+interface ReturnActionButtonProps {
+    payment: {
+        totalPayableAmount?: number;
+        [key: string]: any;
+    };
+    onClick: (payment: any) => void;
+}
 const PurchaseReturnPage = React.memo(() => {
     const dispatch = useDispatch<AppDispatch>();
      const { isModuleVisible, hasPermission } = usePermissions();
@@ -84,7 +96,10 @@ const PurchaseReturnPage = React.memo(() => {
     isModuleVisible("yenerp", "purchasereturn") && canReadPurchaseReturn;
 
     const { outgoings, snackbarMessage, snackbarOpen, outgoingvendor } = useSelector(selectOutgoings);
-    const { itemwise, snackbarMessageGRN, snackbarOpenGRN } = useSelector(selectGrn);
+    const { itemwise, snackbarMessageGRN, snackbarOpenGRN,
+        lastReturnStockUpdates,
+        lastReturnedGrnId,
+        showReturnStockUpdateDialog } = useSelector(selectGrn);
     const currentPage = useSelector(selectCurrentPage);
     const pageSize = useSelector(selectPageSize);
     const totalItems = useSelector(selectTotalItems);
@@ -96,7 +111,9 @@ const PurchaseReturnPage = React.memo(() => {
         endDate: new Date(),
         key: 'selection',
     });
-    
+     // State for GRN view dialog
+    const [viewGrnDialogOpen, setViewGrnDialogOpen] = useState(false);
+    const [selectedGrnForView, setSelectedGrnForView] = useState<GrnResponse | null>(null);
     // New state for both return types
     const [returnOptionOpen, setReturnOptionOpen] = useState(false);
     const [itemWiseDialogOpen, setItemWiseDialogOpen] = useState(false);
@@ -112,7 +129,9 @@ const PurchaseReturnPage = React.memo(() => {
     const toDate = moment().utc().endOf('day').toDate();
 
     const filteredPayments = useMemo(() => {
-        return [...outgoings].map(payment => {
+        if (!outgoings.length) return [];
+
+        return outgoings.map(payment => {
             const totalPaid =
                 (payment.advanceAmount || 0) +
                 (payment.partialAmount || 0) +
@@ -121,7 +140,41 @@ const PurchaseReturnPage = React.memo(() => {
             return { ...payment, totalPaid, total };
         });
     }, [outgoings]);
-
+ // Function to handle GRN click and show details
+    const handleGrnClick = useCallback(async (grnId: string) => {
+        try {
+            const result = await dispatch(fetchGrnById(grnId)).unwrap();
+            if (result) {
+                const transformedGrn: GrnResponse = {
+                    grnId: result.grnId,
+                    randomId: result.randomId,
+                    vendorName: result.vendorName,
+                    grnDate: typeof result.grnDate === 'string' ? new Date(result.grnDate) : result.grnDate,
+                    itemDetails: result.itemDetails.map((item: ItemDetail) => ({
+                        itemId: item.itemId,
+                        itemName: item.itemName ?? 'Unknown',
+                        receivedQuantity: Number(item.receivedQuantity) || 0,
+                        returnedQuantity: Number(item.returnedQuantity) || 0,
+                        quantity: Number(item.quantity) || 0,
+                        unitPrice: Number(item.unitPrice) || 0,
+                        totalPrice: Number(item.totalPrice) || 0,
+                        purchasetaxName: item.purchasetaxName || 'N/A',
+                        discountAmount: Number(item.discountAmount) || 0,
+                        finalPrice: Number(item.finalPrice) || 0,
+                    })) as ItemDetailResponse[],
+                };
+                setSelectedGrnForView(transformedGrn);
+                setViewGrnDialogOpen(true);
+            } else {
+                dispatch(setSnackbarMessageGRN('GRN not found.'));
+                dispatch(setSnackbarOpenGRN(true));
+            }
+        } catch (error) {
+            dispatch(setSnackbarMessageGRN('Failed to fetch GRN details.'));
+            dispatch(setSnackbarOpenGRN(true));
+            console.error('Failed to fetch GRN details:', error);
+        }
+    }, [dispatch]);
     useEffect(() => {
          if (!canReadPurchaseReturn) return;
         dispatch(fetchOutgoings({
@@ -135,7 +188,7 @@ const PurchaseReturnPage = React.memo(() => {
         dispatch(fetchReturnReasons());
     }, [dispatch, currentPage, pageSize]);
 
-    const handlePageChange = (newPage: number) => {
+   const handlePageChange = useCallback((newPage: number) => {
         if (newPage < 1 || newPage > Math.ceil(totalItems / pageSize)) return;
         dispatch(setPagination({ page: newPage, size: pageSize }));
         dispatch(fetchOutgoings({
@@ -145,7 +198,7 @@ const PurchaseReturnPage = React.memo(() => {
             toDate: isFilterActive ? moment(selectionRange.endDate).endOf('day').toDate() : toDate,
             vendorName: selectedVendorName?.vendorName,
         }));
-    };
+    }, [dispatch, pageSize, totalItems, isFilterActive, selectionRange, selectedVendorName]);
 
     const handleFilterClick = () => {
         setIsFilterActive(true);
@@ -182,7 +235,7 @@ const PurchaseReturnPage = React.memo(() => {
         });
     };
 
-    const handleFilterClose = () => {
+    const handleFilterClose = useCallback(() => {
         setIsFilterActive(false);
         setSelectionRange({ startDate: new Date(), endDate: new Date(), key: 'selection' });
         setSelectedVendorName(null);
@@ -193,10 +246,10 @@ const PurchaseReturnPage = React.memo(() => {
             fromDate,
             toDate,
         }));
-    };
+    }, [dispatch, pageSize]);
 
     // Modified handleReturnProcess to show option dialog
-    const handleReturnProcess = async (outgoing: any) => {
+     const handleReturnProcess = useCallback(async (outgoing: any) => {
         try {
             const grnId = outgoing.grnId;
             const outgoingId = outgoing.outgoingId || outgoing._id;
@@ -205,16 +258,13 @@ const PurchaseReturnPage = React.memo(() => {
 
             console.log('Processing return for:', { grnId, outgoingId, randomId });
 
-            // Set common data
             setSelectedDocumentId(outgoingId);
             setSelectedDocumentNumber(randomId);
             setMaxDebitAmount(totalPayableAmount);
 
             if (grnId) {
-                // Fetch GRN details
                 const result = await dispatch(fetchGrnById(grnId)).unwrap();
 
-                // Transform items
                 const transformedItems: ItemDetail[] = result.itemDetails?.map((item: any) => ({
                     itemId: item.itemId,
                     itemName: item.itemName ?? 'Unknown',
@@ -235,15 +285,12 @@ const PurchaseReturnPage = React.memo(() => {
                 setSelectedGrnId(grnId);
                 setSelectedGrnItems(transformedItems);
 
-                // Show option dialog when we have both GRN and items
                 if (transformedItems.length > 0) {
                     setReturnOptionOpen(true);
                 } else {
-                    // No items, go directly to amount-wise
                     setAmountWiseDialogOpen(true);
                 }
             } else {
-                // No GRN ID, directly show amount-wise dialog
                 setAmountWiseDialogOpen(true);
             }
         } catch (error) {
@@ -251,34 +298,32 @@ const PurchaseReturnPage = React.memo(() => {
             dispatch(setSnackbarMessageGRN('Failed to fetch details.'));
             dispatch(setSnackbarOpenGRN(true));
         }
-    };
+    }, [dispatch]);
 
-    // Handle option selections
-    const handleSelectItemWise = () => {
+    const handleSelectItemWise = useCallback(() => {
         setReturnOptionOpen(false);
         setItemWiseDialogOpen(true);
-    };
+    }, []);
 
-    const handleSelectAmountWise = () => {
+     const handleSelectAmountWise = useCallback(() => {
         setReturnOptionOpen(false);
         setAmountWiseDialogOpen(true);
-    };
+    }, []);
 
     // Handle return completion
-    const handleReturnComplete = () => {
-        // Close all dialogs
+     const handleReturnComplete = useCallback(() => {
+        console.log('Return completed, closing dialogs...');
+
         setReturnOptionOpen(false);
         setItemWiseDialogOpen(false);
         setAmountWiseDialogOpen(false);
-        
-        // Reset state
+
         setSelectedDocumentId(null);
         setSelectedDocumentNumber('');
         setSelectedGrnId(null);
         setSelectedGrnItems([]);
         setMaxDebitAmount(0);
 
-        // Refresh data
         dispatch(fetchOutgoings({
             page: currentPage,
             size: pageSize,
@@ -286,9 +331,15 @@ const PurchaseReturnPage = React.memo(() => {
             toDate: isFilterActive ? moment(selectionRange.endDate).endOf('day').toDate() : toDate,
             vendorName: selectedVendorName?.vendorName,
         }));
-    };
+    }, [dispatch, currentPage, pageSize, isFilterActive, selectionRange, selectedVendorName]);
 
-    const handleReturnCancel = () => {
+    const handleStockUpdateClose = useCallback(() => {
+        console.log('Closing stock update dialog');
+        dispatch(clearLastReturnData());
+    }, [dispatch]);
+
+ const handleReturnCancel = useCallback(() => {
+        console.log('Return cancelled, closing all dialogs');
         setReturnOptionOpen(false);
         setItemWiseDialogOpen(false);
         setAmountWiseDialogOpen(false);
@@ -297,15 +348,15 @@ const PurchaseReturnPage = React.memo(() => {
         setSelectedGrnId(null);
         setSelectedGrnItems([]);
         setMaxDebitAmount(0);
-    };
+    }, []);
 
-    const getRandomId = (grnId: string): string | undefined => {
+      const getRandomId = useCallback((grnId: string): string | undefined => {
         const grn = itemwise.find(grn => grn.grnId === grnId);
         return grn?.randomId;
-    };
+    }, [itemwise]);
 
     // Rest of your existing functions (generatePDF, generateCSV, etc.)
-    const generateOutgoingInvoicePDF = () => {
+   const generateOutgoingInvoicePDF = useCallback(() => {
         const doc = new jsPDF();
         let yOffset = 10;
         const titleX = 80;
@@ -347,10 +398,10 @@ const PurchaseReturnPage = React.memo(() => {
             outgoing.vendorName?.toString(),
             outgoing.invoiceNo || "N/A",
             outgoing.invoiceDate ? format(new Date(outgoing.invoiceDate), 'dd-MM-yyyy') : 'Not Provided',
-            outgoing.totalPrice?.toFixed(2) || "0.00",
-            outgoing.payableAmount?.toFixed(2) || "0.00",
-            outgoing.totalPaid?.toFixed(2) || "0.00",
-            outgoing.totalPayableAmount?.toFixed(2) || "0.00",
+            (outgoing.totalPrice || 0).toFixed(2),
+            (outgoing.payableAmount || 0).toFixed(2),
+            (outgoing.totalPaid || 0).toFixed(2),
+            (outgoing.totalPayableAmount || 0).toFixed(2),
         ]);
 
         doc.autoTable({
@@ -382,9 +433,8 @@ const PurchaseReturnPage = React.memo(() => {
         }
         doc.save('PurchaseReturns.pdf');
         setOpenDownloadDialog(false);
-    };
-
-    const generateOutgoingSummaryCSV = () => {
+    }, [filteredPayments, getRandomId]);
+    const generateOutgoingSummaryCSV = useCallback(() => {
         const headers = [
             "No",
             "GRN No",
@@ -405,10 +455,10 @@ const PurchaseReturnPage = React.memo(() => {
             outgoing.vendorName?.toString(),
             outgoing.invoiceNo || "N/A",
             outgoing.invoiceDate ? format(new Date(outgoing.invoiceDate), 'dd-MM-yyyy') : 'Not Provided',
-            outgoing.totalPrice?.toFixed(2) || "0.00",
-            outgoing.payableAmount?.toFixed(2) || "0.00",
-            outgoing.totalPaid?.toFixed(2) || "0.00",
-            outgoing.totalPayableAmount?.toFixed(2) || "0.00",
+            (outgoing.totalPrice || 0).toFixed(2),
+            (outgoing.payableAmount || 0).toFixed(2),
+            (outgoing.totalPaid || 0).toFixed(2),
+            (outgoing.totalPayableAmount || 0).toFixed(2),
         ]);
 
         const csv = Papa.unparse([headers, ...rows]);
@@ -421,7 +471,27 @@ const PurchaseReturnPage = React.memo(() => {
         link.click();
         document.body.removeChild(link);
         setOpenDownloadDialog(false);
-    };
+    }, [filteredPayments, getRandomId]);
+    const ReturnActionButton = useCallback(({ payment, onClick }: ReturnActionButtonProps) => {
+        const isDisabled = !payment.totalPayableAmount || payment.totalPayableAmount <= 0;
+        const tooltipTitle = isDisabled ? "No amount available for return" : "Process Return";
+
+        const button = (
+            <IconButton
+                color="primary"
+                onClick={() => onClick(payment)}
+                disabled={isDisabled}
+            >
+                <ReturnIcon />
+            </IconButton>
+        );
+
+        return (
+            <Tooltip title={tooltipTitle}>
+                <span>{button}</span>
+            </Tooltip>
+        );
+    }, []);
  // ⛔ HIDE true → page itself block
   if (!isModuleVisible("yenerp", "purchasereturn")) {
     return (
@@ -507,11 +577,100 @@ const PurchaseReturnPage = React.memo(() => {
                 </Box>
             </Box>
             
-            {/* Filter controls remain the same */}
+            {/* Filter controls */}
             <Grid container spacing={1} alignItems="center" justifyContent="flex-start" sx={{ mb: 1, mt: 1, ml: 0.1 }}>
-                {/* Your existing filter controls */}
-            </Grid>
+                <Grid item xs="auto">
+                    <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                        <DateRangeDialog
+                            selectionRange={selectionRange}
+                            setSelectionRange={setSelectionRange}
+                            onApply={handleFilterClick}
+                        />
+                    </Box>
+                </Grid>
+  <Grid item xs={6} sm={4} md={2}>
+                    <FormControl fullWidth>
+                        <Autocomplete
+                            value={selectedVendorName}
+                            onChange={(event, newValue) => setSelectedVendorName(newValue)}
+                            options={outgoingvendor}
+                            getOptionLabel={(option: VendorDetail) => option.vendorName || ''}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="All Vendors"
+                                    variant="outlined"
+                                    size="small"
+                                />
+                            )}
+                        />
+                    </FormControl>
+                </Grid>
 
+                <Grid item xs={6} sm={4} md={1}>
+                    <TextField
+                        fullWidth
+                        value="All Data"
+                        variant="outlined"
+                        size="small"
+                        InputProps={{ readOnly: true }}
+                    />
+                </Grid>
+
+                <Grid item xs="auto">
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <IconButton
+                            onClick={handleFilterClick}
+                            className="icon-button-outline"
+                            color="primary"
+                            size="small"
+                            sx={{ p: 0.3 }}
+                        >
+                            <FilterAltIcon fontSize="small" />
+                        </IconButton>
+                        <Typography variant="caption" align="center">
+                            Filter
+                        </Typography>
+                    </Box>
+                </Grid>
+
+                <Grid item xs="auto">
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <IconButton
+                            onClick={handleFilterClose}
+                            className="icon-button-outline"
+                            color="primary"
+                            size="small"
+                            sx={{ p: 0.3 }}
+                        >
+                            <ClearIcon fontSize="small" />
+                        </IconButton>
+                        <Typography variant="caption" align="center">
+                            Clear
+                        </Typography>
+                    </Box>
+                </Grid>
+
+                <Grid item xs sx={{ flexGrow: 1 }} />
+
+                <Grid item xs="auto">
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <IconButton
+                            onClick={() => setOpenDownloadDialog(true)}
+                            color="primary"
+                            className="icon-button-outline"
+                            size="small"
+                            sx={{ p: 0.3 }}
+                            disabled={!filteredPayments || filteredPayments.length === 0}
+                        >
+                            <DownloadIcon fontSize="small" />
+                        </IconButton>
+                        <Typography variant="caption" align="center">
+                            Download
+                        </Typography>
+                    </Box>
+                </Grid>
+            </Grid>
             <Grid container spacing={2}>
                 <Grid item xs={12} ml={2}>
                     <TableContainer
@@ -527,10 +686,10 @@ const PurchaseReturnPage = React.memo(() => {
                                     <TableCell>Vendor Name</TableCell>
                                     <TableCell>Invoice No</TableCell>
                                     <TableCell>Invoice Date</TableCell>
-                                    <TableCell>Total Amount</TableCell>
-                                    <TableCell>Total</TableCell>
-                                    <TableCell>Paid Amount</TableCell>
-                                    <TableCell>Remaining Amount</TableCell>
+                                    <TableCell align="right">Total Amount</TableCell>
+                                    <TableCell align="right">Total</TableCell>
+                                    <TableCell align="right">Paid Amount</TableCell>
+                                    <TableCell align="right">Remaining Amount</TableCell>
                                     <TableCell>Action</TableCell>
                                 </TableRow>
                             </TableHead>
@@ -543,32 +702,40 @@ const PurchaseReturnPage = React.memo(() => {
                                     </TableRow>
                                 ) : (
                                     filteredPayments.map((payment, index) => (
-                                        <TableRow key={payment.outgoingId || index}>
-                                            <TableCell>{index + 1}</TableCell>
-                                            <TableCell>{getRandomId(payment.grnId) || 'N/A'}</TableCell>
+                                       <TableRow key={payment.outgoingId || index}>
+                                            <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell>
+                                            <TableCell>
+                                                {payment.grnId ? (
+                                                    <span
+                                                        style={{ 
+                                                            color: 'blue', 
+                                                            cursor: 'pointer',
+                                                            textDecoration: 'underline'
+                                                        }}
+                                                        onClick={() => handleGrnClick(payment.grnId)}
+                                                    >
+                                                        {getRandomId(payment.grnId) || payment.grnId}
+                                                    </span>
+                                                ) : (
+                                                    '-'
+                                                )}
+                                            </TableCell>
                                             <TableCell>{payment.randomId}</TableCell>
                                             <TableCell>{payment.vendorName}</TableCell>
                                             <TableCell>{payment.invoiceNo || 'N/A'}</TableCell>
                                             <TableCell>
                                                 {payment.invoiceDate ? format(new Date(payment.invoiceDate), 'dd-MM-yyyy') : ''}
                                             </TableCell>
-                                            <TableCell>{payment.totalPrice?.toFixed(2)}</TableCell>
-                                            <TableCell>{payment.payableAmount?.toFixed(2)}</TableCell>
-                                            <TableCell>{payment.totalPaid?.toFixed(2)}</TableCell>
-                                            <TableCell>{payment.totalPayableAmount?.toFixed(2)}</TableCell>
+                                             <TableCell align="right">{(payment.totalPrice || 0).toFixed(2)}</TableCell>
+                                            <TableCell align="right">{(payment.payableAmount || 0).toFixed(2)}</TableCell>
+                                            <TableCell align="right">{(payment.totalPaid || 0).toFixed(2)}</TableCell>
+                                            <TableCell align="right">{(payment.totalPayableAmount || 0).toFixed(2)}</TableCell>
                                             <TableCell>
                                                 <Box display="flex" alignItems="center">
-                                                    <Tooltip title="Process Return">
-                                                        <span>
-                                                        <IconButton
-                                                            color="primary"
-                                                            onClick={() => handleReturnProcess(payment)}
-                                                            disabled={!payment.totalPayableAmount || payment.totalPayableAmount <= 0}
-                                                        >
-                                                            <ReturnIcon />
-                                                        </IconButton>
-                                                        </span>
-                                                    </Tooltip>
+                                                    <ReturnActionButton
+                                                        payment={payment}
+                                                        onClick={() => handleReturnProcess(payment)}
+                                                    />
                                                 </Box>
                                             </TableCell>
                                         </TableRow>
@@ -577,7 +744,7 @@ const PurchaseReturnPage = React.memo(() => {
                             </TableBody>
                         </Table>
                     </TableContainer>
-                    <Box sx={{ display: 'flex', justifyContent: 'end', alignItems: 'center' }}>
+                   <Box sx={{ display: 'flex', justifyContent: 'end', alignItems: 'center', mt: 2 }}>
                         <IconButton
                             onClick={() => handlePageChange(currentPage - 1)}
                             disabled={currentPage === 1}
@@ -585,18 +752,23 @@ const PurchaseReturnPage = React.memo(() => {
                             <ChevronLeft />
                         </IconButton>
                         <Typography variant="body1" sx={{ mx: 2 }}>
-                            Page {currentPage}
+                            Page {currentPage} of {Math.ceil(totalItems / pageSize)}
                         </Typography>
                         <IconButton
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage * pageSize >= totalItems}
+                             onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage >= Math.ceil(totalItems / pageSize)}
                         >
                             <ChevronRight />
                         </IconButton>
                     </Box>
                 </Grid>
             </Grid>
-
+ {/* GRN View Dialog */}
+            <GrnDialog
+                open={viewGrnDialogOpen}
+                onClose={() => setViewGrnDialogOpen(false)}
+                grn={selectedGrnForView}
+            />
             {/* Return Option Dialog */}
             <ReturnOptionDialog
                 open={returnOptionOpen}
@@ -625,7 +797,7 @@ const PurchaseReturnPage = React.memo(() => {
             {/* Amount-wise Return Dialog */}
             {amountWiseDialogOpen && selectedDocumentId && (
                 <AmountReturnDialog
-                    open={amountWiseDialogOpen}
+                     open={amountWiseDialogOpen}
                     onClose={handleReturnCancel}
                     onSuccess={handleReturnComplete}
                     documentId={selectedDocumentId}
@@ -636,7 +808,13 @@ const PurchaseReturnPage = React.memo(() => {
                     pageSize={pageSize}
                 />
             )}
-
+     {/* Stock Update Dialog */}
+            <ReturnStockUpdateDialog
+                open={showReturnStockUpdateDialog}
+                stockUpdates={lastReturnStockUpdates}
+                grnId={lastReturnedGrnId}
+                onClose={handleStockUpdateClose}
+            />
             {/* Download Dialog */}
             <Dialog open={openDownloadDialog} onClose={() => setOpenDownloadDialog(false)}>
                 <DialogTitle>Choose a file format</DialogTitle>

@@ -183,6 +183,7 @@ export interface ApInvoice {
   invoiceType: 'goods' | 'service';
   serviceId?: string;
   sacCode: string[];
+  serOId:string;
   descriptions: string[];
   from_dates: (Date | null)[];
   to_dates: (Date | null)[];
