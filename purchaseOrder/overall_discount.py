@@ -10,9 +10,9 @@ from purchaseOrder.models import OverallDiscountRequest
 router = APIRouter()
 
 @router.post("/items/calculate-overall-discount")
-async def calculate_overall_discount_for_items( request: Request,discountrequest: OverallDiscountRequest,user = Depends(validate_token),
+async def calculate_overall_discount_for_items( httprequest: Request,request: OverallDiscountRequest,user = Depends(validate_token),
     permissions: dict = Depends(check_permission("yenerp", "purchaseorders_pending", "edit"))) -> Dict:
-    tenant_id = request.state.tenant_id
+    tenant_id = httprequest.state.tenant_id
     try:
         items_result = []
         total_subtotal_all_items = 0
@@ -20,7 +20,7 @@ async def calculate_overall_discount_for_items( request: Request,discountrequest
         # Step 1: Calculate subtotal for each item (after tax, before overall discount)
         items_subtotals = []
         
-        for item in discountrequest.items:
+        for item in request.items:
             # Calculate total price before any discount
             total_price_before_discount = item.pendingTotalQuantity * item.newPrice
             
@@ -75,11 +75,11 @@ async def calculate_overall_discount_for_items( request: Request,discountrequest
         
         # Step 2: Calculate overall discount amount
         overall_discount_total_amount = 0
-        if discountrequest.applyOverallDiscount and total_subtotal_all_items > 0:
-            if discountrequest.overallDiscountType == "percentage" and discountrequest.overallDiscount > 0:
-                overall_discount_total_amount = total_subtotal_all_items * (discountrequest.overallDiscount / 100)
-            elif discountrequest.overallDiscountType == "amount" and discountrequest.overallDiscountAmount > 0:
-                overall_discount_total_amount = min(discountrequest.overallDiscountAmount, total_subtotal_all_items)
+        if request.applyOverallDiscount and total_subtotal_all_items > 0:
+            if request.overallDiscountType == "percentage" and request.overallDiscount > 0:
+                overall_discount_total_amount = total_subtotal_all_items * (request.overallDiscount / 100)
+            elif request.overallDiscountType == "amount" and request.overallDiscountAmount > 0:
+                overall_discount_total_amount = min(request.overallDiscountAmount, total_subtotal_all_items)
         
         overall_discount_total_amount = round(overall_discount_total_amount, 2)  # Ensure rounded to 2 decimals
         

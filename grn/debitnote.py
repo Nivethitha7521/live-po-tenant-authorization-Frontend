@@ -1,629 +1,30 @@
 # File: debitnote/routes.py
-from fastapi import APIRouter, Depends, HTTPException, Query, status,Request
-from fastapi.responses import FileResponse
-from fastapi.responses import  StreamingResponse
 import io
+from fastapi import APIRouter, Depends, HTTPException, Query, status,Request
+from fastapi.responses import  StreamingResponse
 from pydantic import BaseModel, Field, validator
-from typing import List, Literal, Optional, Dict, Any, Union
+from typing import List, Literal, Optional
 from pymongo import DESCENDING
+from middlewares.permission_middleware import check_permission
+from dependencies.auth import validate_token
 from bson import ObjectId
-import pymongo
 import logging
 import traceback
 from datetime import datetime, date
 import pytz
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch
-from reportlab.pdfgen import canvas
-import tempfile
-import requests
-import re
-from ast import parse
-from middlewares.permission_middleware import check_permission
-from dependencies.auth import validate_token
+from grn.debitnoteutils import calculate_available_amount_for_new_debit, check_debit_note_availability, format_debit_note_for_view, generate_debit_note_number, get_current_date_and_time, get_document_type_and_details, sanitize_note_for_response, update_source_document_for_debit_note
+from grn.pdfutils import generate_all_notes_pdf_content, generate_debit_note_pdf_content
 from utils.database import get_apinvoice_collection,get_outgoingpayment_collection,get_debit_collection,get_grn_collection
 from .utils import (
     get_current_ist_datetime,is_valid_object_id
 )
-from .debitmodels import DebitNote, DebitNoteResponse
-from grn.debitnoteutils import calculate_available_amount_for_new_debit, check_debit_note_availability, format_debit_note_for_view, generate_debit_note_number, get_current_date_and_time, get_document_type_and_details, sanitize_note_for_response, update_source_document_for_debit_note
-from grn.pdfutils import generate_all_notes_pdf_content, generate_debit_note_pdf_content
+from .debitmodels import CreateAmountDebitNoteRequest, CreateDebitNoteRequest, DebitNote, DebitNoteResponse, DebitNotesSummary
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# ============================================
-# MODELS
-# ============================================
-
-class DebitCreditItemRequest(BaseModel):
-    itemId: str = Field(..., description="Item ID from source document")
-    itemName: Optional[str] = None
-    noteType: Optional[str] = None
-    quantity: float = Field(..., gt=0, description="Quantity for the note")
-    reason: Optional[str] = Field(None, max_length=500, description="Reason for this debit/credit")
-
-    class Config:
-        json_encoders = {float: lambda v: round(v, 2)}
-
-
-class CreateDebitNoteRequest(BaseModel):
-    documentId: str = Field(..., description="ID of source document")
-    documentType: Literal["grn", "ap_invoice", "outgoing_payment"] = Field(..., description="Type of source document")
-    items: List[DebitCreditItemRequest] = Field(..., min_items=1)
-    createdBy: str = Field(..., min_length=1)
-    comments: Optional[str] = None
-
-
-class CreateAmountDebitNoteRequest(BaseModel):
-    documentId: str = Field(..., description="ID of source document")
-    documentType: Literal["grn", "ap_invoice", "outgoing_payment"] = Field(..., description="Type of source document")
-    totalAmount: float = Field(..., gt=0, description="Total debit amount")
-    createdBy: str = Field(..., min_length=1)
-    reason: Optional[str] = Field(None, max_length=500, description="Reason for debit")
-    comments: Optional[str] = None
-
-
-class DebitNoteHistory(BaseModel):
-    noteId: str
-    documentId: str
-    documentType: str
-    totalAmount: float
-    status: str
-    createdDate: datetime
-    createdBy: str
-    remainingPayableAmount: float
-    reason: Optional[str] = None
-    noteNumber: Optional[str] = None  # Added for sequential note number
-
-
-# ============================================
-# UTILITY FUNCTIONS
-# ============================================
-
-def get_current_date_and_time_from_api() -> datetime:
-    """
-    Fetch current date and time from API and return as datetime object with IST timezone
-    Returns: datetime object with timezone (Asia/Kolkata) in format: 2026-01-13T12:44:00+05:30
-    """
-    try:
-        response = requests.get("https://yenerp.com/liveapi/datetime", timeout=5)
-        response.raise_for_status()
-        data = response.json()
-        
-        date_str = data.get("current_date", "")  # e.g., "13-01-2026"
-        time_str = data.get("current_time", "")  # e.g., "12:44 PM"
-        
-        if not date_str or not time_str:
-            raise ValueError("Invalid response from date/time API")
-        
-        # Parse date (DD-MM-YYYY format)
-        day, month, year = map(int, date_str.split('-'))
-        
-        # Parse time (HH:MM AM/PM format)
-        if "AM" in time_str.upper() or "PM" in time_str.upper():
-            time_part = time_str.split()[0]
-            hour, minute = map(int, time_part.split(':'))
-            
-            # Convert to 24-hour format
-            time_upper = time_str.upper()
-            if "PM" in time_upper and hour != 12:
-                hour += 12
-            elif "AM" in time_upper and hour == 12:
-                hour = 0
-        else:
-            # If time is already in 24-hour format
-            hour, minute = map(int, time_str.split(':'))
-        
-        # Create datetime object with Asia/Kolkata timezone
-        ist_tz = pytz.timezone("Asia/Kolkata")
-        current_dt = ist_tz.localize(datetime(
-            year=year,
-            month=month,
-            day=day,
-            hour=hour,
-            minute=minute,
-            second=0,
-            microsecond=0
-        ))
-        
-        logger.info(f"Fetched datetime from API: {current_dt.isoformat()}")
-        return current_dt
-        
-    except Exception as e:
-        logger.error(f"Failed to fetch date/time from API: {str(e)}. Using local time.")
-        # Fallback to local time with timezone
-        ist_tz = pytz.timezone("Asia/Kolkata")
-        return ist_tz.localize(datetime.now())
-
-
-def get_current_date_and_time() -> datetime:
-    """
-    Get current date and time as datetime object with IST timezone
-    """
-    return get_current_date_and_time_from_api()
-
-
-def normalize_payment_status(status: str) -> str:
-    if not status:
-        return ""
-    return " ".join(status.strip().split()).lower()
-
-
-# ============================================
-# HELPER FUNCTIONS - DEBIT NOTE NUMBER GENERATION
-# ============================================
-
-def generate_debit_note_number(tenant_id) -> str:
-    """
-    Generate CONTINUOUS sequential debit note number for ALL note types.
-    
-    Returns: NOTE1, NOTE2, NOTE3, etc. in a single unified sequence
-    
-    This ensures both item-wise and amount-wise notes share the same sequence.
-    Example: If last note is NOTE5, next note will be NOTE6 (regardless of type)
-    """
-    try:
-        debit_collection = get_debit_collection(tenant_id)
-        
-        # Find the highest noteId with pattern NOTE<number>
-        # Use aggregation pipeline for more reliable max finding
-        pipeline = [
-            {
-                "$match": {
-                    "noteId": {"$regex": "^NOTE\\d+$"}  # Match NOTE followed by digits
-                }
-            },
-            {
-                "$project": {
-                    "noteId": 1,
-                    "numericPart": {
-                        "$toInt": {
-                            "$substr": ["$noteId", 4, -1]  # Extract number after "NOTE"
-                        }
-                    }
-                }
-            },
-            {
-                "$sort": {"numericPart": -1}
-            },
-            {
-                "$limit": 1
-            }
-        ]
-        
-        result = list(debit_collection.aggregate(pipeline))
-        
-        # Determine next number
-        if result:
-            max_number = result[0].get("numericPart", 0)
-            logger.info(f"Found highest noteId: {result[0].get('noteId')} (number: {max_number})")
-        else:
-            max_number = 0
-            logger.info("No existing noteIds found, starting from NOTE1")
-        
-        next_number = max_number + 1
-        new_note_id = f"NOTE{next_number}"
-        
-        # Safety check: Verify uniqueness (handles race conditions)
-        retry_count = 0
-        max_retries = 10
-        
-        while debit_collection.count_documents({"noteId": new_note_id}) > 0:
-            logger.warning(f"noteId {new_note_id} already exists, incrementing...")
-            next_number += 1
-            new_note_id = f"NOTE{next_number}"
-            retry_count += 1
-            
-            if retry_count >= max_retries:
-                logger.error(f"Failed to generate unique noteId after {max_retries} retries")
-                # Fallback to timestamp-based ID
-                timestamp = int(datetime.now().timestamp())
-                new_note_id = f"NOTE{timestamp}"
-                logger.warning(f"Using timestamp-based fallback: {new_note_id}")
-                break
-        
-        logger.info(f"✓ Generated new noteId: {new_note_id} (previous max: NOTE{max_number})")
-        return new_note_id
-        
-    except Exception as e:
-        logger.error(f"Error in generate_debit_note_number: {str(e)}\n{traceback.format_exc()}")
-        # Emergency fallback: timestamp-based ID
-        timestamp_id = f"NOTE{int(datetime.now().timestamp())}"
-        logger.error(f"Emergency fallback noteId: {timestamp_id}")
-        return timestamp_id
-
-
-# ============================================
-# HELPER FUNCTIONS - DEBIT NOTE VALIDATION
-# ============================================
-
-async def check_debit_note_availability(
-    tenant_id: str,
-    document_type: str,
-    document_id: str,
-    requested_amount: float
-) -> Dict[str, Any]:
-    """
-    Check if a debit note can be created for the given document.
-    
-    For outgoing_payment: Check available payable amount
-    For grn/ap_invoice: Check existing debit notes and available amount
-    """
-    try:
-        debit_collection = get_debit_collection(tenant_id)
-        
-        # Count existing debit notes for this document
-        existing_notes_query = {
-            "$or": [
-                {"documentId": document_id},
-                {"grnId": document_id},
-                {"apInvoiceId": document_id},
-                {"outgoingPaymentId": document_id}
-            ]
-        }
-        
-        existing_notes_count = debit_collection.count_documents(existing_notes_query)
-        
-        # Fetch source document
-        source_doc = None
-        original_available = 0
-        total_existing_debit = 0
-        
-        if document_type == "outgoing_payment":
-            outgoing_collection = get_outgoingpayment_collection(tenant_id)
-            source_doc = outgoing_collection.find_one({"_id": ObjectId(document_id)})
-            if not source_doc:
-                return {
-                    "can_create": False,
-                    "message": "Outgoing payment not found",
-                    "available_amount": 0,
-                    "existing_notes_count": existing_notes_count
-                }
-            
-            # Get payable amount from outgoing
-            original_payable = source_doc.get("payableAmount", 0)
-            total_payable = source_doc.get("totalPayableAmount", original_payable)
-            
-            # Calculate total existing debit for this document
-            existing_notes = list(debit_collection.find(existing_notes_query))
-            for note in existing_notes:
-                if note.get("isAmountOnly") or note.get("noteType") == "amount_only":
-                    total_existing_debit += note.get("totalAmount", note.get("debitAmount", 0))
-                else:
-                    total_existing_debit += note.get("netAmount", 0)
-            
-            # Available amount = total payable - existing debits
-            available_amount = total_payable - total_existing_debit
-            
-            if requested_amount > available_amount:
-                return {
-                    "can_create": False,
-                    "message": f"Requested amount {requested_amount} exceeds available amount {available_amount}",
-                    "available_amount": available_amount,
-                    "existing_notes_count": existing_notes_count,
-                    "total_existing_debit": total_existing_debit,
-                    "original_available": total_payable,
-                    "remaining_available": available_amount - requested_amount
-                }
-            
-            return {
-                "can_create": True,
-                "message": "Amount available for debit note",
-                "available_amount": available_amount,
-                "existing_notes_count": existing_notes_count,
-                "total_existing_debit": total_existing_debit,
-                "original_available": total_payable,
-                "remaining_available": available_amount - requested_amount
-            }
-            
-        elif document_type == "grn":
-            grn_collection = get_grn_collection(tenant_id)
-            source_doc = grn_collection.find_one({"_id": ObjectId(document_id)})
-            if not source_doc:
-                return {
-                    "can_create": False,
-                    "message": "GRN not found",
-                    "available_amount": 0,
-                    "existing_notes_count": existing_notes_count
-                }
-            
-            # For GRN, we need to check item-level availability
-            return {
-                "can_create": True,
-                "message": "GRN debit note validation passed at item level",
-                "existing_notes_count": existing_notes_count
-            }
-            
-        elif document_type == "ap_invoice":
-            ap_collection = get_apinvoice_collection(tenant_id)
-            source_doc = ap_collection.find_one({"_id": ObjectId(document_id)})
-            if not source_doc:
-                return {
-                    "can_create": False,
-                    "message": "AP Invoice not found",
-                    "available_amount": 0,
-                    "existing_notes_count": existing_notes_count
-                }
-            
-            # For AP Invoice, similar to outgoing payment
-            invoice_amount = source_doc.get("invoiceAmount", 0)
-            
-            # Calculate total existing debit
-            existing_notes = list(debit_collection.find(existing_notes_query))
-            for note in existing_notes:
-                if note.get("isAmountOnly") or note.get("noteType") == "amount_only":
-                    total_existing_debit += note.get("totalAmount", note.get("debitAmount", 0))
-                else:
-                    total_existing_debit += note.get("netAmount", 0)
-            
-            available_amount = invoice_amount - total_existing_debit
-            
-            if requested_amount > available_amount:
-                return {
-                    "can_create": False,
-                    "message": f"Requested amount {requested_amount} exceeds available amount {available_amount}",
-                    "available_amount": available_amount,
-                    "existing_notes_count": existing_notes_count,
-                    "total_existing_debit": total_existing_debit,
-                    "original_available": invoice_amount,
-                    "remaining_available": available_amount - requested_amount
-                }
-            
-            return {
-                "can_create": True,
-                "message": "Amount available for debit note",
-                "available_amount": available_amount,
-                "existing_notes_count": existing_notes_count,
-                "total_existing_debit": total_existing_debit,
-                "original_available": invoice_amount,
-                "remaining_available": available_amount - requested_amount
-            }
-            
-        else:
-            return {
-                "can_create": False,
-                "message": f"Unsupported document type: {document_type}",
-                "available_amount": 0,
-                "existing_notes_count": existing_notes_count
-            }
-            
-    except Exception as e:
-        logger.error(f"Error checking debit note availability: {str(e)}\n{traceback.format_exc()}")
-        return {
-            "can_create": False,
-            "message": f"Error checking availability: {str(e)}",
-            "available_amount": 0,
-            "existing_notes_count": 0
-        }
-
-
-async def update_source_document_for_debit_note(
-    tenant_id:str,
-    document_type: str,
-    document_id: str,
-    debit_amount: float,
-    timestamp: datetime
-) -> None:
-    """
-    Update source document when a debit note is created.
-    For outgoing_payment: Update hasDebitCreditNotes flag only
-    For grn/ap_invoice: Update hasDebitCreditNotes flag
-    """
-    try:
-        if document_type == "outgoing_payment":
-            outgoing_collection = get_outgoingpayment_collection(tenant_id)
-            update_result = outgoing_collection.update_one(
-                {"_id": ObjectId(document_id)},
-                {
-                    "$set": {
-                        "hasDebitCreditNotes": True,
-                        "lastUpdatedDate": timestamp
-                    }
-                }
-            )
-            logger.info(f"Updated outgoing payment {document_id} for debit note: {update_result.modified_count} modified")
-            
-        elif document_type == "grn":
-            grn_collection = get_grn_collection(tenant_id)
-            update_result = grn_collection.update_one(
-                {"_id": ObjectId(document_id)},
-                {
-                    "$set": {
-                        "hasDebitCreditNotes": True,
-                        "lastUpdatedDate": timestamp
-                    }
-                }
-            )
-            logger.info(f"Updated GRN {document_id} for debit note: {update_result.modified_count} modified")
-            
-        elif document_type == "ap_invoice":
-            ap_collection = get_apinvoice_collection(tenant_id)
-            update_result = ap_collection.update_one(
-                {"_id": ObjectId(document_id)},
-                {
-                    "$set": {
-                        "hasDebitCreditNotes": True,
-                        "lastUpdatedDate": timestamp
-                    }
-                }
-            )
-            logger.info(f"Updated AP invoice {document_id} for debit note: {update_result.modified_count} modified")
-            
-    except Exception as e:
-        logger.error(f"Error updating source document for debit note: {str(e)}\n{traceback.format_exc()}")
-
-
-# ============================================
-# DATA SANITIZATION FUNCTIONS
-# ============================================
-def sanitize_note_for_response(note: dict) -> dict:
-    """
-    Ensure note has all required fields for Pydantic validation.
-    Handles both item-wise and amount-only notes.
-    """
-    try:
-        # Create a copy to avoid modifying original
-        sanitized = note.copy()
-        
-        # Ensure _id exists and is string
-        if "_id" not in sanitized:
-            sanitized["_id"] = str(ObjectId())
-        else:
-            # Convert ObjectId to string if needed
-            if isinstance(sanitized["_id"], ObjectId):
-                sanitized["_id"] = str(sanitized["_id"])
-        
-        # Ensure noteId exists - use sequential noteId if available
-        if "noteId" not in sanitized:
-            sanitized["noteId"] = sanitized.get("randomId", str(sanitized["_id"]))
-        
-        # Determine note type
-        is_amount_only = (
-            sanitized.get("isAmountOnly", False) or 
-            sanitized.get("noteType") == "amount_only" or
-            sanitized.get("noteType") == "Amount Only" or
-            (sanitized.get("itemDetails") and len(sanitized["itemDetails"]) == 0 and sanitized.get("totalAmount") > 0)
-        )
-        
-        # Ensure itemDetails is a list
-        if "itemDetails" not in sanitized or not isinstance(sanitized["itemDetails"], list):
-            sanitized["itemDetails"] = []
-        
-        # For amount-only notes, create a dummy item if needed
-        if is_amount_only and len(sanitized["itemDetails"]) == 0:
-            sanitized["itemDetails"] = [{
-                "itemId": sanitized.get("documentId", sanitized["_id"]),
-                "itemName": f"Amount Adjustment - {sanitized.get('reason', 'Discount/Return')}",
-                "noteType": sanitized.get("noteType", "debit"),
-                "quantity": 1.0,
-                "uom": "NOS",
-                "unitPrice": sanitized.get("totalAmount", sanitized.get("debitAmount", 0)),
-                "totalPrice": sanitized.get("totalAmount", sanitized.get("debitAmount", 0)),
-                "finalPrice": sanitized.get("totalAmount", sanitized.get("debitAmount", 0)),
-                "reason": sanitized.get("reason", ""),
-                "isAmountOnly": True,
-                "taxAmount": 0.0,
-                "discountAmount": 0.0,
-                "taxPercentage": 0.0,
-                "discountPercentage": 0.0
-            }]
-        
-        # Ensure item details have required fields
-        for item in sanitized["itemDetails"]:
-            if "uom" not in item:
-                item["uom"] = "NOS"
-            if "noteType" not in item:
-                item["noteType"] = sanitized.get("noteType", "debit")
-            if "isAmountOnly" not in item:
-                item["isAmountOnly"] = is_amount_only
-        
-        # Ensure numeric fields exist with defaults
-        numeric_fields = ["totalAmount", "totalTax", "totalDiscount", "finalAmount", "debitAmount"]
-        for field in numeric_fields:
-            if field not in sanitized or sanitized[field] is None:
-                if field == "totalAmount" and is_amount_only:
-                    sanitized[field] = sanitized.get("debitAmount", 0.0)
-                else:
-                    sanitized[field] = 0.0
-        
-        # Ensure finalAmount exists
-        if "finalAmount" not in sanitized or sanitized["finalAmount"] is None:
-            sanitized["finalAmount"] = sanitized.get("totalAmount", 0.0)
-        
-        # Ensure other required fields
-        if "vendorName" not in sanitized:
-            sanitized["vendorName"] = "Unknown Vendor"
-        
-        if "status" not in sanitized:
-            sanitized["status"] = "Active"
-        
-        if "noteType" not in sanitized:
-            sanitized["noteType"] = "debit" if is_amount_only else "item_wise"
-        
-        if "returnDate" not in sanitized:
-            sanitized["returnDate"] = sanitized.get("createdDate", datetime.now()).isoformat()
-        
-        if "randomId" not in sanitized:
-            sanitized["randomId"] = sanitized.get("noteId", str(sanitized["_id"]))
-        
-        # Ensure paymentHistory exists
-        if "paymentHistory" not in sanitized:
-            sanitized["paymentHistory"] = []
-        
-        # Ensure pendingAmount exists
-        if "pendingAmount" not in sanitized:
-            sanitized["pendingAmount"] = 0.0
-        
-        # Add fields for Pydantic model
-        if "documentId" not in sanitized:
-            sanitized["documentId"] = sanitized.get("grnId") or sanitized.get("outgoingPaymentId") or sanitized.get("apInvoiceId")
-        
-        if "documentType" not in sanitized:
-            # Try to infer from existing fields
-            if sanitized.get("grnId"):
-                sanitized["documentType"] = "grn"
-            elif sanitized.get("outgoingPaymentId"):
-                sanitized["documentType"] = "outgoing_payment"
-            elif sanitized.get("apInvoiceId"):
-                sanitized["documentType"] = "ap_invoice"
-            else:
-                sanitized["documentType"] = "unknown"
-        
-        sanitized["isAmountOnly"] = is_amount_only
-        
-        if "remainingPayableAmount" not in sanitized:
-            sanitized["remainingPayableAmount"] = None
-        
-        if "reason" not in sanitized:
-            sanitized["reason"] = ""
-        
-        # Ensure createdDate and lastUpdatedDate are datetime objects
-        if "createdDate" in sanitized and isinstance(sanitized["createdDate"], str):
-            try:
-                sanitized["createdDate"] = datetime.fromisoformat(sanitized["createdDate"].replace("Z", "+00:00"))
-            except:
-                sanitized["createdDate"] = datetime.now()
-        
-        if "lastUpdatedDate" in sanitized and isinstance(sanitized["lastUpdatedDate"], str):
-            try:
-                sanitized["lastUpdatedDate"] = datetime.fromisoformat(sanitized["lastUpdatedDate"].replace("Z", "+00:00"))
-            except:
-                sanitized["lastUpdatedDate"] = datetime.now()
-        
-        return sanitized
-        
-    except Exception as e:
-        logger.error(f"Error sanitizing note: {str(e)}\n{traceback.format_exc()}")
-        # Return minimal valid structure
-        current_time = datetime.now()
-        return {
-            "_id": str(ObjectId()),
-            "noteId": note.get("noteId", str(ObjectId())),
-            "grnId": note.get("documentId", str(ObjectId())),
-            "vendorName": "Unknown Vendor",
-            "itemDetails": [],
-            "createdDate": current_time,
-            "createdBy": "system",
-            "lastUpdatedDate": current_time,
-            "totalAmount": note.get("totalAmount", 0.0),
-            "totalTax": note.get("totalTax", 0.0),
-            "totalDiscount": note.get("totalDiscount", 0.0),
-            "finalAmount": note.get("totalAmount", note.get("finalAmount", 0.0)),
-            "noteType": "debit",
-            "status": "Active",
-            "returnDate": current_time.isoformat(),
-            "randomId": note.get("noteId", str(ObjectId())),
-            "paymentHistory": [],
-            "pendingAmount": 0.0,
-            "documentId": note.get("documentId", str(ObjectId())),
-            "documentType": "unknown",
-            "isAmountOnly": True,
-            "remainingPayableAmount": None,
-            "reason": "",
-            "debitAmount": note.get("debitAmount", 0.0)
-        }
 # ============================================
 # ROUTES
 # ============================================
@@ -631,7 +32,6 @@ def sanitize_note_for_response(note: dict) -> dict:
 @router.post("/returnprocess/AmountDebitNote/create")
 async def create_amount_debit_note(http_request: Request,request: CreateAmountDebitNoteRequest):
     tenant_id = http_request.state.tenant_id
-
     """
     Create amount-only debit note for GRN, AP Invoice, or Outgoing Payment
     WITH VALIDATION: Checks available payable amount and existing debit notes
@@ -817,11 +217,9 @@ async def create_amount_debit_note(http_request: Request,request: CreateAmountDe
 
 
 @router.post("/returnprocess/DebitCreditNote/create", response_model=DebitNoteResponse)
-async def create_debit_credit_note(http_request: Request,request: CreateDebitNoteRequest,
-    user = Depends(validate_token),
+async def create_debit_credit_note(http_request: Request,request: CreateDebitNoteRequest, user = Depends(validate_token),
     permissions: dict = Depends(check_permission("yenerp", "grns", "add"))):
     tenant_id = http_request.state.tenant_id
-
     """
     Create Debit/Credit Note with proper handling:
     - GRN: Item-wise returns with quantity reduction
@@ -962,8 +360,7 @@ async def create_debit_credit_note(http_request: Request,request: CreateDebitNot
                     net_amount -= amount
             
             # Check availability for the net amount
-            availability_check = await check_debit_note_availability(
-                tenant_id,
+            availability_check = await check_debit_note_availability(tenant_id,
                 request.documentType,
                 request.documentId,
                 net_amount
@@ -1089,8 +486,7 @@ async def create_debit_credit_note(http_request: Request,request: CreateDebitNot
             )
         else:
             # For amount-only notes, update source document WITHOUT modifying financial amounts
-            await update_source_document_for_debit_note(
-                tenant_id,
+            await update_source_document_for_debit_note(tenant_id,
                 request.documentType,
                 request.documentId,
                 net_amount,
@@ -1376,8 +772,7 @@ async def get_debit_credit_notes_by_document(request:Request,
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 @router.get("/vendor/{vendor_name}/active-debits")
-async def get_vendor_active_debits(request:Request,vendor_name: str,
-    user = Depends(validate_token),
+async def get_vendor_active_debits(request:Request,vendor_name: str,user = Depends(validate_token),
     permissions: dict = Depends(check_permission("yenerp", "grns", "read"))):
     tenant_id = request.state.tenant_id
     debit_collection = get_debit_collection(tenant_id)
@@ -1569,8 +964,150 @@ async def get_debit_note_details(request:Request,note_id: str):
         logger.error(f"Error getting debit note details: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
     
-
-
+@router.get("/returnprocess/debitnotes/view/{document_id}", response_model=DebitNotesSummary)
+async def get_debit_notes_comprehensive_view(request: Request, 
+    document_id: str,
+    include_cleared: bool = Query(True, description="Include cleared debit notes"),
+    include_active: bool = Query(True, description="Include active debit notes")
+):
+    tenant_id = request.state.tenant_id
+    """
+    Get comprehensive view of all debit notes for a document
+    Shows both amount-wise and item-wise debit notes with status and details
+    """
+    try:
+        if not is_valid_object_id(document_id):
+            # Try to find by randomId
+            debit_collection = get_debit_collection(tenant_id)
+            
+            # First, try to find if this is a noteId
+            note = debit_collection.find_one({"noteId": document_id})
+            if note:
+                # If it's a noteId, get the actual documentId
+                document_id = note.get("documentId") or note.get("grnId") or note.get("apInvoiceId") or note.get("outgoingPaymentId")
+                if not document_id:
+                    raise HTTPException(status_code=400, detail="Could not determine source document ID")
+            
+            # Try to find by randomId in source documents
+            else:
+                grn_collection = get_grn_collection(tenant_id)
+                grn = grn_collection.find_one({"randomId": document_id})
+                if grn:
+                    document_id = str(grn["_id"])
+                
+                else:
+                    ap_collection = get_apinvoice_collection(tenant_id)
+                    ap_invoice = ap_collection.find_one({"randomId": document_id})
+                    if ap_invoice:
+                        document_id = str(ap_invoice["_id"])
+                    
+                    else:
+                        outgoing_collection = get_outgoingpayment_collection(tenant_id)
+                        outgoing = outgoing_collection.find_one({"randomId": document_id})
+                        if outgoing:
+                            document_id = str(outgoing["_id"])
+        
+        # Get document type and details
+        document_type, vendor_name, source_doc_ref = get_document_type_and_details(tenant_id,document_id)
+        
+        if document_type == "unknown":
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Build query for all debit notes related to this document
+        query = {
+            "$or": [
+                {"documentId": document_id},
+                {"grnId": document_id},
+                {"apInvoiceId": document_id},
+                {"outgoingPaymentId": document_id}
+            ]
+        }
+        
+        # Filter by status if requested
+        status_filter = {}
+        if not include_cleared and not include_active:
+            raise HTTPException(status_code=400, detail="At least one of include_cleared or include_active must be True")
+        
+        if not include_cleared:
+            status_filter = {"status": {"$ne": "Cleared"}}
+        elif not include_active:
+            status_filter = {"status": "Cleared"}
+        
+        if status_filter:
+            query = {"$and": [query, status_filter]}
+        
+        # Fetch all debit notes
+        debit_collection = get_debit_collection(tenant_id)
+        all_notes_cursor = debit_collection.find(query).sort("createdDate", DESCENDING)
+        all_notes = list(all_notes_cursor)
+        
+        if not all_notes:
+            return DebitNotesSummary(
+                documentId=document_id,
+                documentType=document_type,
+                totalActiveDebitNotes=0,
+                totalClearedDebitNotes=0,
+                totalAmount=0,
+                totalPendingAmount=0,
+                totalClearedAmount=0,
+                activeDebitNotes=[],
+                clearedDebitNotes=[]
+            )
+        
+        current_datetime = get_current_date_and_time()
+        
+        # Separate active and cleared notes
+        active_notes = []
+        cleared_notes = []
+        
+        for note in all_notes:
+            formatted_note = format_debit_note_for_view(tenant_id, note, current_datetime)
+            
+            if note.get("status") == "Cleared":
+                cleared_notes.append(formatted_note)
+            else:
+                active_notes.append(formatted_note)
+        
+        # Calculate totals
+        total_amount = 0
+        total_pending_amount = 0
+        total_cleared_amount = 0
+        
+        for note in all_notes:
+            note_amount = note.get("finalAmount", note.get("totalAmount", 0))
+            total_amount += note_amount
+            
+            if note.get("status") == "Cleared":
+                total_cleared_amount += note_amount
+            else:
+                total_pending_amount += note.get("pendingAmount", note_amount)
+        
+        # Calculate available amount for new debit note
+        total_existing_debit = total_amount
+        available_for_new_debit = calculate_available_amount_for_new_debit(tenant_id,
+            document_type, 
+            document_id, 
+            total_existing_debit
+        )
+        
+        return DebitNotesSummary(
+            documentId=document_id,
+            documentType=document_type,
+            totalActiveDebitNotes=len(active_notes),
+            totalClearedDebitNotes=len(cleared_notes),
+            totalAmount=round(total_amount, 2),
+            totalPendingAmount=round(total_pending_amount, 2),
+            totalClearedAmount=round(total_cleared_amount, 2),
+            activeDebitNotes=active_notes,
+            clearedDebitNotes=cleared_notes,
+            availableForNewDebit=round(available_for_new_debit, 2)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting comprehensive debit notes view: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 @router.get("/returnprocess/debitnotes/summary/{vendor_name}")
 async def get_vendor_debit_notes_summary(request:Request,vendor_name: str):
     tenant_id = request.state.tenant_id
@@ -1660,422 +1197,159 @@ async def get_vendor_debit_notes_summary(request:Request,vendor_name: str):
     except Exception as e:
         logger.error(f"Error getting vendor debit notes summary: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
 @router.get("/returnprocess/debitnotes/comprehensive/{document_id}")
 async def get_comprehensive_debit_notes(request:Request,
     document_id: str,
-    document_type: str = Query(..., description="Type of document: grn, ap_invoice, or outgoing_payment"),
     include_cleared: bool = Query(True, description="Include cleared debit notes"),
     include_active: bool = Query(True, description="Include active debit notes")
 ):
     tenant_id = request.state.tenant_id
     """
     Get comprehensive view of ALL debit notes for a document
-    WITH GRN CHAINING FOR AP INVOICES
-    Returns cleaned response with noteId and source document reference
+    Returns all notes (both item-wise and amount-only) with full details
     """
     try:
-        print(f"🔍 Comprehensive query for {document_type}: {document_id}")
-        
-        if document_type not in ["grn", "ap_invoice", "outgoing_payment"]:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Invalid document_type: {document_type}"
-            )
-        
-        # Get the actual document
-        found_doc = None
-        found_document_id = document_id
-        vendor_name = ""
-        source_doc_random_id = ""
-        related_grn_id = None
-        
-        if document_type == "grn":
-            grn_collection = get_grn_collection(tenant_id)
-            # Try by ObjectId
-            if len(document_id) == 24:
-                try:
-                    found_doc = grn_collection.find_one({"_id": ObjectId(document_id)})
-                except:
-                    pass
+        if not is_valid_object_id(document_id):
+            # Try to find by randomId or noteId
+            debit_collection = get_debit_collection(tenant_id)
+            
+            # Try to find if this is a noteId
+            note = debit_collection.find_one({"noteId": document_id})
+            if note:
+                document_id = note.get("documentId") or note.get("grnId") or note.get("apInvoiceId") or note.get("outgoingPaymentId")
+                if not document_id:
+                    raise HTTPException(status_code=400, detail="Could not determine source document ID")
+            
             # Try by randomId
-            if not found_doc:
-                found_doc = grn_collection.find_one({"randomId": document_id})
-            
-        elif document_type == "ap_invoice":
-            ap_collection = get_apinvoice_collection(tenant_id)
-            # Try by ObjectId
-            if len(document_id) == 24:
-                try:
-                    found_doc = ap_collection.find_one({"_id": ObjectId(document_id)})
-                except:
-                    pass
-            # Try by randomId
-            if not found_doc:
-                found_doc = ap_collection.find_one({"randomId": document_id})
-            
-            # For AP Invoice, get the GRN ID if it exists
-            if found_doc:
-                related_grn_id = found_doc.get("grnId")
-                print(f"📌 AP Invoice has GRN ID: {related_grn_id}")
-            
-        elif document_type == "outgoing_payment":
-            outgoing_collection = get_outgoingpayment_collection(tenant_id)
-            # Try by ObjectId
-            if len(document_id) == 24:
-                try:
-                    found_doc = outgoing_collection.find_one({"_id": ObjectId(document_id)})
-                except:
-                    pass
-            # Try by randomId
-            if not found_doc:
-                found_doc = outgoing_collection.find_one({"randomId": document_id})
-        
-        if not found_doc:
-            raise HTTPException(
-                status_code=404,
-                detail=f"{document_type.replace('_', ' ').title()} not found with ID: {document_id}"
-            )
-        
-        # Get document details
-        found_document_id = str(found_doc["_id"])
-        vendor_name = found_doc.get("vendorName", "")
-        source_doc_random_id = found_doc.get("randomId", "")
-        
-        print(f"✅ Found {document_type}: {source_doc_random_id}, Vendor: {vendor_name}")
-        if related_grn_id:
-            print(f"📌 Related GRN ID: {related_grn_id}")
-        
-        # Build COMPREHENSIVE query for debit notes
-        debit_collection = get_debit_collection(tenant_id)
-        query_conditions = []
-        
-        # Search by all possible references
-        query_conditions.append({"documentId": found_document_id})
-        query_conditions.append({"documentId": document_id})
-        
-        # Search by type-specific fields
-        if document_type == "grn":
-            query_conditions.append({"grnId": found_document_id})
-            query_conditions.append({"grnId": document_id})
-            
-        elif document_type == "ap_invoice":
-            query_conditions.append({"apInvoiceId": found_document_id})
-            query_conditions.append({"apInvoiceId": document_id})
-            
-            # For AP Invoice, also search by its GRN ID
-            if related_grn_id:
-                print(f"🔍 Also searching debit notes by GRN ID: {related_grn_id}")
-                query_conditions.append({"grnId": related_grn_id})
+            else:
+                grn_collection = get_grn_collection(tenant_id)
+                grn = grn_collection.find_one({"randomId": document_id})
+                if grn:
+                    document_id = str(grn["_id"])
                 
-                # Also search by GRN documentId
-                try:
-                    grn_collection = get_grn_collection(tenant_id)
-                    grn_doc = grn_collection.find_one({"_id": ObjectId(related_grn_id)})
-                    if grn_doc:
-                        grn_document_id = str(grn_doc["_id"])
-                        query_conditions.append({"documentId": grn_document_id})
-                        print(f"🔍 Also searching by GRN documentId: {grn_document_id}")
-                except:
-                    pass
-                
-        elif document_type == "outgoing_payment":
-            query_conditions.append({"outgoingPaymentId": found_document_id})
-            query_conditions.append({"outgoingPaymentId": document_id})
+                else:
+                    ap_collection = get_apinvoice_collection(tenant_id)
+                    ap_invoice = ap_collection.find_one({"randomId": document_id})
+                    if ap_invoice:
+                        document_id = str(ap_invoice["_id"])
+                    
+                    else:
+                        outgoing_collection = get_outgoingpayment_collection(tenant_id)
+                        outgoing = outgoing_collection.find_one({"randomId": document_id})
+                        if outgoing:
+                            document_id = str(outgoing["_id"])
         
-        # Build final query
-        query = {"$or": query_conditions}
-        print(f"🔍 Final query: {query}")
+        # Get ALL debit notes for this document
+        query = {
+            "$or": [
+                {"documentId": document_id},
+                {"grnId": document_id},
+                {"apInvoiceId": document_id},
+                {"outgoingPaymentId": document_id}
+            ]
+        }
         
         # Filter by status if requested
+        status_filter = {}
         if not include_cleared and not include_active:
             raise HTTPException(status_code=400, detail="At least one of include_cleared or include_active must be True")
         
         if not include_cleared:
-            query["status"] = {"$ne": "Cleared"}
+            status_filter = {"status": {"$ne": "Cleared"}}
         elif not include_active:
-            query["status"] = "Cleared"
+            status_filter = {"status": "Cleared"}
         
-        # Execute query
+        if status_filter:
+            query = {"$and": [query, status_filter]}
+        
+        # Fetch ALL debit notes
+        debit_collection = get_debit_collection(tenant_id)
         all_notes_cursor = debit_collection.find(query).sort("createdDate", DESCENDING)
         all_notes = list(all_notes_cursor)
         
-        print(f"📊 Found {len(all_notes)} debit notes")
+        if not all_notes:
+            return {
+                "documentId": document_id,
+                "totalNotes": 0,
+                "itemWiseNotes": 0,
+                "amountOnlyNotes": 0,
+                "activeNotes": 0,
+                "clearedNotes": 0,
+                "totalAmount": 0,
+                "pendingAmount": 0,
+                "clearedAmount": 0,
+                "notes": [],
+                "summary": {
+                    "documentId": document_id,
+                    "documentType": "unknown",
+                    "vendorName": "Unknown",
+                    "totalActiveDebitNotes": 0,
+                    "totalClearedDebitNotes": 0,
+                    "totalAmount": 0,
+                    "totalPendingAmount": 0,
+                    "totalClearedAmount": 0
+                }
+            }
         
-        # Calculate original document amount
-        original_amount = 0
-        try:
-            if document_type == "grn":
-                original_amount = found_doc.get("grandTotal", 0) or found_doc.get("totalReceivedAmount", 0) or 0
-            elif document_type == "ap_invoice":
-                original_amount = found_doc.get("invoiceAmount", 0) or found_doc.get("payableAmount", 0) or 0
-            elif document_type == "outgoing_payment":
-                original_amount = found_doc.get("totalPayableAmount", 0) or found_doc.get("payableAmount", 0) or 0
-        except:
-            original_amount = 0
-        
-        # Format notes
+        # Format all notes
         current_datetime = get_current_date_and_time()
         formatted_notes = []
-        total_amount = 0
-        item_wise_count = 0
-        amount_only_count = 0
-        active_count = 0
-        cleared_count = 0
         
         for note in all_notes:
-            try:
-                # Sanitize note first
-                sanitized_note = sanitize_note_for_response(note)
-                
-                # Get noteId (sequential NOTE1, NOTE2, etc.)
-                note_id = sanitized_note.get("noteId", "")
-                
-                # If noteId is missing or is ObjectId, generate a display ID
-                if not note_id or len(note_id) == 24:
-                    # Create a display ID based on timestamp or sequence
-                    created_date = sanitized_note.get("createdDate", datetime.now())
-                    if isinstance(created_date, str):
-                        try:
-                            created_date = datetime.fromisoformat(created_date.replace('Z', '+00:00'))
-                        except:
-                            created_date = datetime.now()
-                    note_id = f"DN-{created_date.strftime('%Y%m%d')}-{len(formatted_notes)+1}"
-                
-                # Calculate note amount
-                if sanitized_note.get("isAmountOnly", False):
-                    note_amount = sanitized_note.get("totalAmount", sanitized_note.get("debitAmount", 0))
-                    note_type_display = "amount_only"
-                    amount_only_count += 1
-                else:
-                    note_amount = sanitized_note.get("netAmount", sanitized_note.get("finalAmount", 0))
-                    note_type_display = "item_wise"
-                    item_wise_count += 1
-                
-                total_amount += note_amount
-                
-                # Determine status and count
-                status = sanitized_note.get("status", "Active")
-                if status == "Cleared":
-                    cleared_count += 1
-                else:
-                    active_count += 1
-                
-                # Format created date
-                created_date = sanitized_note.get("createdDate", datetime.now())
-                if isinstance(created_date, str):
-                    try:
-                        created_date = datetime.fromisoformat(created_date.replace('Z', '+00:00'))
-                    except:
-                        created_date = datetime.now()
-                
-                created_date_formatted = created_date.strftime("%d %B %Y")
-                aging_days = (current_datetime - created_date).days
-                
-                # Get items
-                items = []
-                item_details = sanitized_note.get("itemDetails", [])
-                if note_type_display == "amount_only":
-                    # Single item for amount-only notes
-                    items.append({
-                        "itemName": f"Amount Adjustment - {sanitized_note.get('reason', 'Discount/Return')}",
-                        "noteType": "debit",
-                        "quantity": 1,
-                        "unitPrice": note_amount,
-                        "totalPrice": note_amount,
-                        "finalPrice": note_amount,
-                        "reason": sanitized_note.get("reason", ""),
-                        "isAmountOnly": True
-                    })
-                elif item_details:
-                    # Multiple items for item-wise notes
-                    for item in item_details:
-                        items.append({
-                            "itemId": item.get("itemId", ""),
-                            "itemName": item.get("itemName", ""),
-                            "noteType": item.get("noteType", "debit"),
-                            "quantity": item.get("quantity", 0),
-                            "unitPrice": item.get("unitPrice", 0),
-                            "totalPrice": item.get("totalPrice", 0),
-                            "finalPrice": item.get("finalPrice", item.get("totalPrice", 0)),
-                            "reason": item.get("reason", sanitized_note.get("reason", "")),
-                            "isAmountOnly": item.get("isAmountOnly", False)
-                        })
-                
-                # Build clean note response WITHOUT ObjectIds
-                clean_note = {
-                    "noteId": note_id,  # Sequential ID like NOTE1, NOTE2
-                    "noteNumber": note_id,  # Same as noteId
-                    "sourceDocumentRef": source_doc_random_id,  # Original document reference
-                    "documentType": document_type,
-                    "vendorName": vendor_name,
-                    "status": status,
-                    "noteType": note_type_display,
-                    "isAmountOnly": note_type_display == "amount_only",
-                    "totalAmount": round(note_amount, 2),
-                    "finalAmount": round(note_amount, 2),
-                    "pendingAmount": round(sanitized_note.get("pendingAmount", note_amount), 2),
-                    "remainingPayableAmount": round(sanitized_note.get("remainingPayableAmount", 0), 2) if sanitized_note.get("remainingPayableAmount") else None,
-                    "createdDate": created_date.isoformat(),
-                    "createdBy": sanitized_note.get("createdBy", "system"),
-                    "createdDateFormatted": created_date_formatted,
-                    "agingDays": aging_days,
-                    "clearedAgainstOutgoing": sanitized_note.get("clearedAgainstOutgoing"),
-                    "clearedBy": sanitized_note.get("clearedBy"),
-                    "clearedDate": sanitized_note.get("clearedDate"),
-                    "items": items,
-                    "paymentHistory": sanitized_note.get("paymentHistory", []),
-                    "reason": sanitized_note.get("reason"),
-                    "comments": sanitized_note.get("comments")
-                }
-                
-                formatted_notes.append(clean_note)
-                print(f"  - Note: {note_id} (Type: {note_type_display}, Amount: {note_amount})")
-                
-            except Exception as e:
-                print(f"❌ Error formatting note: {str(e)}\n{traceback.format_exc()}")
-                continue
+            formatted_note = format_debit_note_for_view(tenant_id,note, current_datetime)
+            formatted_notes.append(formatted_note.dict())
+        
+        # Calculate statistics
+        total_notes = len(formatted_notes)
+        item_wise_count = sum(1 for n in formatted_notes if n.get("noteType") == "item_wise")
+        amount_only_count = sum(1 for n in formatted_notes if n.get("noteType") == "amount_only")
+        active_count = sum(1 for n in formatted_notes if n.get("status") != "Cleared")
+        cleared_count = sum(1 for n in formatted_notes if n.get("status") == "Cleared")
+        
+        total_amount = sum(n.get("finalAmount", 0) for n in formatted_notes)
+        pending_amount = sum(n.get("pendingAmount", 0) for n in formatted_notes)
+        cleared_amount = sum(n.get("finalAmount", 0) for n in formatted_notes if n.get("status") == "Cleared")
+        
+        # Get document type and details
+        doc_type, vendor_name, _ = get_document_type_and_details(tenant_id,document_id)
         
         # Calculate available amount for new debit note
-        available_for_new_debit = max(0, original_amount - total_amount)
+        available_for_new = calculate_available_amount_for_new_debit(tenant_id,
+            doc_type, 
+            document_id, 
+            total_amount
+        )
         
-        print(f"✅ Summary - Total: {total_amount}, Available: {available_for_new_debit}")
-        
-        # Return clean response
         return {
-            "success": True,
-            "sourceDocument": {
-                "reference": source_doc_random_id,
-                "type": document_type,
-                "vendorName": vendor_name,
-                "originalAmount": round(original_amount, 2)
-            },
+            "documentId": document_id,
+            "totalNotes": total_notes,
+            "itemWiseNotes": item_wise_count,
+            "amountOnlyNotes": amount_only_count,
+            "activeNotes": active_count,
+            "clearedNotes": cleared_count,
+            "totalAmount": round(total_amount, 2),
+            "pendingAmount": round(pending_amount, 2),
+            "clearedAmount": round(cleared_amount, 2),
+            "availableForNewDebit": round(available_for_new, 2),
+            "notes": formatted_notes,
             "summary": {
-                "totalNotes": len(formatted_notes),
-                "itemWiseNotes": item_wise_count,
-                "amountOnlyNotes": amount_only_count,
-                "activeNotes": active_count,
-                "clearedNotes": cleared_count,
-                "totalDebitAmount": round(total_amount, 2),
-                "availableForNewDebit": round(available_for_new_debit, 2),
-                "remainingAmount": round(original_amount - total_amount, 2)
-            },
-            "notes": formatted_notes  # Contains only noteId, no ObjectIds
+                "documentId": document_id,
+                "documentType": doc_type,
+                "vendorName": vendor_name,
+                "totalActiveDebitNotes": active_count,
+                "totalClearedDebitNotes": cleared_count,
+                "totalAmount": round(total_amount, 2),
+                "totalPendingAmount": round(pending_amount, 2),
+                "totalClearedAmount": round(cleared_amount, 2),
+                "availableForNewDebit": round(available_for_new, 2)
+            }
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error in get_comprehensive_debit_notes: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
-    
-@router.get("/returnprocess/debitnotes/for-ap-invoice/{ap_invoice_id}")
-async def get_debit_notes_for_ap_invoice(request:Request,
-    ap_invoice_id: str,
-    include_cleared: bool = Query(True, description="Include cleared debit notes"),
-    include_active: bool = Query(True, description="Include active debit notes")
-):
-    tenant_id = request.state.tenant_id
-    """
-    Get debit notes for AP Invoice (including through GRN chain)
-    """
-    try:
-        print(f"🔍 Getting debit notes for AP Invoice: {ap_invoice_id}")
-        
-        ap_collection = get_apinvoice_collection(tenant_id)
-        debit_collection = get_debit_collection(tenant_id)
-        
-        # Find AP Invoice
-        ap_invoice = None
-        # Try by ObjectId
-        if len(ap_invoice_id) == 24:
-            try:
-                ap_invoice = ap_collection.find_one({"_id": ObjectId(ap_invoice_id)})
-            except:
-                pass
-        # Try by randomId
-        if not ap_invoice:
-            ap_invoice = ap_collection.find_one({"randomId": ap_invoice_id})
-        
-        if not ap_invoice:
-            raise HTTPException(status_code=404, detail="AP Invoice not found")
-        
-        ap_document_id = str(ap_invoice["_id"])
-        vendor_name = ap_invoice.get("vendorName", "")
-        random_id = ap_invoice.get("randomId", "")
-        grn_id = ap_invoice.get("grnId")
-        
-        print(f"✅ Found AP Invoice: {random_id}, GRN ID: {grn_id}")
-        
-        # Build query - search by AP Invoice ID AND GRN ID
-        query_conditions = []
-        
-        # Direct AP Invoice references
-        query_conditions.append({"apInvoiceId": ap_document_id})
-        query_conditions.append({"documentId": ap_document_id})
-        
-        # Also search by original query ID
-        query_conditions.append({"apInvoiceId": ap_invoice_id})
-        query_conditions.append({"documentId": ap_invoice_id})
-        
-        # Search by GRN ID if AP Invoice has one
-        if grn_id:
-            print(f"🔍 Searching debit notes by GRN ID: {grn_id}")
-            query_conditions.append({"grnId": grn_id})
-            
-            # Also try to find GRN document ID
-            grn_collection = get_grn_collection(tenant_id)
-            grn_doc = grn_collection.find_one({"_id": ObjectId(grn_id)})
-            if grn_doc:
-                grn_document_id = str(grn_doc["_id"])
-                query_conditions.append({"documentId": grn_document_id})
-                print(f"🔍 Also searching by GRN documentId: {grn_document_id}")
-        
-        query = {"$or": query_conditions}
-        print(f"🔍 Query: {query}")
-        
-        # Filter by status
-        if not include_cleared and not include_active:
-            raise HTTPException(status_code=400, detail="At least one of include_cleared or include_active must be True")
-        
-        if not include_cleared:
-            query["status"] = {"$ne": "Cleared"}
-        elif not include_active:
-            query["status"] = "Cleared"
-        
-        # Execute query
-        notes_cursor = debit_collection.find(query).sort("createdDate", DESCENDING)
-        notes = list(notes_cursor)
-        
-        print(f"📊 Found {len(notes)} debit notes")
-        
-        # Format notes
-        current_datetime = get_current_date_and_time()
-        formatted_notes = []
-        
-        for note in notes:
-            try:
-                formatted_note = format_debit_note_for_view(tenant_id,note, current_datetime)
-                formatted_notes.append(formatted_note.dict())
-            except:
-                continue
-        
-        # Calculate statistics
-        total_amount = sum(n.get("finalAmount", 0) for n in formatted_notes)
-        
-        return {
-            "documentId": ap_document_id,
-            "documentType": "ap_invoice",
-            "vendorName": vendor_name,
-            "randomId": random_id,
-            "grnId": grn_id,
-            "notes": formatted_notes,
-            "totalNotes": len(formatted_notes),
-            "totalAmount": round(total_amount, 2),
-            "searchMethod": "ap_invoice_with_grn_chain"
-        }
-        
-    except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        logger.error(f"Error getting comprehensive debit notes: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 @router.get("/returnprocess/debitnotes/note/{note_id}")
 async def get_specific_debit_note_details(request:Request,note_id: str):
@@ -2227,166 +1501,23 @@ async def generate_debit_note_pdf(request:Request,note_id: str):
         logger.error(f"Error generating PDF: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
 
+
 @router.get("/returnprocess/DebitCreditNote/pdf-all/{document_id}")
-async def generate_all_debit_notes_pdf(request:Request,
-    document_id: str,
-    document_type: Optional[str] = Query(None, description="Type of document: grn, ap_invoice, or outgoing_payment")
-):
+async def generate_all_debit_notes_pdf(request:Request,document_id: str):
     tenant_id = request.state.tenant_id
     """
     Generate PDF containing all debit notes for a document
-    WITH COMPREHENSIVE SEARCH (like the comprehensive endpoint)
     """
     try:
-        print(f"📄 Generating PDF for all debit notes for document: {document_id}")
-        
-        # If document_type is not provided, try to detect it
-        if not document_type:
-            print(f"⚠️ document_type not provided, attempting to detect...")
-            # Try to detect document type
-            collections = [
-                ("grn", get_grn_collection(tenant_id)),
-                ("ap_invoice", get_apinvoice_collection(tenant_id)),
-                ("outgoing_payment", get_outgoingpayment_collection(tenant_id))
+        # Build query for all debit notes
+        query = {
+            "$or": [
+                {"documentId": document_id},
+                {"grnId": document_id},
+                {"apInvoiceId": document_id},
+                {"outgoingPaymentId": document_id}
             ]
-            
-            for doc_type_name, collection in collections:
-                # Try by ObjectId
-                if len(document_id) == 24:
-                    try:
-                        doc = collection.find_one({"_id": ObjectId(document_id)})
-                        if doc:
-                            document_type = doc_type_name
-                            print(f"✅ Detected document type: {document_type}")
-                            break
-                    except:
-                        continue
-                
-                # Try by randomId
-                doc = collection.find_one({"randomId": document_id})
-                if doc:
-                    document_type = doc_type_name
-                    print(f"✅ Detected document type: {document_type}")
-                    break
-        
-        # If still not detected, use get_document_type_and_details
-        if not document_type or document_type not in ["grn", "ap_invoice", "outgoing_payment"]:
-            document_type, vendor_name, random_id = get_document_type_and_details(tenant_id,document_id)
-        
-        print(f"📌 Final document type for PDF: {document_type}")
-        
-        # Build COMPREHENSIVE query like in the comprehensive endpoint
-        query_conditions = []
-        
-        # Always search by documentId
-        query_conditions.append({"documentId": document_id})
-        
-        # Search by type-specific fields
-        if document_type == "grn":
-            query_conditions.append({"grnId": document_id})
-        elif document_type == "ap_invoice":
-            query_conditions.append({"apInvoiceId": document_id})
-            
-            # For AP Invoice, also search by its GRN ID
-            ap_collection = get_apinvoice_collection(tenant_id)
-            ap_doc = None
-            
-            # Try by ObjectId
-            if len(document_id) == 24:
-                try:
-                    ap_doc = ap_collection.find_one({"_id": ObjectId(document_id)})
-                except:
-                    pass
-            
-            # Try by randomId
-            if not ap_doc:
-                ap_doc = ap_collection.find_one({"randomId": document_id})
-            
-            if ap_doc:
-                grn_id = ap_doc.get("grnId")
-                if grn_id:
-                    print(f"🔍 Also searching by GRN ID: {grn_id}")
-                    query_conditions.append({"grnId": grn_id})
-                    
-                    # Also search by GRN documentId
-                    try:
-                        grn_collection = get_grn_collection(tenant_id)
-                        grn_doc = grn_collection.find_one({"_id": ObjectId(grn_id)})
-                        if grn_doc:
-                            grn_document_id = str(grn_doc["_id"])
-                            query_conditions.append({"documentId": grn_document_id})
-                    except:
-                        pass
-                    
-        elif document_type == "outgoing_payment":
-            query_conditions.append({"outgoingPaymentId": document_id})
-            
-            # For outgoing payment, also search by AP Invoice and GRN
-            outgoing_collection = get_outgoingpayment_collection(tenant_id)
-            outgoing_doc = None
-            
-            # Try by ObjectId
-            if len(document_id) == 24:
-                try:
-                    outgoing_doc = outgoing_collection.find_one({"_id": ObjectId(document_id)})
-                except:
-                    pass
-            
-            # Try by randomId
-            if not outgoing_doc:
-                outgoing_doc = outgoing_collection.find_one({"randomId": document_id})
-            
-            if outgoing_doc:
-                ap_invoice_id = outgoing_doc.get("invoiceId")
-                if ap_invoice_id:
-                    # Search by AP Invoice
-                    query_conditions.append({"apInvoiceId": ap_invoice_id})
-                    
-                    # Also get GRN from AP Invoice
-                    ap_collection = get_apinvoice_collection(tenant_id)
-                    ap_invoice = ap_collection.find_one({"_id": ObjectId(ap_invoice_id)})
-                    if ap_invoice:
-                        grn_id = ap_invoice.get("grnId")
-                        if grn_id:
-                            query_conditions.append({"grnId": grn_id})
-        
-        # Also search by vendor name for completeness
-        # Get vendor name from source document
-        vendor_name = ""
-        try:
-            if document_type == "grn":
-                grn_collection = get_grn_collection(tenant_id)
-                if len(document_id) == 24:
-                    doc = grn_collection.find_one({"_id": ObjectId(document_id)})
-                else:
-                    doc = grn_collection.find_one({"randomId": document_id})
-                if doc:
-                    vendor_name = doc.get("vendorName", "")
-            elif document_type == "ap_invoice":
-                ap_collection = get_apinvoice_collection(tenant_id)
-                if len(document_id) == 24:
-                    doc = ap_collection.find_one({"_id": ObjectId(document_id)})
-                else:
-                    doc = ap_collection.find_one({"randomId": document_id})
-                if doc:
-                    vendor_name = doc.get("vendorName", "")
-            elif document_type == "outgoing_payment":
-                outgoing_collection = get_outgoingpayment_collection(tenant_id)
-                if len(document_id) == 24:
-                    doc = outgoing_collection.find_one({"_id": ObjectId(document_id)})
-                else:
-                    doc = outgoing_collection.find_one({"randomId": document_id})
-                if doc:
-                    vendor_name = doc.get("vendorName", "")
-        except:
-            pass
-        
-        if vendor_name:
-            query_conditions.append({"vendorName": vendor_name})
-        
-        # Build final query
-        query = {"$or": query_conditions}
-        print(f"🔍 PDF generation query: {query}")
+        }
         
         # Fetch all debit notes
         debit_collection = get_debit_collection(tenant_id)
@@ -2395,82 +1526,29 @@ async def generate_all_debit_notes_pdf(request:Request,
         if not all_notes:
             raise HTTPException(status_code=404, detail="No debit notes found for this document")
         
-        print(f"📊 Found {len(all_notes)} debit notes for PDF generation")
-        
-        # Get original document amount for summary
-        original_amount = 0
-        try:
-            if document_type == "grn":
-                collection = get_grn_collection(tenant_id)
-            elif document_type == "ap_invoice":
-                collection = get_apinvoice_collection(tenant_id)
-            elif document_type == "outgoing_payment":
-                collection = get_outgoingpayment_collection(tenant_id)
-            else:
-                collection = None
-            
-            if collection:
-                if len(document_id) == 24:
-                    doc = collection.find_one({"_id": ObjectId(document_id)})
-                else:
-                    doc = collection.find_one({"randomId": document_id})
-                
-                if doc:
-                    if document_type == "grn":
-                        original_amount = doc.get("grandTotal", 0) or doc.get("totalReceivedAmount", 0) or 0
-                    elif document_type == "ap_invoice":
-                        original_amount = doc.get("invoiceAmount", 0) or doc.get("payableAmount", 0) or 0
-                    elif document_type == "outgoing_payment":
-                        original_amount = doc.get("totalPayableAmount", 0) or doc.get("payableAmount", 0) or 0
-        except:
-            pass
+        # Get document info
+        document_type, vendor_name, _ = get_document_type_and_details(tenant_id,document_id)
         
         # Generate PDF content
         pdf_content = generate_all_notes_pdf_content(
             all_notes, 
             document_id, 
             document_type, 
-            vendor_name,
-            original_amount
+            vendor_name
         )
         
-        # Prepare response with better filename
-        doc_ref = ""
-        try:
-            if document_type == "grn":
-                collection = get_grn_collection(tenant_id)
-            elif document_type == "ap_invoice":
-                collection = get_apinvoice_collection(tenant_id)
-            elif document_type == "outgoing_payment":
-                collection = get_outgoingpayment_collection(tenant_id)
-            else:
-                collection = None
-            
-            if collection:
-                if len(document_id) == 24:
-                    doc = collection.find_one({"_id": ObjectId(document_id)})
-                else:
-                    doc = collection.find_one({"randomId": document_id})
-                
-                if doc:
-                    doc_ref = doc.get("randomId", document_id)
-        except:
-            doc_ref = document_id
-        
-        filename = f"Debit_Notes_{document_type}_{doc_ref}.pdf".replace("_", " ").title()
+        # Prepare response
+        filename = f"All_DebitNotes_{document_id}.pdf"
         
         return StreamingResponse(
             io.BytesIO(pdf_content),
             media_type="application/pdf",
             headers={
                 "Content-Disposition": f"attachment; filename={filename}",
-                "Content-Type": "application/pdf",
-                "Content-Length": str(len(pdf_content))
+                "Content-Type": "application/pdf"
             }
         )
         
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error generating PDF for all notes: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")

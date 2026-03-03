@@ -40,8 +40,8 @@ class OverallDiscountRequest(BaseModel):
 
 router = APIRouter()
 @router.post("/items/grn/calculate-overall-discount")
-async def calculate_overall_discount_for_items(request: Request,discountrequest: OverallDiscountRequest) -> Dict:
-    tenant_id = request.state.tenant_id
+async def calculate_overall_discount_for_items(httprequest: Request,request: OverallDiscountRequest) -> Dict:
+    tenant_id = httprequest.state.tenant_id
 
     try:
         items_result = []
@@ -53,7 +53,7 @@ async def calculate_overall_discount_for_items(request: Request,discountrequest:
         price_after_tax_list = []
         existing_af_list = []
         
-        for item in discountrequest.items:
+        for item in request.items:
             item_dict = item.dict()  # Safe access to all fields (known + extra)
             qty = item_dict.get('receivedQuantity') or item_dict.get('pendingTotalQuantity', 0) or 0
             price = item_dict.get('grnPrice') or item_dict.get('newPrice', 0) or 0
@@ -106,7 +106,7 @@ async def calculate_overall_discount_for_items(request: Request,discountrequest:
             total_subtotal_all_items += item_subtotal  # For summary (after individual discounts)
         
         # Step 2: Determine base, cap, and uniform additional %
-        discount_type = discountrequest.discount_type or "after"
+        discount_type = request.discount_type or "after"
         if discount_type == "before":
             bases = price_after_bef_list
             sum_bases = sum(bases)
@@ -120,7 +120,7 @@ async def calculate_overall_discount_for_items(request: Request,discountrequest:
                 max_additional_per = min(max_additional_per, 100 - existing_per)
         
         max_overall = (max_additional_per / 100.0) * sum_bases if sum_bases > 0 else 0
-        overall_discount_total_amount = min(discountrequest.overallDiscountAmount or 0, max_overall)
+        overall_discount_total_amount = min(request.overallDiscountAmount or 0, max_overall)
         overall_discount_total_amount = round(overall_discount_total_amount, 2)
         
         additional_per = (overall_discount_total_amount / sum_bases * 100) if sum_bases > 0 else 0

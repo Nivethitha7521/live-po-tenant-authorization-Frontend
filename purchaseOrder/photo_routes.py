@@ -107,7 +107,7 @@ async def upload_photos(request:Request,
             filename = f"{photo_id}_{current_index + idx}.webp"
 
             # Upload the compressed file to the FTP server
-            ftp_path = await upload_to_ftp(compressed_content, filename,tenant_id)
+            ftp_path = await upload_to_ftp(compressed_content, filename)
 
             # Add the FTP path to the MongoDB document with index
             collection.update_one(

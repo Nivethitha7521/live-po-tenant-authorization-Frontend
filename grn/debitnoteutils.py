@@ -4,21 +4,24 @@ import logging
 import traceback
 from typing import Any, Dict
 from bson import ObjectId
-from fastapi import requests
+import requests
 import pytz
-from utils.database import get_apinvoice_collection,get_debit_collection,get_grn_collection,get_outgoingpayment_collection
+#from utils.database import get_apinvoice_collection,get_debit_collection,get_grn_collection,get_outgoingpayment_collection
 from grn.debitmodels import ComprehensiveDebitNoteView, DebitNotePaymentHistory, DebitNoteViewItem
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import io
+from utils.database import get_apinvoice_collection
+from grn.utils import get_debit_collection, get_grn_collection
+from utils.database import get_outgoingpayment_collection
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def get_document_type_and_details(tenant_id: str,document_id: str) -> tuple:
+def get_document_type_and_details(tenant_id: str, document_id: str) -> tuple:
     """
     Determine document type and fetch basic details
     """

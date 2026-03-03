@@ -329,40 +329,45 @@ async def get_random_id(request:Request,
     except Exception as e:
         logging.error(f"Error occurred while fetching purchase orders: {e}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
-    
 @router.get("/", response_model=List[PurchaseOrderState])
-async def get_purchaseorders(request:Request,
+async def get_purchaseorders(
+    request: Request,
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, le=5000),
-    status: Optional[str] = Query(None),
-    vendorName: Optional[str] = Query(None),
-    itemName: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=5000),
+    status: Optional[str] = Query(None, description="Comma-separated: Approved,PartiallyReceived,..."),
+    vendorName: Optional[str] = Query(None, description="Prefix search, case-insensitive, supports ( ) etc."),
+    itemName: Optional[str] = Query(None, description="Prefix search inside items.itemName, case-insensitive"),
     randomId: Optional[str] = Query(None),
     fromDate: Optional[datetime] = Query(None),
     toDate: Optional[datetime] = Query(None),
-    filterBy: Optional[str] = Query("orderDate", description="Filter by orderDate, approvedDate, or rejectedDate"),
-         user = Depends(validate_token)
-
+    filterBy: Optional[str] = Query(
+        "orderDate",
+        description="Filter by: orderDate | approvedDate | rejectedDate"
+    ),
+    user = Depends(validate_token)
 ):
+    """
+    Get paginated purchase orders with filters.
+    - Dates normalized to full days
+    - All text filters (vendor, item, randomId, single-status) are prefix + case-insensitive + special-char safe
+    - Multi-status uses exact match
+    - Tenant isolation applied
+    """
     tenant_id = request.state.tenant_id
     collection = get_purchaseorder_collection(tenant_id)
-    """
-    Get purchase orders with optional filtering by status, date range, vendor name, item name, randomId, 
-    and pagination support. You can filter by orderDate, approvedDate, or rejectedDate.
-    Date filtering is normalized to full calendar days (start to end of day).
-    """
+    
     query = {}
 
-    # Set default filter field (orderDate, approvedDate, rejectedDate)
-    date_field = filterBy if filterBy in ["orderDate", "approvedDate", "rejectedDate"] else "orderDate"
+    # ── Date field selection ────────────────────────────────────────
+    allowed_date_fields = {"orderDate", "approvedDate", "rejectedDate"}
+    date_field = filterBy if filterBy in allowed_date_fields else "orderDate"
 
-    # Normalize input dates to full day ranges (ignore any time components passed)
+    # Normalize to full day range
     if fromDate:
         fromDate = datetime.combine(fromDate.date(), datetime.min.time())
     if toDate:
         toDate = datetime.combine(toDate.date(), datetime.max.time())
 
-    # Add date range filter for the selected date field
     if fromDate and toDate:
         query[date_field] = {"$gte": fromDate, "$lte": toDate}
     elif fromDate:
@@ -370,53 +375,87 @@ async def get_purchaseorders(request:Request,
     elif toDate:
         query[date_field] = {"$lte": toDate}
 
-    # UPDATED: Handle multiple status values (comma-separated)
+    # ── Status filter ───────────────────────────────────────────────
     if status:
-        status_list = [s.strip() for s in status.split(",")]
-        if len(status_list) == 1:
-            # Single status - exact match
-            query["poStatus"] = {"$regex": f"^{status_list[0]}$", "$options": "i"}
-        else:
-            # Multiple statuses - use $in operator
-            query["poStatus"] = {"$in": status_list}
+        status_list = [s.strip() for s in status.split(",") if s.strip()]
+        if status_list:
+            if len(status_list) == 1:
+                # Single status → exact match, case-insensitive, escaped
+                escaped_status = re.escape(status_list[0])
+                query["poStatus"] = {"$regex": f"^{escaped_status}$", "$options": "i"}
+            else:
+                # Multiple → $in (exact, case-sensitive by default)
+                query["poStatus"] = {"$in": status_list}
 
-    # Apply other optional filters
+    # ── Vendor name ─────────────────────────────────────────────────
     if vendorName:
-        query["vendorName"] = {"$regex": f"^{vendorName}", "$options": "i"}
-
-    if itemName:
-        query["items"] = {
-            "$elemMatch": {"itemName": {"$regex": f"^{itemName}", "$options": "i"}}
+        escaped_vendor = re.escape(vendorName.strip())
+        query["vendorName"] = {
+            "$regex": f"^{escaped_vendor}",
+            "$options": "i"
         }
 
+    # ── Item name (inside items array) ──────────────────────────────
+    if itemName:
+        escaped_item = re.escape(itemName.strip())
+        query["items"] = {
+            "$elemMatch": {
+                "itemName": {
+                    "$regex": f"^{escaped_item}",
+                    "$options": "i"
+                }
+            }
+        }
+
+    # ── Random ID ───────────────────────────────────────────────────
     if randomId:
-        query["randomId"] = {"$regex": f"^{randomId}", "$options": "i"}
+        escaped_random = re.escape(randomId.strip())
+        query["randomId"] = {
+            "$regex": f"^{escaped_random}",
+            "$options": "i"
+        }
 
-    print(f"Filter query: {query}")  # Debug log
-
-    total = collection.count_documents(query)
+    # ── Debug logs (very helpful!) ──────────────────────────────────
+    print(f"Tenant ID: {tenant_id}")
+    print(f"MongoDB query: {query}")
+    print(f"Sorting by: {date_field} (desc)")
     
-    # Fetch purchase orders from the database
+    if vendorName:
+        print(f"Vendor → raw: {vendorName!r} | escaped prefix: ^{re.escape(vendorName)}")
+    if itemName:
+        print(f"Item   → raw: {itemName!r} | escaped prefix: ^{re.escape(itemName)}")
+    if status:
+        print(f"Status → raw: {status!r} | processed: {status_list}")
+    # ────────────────────────────────────────────────────────────────
+
+    # Count for pagination
+    total = collection.count_documents(query)
+
+    # Fetch results
     cursor = (
         collection
         .find(query)
-        .sort(date_field, -1)  # Sort by the selected date field
+        .sort(date_field, -1)  # newest first
         .skip(skip)
         .limit(limit)
     )
+
     purchases = list(cursor)
 
-    # Return an empty list if no purchases are found
     if not purchases:
         return []
 
-    formatted_purchaseorders = []
-    for purchase in purchases:
-        purchase["purchaseOrderId"] = str(purchase["_id"])  # Convert ObjectId to string
-        formatted_purchaseorders.append(PurchaseOrderState(**purchase))
+    # Format + convert _id → string
+    formatted = []
+    for doc in purchases:
+        doc["purchaseOrderId"] = str(doc.pop("_id"))
+        try:
+            formatted.append(PurchaseOrderState(**doc))
+        except Exception as e:
+            print(f"Pydantic validation failed for PO {doc.get('purchaseOrderId')}: {e}")
+            continue
 
-    return formatted_purchaseorders
-
+    return formatted
 @router.put("/{purchaseorder_id}")
 async def update_purchaseorder(request:Request,
     purchaseorder_id: str,

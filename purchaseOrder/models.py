@@ -239,6 +239,8 @@ class ImportReturnItem(BaseModel):
     pendingFinalPrice: Optional[float] = None
     pendingBefTaxDiscountAmount: Optional[float] = None
     pendingAfTaxDiscountAmount: Optional[float] = None
+    randomId: Optional[str] = None  # ADD THIS FIELD
+    
 class CSVImportItem(BaseModel):
     itemName: str
     count: Optional[float] = None
@@ -250,7 +252,7 @@ class CSVImportItem(BaseModel):
     beforeTaxDiscount: Optional[float] = None
     afterTaxDiscount: Optional[float] = None
     taxType: Optional[Literal["cgst_sgst", "igst"]] = None  # Add taxType
-
+    
 # Update ImportResponse model to explicitly include all fields
 class ImportResponse(BaseModel):
     success: bool

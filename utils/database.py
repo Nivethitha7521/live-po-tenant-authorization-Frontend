@@ -1,5 +1,3 @@
-# database.py - UPDATED with backward compatibility
-
 import os
 from typing import Optional, Dict, Any, List, Union
 from pymongo import MongoClient
@@ -92,7 +90,7 @@ def get_tenant_database(tenant_id: str, use_async: bool = False):
             if tenant_name:
                 db_name = tenant_name.lower()
                 db_name = re.sub(r'[^a-z0-9_]', '_', db_name)
-                db_name = re.sub(r'_+', '_', db_name)
+                db_name = re.sub(r'+', '', db_name)
                 db_name = db_name.strip('_')
                 database_name = f"{db_name}_purchase"
             else:
@@ -385,6 +383,8 @@ def get_purchaseusers_collection():
 
 def get_inventory_collection():
     """Get inventory collection"""
+    global _inventory_client, _inventory_db   # ✅ ADD THIS LINE
+
     if _inventory_client is None:
         try:
             _inventory_client = MongoClient(
@@ -392,11 +392,13 @@ def get_inventory_collection():
                 "?authSource=admin&authMechanism=SCRAM-SHA-256"
                 "&replicaSet=yenerp-cluster"
             )
-            _inventory_db = _inventory_client["yen_inventory"]
+            _inventory_db = _inventory_client["yen_inventorytest"]
+            logger.info("✅ Inventory connection created")
         except Exception as e:
             logger.error(f"❌ Inventory connection error: {e}")
             raise
-    return _inventory_db["inventoryStock"]
+
+    return _inventory_db["inventoryStocktest"]
 
 # ============================
 # BACKWARD COMPATIBILITY
@@ -559,7 +561,7 @@ def get_inventory_connection():
                 "?authSource=admin&authMechanism=SCRAM-SHA-256"
                 "&replicaSet=yenerp-cluster"
             )
-            _inventory_db = _inventory_client["yen_inventory"]
+            _inventory_db = _inventory_client["yen_inventorytest"]
             logger.info("✅ Inventory connection created")
         except Exception as e:
             logger.error(f"❌ Inventory connection error: {e}")

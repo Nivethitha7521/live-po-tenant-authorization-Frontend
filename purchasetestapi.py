@@ -31,13 +31,32 @@ import os
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("🚀 Starting app with inactivity cleanup")
 
+    # Fix null sessions
+    await fix_all_users_sessions()
+
+    # Start cleanup
+    cleanup_task = asyncio.create_task(inactivity_cleanup.start())
+
+    yield
+
+    print("🛑 Shutting down cleanup")
+    inactivity_cleanup.stop()
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
 # Create the FastAPI app
 app = FastAPI(
     title="Combined Role Management + YEN ERP API",
     docs_url="/purchasetestapi/docs",
     redoc_url="/purchasetestapi/redoc",
-    openapi_url="/purchasetestapi/openapi.json"
+    openapi_url="/purchasetestapi/openapi.json",
+    lifespan=lifespan
 ) 
 def custom_openapi():
     if app.openapi_schema:
@@ -72,6 +91,30 @@ def custom_openapi():
     return app.openapi_schema
 app.openapi = custom_openapi
 app.add_middleware(TenantMiddleware)
+@app.middleware("http")
+async def update_last_active(request: Request, call_next):
+    response = await call_next(request)
+
+    auth_header = request.headers.get("Authorization")
+
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+
+        try:
+            token_data = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+            await db_global["sessions"].update_one(
+                {
+                    "username": token_data["username"],
+                    "tenant_id": token_data.get("tenant_id"),
+                    "is_active": True
+                },
+                {"$set": {"last_active": datetime.utcnow()}}
+            )
+        except:
+            pass
+
+    return response
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -227,8 +270,6 @@ async def login_user(
     x_browser_session_id: str = Header(...),
     request: Request = None
 ):
-    
-   
     try:
         client = AsyncIOMotorClient(MONGO_URL)
         db = client["purchasetest"]
@@ -250,87 +291,49 @@ async def login_user(
             raise HTTPException(status_code=403, detail="Tenant inactive")
 
         existing_session = await db_global["sessions"].find_one({
-    "username": user["username"],
-    "tenant_id": tenant_id,
-    "browser_session_id": x_browser_session_id,
-    "is_active": True
-})
-
-        if existing_session:
-            stored_browser = existing_session.get("browser_session_id")
-            
-             # ⭐ If old session without proper IDs, allow re-login
-            if not stored_browser:
-        # Update old session instead of creating new
-               permission = await db["permissions"].find_one({"role_name": user["role_name"]})
-        
-               access_token = create_access_token({
-                   "username": user["username"],
-                   "role_name": user["role_name"],
-                   "permissions": permission["permissions"] if permission else {},
-                   "tenant_id": tenant_id
+            "username": user["username"],
+            "tenant_id": tenant_id,
+            "is_active": True
         })
 
-               await db_global["sessions"].update_one(
-                   {"_id": existing_session["_id"]},
-                   {"$set": {
-                        "browser_session_id": x_browser_session_id,
-                        "access_token": access_token,
-                        "is_active": True,
-                        "last_active": datetime.utcnow()
-            }}
-        )
+        # ⭐ IF ACTIVE SESSION EXISTS
+        if existing_session:
+            stored_browser = existing_session.get("browser_session_id")
 
-               client.close()
-        
-               return {
-                   "access_token": access_token,
-                   "token_type": "bearer",
-                   "username": user["username"],
-                   "role_name": user["role_name"],
-                   "permissions": permission["permissions"] if permission else {}
-        }
-            else:
-                # ⭐ SAME BROWSER + SAME WINDOW = ALLOW (multiple tabs work!)
-                if stored_browser == x_browser_session_id:
-                    # Same session - just update token and return
-                    permission = await db["permissions"].find_one({"role_name": user["role_name"]})
-                    
-                    access_token = create_access_token({
-                        "username": user["username"],
-                        "role_name": user["role_name"],
-                        "permissions": permission["permissions"] if permission else {},
-                        "tenant_id": tenant_id
-                    })
+            # ✅ SAME BROWSER → UPDATE TOKEN ONLY
+            if stored_browser == x_browser_session_id:
+                permission = await db["permissions"].find_one({"role_name": user["role_name"]})
 
-                    await db_global["sessions"].update_one(
-                        {"_id": existing_session["_id"]},
-                        {"$set": {
+                access_token = create_access_token({
+                    "username": user["username"],
+                    "role_name": user["role_name"],
+                    "permissions": permission["permissions"] if permission else {},
+                    "tenant_id": tenant_id
+                })
+
+                await db_global["sessions"].update_one(
+                    {"_id": existing_session["_id"]},
+                    {
+                        "$set": {
                             "access_token": access_token,
                             "last_active": datetime.utcnow()
-                        }}
-                    )
-
-                    client.close()
-                    
-                    return {
-                        "access_token": access_token,
-                        "token_type": "bearer",
-                        "username": user["username"],
-                        "role_name": user["role_name"],
-                        "permissions": permission["permissions"] if permission else {}
+                        }
                     }
+                )
 
-                # ⭐ DIFFERENT BROWSER = BLOCK
-                if stored_browser != x_browser_session_id:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="User already logged in another browser"
-                    )
+                return {
+                    "access_token": access_token,
+                    "token_type": "bearer",
+                    "username": user["username"],
+                    "role_name": user["role_name"],
+                    "permissions": permission["permissions"] if permission else {}
+                }
 
-              
+            # ❌ DIFFERENT BROWSER → BLOCK
+            else:
+                raise HTTPException(status_code=403, detail="User already logged in another browser")
 
-        # 🪪 CREATE NEW SESSION (no existing session found)
+        # ⭐ NO ACTIVE SESSION → CREATE OR REACTIVATE
         permission = await db["permissions"].find_one({"role_name": user["role_name"]})
 
         access_token = create_access_token({
@@ -343,27 +346,25 @@ async def login_user(
         device = request.headers.get("user-agent", "unknown")
         ip = request.client.host if request else "unknown"
 
+        # 👉 UPSERT by username + tenant
         await db_global["sessions"].update_one(
-    {"username": user["username"], "tenant_id": tenant_id,
-        "browser_session_id": x_browser_session_id},
-    {
-        "$set": {
-            "browser_session_id": x_browser_session_id,
-            "access_token": access_token,
-            "device": device,
-            "ip": ip,
-            "last_active": datetime.utcnow(),
-            "is_active": True
-        },
-        "$setOnInsert": {
-            "session_id": str(uuid4()),
-            "created_at": datetime.utcnow()
-        }
-    },
-    upsert=True
-)
-
-        client.close()
+            {"username": user["username"], "tenant_id": tenant_id},
+            {
+                "$set": {
+                    "browser_session_id": x_browser_session_id,
+                    "access_token": access_token,
+                    "device": device,
+                    "ip": ip,
+                    "last_active": datetime.utcnow(),
+                    "is_active": True
+                },
+                "$setOnInsert": {
+                    "session_id": str(uuid4()),
+                    "created_at": datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
 
         return {
             "access_token": access_token,
@@ -381,37 +382,34 @@ async def login_user(
         raise HTTPException(status_code=500, detail="Login failed")
 
 
-
-
 @app.post("/purchasetestapi/logout")
-async def logout(request: Request):
+async def logout(request: Request, x_browser_session_id: str = Header(None)):
     try:
-        # Try extracting token manually
         auth_header = request.headers.get("Authorization")
 
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
 
             try:
-                user = validate_token(request)
-                username = user["username"]
+                token_data = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
                 await db_global["sessions"].update_one(
                     {
-                        "username": username,
-                        "tenant_id": user["tenant_id"],
-                        "browser_session_id": user.get("browser_session_id"),
+                        "username": token_data["username"],
+                        "tenant_id": token_data.get("tenant_id"),
+                        "browser_session_id": x_browser_session_id,
+                        "is_active": True
                     },
-                    {"$set": {"is_active": False}},
+                    {"$set": {"is_active": False, "last_active": datetime.utcnow()}}
                 )
 
-            except Exception:
-                # token invalid → ignore
-                pass
+            except Exception as e:
+                logger.error(f"Logout decode error: {e}")
 
         return {"message": "Logged out successfully"}
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
         return {"message": "Logged out"}
 
 
@@ -448,36 +446,7 @@ async def validate_token_api(token: str):
    
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    logger.info("Starting application with inactivity cleanup...")
-    
-    # Fix any null sessions
-    fixed_count = await fix_all_users_sessions()
-    logger.info(f"Fixed {fixed_count} users with null sessions")
-    
-    # Start inactivity cleanup service
-    cleanup_task = asyncio.create_task(inactivity_cleanup.start())
-    
-    yield
-    
-    # Shutdown
-    logger.info("Shutting down application...")
-    inactivity_cleanup.stop()
-    cleanup_task.cancel()
-    try:
-        await cleanup_task
-    except asyncio.CancelledError:
-        pass
 
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(inactivity_cleanup.start())  # Start the loop in background
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    inactivity_cleanup.stop()  # Gracefully stop on app shutdown
     
 # A simple root endpoint
 @app.get("/")

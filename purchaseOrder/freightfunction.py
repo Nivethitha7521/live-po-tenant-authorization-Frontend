@@ -132,20 +132,20 @@ async def calculate_freight_totals(request:Request,
         raise HTTPException(status_code=500, detail=f"Failed to calculate freight totals: {str(e)}")
 
 @router.post("/calculate-totals", response_model=PurchaseOrderTotalsResponse)
-async def calculate_purchase_order_totals(request:Request,payload: PurchaseOrderTotalsRequest):
+async def calculate_purchase_order_totals(httprequest:Request,request: PurchaseOrderTotalsRequest):
     """
     Calculate comprehensive purchase order totals including items and freights
     """
-    tenant_id = request.state.tenant_id
+    tenant_id = httprequest.state.tenant_id
     try:
         # Calculate item totals
-        item_subtotal = sum(item.get('pendingTotalPrice', 0) for item in payload.items)
-        item_tax_total = sum(item.get('pendingTaxAmount', 0) for item in payload.items)
-        item_discount_total = sum(item.get('pendingDiscountAmount', 0) for item in payload.items)
+        item_subtotal = sum(item.get('pendingTotalPrice', 0) for item in request.items)
+        item_tax_total = sum(item.get('pendingTaxAmount', 0) for item in request.items)
+        item_discount_total = sum(item.get('pendingDiscountAmount', 0) for item in request.items)
         
         # Calculate freight totals
-        freight_amount_total = sum(freight.get('amt', 0) for freight in payload.freights)
-        freight_tax_total = sum(freight.get('tAmt', 0) for freight in payload.freights)
+        freight_amount_total = sum(freight.get('amt', 0) for freight in request.freights)
+        freight_tax_total = sum(freight.get('tAmt', 0) for freight in request.freights)
         
         # Calculate final amounts
         amount_after_discount = item_subtotal - item_discount_total

@@ -8,7 +8,15 @@ from bson import ObjectId
 import pytz
 from utils.database import get_debit_collection
 
-
+client = MongoClient("mongodb://purchasetestuser:qv8D%25%3AWZG%7DRmW%3B%5Du@194.233.78.90:27017/purchasetest?authSource=purchasetest&authMechanism=SCRAM-SHA-256&replicaSet=yenerp-cluster" )
+db = client["purchasetest"]  # Adjust database name as per your MongoDB setup
+# MongoDB connection and collection getter for item groups
+def get_grn_collection(tenant_id):
+    return db['grn']  
+def get_debit_collection(tenant_id):
+    return db['grnDebitNote']
+def get_return_reasons_collection(tenant_id):
+    return db['ReturnReason']
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

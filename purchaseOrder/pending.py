@@ -1,13 +1,14 @@
 from datetime import datetime
+import re
 from typing import List, Optional, Any, Literal
 
-from fastapi import APIRouter, Query, HTTPException,Request
+from fastapi import APIRouter, Query, HTTPException,Request,Depends
 from pydantic import BaseModel, Field
 import pytz  # For timezone; pip install pytz if not installed
 
 from purchaseOrder.models import Freight
 from utils.database import get_purchaseorder_collection  # Assuming this is correct
-
+from dependencies.auth import validate_token
 router = APIRouter()
 
 # Single Item model (unchanged, but fixed imports)
@@ -83,9 +84,9 @@ class PurchaseOrderState(BaseModel):
 class PurchaseOrderResponse(BaseModel):
     purchaseOrders: List[PurchaseOrderState]
     totalItems: int
-
 @router.get("/pending/purchase", response_model=PurchaseOrderResponse)
-async def get_purchaseorders(request:Request,
+async def get_purchaseorders(
+    request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, le=5000),
     status: Optional[str] = Query(None),
@@ -94,10 +95,8 @@ async def get_purchaseorders(request:Request,
     randomId: Optional[str] = Query(None),
     fromDate: Optional[datetime] = Query(None),
     toDate: Optional[datetime] = Query(None),
+    user = Depends(validate_token)  # ADD THIS - Critical for tenant_id
 ):
-    tenant_id = request.state.tenant_id
-    collection = get_purchaseorder_collection(tenant_id)
-
     """
     Get purchase orders with optional filtering. Automatically restricts to only the three pending statuses: 
     'CreditLimit for Approve', 'Pending for Approve', 'Pending' AND excludes ['Approved', 'Rejected', 'PartiallyReceived'] 
@@ -107,6 +106,17 @@ async def get_purchaseorders(request:Request,
     Always filters by "orderDate" (no other date fields supported/needed).
     status defaults to None (no manual filtering unless explicitly passed). No aggregation used—direct find() query.
     """
+    
+    # SAFETY CHECK: Ensure tenant_id exists
+    if not hasattr(request.state, 'tenant_id'):
+        raise HTTPException(
+            status_code=400, 
+            detail="Tenant ID not found. Authentication required."
+        )
+    
+    tenant_id = request.state.tenant_id
+    collection = get_purchaseorder_collection(tenant_id)
+
     query = {}
     IST = pytz.timezone('Asia/Kolkata')  # For date handling
 
@@ -162,24 +172,34 @@ async def get_purchaseorders(request:Request,
         if status:
             status_list = [s.strip() for s in status.split(",")]
             if len(status_list) == 1:
-                query["poStatus"] = {"$regex": f"^{status_list[0]}$", "$options": "i"}
+                # Fix: Use re.escape for special characters
+                escaped_status = re.escape(status_list[0])
+                query["poStatus"] = {"$regex": f"^{escaped_status}$", "$options": "i"}
             else:
                 query["poStatus"] = {"$in": status_list}
 
-        # Other filters
+        # Other filters - Fix: Use re.escape for special characters
         if vendorName:
-            query["vendorName"] = {"$regex": f"^{vendorName}", "$options": "i"}
+            escaped_vendor = re.escape(vendorName.strip())
+            query["vendorName"] = {"$regex": f"^{escaped_vendor}", "$options": "i"}
+
         if itemName:
+            escaped_item = re.escape(itemName.strip())
+            item_query = {"itemName": {"$regex": f"^{escaped_item}", "$options": "i"}}
+            
             if "items" in query and "$elemMatch" in query["items"]:
-                query["items"]["$elemMatch"]["itemName"] = {"$regex": f"^{itemName}", "$options": "i"}
+                # Merge with existing items query
+                query["items"]["$elemMatch"].update(item_query)
             else:
-                query["items"] = {"$elemMatch": {"itemName": {"$regex": f"^{itemName}", "$options": "i"}}}
+                query["items"] = {"$elemMatch": item_query}
+                
         if randomId:
-            query["randomId"] = {"$regex": f"^{randomId}", "$options": "i"}
+            escaped_random = re.escape(randomId.strip())
+            query["randomId"] = {"$regex": f"^{escaped_random}", "$options": "i"}
 
         print(f"Filter query: {query}")  # Debug
+        print(f"Tenant ID: {tenant_id}")  # Debug
 
-      
         total = collection.count_documents(query)
 
         # Fetch with sort (descending by date_field) - no aggregation used
@@ -189,12 +209,18 @@ async def get_purchaseorders(request:Request,
         formatted_purchaseorders = []
         for purchase in purchases:
             purchase["purchaseOrderId"] = str(purchase.pop("_id", None))  # Convert and remove _id
-            formatted_purchaseorders.append(PurchaseOrderState(**purchase))
+            try:
+                formatted_purchaseorders.append(PurchaseOrderState(**purchase))
+            except Exception as e:
+                print(f"Error formatting purchase order {purchase.get('purchaseOrderId')}: {e}")
+                continue
 
         return PurchaseOrderResponse(
             purchaseOrders=formatted_purchaseorders,
             totalItems=total
         )
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error in get_purchaseorders: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

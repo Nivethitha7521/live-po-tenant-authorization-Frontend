@@ -210,6 +210,7 @@ class ReturnItem(BaseModel):
 class ReturnGRNRequest(BaseModel):
     scenario: Literal["full", "partial"]
     returnedDate: datetime
+    returnedBy: str 
     comments: Optional[str] = None
     items: Optional[List[ReturnItem]] = None
        
