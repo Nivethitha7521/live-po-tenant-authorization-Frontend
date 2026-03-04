@@ -179,16 +179,11 @@ const handleActivateTenant = async () => {
 
         <div className="flex items-center gap-4">
           <button
-  onClick={() => setTenantModal(true)}
-  disabled={tenants.length >= 2}
-  className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm 
-    ${tenants.length >= 2 
-      ? "bg-gray-400 cursor-not-allowed text-white" 
-      : "bg-blue-600 text-white"
-    }`}
->
-  <Plus size={16} /> Create Tenant
-</button>
+            onClick={() => setTenantModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm"
+          >
+            <Plus size={16} /> Create Tenant
+          </button>
 
           {/* Toggle */}
           <div className="flex items-center gap-2">

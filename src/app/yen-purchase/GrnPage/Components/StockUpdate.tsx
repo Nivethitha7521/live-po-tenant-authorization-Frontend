@@ -212,36 +212,74 @@ const ReturnStockUpdateDialog: React.FC<ReturnStockUpdateDialogProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                <TableRow>
-                  <TableCell>CHICKEN MASALA 100GM</TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2">
-                      132.90 → <strong style={{color: '#d32f2f'}}>122.90</strong>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      (Reduced by 10.00)
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2">
-                      1154.00 → <strong style={{color: '#d32f2f'}}>1144.00</strong>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      (Reduced by 10.00)
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography fontWeight="bold" color="error.main">
-                      10.00
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
+{stockUpdates.items && stockUpdates.items.length > 0 ? (
+  stockUpdates.items.map((item:any, index:number) => {
+
+    const beforeStock =
+      (item.newStock ?? 0) - (item.stockChange ?? 0);
+
+    const beforeLocationStock =
+      (item.newLocationStock ?? 0) - (item.locationStockChange ?? 0);
+
+    const returnedQty = Math.abs(item.stockChange ?? 0);
+
+    return (
+      <TableRow key={index}>
+        <TableCell>
+          {item.itemName}
+        </TableCell>
+
+        {/* Item Master */}
+        <TableCell align="right">
+          <Typography>
+            {beforeStock.toFixed(3)} →{" "}
+            <strong style={{color:"#d32f2f"}}>
+              {(item.newStock ?? 0).toFixed(3)}
+            </strong>
+          </Typography>
+
+          <Typography variant="caption">
+            (Reduced by {returnedQty.toFixed(3)})
+          </Typography>
+        </TableCell>
+
+        {/* Location */}
+        <TableCell align="right">
+          <Typography>
+            {beforeLocationStock.toFixed(3)} →{" "}
+            <strong style={{color:"#d32f2f"}}>
+              {(item.newLocationStock ?? 0).toFixed(3)}
+            </strong>
+          </Typography>
+
+          <Typography variant="caption">
+            (Reduced by {returnedQty.toFixed(3)})
+          </Typography>
+        </TableCell>
+
+        {/* Returned */}
+        <TableCell align="right">
+          <Typography fontWeight="bold" color="error">
+            {returnedQty.toFixed(3)}
+          </Typography>
+        </TableCell>
+
+      </TableRow>
+    );
+  })
+) : (
+  <TableRow>
+    <TableCell colSpan={4} align="center">
+      No stock updates found
+    </TableCell>
+  </TableRow>
+)}
+</TableBody>
             </Table>
           </TableContainer>
         </Box>
 
-        {/* Raw data for debugging */}
+        {/* Raw data for debugging 
         <Box sx={{ mt: 3, p: 2, bgcolor: '#f0f0f0', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
             Raw Response Data:
@@ -250,7 +288,7 @@ const ReturnStockUpdateDialog: React.FC<ReturnStockUpdateDialogProps> = ({
             {JSON.stringify(stockUpdates, null, 2)}
           </Typography>
         </Box>
-
+*/}
         {/* Explanation */}
         <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="body2" color="text.secondary" gutterBottom>
