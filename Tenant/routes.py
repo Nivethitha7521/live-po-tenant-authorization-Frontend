@@ -286,23 +286,10 @@ async def create_tenant(
     Create a new tenant with automatic database setup
     """
     try:
-        
-       
-    # 🚨 MAX 2 ACTIVE TENANTS ONLY
-        tenant_count = get_tenant_collection().count_documents({
-        "status": TenantStatus.ACTIVE.value
-    })
-
-        if tenant_count >= 2:
-            raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Maximum 2 active tenants allowed."
-        )
-
-    # Check if tenant name already exists
+        # Check if tenant name already exists
         existing = get_tenant_collection().find_one({
-        "tenantName": tenant.tenantName
-    })
+            "tenantName": tenant.tenantName
+        })
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

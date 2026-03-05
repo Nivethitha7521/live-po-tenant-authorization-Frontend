@@ -3,7 +3,7 @@ import logging
 import os
 from typing import Dict, List
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException,Request
+from fastapi import APIRouter, HTTPException, Request
 import pytz
 from utils.database import get_grn_collection
 from utils.database import get_inventory_collection, get_purchaseorder_collection
@@ -39,12 +39,11 @@ grn_logger = create_file_logger('grn_operations', 'grn_operations.log')
 po_logger = create_file_logger('po_updates', 'po_updates.log')
 error_logger = create_file_logger('errors', 'errors.log')
 audit_logger = create_file_logger('audit_trail', 'audit_trail.log')
-item_master_logger = create_file_logger('item_master', 'item_master_changes.log')
-def update_stock_quantities(tenant_id: str,grn_item_details: List[Dict], reverse: bool = False) -> Dict:
+
+def update_inventory_only(tenant_id: str, grn_item_details: List[Dict], reverse: bool = False) -> Dict:
     """
-    Update stock quantities for received items in both:
-    - purchaseitem collection (item master - total stock)
-    - inventory collection (location-based stock)
+    UPDATE ONLY INVENTORY COLLECTION - NO ITEM MASTER UPDATE
+    Update stock quantities in inventory collection (location-based stock)
     
     For reverse=True (revert operation), we SUBTRACT the quantities.
     For reverse=False (normal receipt), we ADD the quantities.
@@ -58,16 +57,16 @@ def update_stock_quantities(tenant_id: str,grn_item_details: List[Dict], reverse
         detailed_results = []
         
         # Track counts for summary
-        purchaseitem_updates = 0
         inventory_updates = 0
         inventory_creates = 0
         inventory_errors = 0
+        inventory_not_found = 0  # Track when location records don't exist
         
         operation_type = "REVERT (SUBTRACT)" if reverse else "RECEIPT (ADD)"
         quantity_multiplier = -1 if reverse else 1  # For revert, we subtract
         
         logging.info("=" * 100)
-        logging.info(f"STOCK UPDATE - {operation_type}")
+        logging.info(f"INVENTORY ONLY UPDATE - {operation_type}")
         logging.info(f"Timestamp: {current_datetime}")
         logging.info(f"Total items to process: {len(grn_item_details)}")
         logging.info("=" * 100)
@@ -92,8 +91,8 @@ def update_stock_quantities(tenant_id: str,grn_item_details: List[Dict], reverse
             item_result = {
                 "randomId": random_id,
                 "itemName": item_name,
-                "stockChange": 0,  # Item Master stock change
-                "newStock": 0,      # Item Master new total stock
+                "stockChange": 0,  # Item Master stock change - set to 0 (NO UPDATE)
+                "newStock": 0,      # Item Master new total stock - set to 0 (NO UPDATE)
                 "locationStockChange": 0,  # Location-specific stock change
                 "newLocationStock": 0,      # Location-specific new stock
                 "locationId": location_id,
@@ -103,113 +102,81 @@ def update_stock_quantities(tenant_id: str,grn_item_details: List[Dict], reverse
             }
             
             try:
-                # ========== STEP 1: UPDATE PURCHASEITEM COLLECTION (TOTAL STOCK) ==========
-                purchase_item = get_purchaseitem_collection(tenant_id).find_one({"randomId": random_id})
-                if purchase_item:
-                    current_stock = purchase_item.get('stockQuantity', 0)
-                    new_stock = current_stock + quantity_delta  # This will subtract for revert
+                # ========== STEP 1: SKIP PURCHASEITEM UPDATE (NO ITEM MASTER UPDATE) ==========
+                # We are NOT updating purchaseitem collection - only inventory
+                logging.info(f"⏭️ SKIPPING PURCHASEITEM UPDATE - No item master stock change")
+                
+                # ========== STEP 2: UPDATE ONLY INVENTORY COLLECTION (LOCATION-BASED) ==========
+                try:
+                    inventory_collection = get_inventory_collection()
                     
-                    # Log the calculation
-                    logging.info(f"Item Master Stock Calculation: {current_stock:.2f} + ({quantity_delta:+.2f}) = {new_stock:.2f}")
+                    # Find inventory by BOTH randomId AND locationId
+                    inventory_item = inventory_collection.find_one({
+                        "randomId": random_id,
+                        "locationId": location_id
+                    })
                     
-                    # Ensure stock doesn't go negative
-                    if new_stock < 0:
-                        actual_delta = -current_stock  # Only remove what's available
-                        new_stock = 0
-                        logging.warning(f"⚠️ Stock would become negative. Capping at 0. Actual removed: {current_stock:.2f}")
-                        item_result["reason"] = f"Stock capped at 0 (attempted to remove {received_quantity:.2f}, only {current_stock:.2f} available)"
-                    else:
-                        actual_delta = quantity_delta
-                    
-                    # Update purchaseitem
-                    purchaseitem_result = get_purchaseitem_collection(tenant_id).update_one(
-                        {"randomId": random_id},
-                        {"$set": {
-                            "stockQuantity": new_stock,
-                            "lastUpdatedDate": current_datetime
-                        }}
-                    )
-                    
-                    if purchaseitem_result.modified_count > 0:
-                        purchaseitem_updates += 1
-                    
-                    # Store the actual change (might be less than requested if stock was insufficient)
-                    actual_change = new_stock - current_stock
-                    item_result["stockChange"] = actual_change
-                    item_result["newStock"] = new_stock
-                    
-                    logging.info(f"✅ PURCHASEITEM UPDATED - Total Stock: {current_stock:.2f} -> {new_stock:.2f} (Change: {actual_change:+.2f})")
-                    
-                    # ========== STEP 2: UPDATE INVENTORY COLLECTION (LOCATION-BASED) ==========
-                    try:
-                        inventory_collection = get_inventory_collection()
+                    if inventory_item:
+                        # EXISTING LOCATION - UPDATE systemStock ONLY
+                        current_system_stock = inventory_item.get('systemStock', 0)
+                        new_system_stock = current_system_stock + quantity_delta  # This will subtract for revert
                         
-                        # Find inventory by BOTH randomId AND locationId
-                        inventory_item = inventory_collection.find_one({
-                            "randomId": random_id,
-                            "locationId": location_id
-                        })
+                        logging.info(f"Location Stock Calculation: {current_system_stock:.2f} + ({quantity_delta:+.2f}) = {new_system_stock:.2f}")
                         
-                        if inventory_item:
-                            # EXISTING LOCATION - UPDATE systemStock
-                            current_system_stock = inventory_item.get('systemStock', 0)
-                            new_system_stock = current_system_stock + quantity_delta  # This will subtract for revert
-                            
-                            logging.info(f"Location Stock Calculation: {current_system_stock:.2f} + ({quantity_delta:+.2f}) = {new_system_stock:.2f}")
-                            
-                            # Ensure stock doesn't go negative at location level
-                            if new_system_stock < 0:
-                                actual_location_delta = -current_system_stock
-                                new_system_stock = 0
-                                logging.warning(f"⚠️ Location stock would become negative. Capping at 0. Actual removed: {current_system_stock:.2f}")
-                                if not item_result["reason"]:
-                                    item_result["reason"] = f"Location stock capped at 0"
-                                else:
-                                    item_result["reason"] += f", location stock capped at 0"
-                            else:
-                                actual_location_delta = quantity_delta
-                            
-                            inventory_update_data = {
-                                "systemStock": new_system_stock,
-                                "lastUpdatedDate": current_datetime
-                            }
-                            
-                            inventory_result = inventory_collection.update_one(
-                                {
-                                    "randomId": random_id,
-                                    "locationId": location_id
-                                },
-                                {"$set": inventory_update_data}
-                            )
-                            
-                            if inventory_result.modified_count > 0:
-                                inventory_updates += 1
-                            
-                            actual_location_change = new_system_stock - current_system_stock
-                            item_result["locationStockChange"] = actual_location_change
-                            item_result["newLocationStock"] = new_system_stock
-                            
-                            logging.info(f"✅ INVENTORY UPDATED for Location {location_id}: {current_system_stock:.2f} -> {new_system_stock:.2f} (Change: {actual_location_change:+.2f})")
-                            
+                        # Ensure stock doesn't go negative at location level
+                        if new_system_stock < 0 and reverse:
+                            actual_location_delta = -current_system_stock
+                            new_system_stock = 0
+                            logging.warning(f"⚠️ Location stock would become negative. Capping at 0. Actual removed: {current_system_stock:.2f}")
+                            item_result["reason"] = f"Location stock capped at 0 (attempted to remove {received_quantity:.2f}, only {current_system_stock:.2f} available)"
                         else:
-                            # For revert, if location record doesn't exist, we can't subtract from it
-                            # So we create it with 0 stock (since we're removing stock that wasn't there)
-                            if reverse:
-                                new_system_stock = 0
-                                location_change = 0
-                                logging.info(f"⚠️ No existing inventory record for location {location_id}. Creating with 0 stock.")
-                            else:
-                                # For receipt, create with positive stock
-                                new_system_stock = quantity_delta
-                                location_change = quantity_delta
+                            actual_location_delta = quantity_delta
+                        
+                        # UPDATE ONLY systemStock - NO OTHER FIELDS CHANGED
+                        inventory_update_data = {
+                            "systemStock": new_system_stock,
+                            "lastUpdatedDate": current_datetime
+                        }
+                        
+                        # Add update reason for audit (optional)
+                        if reverse:
+                            inventory_update_data["lastRevertedDate"] = current_datetime
+                        
+                        inventory_result = inventory_collection.update_one(
+                            {
+                                "randomId": random_id,
+                                "locationId": location_id
+                            },
+                            {"$set": inventory_update_data}
+                        )
+                        
+                        if inventory_result.modified_count > 0:
+                            inventory_updates += 1
+                        
+                        actual_location_change = new_system_stock - current_system_stock
+                        item_result["locationStockChange"] = actual_location_change
+                        item_result["newLocationStock"] = new_system_stock
+                        
+                        logging.info(f"✅ INVENTORY UPDATED for Location {location_id}: {current_system_stock:.2f} -> {new_system_stock:.2f} (Change: {actual_location_change:+.2f})")
+                        
+                    else:
+                        # For revert, if location record doesn't exist, we can't subtract from it
+                        if reverse:
+                            inventory_not_found += 1
+                            item_result["status"] = "failed"
+                            item_result["reason"] = f"No inventory record found for location {location_id} to revert"
+                            logging.warning(f"⚠️ No existing inventory record for location {location_id} to revert. Cannot subtract stock.")
+                        else:
+                            # For receipt, create with positive stock
+                            new_system_stock = quantity_delta
+                            location_change = quantity_delta
                             
                             new_inventory_item = {
                                 "randomId": random_id,
                                 "locationId": location_id,
                                 "systemStock": new_system_stock,
-                                "createdBy": "grn_revert" if reverse else "grn_receipt",
+                                "createdBy": "grn_receipt",
                                 "createdDate": current_datetime,
-                                "lastUpdatedDate": current_datetime
                             }
                             
                             inventory_result = inventory_collection.insert_one(new_inventory_item)
@@ -219,17 +186,12 @@ def update_stock_quantities(tenant_id: str,grn_item_details: List[Dict], reverse
                             item_result["newLocationStock"] = new_system_stock
                             
                             logging.info(f"✅ INVENTORY CREATED for Location {location_id} with stock: {new_system_stock:.2f}")
-                        
-                    except Exception as inv_error:
-                        inventory_errors += 1
-                        item_result["status"] = "failed"
-                        item_result["reason"] = f"Inventory update failed: {str(inv_error)}"
-                        logging.error(f"❌ Inventory update failed: {str(inv_error)}")
-                
-                else:
+                    
+                except Exception as inv_error:
+                    inventory_errors += 1
                     item_result["status"] = "failed"
-                    item_result["reason"] = f"Purchase item not found for ID: {random_id}"
-                    logging.error(f"❌ Purchase item not found for ID: {random_id}")
+                    item_result["reason"] = f"Inventory update failed: {str(inv_error)}"
+                    logging.error(f"❌ Inventory update failed: {str(inv_error)}")
             
             except Exception as item_error:
                 item_result["status"] = "failed"
@@ -249,62 +211,67 @@ def update_stock_quantities(tenant_id: str,grn_item_details: List[Dict], reverse
             "failed": failed_items,
             "items": detailed_results,
             "timestamp": current_datetime.isoformat(),
-            "purchaseitem_updates": purchaseitem_updates,
+            "purchaseitem_updates": 0,  # Always 0 - we don't update item master
             "inventory_updates": inventory_updates,
             "inventory_creates": inventory_creates,
+            "inventory_not_found": inventory_not_found,
             "errors": inventory_errors
         }
         
         # Log final summary
         summary_lines = []
         summary_lines.append("=" * 100)
-        summary_lines.append("📊 STOCK UPDATE COMPLETE SUMMARY")
+        summary_lines.append("📊 INVENTORY ONLY UPDATE COMPLETE SUMMARY")
         summary_lines.append("=" * 100)
         summary_lines.append(f"Operation Type: {operation_type}")
         summary_lines.append(f"Total Items Processed: {len(detailed_results)}")
         summary_lines.append(f"Successful: {successful_items}")
         summary_lines.append(f"Failed: {failed_items}")
         summary_lines.append("")
-        summary_lines.append("📦 PURCHASEITEM UPDATES (Item Master):")
-        summary_lines.append(f"   - Total Stock Updates: {purchaseitem_updates}")
-        summary_lines.append("")
-        summary_lines.append("📍 INVENTORY UPDATES (Location-Based):")
+        summary_lines.append("📍 INVENTORY UPDATES (Location-Based ONLY - NO ITEM MASTER):")
         summary_lines.append(f"   - Location Updates: {inventory_updates}")
         summary_lines.append(f"   - Location Creates: {inventory_creates}")
+        summary_lines.append(f"   - Location Not Found (for revert): {inventory_not_found}")
         summary_lines.append(f"   - Errors: {inventory_errors}")
         summary_lines.append("=" * 100)
         
         logging.info("\n".join(summary_lines))
         
+        # Log to inventory logger
+        inventory_logger.info(f"INVENTORY_ONLY_UPDATE|operation={operation_type}|items={len(detailed_results)}|updates={inventory_updates}|creates={inventory_creates}|not_found={inventory_not_found}")
+        
         return summary
         
     except Exception as e:
-        error_msg = f"❌ Error updating stock quantities: {str(e)}"
+        error_msg = f"❌ Error updating inventory only: {str(e)}"
         logging.error(error_msg)
         logging.exception("Full traceback:")
+        error_logger.error(error_msg)
         raise
 
-def reverse_grn_receipts(grn_item_details: List[Dict], po_items: List[Dict]) -> List[Dict]:
+def reverse_grn_receipts_only_po(grn_item_details: List[Dict], po_items: List[Dict]) -> List[Dict]:
     """
     Reverse the receipts from a specific GRN by updating PO items' quantities.
     Returns the updated PO items list.
-    Handles multi-GRN scenarios by only reversing this GRN's contribution.
-    Also clears expiryDate on items during reversal.
+    Does NOT clear expiryDate - preserves it for future receipts.
     """
     # Create a map of itemId to PO item for quick lookup
     po_items_map = {item['itemId']: item.copy() for item in po_items}
    
     for grn_item in grn_item_details:
         item_id = grn_item['itemId']
-        received_quantity = grn_item['receivedQuantity']
-       
+        received_quantity = grn_item.get('receivedQuantity', 0)
+        returned_quantity = grn_item.get('returnedQuantity', 0) 
+        actual_revert_qty = max(0, received_quantity - returned_quantity)
+        if actual_revert_qty <= 0:
+         continue
         po_item = po_items_map.get(item_id)
         if not po_item:
             logging.warning(f"PO item {item_id} not found for GRN reversal")
             continue
        
         # Reverse only this GRN's received quantity
-        po_item['totalReceivedQuantity'] -= received_quantity
+        po_item['totalReceivedQuantity'] -= actual_revert_qty
         po_item['quantity'] = po_item['totalReceivedQuantity']
        
         # Recalculate pending from PO quantity
@@ -323,8 +290,8 @@ def reverse_grn_receipts(grn_item_details: List[Dict], po_items: List[Dict]) -> 
             po_item['pendingCount'] = 0
             po_item['pendingQuantity'] = 0
        
-        # Clear expiryDate on this item during reversal
-        po_item['expiryDate'] = None
+        # DO NOT clear expiryDate - preserve it for future receipts
+        # po_item['expiryDate'] = None  # <-- COMMENTED OUT
        
         # Update status based on new totals
         if po_item['totalReceivedQuantity'] == 0:
@@ -334,8 +301,10 @@ def reverse_grn_receipts(grn_item_details: List[Dict], po_items: List[Dict]) -> 
         else:
             po_item['status'] = "Received"
        
-        logging.info(f"Reversed GRN for item {item_id}: totalReceivedQuantity now {po_item['totalReceivedQuantity']:.2f}, pending {po_item['pendingTotalQuantity']:.2f}, expiryDate cleared")
-        po_logger.info(f"PO_ITEM_REVERT|item_id={item_id}|randomId={po_item.get('randomId')}|qty_removed={received_quantity:.2f}|new_total={po_item['totalReceivedQuantity']:.2f}")
+        logging.info(f"Reversed GRN for item {item_id}: totalReceivedQuantity now {po_item['totalReceivedQuantity']:.2f}, pending {po_item['pendingTotalQuantity']:.2f} (expiryDate preserved)")
+        po_logger.info(
+ f"PO_ITEM_REVERT|item_id={item_id}|randomId={po_item.get('randomId')}|qty_removed={actual_revert_qty:.2f}|new_total={po_item['totalReceivedQuantity']:.2f}"
+)
    
     return list(po_items_map.values())
 
@@ -447,16 +416,17 @@ def recalculate_po_totals(items: List[Dict], po_discount: float) -> Dict:
     }
 
 @router.patch("/{grnId}/revert")
-async def revert_grn(request: Request,grnId: str) -> Dict:
+async def revert_grn(request: Request, grnId: str) -> Dict:
     tenant_id = request.state.tenant_id
     
     """
     Revert a specific GRN and reverse its effects on:
     - Associated PO (quantities, statuses)
-    - PurchaseItem (total stock) - SUBTRACT the quantity
-    - Inventory (location-based stock) - SUBTRACT the quantity
+    - Inventory ONLY (location-based stock) - SUBTRACT the quantity from systemStock
+    - NO ITEM MASTER UPDATE - purchaseitem stock NOT changed
+    - ONLY systemStock field in inventory collection is updated (minus the quantity)
     
-    Clears invoiceNo, invoiceDate on PO and expiryDate on items during reversal.
+    Preserves expiryDate on items for future receipts.
     """
     try:
         # Validate grnId
@@ -496,16 +466,19 @@ async def revert_grn(request: Request,grnId: str) -> Dict:
         
         grn_logger.info(f"GRN_REVERT_START|grn_id={grnId}|po_id={purchase_order_id}")
 
-        # Step 1: Reverse receipts in PO items (clears expiryDate on items)
-        updated_items = reverse_grn_receipts(grn_to_revert.get('itemDetails', []), existing_purchaseorder.get('items', []))
-        logging.info(f"✅ Step 1: PO items updated - {len(grn_to_revert.get('itemDetails', []))} items reversed")
+        # Step 1: Reverse receipts in PO items (preserves expiryDate)
+        updated_items = reverse_grn_receipts_only_po(grn_to_revert.get('itemDetails', []), existing_purchaseorder.get('items', []))
+        logging.info(f"✅ Step 1: PO items updated - {len(grn_to_revert.get('itemDetails', []))} items reversed (expiryDate preserved)")
 
-        # Step 2: Reverse stock quantities in BOTH purchaseitem AND inventory
-        # Add locationId to each GRN item (default to WH001) and item details
+        # Step 2: Reverse stock quantities in INVENTORY ONLY (NOT purchaseitem)
+        # Add locationId to each GRN item (default to WH001)
         grn_items_with_location = []
         for item in grn_to_revert.get('itemDetails', []):
             item_with_location = item.copy()
-            item_with_location['locationId'] = 'WH001'  # Default warehouse
+            returned_qty = item.get('returnedQuantity', 0)
+            actual_qty = item.get('receivedQuantity', 0) - returned_qty
+
+            item_with_location['receivedQuantity'] = actual_qty
             # Ensure item_rand is present
             if 'item_rand' not in item_with_location:
                 # Try to get from PO item if needed
@@ -514,11 +487,13 @@ async def revert_grn(request: Request,grnId: str) -> Dict:
                     item_with_location['item_rand'] = po_item.get('randomId')
             grn_items_with_location.append(item_with_location)
         
-        stock_result = update_stock_quantities(tenant_id, grn_items_with_location, reverse=True)
-        logging.info(f"✅ Step 2: Stock quantities reversed in purchaseitem and inventory")
-        logging.info(f"   - PurchaseItem updates: {stock_result.get('purchaseitem_updates', 0)}")
+        # Use inventory-only update function - NO ITEM MASTER UPDATE
+        # This will SUBTRACT from systemStock in inventory collection ONLY
+        stock_result = update_inventory_only(tenant_id, grn_items_with_location, reverse=True)
+        logging.info(f"✅ Step 2: Inventory ONLY updated - NO item master changes")
         logging.info(f"   - Inventory updates: {stock_result.get('inventory_updates', 0)}")
         logging.info(f"   - Inventory creates: {stock_result.get('inventory_creates', 0)}")
+        logging.info(f"   - Inventory not found: {stock_result.get('inventory_not_found', 0)}")
 
         # Step 3: Recalculate PO totals and update item fields
         po_discount = existing_purchaseorder.get('discountPrice', 0)
@@ -549,7 +524,7 @@ async def revert_grn(request: Request,grnId: str) -> Dict:
                     "revertedDate": current_datetime,
                     "lastUpdatedDate": current_datetime,
                     "isReverted": True,
-                    "canBeReUpdated": True,
+                    "canBeReUpdated": True,  # This allows new GRN to be created with new ID
                     "originalReceiptData": grn_to_revert.get('itemDetails', []),
                     "originalTotal": grn_to_revert.get('totalReceivedAmount', 0)
                 }
@@ -557,7 +532,7 @@ async def revert_grn(request: Request,grnId: str) -> Dict:
         )
         logging.info(f"✅ Step 5: GRN marked as reverted with canBeReUpdated=True")
 
-        # Step 6: Update PO with reversed data
+        # Step 6: Update PO with reversed data - IMPORTANT: Clear pendingGrnId so new GRN gets new ID
         update_data = {
             "totalOrderAmount": totals['totalOrderAmount'],
             "pendingOrderAmount": totals['pendingOrderAmount'],
@@ -572,7 +547,7 @@ async def revert_grn(request: Request,grnId: str) -> Dict:
             "lastUpdatedDate": current_datetime,
             "invoiceNo": None,
             "invoiceDate": None,
-            "pendingGrnId": grnId,
+            "pendingGrnId": None,  # CLEAR THIS - forces new GRN to get new ID
             "lastRevertedGrnId": grnId
         }
         
@@ -587,44 +562,48 @@ async def revert_grn(request: Request,grnId: str) -> Dict:
             error_logger.error(error_msg)
             raise HTTPException(status_code=500, detail="Failed to update associated PO")
         
-        logging.info(f"✅ Step 6: PO updated successfully")
+        logging.info(f"✅ Step 6: PO updated successfully - pendingGrnId cleared for new GRN")
 
         # Final summary
         summary = f"""
 {'='*100}
-✅ GRN REVERT COMPLETED SUCCESSFULLY
+✅ GRN REVERT COMPLETED SUCCESSFULLY (INVENTORY ONLY - NO ITEM MASTER)
 {'='*100}
 GRN ID: {grnId}
 PO ID: {purchase_order_id}
 New PO Status: {po_status}
 Items Reversed: {len(grn_to_revert.get('itemDetails', []))}
-Stock Updates:
-  - PurchaseItem Updates: {stock_result.get('purchaseitem_updates', 0)}
+Stock Updates (Inventory ONLY):
   - Inventory Updates: {stock_result.get('inventory_updates', 0)}
   - Inventory Creates: {stock_result.get('inventory_creates', 0)}
+  - Inventory Not Found: {stock_result.get('inventory_not_found', 0)}
+Item Master Updates: 0 (SKIPPED)
 Total Order Amount: {totals['totalOrderAmount']:.2f}
 Pending Order Amount: {totals['pendingOrderAmount']:.2f}
-Can Be Re-Updated: True
+Can Be Re-Updated: True (New GRN will get NEW ID)
+Expiry Dates: PRESERVED
 {'='*100}
         """
         logging.info(summary)
         
-        grn_logger.info(f"GRN_REVERT_COMPLETE|grn_id={grnId}|po_id={purchase_order_id}|status={po_status}|items_reversed={len(grn_to_revert.get('itemDetails', []))}|stock_updates={stock_result}")
-        audit_logger.info(f"GRN_REVERT|grn_id={grnId}|po_id={purchase_order_id}|timestamp={current_datetime}")
+        grn_logger.info(f"GRN_REVERT_COMPLETE|grn_id={grnId}|po_id={purchase_order_id}|status={po_status}|items_reversed={len(grn_to_revert.get('itemDetails', []))}|inventory_only=true")
+        audit_logger.info(f"GRN_REVERT|grn_id={grnId}|po_id={purchase_order_id}|timestamp={current_datetime}|inventory_only")
 
-        # Return response
+        # Return response with stock updates for UI
         return {
-            "message": "GRN reverted and associated PO updated successfully",
+            "message": "GRN reverted and associated PO updated successfully (Inventory only - No item master update)",
             "grnId": grnId,
             "purchaseOrderId": str(purchase_order_id),
             "poStatus": po_status,
             "itemStatus": item_status,
             "totalOrderAmount": totals['totalOrderAmount'],
             "pendingOrderAmount": totals['pendingOrderAmount'],
-            "reversedItemsCount": len(grn_to_revert.get('itemDetails', [])),
-            "stockUpdates": stock_result,  # This now contains detailed item-level changes
+            "revertedItemsCount": len(grn_to_revert.get('itemDetails', [])),
+            "stockUpdates": stock_result,  # This now contains ONLY inventory updates
             "canBeReUpdated": True,
-            "pendingGrnId": grnId
+            "pendingGrnId": None,  # Explicitly None for new GRN
+            "inventoryOnly": True,
+            "itemMasterUpdated": False
         }
 
     except HTTPException:

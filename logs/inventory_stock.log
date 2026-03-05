@@ -1,0 +1,5 @@
+2026-03-05 17:10:23,407 - INVENTORY_ONLY_UPDATE|operation=REVERT (SUBTRACT)|items=1|updates=1|creates=0|not_found=0
+2026-03-05 17:26:09,991 - INVENTORY_ONLY_UPDATE|operation=REVERT (SUBTRACT)|items=1|updates=1|creates=0|not_found=0
+2026-03-05 17:55:20,566 - INVENTORY_ONLY_UPDATE|operation=REVERT (SUBTRACT)|items=1|updates=1|creates=0|not_found=0
+2026-03-05 17:57:18,254 - INVENTORY_ONLY_UPDATE|operation=REVERT (SUBTRACT)|items=1|updates=1|creates=0|not_found=0
+2026-03-05 18:22:38,040 - INVENTORY_ONLY_UPDATE|operation=REVERT (SUBTRACT)|items=1|updates=1|creates=0|not_found=0

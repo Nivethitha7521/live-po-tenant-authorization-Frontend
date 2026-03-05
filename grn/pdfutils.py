@@ -4,10 +4,8 @@ PDF generation utilities for debit notes
 """
 import io
 from datetime import datetime
-import traceback
-from fastapi import Request
 from typing import Optional, Any
-from reportlab.lib.pagesizes import A4,letter
+from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -38,424 +36,277 @@ def format_date_for_display(date_value: Any) -> str:
     except Exception as e:
         logger.warning(f"Failed to format date {date_value}: {e}")
         return str(date_value)
-def generate_debit_note_pdf_content(note: dict) -> bytes:
-    """Generate PDF for a specific debit/credit note with proper formatting"""
+
+
+def generate_debit_note_pdf_content(sanitized_note: dict) -> bytes:
+    """
+    Generate PDF content for a debit note
+    """
     try:
+        # Create PDF in memory
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                               topMargin=72, bottomMargin=72,
-                               leftMargin=72, rightMargin=72)
-        
-        # Styles
-        styles = getSampleStyleSheet()
-        
-        # Custom styles
-        title_style = ParagraphStyle(
-            'TitleStyle',
-            parent=styles['Heading1'],
-            fontSize=18,
-            textColor=colors.HexColor('#1a237e'),
-            spaceAfter=20,
-            alignment=1
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=20*mm,
+            leftMargin=20*mm,
+            topMargin=20*mm,
+            bottomMargin=20*mm
         )
         
-        subtitle_style = ParagraphStyle(
-            'SubtitleStyle',
+        # Get styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=12,
+            alignment=1  # Center
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
             parent=styles['Heading2'],
             fontSize=12,
-            textColor=colors.HexColor('#283593'),
-            spaceAfter=10
-        )
-        
-        normal_style = ParagraphStyle(
-            'NormalStyle',
-            parent=styles['Normal'],
-            fontSize=10,
             spaceAfter=6
         )
         
-        bold_style = ParagraphStyle(
-            'BoldStyle',
-            parent=styles['Normal'],
-            fontSize=10,
-            fontName='Helvetica-Bold'
-        )
+        normal_style = styles['Normal']
         
-        header_style = ParagraphStyle(
-            'HeaderStyle',
-            parent=styles['Normal'],
-            fontSize=10,
-            fontName='Helvetica-Bold',
-            textColor=colors.white,
-            alignment=1
-        )
-        
-        story = []
+        # Build PDF content
+        content = []
         
         # Title
-        title_text = "DEBIT NOTE"
-        story.append(Paragraph(title_text, title_style))
+        is_amount_only = sanitized_note.get("isAmountOnly", False) or sanitized_note.get("noteType") == "amount_only"
+        title_text = "Amount-Only Debit Note" if is_amount_only else "Debit/Credit Note"
+        content.append(Paragraph(title_text, title_style))
+        content.append(Spacer(1, 10))
         
-        # Separator line
-        story.append(Spacer(1, 10))
-        story.append(Paragraph("<hr/>", styles['Normal']))
-        story.append(Spacer(1, 20))
+        # Note Details Section
+        content.append(Paragraph("Note Details", heading_style))
         
-        # Company Info
-        company_info = [
-            ["Company Name:", "Your Company Name"],
-            ["Address:", "Your Company Address"],
-            ["City, State, ZIP:", "City, State, ZIP Code"],
-            ["GST Number:", "GSTIN Number Here"],
-            ["Contact:", "Phone: +91-XXXXXXXXXX | Email: info@company.com"]
+        # Create note details table
+        note_details_data = [
+            ["Note ID:", sanitized_note.get("noteId", "N/A")],
+            ["Document Type:", sanitized_note.get("documentType", "N/A").replace("_", " ").title()],
+            ["Vendor Name:", sanitized_note.get("vendorName", "N/A")],
+            ["Created Date:", format_date_for_display(sanitized_note.get("createdDate"))],
+            ["Created By:", sanitized_note.get("createdBy", "N/A")],
+            ["Status:", sanitized_note.get("status", "Active")],
+            ["Note Type:", "Amount-only" if is_amount_only else "Item-wise"],
         ]
         
-        company_table = Table(company_info, colWidths=[120, 300])
-        company_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        # Add reason if available
+        reason = sanitized_note.get("reason")
+        if reason:
+            note_details_data.append(["Reason:", reason])
+        
+        # Add remaining payable amount if available
+        remaining_amount = sanitized_note.get("remainingPayableAmount")
+        if remaining_amount is not None:
+            note_details_data.append(["Remaining Payable:", f"₹{remaining_amount:,.2f}"])
+        
+        note_table = Table(note_details_data, colWidths=[100, 300])
+        note_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ]))
-        story.append(company_table)
-        story.append(Spacer(1, 20))
         
-        # Debit Note Details
-        note_details = [
-            ["Debit Note No:", note.get("noteId", "N/A")],
-            ["Date:", note.get("createdDate", datetime.now()).strftime("%d %B %Y")],
-            ["Status:", note.get("status", "Active")],
-            ["Type:", "Amount Only" if note.get("isAmountOnly", False) else "Item Wise"],
-            ["Vendor:", note.get("vendorName", "N/A")],
-            ["Source Document:", note.get("sourceDocumentRef", "N/A")]
+        content.append(note_table)
+        content.append(Spacer(1, 15))
+        
+        # Financial Summary
+        content.append(Paragraph("Financial Summary", heading_style))
+        
+        total_amount = sanitized_note.get("totalAmount", 0)
+        final_amount = sanitized_note.get("finalAmount", total_amount)
+        total_tax = sanitized_note.get("totalTax", 0)
+        total_discount = sanitized_note.get("totalDiscount", 0)
+        
+        financial_data = [
+            ["Description", "Amount (₹)"],
+            ["Total Amount", f"{total_amount:,.2f}"],
+            ["Total Tax", f"{total_tax:,.2f}"],
+            ["Total Discount", f"{total_discount:,.2f}"],
+            ["Final Amount", f"{final_amount:,.2f}"]
         ]
         
-        if note.get("reason"):
-            note_details.append(["Reason:", note.get("reason")])
-        
-        note_table = Table(note_details, colWidths=[120, 300])
-        note_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f5f5f5')),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        financial_table = Table(financial_data, colWidths=[200, 200])
+        financial_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('PADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgreen),
         ]))
-        story.append(note_table)
-        story.append(Spacer(1, 30))
         
-        # Items Table
-        story.append(Paragraph("Item Details", subtitle_style))
+        content.append(financial_table)
+        content.append(Spacer(1, 15))
         
-        item_details = note.get("itemDetails", [])
-        if note.get("isAmountOnly"):
-            # Amount-only note - simplified table
-            table_data = [
-                [Paragraph("Description", header_style), 
-                 Paragraph("Quantity", header_style), 
-                 Paragraph("Unit Price (₹)", header_style), 
-                 Paragraph("Total Amount (₹)", header_style)]
-            ]
+        # Item Details (for item-wise notes)
+        if not is_amount_only and sanitized_note.get("itemDetails"):
+            content.append(Paragraph("Item Details", heading_style))
             
-            table_data.append([
-                Paragraph(note.get("reason", "Amount Adjustment"), normal_style),
-                Paragraph("1", normal_style),
-                Paragraph(f"{note.get('totalAmount', 0):,.2f}", normal_style),
-                Paragraph(f"{note.get('totalAmount', 0):,.2f}", normal_style)
-            ])
+            item_headers = ["S.No", "Item Name", "Type", "Quantity", "Unit Price", "Total Price", "Tax", "Final Price"]
+            item_data = [item_headers]
             
-            col_widths = [250, 70, 90, 90]
-        else:
-            # Item-wise note - detailed table
-            table_data = [
-                [Paragraph("Item ID", header_style), 
-                 Paragraph("Item Name", header_style), 
-                 Paragraph("Quantity", header_style), 
-                 Paragraph("Unit Price (₹)", header_style), 
-                 Paragraph("Total (₹)", header_style),
-                 Paragraph("Reason", header_style)]
-            ]
+            for idx, item in enumerate(sanitized_note.get("itemDetails", []), 1):
+                item_row = [
+                    str(idx),
+                    item.get("itemName", "N/A"),
+                    item.get("noteType", "debit").title(),
+                    f"{item.get('quantity', 0):,.2f}",
+                    f"₹{item.get('unitPrice', 0):,.2f}",
+                    f"₹{item.get('totalPrice', 0):,.2f}",
+                    f"₹{item.get('taxAmount', 0):,.2f}",
+                    f"₹{item.get('finalPrice', 0):,.2f}",
+                ]
+                item_data.append(item_row)
             
-            for item in item_details:
-                table_data.append([
-                    Paragraph(item.get("itemId", ""), normal_style),
-                    Paragraph(item.get("itemName", ""), normal_style),
-                    Paragraph(f"{item.get('quantity', 0):,.2f}", normal_style),
-                    Paragraph(f"{item.get('unitPrice', 0):,.2f}", normal_style),
-                    Paragraph(f"{item.get('totalPrice', 0):,.2f}", normal_style),
-                    Paragraph(item.get("reason", ""), normal_style)
-                ])
-            
-            col_widths = [80, 150, 60, 80, 80, 80]
-        
-        items_table = Table(table_data, colWidths=col_widths)
-        items_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3f51b5')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e0e0e0')),
-            ('ALIGN', (2, 1), (-2, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('PADDING', (0, 0), (-1, -1), 6),
-        ]))
-        story.append(items_table)
-        story.append(Spacer(1, 30))
-        
-        # Amount Summary
-        story.append(Paragraph("Amount Summary", subtitle_style))
-        
-        total_amount = note.get("totalAmount", 0)
-        final_amount = note.get("finalAmount", total_amount)
-        pending_amount = note.get("pendingAmount", final_amount)
-        
-        summary_data = [
-            ["Total Amount:", f"₹{total_amount:,.2f}"],
-            ["Final Amount:", f"₹{final_amount:,.2f}"],
-            ["Pending Amount:", f"₹{pending_amount:,.2f}"],
-        ]
-        
-        if note.get("remainingPayableAmount") is not None:
-            summary_data.append(["Remaining Payable:", f"₹{note.get('remainingPayableAmount'):,.2f}"])
-        
-        summary_table = Table(summary_data, colWidths=[150, 150])
-        summary_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f5f5f5')),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('PADDING', (0, 0), (-1, -1), 8),
-        ]))
-        story.append(summary_table)
-        story.append(Spacer(1, 30))
-        
-        # Payment History (if any)
-        payment_history = note.get("paymentHistory", [])
-        if payment_history:
-            story.append(Paragraph("Payment History", subtitle_style))
-            
-            payment_data = [
-                [Paragraph("Date", header_style), 
-                 Paragraph("Payment ID", header_style), 
-                 Paragraph("Cleared By", header_style), 
-                 Paragraph("Amount (₹)", header_style)]
-            ]
-            
-            for payment in payment_history:
-                payment_date = payment.get("date", datetime.now())
-                if isinstance(payment_date, str):
-                    try:
-                        payment_date = datetime.fromisoformat(payment_date.replace('Z', '+00:00'))
-                    except:
-                        payment_date = datetime.now()
-                
-                payment_data.append([
-                    Paragraph(payment_date.strftime("%d-%m-%Y"), normal_style),
-                    Paragraph(payment.get("outgoingPaymentId", "N/A"), normal_style),
-                    Paragraph(payment.get("clearedBy", "N/A"), normal_style),
-                    Paragraph(f"{payment.get('amount', 0):,.2f}", normal_style)
-                ])
-            
-            payment_table = Table(payment_data, colWidths=[80, 120, 100, 100])
-            payment_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4caf50')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            item_table = Table(item_data, colWidths=[30, 120, 50, 50, 60, 70, 50, 70])
+            item_table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e0e0e0')),
-                ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('PADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('ALIGN', (3, 1), (7, -1), 'RIGHT'),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke]),
             ]))
-            story.append(payment_table)
-            story.append(Spacer(1, 20))
+            
+            content.append(item_table)
+            content.append(Spacer(1, 10))
+        
+        # For amount-only notes, show a simple description
+        elif is_amount_only:
+            content.append(Paragraph("Description", heading_style))
+            desc_text = f"This is an amount-only debit note for ₹{final_amount:,.2f}"
+            if reason:
+                desc_text += f" with reason: {reason}"
+            content.append(Paragraph(desc_text, normal_style))
+            content.append(Spacer(1, 10))
+        
+        # Source Document Information
+        source_doc = sanitized_note.get("sourceDocument")
+        if source_doc:
+            content.append(Paragraph("Source Document Information", heading_style))
+            
+            source_data = [
+                ["Document Type:", source_doc.get("type", "N/A").replace("_", " ").title()],
+                ["Document ID:", source_doc.get("id", "N/A")],
+                ["Vendor:", source_doc.get("vendorName", "N/A")],
+                ["Original Payable:", f"₹{source_doc.get('originalPayableAmount', 0):,.2f}"],
+                ["Existing Notes:", str(source_doc.get("existingDebitNotesCount", 0))],
+            ]
+            
+            source_table = Table(source_data, colWidths=[100, 300])
+            source_table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ]))
+            
+            content.append(source_table)
         
         # Footer
-        story.append(Spacer(1, 40))
-        story.append(Paragraph("<hr/>", styles['Normal']))
-        story.append(Spacer(1, 10))
-        
-        footer_text = "This is a computer-generated document and does not require a signature."
-        story.append(Paragraph(footer_text, ParagraphStyle(
-            'FooterStyle',
+        content.append(Spacer(1, 20))
+        footer_text = f"Generated on: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')} | Computer Generated Document"
+        content.append(Paragraph(footer_text, ParagraphStyle(
+            'Footer',
             parent=styles['Normal'],
-            fontSize=9,
+            fontSize=8,
             textColor=colors.grey,
             alignment=1
         )))
         
         # Build PDF
-        doc.build(story)
+        doc.build(content)
+        
+        # Return PDF bytes
+        buffer.seek(0)
         return buffer.getvalue()
         
     except Exception as e:
-        logger.error(f"Error in generate_debit_note_pdf_content: {str(e)}\n{traceback.format_exc()}")
-        # Return a simple PDF with error message
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
-        story = []
-        story.append(Paragraph("Error Generating Debit Note PDF", ParagraphStyle(
-            'Error',
-            parent=getSampleStyleSheet()['Heading1'],
-            fontSize=16,
-            textColor=colors.red
-        )))
-        story.append(Paragraph(f"Error: {str(e)}", getSampleStyleSheet()['Normal']))
-        doc.build(story)
-        return buffer.getvalue()
-def generate_all_notes_pdf_content(notes, document_id, document_type, vendor_name, 
-                                   source_doc_ref, original_amount):
-    """Generate PDF for ALL debit notes with proper alignment"""
+        logger.error(f"Error generating PDF content: {str(e)}")
+        raise
+
+
+def generate_all_notes_pdf_content(notes: list, document_id: str, document_type: str, vendor_name: str) -> bytes:
+    """
+    Generate PDF containing all debit notes for a document
+    """
     try:
+        # Create PDF in memory
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                               topMargin=72, bottomMargin=72,
-                               leftMargin=72, rightMargin=72)
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=20*mm,
+            leftMargin=20*mm,
+            topMargin=20*mm,
+            bottomMargin=20*mm
+        )
         
-        # Styles
+        # Get styles
         styles = getSampleStyleSheet()
-        
         title_style = ParagraphStyle(
-            'TitleStyle',
+            'CustomTitle',
             parent=styles['Heading1'],
-            fontSize=18,
-            textColor=colors.HexColor('#1a237e'),
-            spaceAfter=20,
+            fontSize=16,
+            spaceAfter=12,
             alignment=1
         )
         
-        subtitle_style = ParagraphStyle(
-            'SubtitleStyle',
+        heading_style = ParagraphStyle(
+            'CustomHeading',
             parent=styles['Heading2'],
-            fontSize=14,
-            textColor=colors.HexColor('#283593'),
-            spaceAfter=10
-        )
-        
-        normal_style = ParagraphStyle(
-            'NormalStyle',
-            parent=styles['Normal'],
-            fontSize=10,
+            fontSize=12,
             spaceAfter=6
         )
         
-        header_style = ParagraphStyle(
-            'HeaderStyle',
-            parent=styles['Normal'],
-            fontSize=10,
-            fontName='Helvetica-Bold',
-            textColor=colors.white,
-            alignment=1
-        )
-        
-        story = []
+        # Build PDF content
+        content = []
         
         # Title
-        doc_type_formatted = document_type.replace("_", " ").title()
-        title_text = f"ALL DEBIT NOTES - {doc_type_formatted}"
-        story.append(Paragraph(title_text, title_style))
+        content.append(Paragraph("Debit/Credit Notes Summary", title_style))
         
-        # Document Info Table
-        info_data = [
-            [Paragraph("Document Reference", header_style), 
-             Paragraph("Document Type", header_style), 
-             Paragraph("Vendor", header_style),
-             Paragraph("Original Amount", header_style)],
-            [
-                Paragraph(source_doc_ref or "N/A", normal_style),
-                Paragraph(doc_type_formatted, normal_style),
-                Paragraph(vendor_name or "N/A", normal_style),
-                Paragraph(f"₹{original_amount:,.2f}", normal_style)
-            ]
-        ]
+        # Document Information
+        content.append(Paragraph(f"Document ID: {document_id}", heading_style))
+        content.append(Paragraph(f"Document Type: {document_type.replace('_', ' ').title()}", heading_style))
+        content.append(Paragraph(f"Vendor: {vendor_name}", heading_style))
+        content.append(Spacer(1, 10))
         
-        info_table = Table(info_data, colWidths=[120, 100, 120, 120])
-        info_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3f51b5')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e0e0e0')),
-            ('ALIGN', (3, 1), (3, 1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('PADDING', (0, 0), (-1, -1), 8),
-        ]))
-        story.append(info_table)
-        story.append(Spacer(1, 30))
+        # Summary Statistics
+        total_notes = len(notes)
+        total_amount = sum(note.get("finalAmount", note.get("totalAmount", 0)) for note in notes)
         
-        # Summary Section
-        story.append(Paragraph("Summary", subtitle_style))
+        content.append(Paragraph(f"Total Notes: {total_notes}", heading_style))
+        content.append(Paragraph(f"Total Amount: ₹{total_amount:,.2f}", heading_style))
+        content.append(Spacer(1, 15))
         
-        total_amount = sum(n.get("finalAmount", n.get("totalAmount", 0)) for n in notes)
-        item_wise_count = sum(1 for n in notes if n.get("noteType") == "item_wise" or not n.get("isAmountOnly"))
-        amount_only_count = sum(1 for n in notes if n.get("noteType") == "amount_only" or n.get("isAmountOnly"))
-        active_count = sum(1 for n in notes if n.get("status") != "Cleared")
-        cleared_count = sum(1 for n in notes if n.get("status") == "Cleared")
-        
-        summary_data = [
-            ["Total Notes:", str(len(notes))],
-            ["Item-wise Notes:", str(item_wise_count)],
-            ["Amount-only Notes:", str(amount_only_count)],
-            ["Active Notes:", str(active_count)],
-            ["Cleared Notes:", str(cleared_count)],
-            ["Total Debit Amount:", f"₹{total_amount:,.2f}"],
-            ["Available Amount:", f"₹{(original_amount - total_amount):,.2f}"]
-        ]
-        
-        summary_table = Table(summary_data, colWidths=[150, 100])
-        summary_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f5f5f5')),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('PADDING', (0, 0), (-1, -1), 6),
-        ]))
-        story.append(summary_table)
-        story.append(Spacer(1, 30))
-        
-        # Individual Notes Section
-        story.append(Paragraph("Individual Debit Notes", subtitle_style))
-        story.append(Spacer(1, 10))
-        
-        for i, note in enumerate(notes, 1):
-            # Note Header
-            note_header = f"Note {i}: {note.get('noteId', 'N/A')}"
-            story.append(Paragraph(note_header, ParagraphStyle(
-                'NoteHeader',
-                parent=styles['Heading3'],
-                fontSize=12,
-                textColor=colors.HexColor('#3949ab'),
-                spaceAfter=6
-            )))
+        # List all notes
+        for idx, note in enumerate(notes, 1):
+            is_amount_only = note.get("isAmountOnly", False)
             
-            # Note Details Table
-            note_type = "Item-wise" if note.get("noteType") == "item_wise" else "Amount-only"
-            created_date = note.get("createdDate", datetime.now())
-            if isinstance(created_date, str):
-                try:
-                    created_date = datetime.fromisoformat(created_date.replace('Z', '+00:00'))
-                except:
-                    created_date = datetime.now()
+            # Note header
+            note_type = "Amount-only" if is_amount_only else "Item-wise"
+            note_title = f"Note {idx}: {note.get('noteId', 'N/A')} ({note_type})"
+            content.append(Paragraph(note_title, heading_style))
             
+            # Note details
             note_details = [
-                ["Type:", note_type],
                 ["Status:", note.get("status", "Active")],
+                ["Created:", format_date_for_display(note.get("createdDate"))],
+                ["Created By:", note.get("createdBy", "N/A")],
                 ["Amount:", f"₹{note.get('finalAmount', 0):,.2f}"],
-                ["Created:", created_date.strftime("%d %B %Y")],
             ]
             
             if note.get("reason"):
@@ -463,34 +314,34 @@ def generate_all_notes_pdf_content(notes, document_id, document_type, vendor_nam
             
             note_table = Table(note_details, colWidths=[80, 320])
             note_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f8f9fa')),
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dee2e6')),
-                ('PADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('BACKGROUND', (0, 0), (0, -1), colors.whitesmoke),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ]))
-            story.append(note_table)
-            story.append(Spacer(1, 15))
+            
+            content.append(note_table)
+            content.append(Spacer(1, 10))
         
         # Footer
-        story.append(Spacer(1, 40))
-        story.append(Paragraph("<hr/>", styles['Normal']))
-        story.append(Spacer(1, 10))
-        
-        footer_text = f"Generated on {datetime.now().strftime('%d %B %Y, %I:%M %p')}"
-        story.append(Paragraph(footer_text, ParagraphStyle(
-            'FooterStyle',
+        content.append(Spacer(1, 20))
+        footer_text = f"Generated on: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')} | Total {total_notes} notes"
+        content.append(Paragraph(footer_text, ParagraphStyle(
+            'Footer',
             parent=styles['Normal'],
-            fontSize=9,
+            fontSize=8,
             textColor=colors.grey,
             alignment=1
         )))
         
         # Build PDF
-        doc.build(story)
+        doc.build(content)
+        
+        # Return PDF bytes
+        buffer.seek(0)
         return buffer.getvalue()
         
     except Exception as e:
-        logger.error(f"Error in generate_all_notes_pdf_content: {str(e)}")
+        logger.error(f"Error generating all notes PDF: {str(e)}")
         raise
