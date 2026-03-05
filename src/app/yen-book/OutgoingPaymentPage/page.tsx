@@ -1663,7 +1663,7 @@ Description:<br />
                           <TableCell align="right">{(payment.discountDetails || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
                           <TableCell align="right">{(payment.payableAmount || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
                           <TableCell align="right">{(payment.paidAmount || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
-                          <TableCell align="right">{(payment.remainingAmount || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
+                          <TableCell align="right">{(payment.totalPayableAmount || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
                           <TableCell
                             align="center"
                             sx={{

@@ -211,31 +211,29 @@ const ReturnStockUpdateDialog: React.FC<ReturnStockUpdateDialogProps> = ({
 
       <DialogContent sx={{ mt: 2 }}>
         {/* Summary Cards */}
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-          <Paper sx={{ p: 2, flex: 1, minWidth: 150, textAlign: 'center', bgcolor: '#f5f5f5' }}>
-            <Typography variant="h4" color="primary">{normalizedStockUpdates.purchaseitem_updates || 0}</Typography>
-            <Typography variant="body2">Item Master Updates</Typography>
-            <Typography variant="caption" color="text.secondary">(Total Stock)</Typography>
-          </Paper>
-          <Paper sx={{ p: 2, flex: 1, minWidth: 150, textAlign: 'center', bgcolor: '#e3f2fd' }}>
-            <Typography variant="h4" color="info.main">{normalizedStockUpdates.inventory_updates || 0}</Typography>
-            <Typography variant="body2">Location Updates</Typography>
-            <Typography variant="caption" color="text.secondary">(WH001)</Typography>
-          </Paper>
-          {(normalizedStockUpdates.inventory_not_found || 0) > 0 && (
-            <Paper sx={{ p: 2, flex: 1, minWidth: 150, textAlign: 'center', bgcolor: '#fff3e0' }}>
-              <Typography variant="h4" color="warning.main">{normalizedStockUpdates.inventory_not_found}</Typography>
-              <Typography variant="body2">Records Not Found</Typography>
-              <Typography variant="caption" color="text.secondary">(Skipped)</Typography>
-            </Paper>
-          )}
-          {(normalizedStockUpdates.inventory_errors || 0) > 0 && (
-            <Paper sx={{ p: 2, flex: 1, minWidth: 150, textAlign: 'center', bgcolor: '#ffebee' }}>
-              <Typography variant="h4" color="error.main">{normalizedStockUpdates.inventory_errors}</Typography>
-              <Typography variant="body2">Errors</Typography>
-            </Paper>
-          )}
-        </Box>
+       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+  <Paper sx={{ p: 2, flex: 1, minWidth: 150, textAlign: 'center', bgcolor: '#e3f2fd' }}>
+    <Typography variant="h4" color="info.main">
+      {normalizedStockUpdates.inventory_updates || 0}
+    </Typography>
+    <Typography variant="body2">Stock Updates</Typography>
+    <Typography variant="caption" color="text.secondary">(WH001)</Typography>
+  </Paper>
+
+  {(normalizedStockUpdates.inventory_not_found || 0) > 0 && (
+    <Paper sx={{ p: 2, flex: 1, minWidth: 150, textAlign: 'center', bgcolor: '#fff3e0' }}>
+      <Typography variant="h4" color="warning.main">{normalizedStockUpdates.inventory_not_found}</Typography>
+      <Typography variant="body2">Records Not Found</Typography>
+    </Paper>
+  )}
+
+  {(normalizedStockUpdates.inventory_errors || 0) > 0 && (
+    <Paper sx={{ p: 2, flex: 1, minWidth: 150, textAlign: 'center', bgcolor: '#ffebee' }}>
+      <Typography variant="h4" color="error.main">{normalizedStockUpdates.inventory_errors}</Typography>
+      <Typography variant="body2">Errors</Typography>
+    </Paper>
+  )}
+</Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
           <Typography variant="body2" color="text.secondary">
             GRN ID: <strong>{grnId}</strong>
@@ -262,36 +260,31 @@ const ReturnStockUpdateDialog: React.FC<ReturnStockUpdateDialogProps> = ({
             </Typography>
             <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 350 }}>
               <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Item Name</TableCell>
-                    <TableCell align="center" colSpan={2}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                        <InventoryIcon fontSize="small" color="primary" />
-                        <Typography variant="subtitle2">Item Master Stock</Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell align="center" colSpan={2}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                        <StoreIcon fontSize="small" color="secondary" />
-                        <Typography variant="subtitle2">Location Stock (WH001)</Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell align="right">Quantity Returned</TableCell>
-                    <TableCell>Details</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell align="right">Change</TableCell>
-                    <TableCell align="right">Before → After</TableCell>
-                    <TableCell align="right">Change</TableCell>
-                    <TableCell align="right">Before → After</TableCell>
-                    <TableCell align="right"></TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableHead>
+          <TableHead>
+  <TableRow>
+    <TableCell>Status</TableCell>
+    <TableCell>Item Name</TableCell>
+
+    <TableCell align="center" colSpan={2}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+        <StoreIcon fontSize="small" color="secondary" />
+        <Typography variant="subtitle2">Location Stock (WH001)</Typography>
+      </Box>
+    </TableCell>
+
+    <TableCell align="right">Quantity Returned</TableCell>
+    <TableCell>Details</TableCell>
+  </TableRow>
+
+  <TableRow>
+    <TableCell />
+    <TableCell />
+    <TableCell align="right">Change</TableCell>
+    <TableCell align="right">Before → After</TableCell>
+    <TableCell />
+    <TableCell />
+  </TableRow>
+</TableHead>
                 <TableBody>
                   {normalizedStockUpdates.items.map((item: ReturnStockUpdateItem, index: number) => (
                     <TableRow key={index} sx={{
@@ -316,7 +309,9 @@ const ReturnStockUpdateDialog: React.FC<ReturnStockUpdateDialogProps> = ({
                         </Typography>
                       </TableCell>
 
-                      {/* Item Master Stock Changes */}
+                  
+
+               {/* Item Master Stock Changes */}
                       <TableCell align="right">
                         <Typography color="error.main" fontWeight="bold">
                           -{(item.quantityToReduce || 0).toFixed(3)}
@@ -327,18 +322,7 @@ const ReturnStockUpdateDialog: React.FC<ReturnStockUpdateDialogProps> = ({
                           {(item.beforeStock || 0).toFixed(3)} → {(item.afterStock || 0).toFixed(3)}
                         </Typography>
                       </TableCell>
-
-                      {/* Location Stock Changes */}
-                      <TableCell align="right">
-                        <Typography color="error.main">
-                          -{(item.quantityToReduce || 0).toFixed(3)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="caption">
-                          {(item.beforeLocationStock || 0).toFixed(3)} → {(item.afterLocationStock || 0).toFixed(3)}
-                        </Typography>
-                      </TableCell>
+                    
 
                       <TableCell align="right">
                         <Typography fontWeight="bold" color="error.main">
@@ -369,12 +353,7 @@ const ReturnStockUpdateDialog: React.FC<ReturnStockUpdateDialogProps> = ({
             <strong>Summary of Stock Updates:</strong>
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <InventoryIcon fontSize="small" color="primary" />
-              <Typography variant="body2" color="text.secondary">
-                <strong>Item Master:</strong> {normalizedStockUpdates.purchaseitem_updates || 0} items updated - Total stock reduced by returned quantities
-              </Typography>
-            </Box>
+           
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <StoreIcon fontSize="small" color="secondary" />
               <Typography variant="body2" color="text.secondary">

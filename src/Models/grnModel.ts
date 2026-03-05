@@ -359,6 +359,33 @@ export interface StockUpdateResult {
   errors: number;
 }
 
+export interface RevertStockUpdateItem {
+  randomId: string;
+  itemName: string;
+  stockChange: number;           // Always 0 for revert (item master not updated)
+  newStock: number;               // Always 0 for revert
+  locationStockChange: number;    // Location-specific stock change (negative for revert)
+  newLocationStock: number;       // Location-specific new stock
+  locationId: string;
+  priceUpdated: boolean;          // Always false for revert
+  status: 'success' | 'failed';
+  reason?: string;
+}
+
+export interface RevertStockUpdateResult {
+  success: boolean;
+  totalProcessed: number;
+  successful: number;
+  failed: number;
+  items: RevertStockUpdateItem[];
+  purchaseitem_updates: number;   // Always 0 for revert
+  inventory_updates: number;
+  inventory_creates: number;
+  inventory_not_found: number;
+  errors: number;
+  timestamp: string;
+}
+
 // Update the RevertGrnToPOResponse interface
 export interface RevertGrnToPOResponse {
   message: string;
@@ -369,10 +396,13 @@ export interface RevertGrnToPOResponse {
   revertedItemsCount: number;
   pendingOrderAmount: number;
   totalOrderAmount?: number;
-  stockUpdates?: StockUpdateResult; // Add this optional property
+  stockUpdates?: RevertStockUpdateResult; // Add this optional property
   canBeReUpdated?: boolean;
   pendingGrnId?: string;
+  inventoryOnly?: boolean;
+  itemMasterUpdated?: boolean;
 }
+
 // Add this interface near the top of your grnSlice.ts file
 export interface ReturnStockUpdateResult {
   purchaseitem_updates: number;
@@ -479,9 +509,10 @@ export interface GrnState {
   amountDebitNoteError: string | null;
   debitCreditNoteError: string | null;
 
-  lastRevertStockUpdates?: StockUpdateResult;
+  // REVERT STOCK UPDATES - Use RevertStockUpdateResult
+  lastRevertStockUpdates?: RevertStockUpdateResult;
   lastRevertedGrnId?: string | null;
-  showStockUpdateDialog?: boolean;
+  showStockUpdateDialog: boolean;
 
     // RETURN STOCK UPDATES - ADD THESE LINES
   lastReturnStockUpdates?: ReturnStockUpdateResult;

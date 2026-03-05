@@ -59,7 +59,6 @@ import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import SmartDatePicker from '@/components/SmartDatePicker';
 import ConfirmationDialog from '@/components/confirmationDialog';
-import StockUpdateDialog from './Components/StockUpdate';
 import ReturnStockUpdateDialog from './Components/ReturnStockUpdateDialog';
 import { fetchPoById, selectPurchaseListState, setPoDialogOpen, setSelectedPo } from '@/features/yen-purchase/PurchaseOrder/purchaseListSlice';
 import { ItemDetailResponsePO, PoResponse } from '@/Models/purchaseModel';
@@ -69,6 +68,7 @@ import {
   setSnackbarOpen as setOutgoingSnackbarOpen
 } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import PODialog from '@/components/yen-purchase/OutgoingComponent/PODialog';
+import RevertStockUpdateDialog from './Components/RevertStockUpdate';
 
 const customRound = (amount: number) => {
   const roundedAmount = Math.round(amount);
@@ -469,11 +469,14 @@ const handleApRoundOffBlur = () => {
     }
   };
   const handleReturnComplete = () => {
-    setReturnDialogOpen(false); // Close dialog
-    setSelectedGrnItems([]); // Clear selected items
-    dispatch(setSelectedGrnId(null)); // Clear selected GRN ID
-    dispatch(fetchGrns({ page: currentPage, size: pageSize })); // Refresh GRN list
-  };
+  setReturnDialogOpen(false);
+  setSelectedGrnItems([]);
+  dispatch(setSelectedGrnId(null));
+  dispatch(fetchGrns({ page: currentPage, size: pageSize }));
+  
+  // The GrnReturnDialog should dispatch setShowReturnStockUpdateDialog(true)
+  // with the return stock update data
+}; 
   const handleReturnCancel = () => {
     setReturnDialogOpen(false); // Close dialog without clearing selectedGrnId
   };
@@ -922,46 +925,54 @@ const handleApRoundOffBlur = () => {
     setLoading(false);
   }
 };
-  const handleRevertToPO = async (grnId: string) => {
-    if (!grnId) {
-      setSnackbarMessage('No GRN selected for reversion.');
-      setSnackbarOpen(true);
-      return;
+const handleRevertToPO = async (grnId: string) => {
+  if (!grnId) {
+    setSnackbarMessage('No GRN selected for reversion.');
+    setSnackbarOpen(true);
+    return;
+  }
+  try {
+    const result = await dispatch(revertGrnToPO(grnId)).unwrap();
+    let message = `GRN successfully reverted to PO`;
+    
+    console.log('Revert result with stock updates:', result);
+    
+    if (result.stockUpdates) {
+      message += ` (Inventory updated: ${result.stockUpdates.inventory_updates} locations)`;
     }
-    try {
-      const result = await dispatch(revertGrnToPO(grnId)).unwrap();
-      // Fixed: result is an object, not a string. Assume always 'updated' (or check result.poAction if backend adds it)
-      let message = `GRN successfully reverted to PO`;
-       if (result.stockUpdates) {
-        message += ` (Stock updated: ${result.stockUpdates.purchaseitem_updates} items, ${result.stockUpdates.inventory_updates} locations)`;
-      }
-      // If backend adds poAction: if (result.poAction === 'created') { message = `... (New PO created: ${result.purchaseOrderId})`; }
-      setSnackbarMessage(message);
-      setSnackbarOpen(true);
-      // Refresh the GRN list
-      dispatch(fetchGrns({ page: currentPage, size: pageSize }));
-      // ADD THESE LINES: Close the main view dialog ONLY on success
-      dispatch(setSelectedGrnId(null));
-      setDialogueViewOpen(false);
-      dispatch(setShowStockUpdateDialog(true));
-      console.log('Reversion successful with stock updates:', result.stockUpdates);
-    } catch (error: any) {
-      console.error('Reversion failed:', error);
-      setSnackbarMessage(error || 'Failed to revert GRN to PO');
-      setSnackbarOpen(true);
-      // NO CLOSING HERE: Keep the main dialog open on failure so user can retry
-    }
-  };
-   const handleCloseStockDialog = () => {
-    dispatch(setShowStockUpdateDialog(false));
-    // Optional: Clear the data after closing
-    // dispatch(clearLastRevertData());
-  };
-  // ADD THIS NEW HANDLER FUNCTION
-  const handleCloseReturnStockDialog = () => {
-    dispatch(setShowReturnStockUpdateDialog(false));
-    dispatch(clearLastReturnData()); // This will clear the stock updates from state
-  };
+    
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
+    
+    // Refresh the GRN list
+    dispatch(fetchGrns({ page: currentPage, size: pageSize }));
+    
+    // Close the main view dialog
+    dispatch(setSelectedGrnId(null));
+    setDialogueViewOpen(false);
+    
+    // Show the REVERT stock update dialog with the stock updates from backend
+    dispatch(setShowStockUpdateDialog(true));
+    
+    console.log('Reversion successful with stock updates:', result.stockUpdates);
+  } catch (error: any) {
+    console.error('Reversion failed:', error);
+    setSnackbarMessage(error || 'Failed to revert GRN to PO');
+    setSnackbarOpen(true);
+  }
+};
+
+const handleCloseStockDialog = () => {
+  dispatch(setShowStockUpdateDialog(false));
+  // Clear the revert stock updates after closing
+  // dispatch(clearLastRevertData()); // Add this action if you have it
+};
+
+// Handler for RETURN GRN dialog close
+const handleCloseReturnStockDialog = () => {
+  dispatch(setShowReturnStockUpdateDialog(false));
+  dispatch(clearLastReturnData()); // This clears the return stock updates
+};
   // New: Handler for button click - opens dialog
   const handleOpenConfirmDialog = () => {
     if (!selectedGrnId) {
@@ -2485,12 +2496,13 @@ const handleApRoundOffBlur = () => {
           confirmText="Revert to PO" // Custom text
           cancelText="Cancel"
         />
-         <StockUpdateDialog
-          open={showStockUpdateDialog || false}
-          stockUpdates={lastRevertStockUpdates}
-          grnId={lastRevertedGrnId}
-          onClose={handleCloseStockDialog}
-        />
+ <RevertStockUpdateDialog
+  open={showStockUpdateDialog || false}
+  stockUpdates={lastRevertStockUpdates}
+  grnId={lastRevertedGrnId}
+  onClose={handleCloseStockDialog}
+/>
+
         {/* Make sure this is at the end of your JSX, before the closing Box */}
         <ReturnStockUpdateDialog
           open={showReturnStockUpdateDialog || false}

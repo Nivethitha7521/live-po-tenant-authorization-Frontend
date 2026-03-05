@@ -893,7 +893,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
           />
         </DialogContent>
         <DialogActions>
-          <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
+          <Box display="flex" justifyContent="flex-end" mt={2}>
             <Button
               variant="contained"
               onClick={handleOpenRevertDialog}

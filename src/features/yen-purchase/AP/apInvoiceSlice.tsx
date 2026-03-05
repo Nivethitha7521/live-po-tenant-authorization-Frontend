@@ -140,7 +140,7 @@ export const fetchApInvoices = createAsyncThunk(
       }
 
      const response = await purchaseApi.get(`/apinvoices/`, {
-        params: params,
+     params: queryParams,
       });
 
       // CRITICAL: Check the actual response structure
