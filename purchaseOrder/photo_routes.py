@@ -201,12 +201,12 @@ async def get_all_ticket_images(request:Request,
             ticket_document = collection.find_one({"purchase_id": purchase_id})
         
         if not ticket_document:
-            raise HTTPException(status_code=404, detail="Purchase not found")
+          return {"imageUrls": []}
         
         # Extract all photos
         photos = ticket_document.get("photos", [])
         if not photos:
-            raise HTTPException(status_code=404, detail="No images found for this purchase")
+         return {"imageUrls": []}
         
         # Return all image URLs
         image_urls = [photo.get("ftp_path") for photo in photos if photo.get("ftp_path")]
