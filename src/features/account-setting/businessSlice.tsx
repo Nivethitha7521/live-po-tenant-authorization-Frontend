@@ -51,12 +51,28 @@ export const fetchPhoto = createAsyncThunk(
   'photos/fetchPhoto',
   async (businessId: string, { rejectWithValue }) => {
     try {
-      // Use the correct API base URL
-      const response = await purchaseApi.get(`/pobusiness/view/${businessId}`, { 
-        responseType: 'blob' 
+      // ✅ Check localStorage cache first
+      const cached = localStorage.getItem(`business_photo_${businessId}`);
+      if (cached) {
+        return { imageUrl: cached, businessId };
+      }
+
+      const response = await purchaseApi.get(`/pobusiness/view/${businessId}`, {
+        responseType: 'blob'
       });
-      const imageUrl = URL.createObjectURL(response.data);
-      return { imageUrl, businessId };
+
+      // ✅ Convert blob → base64 so it persists across navigations
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(response.data);
+      });
+
+      // ✅ Cache in localStorage
+      localStorage.setItem(`business_photo_${businessId}`, base64);
+
+      return { imageUrl: base64, businessId };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Error fetching photo');
     }
@@ -127,10 +143,14 @@ const businessSlice = createSlice({
       .addCase(fetchBusinesses.pending, (state) => {
         state.loading = true;
       })
-      .addCase(fetchBusinesses.fulfilled, (state, action) => {
-        state.loading = false;
-        state.businesses = action.payload;
-      })
+     .addCase(fetchBusinesses.fulfilled, (state, action) => {
+  state.loading = false;
+  state.businesses = action.payload.map((business: Business) => {
+    // ✅ Restore cached photo from localStorage
+    const cached = localStorage.getItem(`business_photo_${business.businessId}`);
+    return cached ? { ...business, imageUrl: cached } : business;
+  });
+})
       .addCase(fetchBusinesses.rejected, (state) => {
         state.loading = false;
       })

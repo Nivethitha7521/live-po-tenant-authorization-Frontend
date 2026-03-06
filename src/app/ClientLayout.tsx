@@ -9,7 +9,7 @@ import { initializeAuth, validateToken, clearSnackbar } from '../features/authSl
 import SideMenu from '@/components/SideMenu';
 import Navbar from '@/components/Navbar';
 import { Toaster } from "react-hot-toast";
-
+import { fetchBusinesses } from '@/features/account-setting/businessSlice';
 // ⭐ ADD SNACKBAR IMPORTS
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
@@ -148,8 +148,9 @@ useEffect(() => {
   // Session validation
 // Session validation (FIX 3)
 useEffect(() => {
-  dispatch(initializeAuth());   // restore localStorage (permissions, role)
-  dispatch(validateToken());    // backend token + permissions validation
+  dispatch(initializeAuth());// restore localStorage (permissions, role)
+  dispatch(validateToken());  
+   dispatch(fetchBusinesses());   // backend token + permissions validation
 }, [dispatch]);
 
 
