@@ -6,7 +6,7 @@ import EditIcon from '@mui/icons-material/Edit';
 
 interface PhotoDisplayProps {
   orderId: string;
-  imageUrls: string[]; // Array with 0-based index
+  imageUrls?: string[]; // Array with 0-based index
   canAdd: boolean;
   canEdit: boolean;
   onImageClick?: (url: string, displayIndex: number) => void;
@@ -25,10 +25,14 @@ const PhotoDisplay: React.FC<PhotoDisplayProps> = ({
   const [previewPosition, setPreviewPosition] = useState({ top: 0, left: 0 });
 
   // Ensure we always have exactly 3 slots (filled or empty)
-  const displayUrls = Array(3).fill('').map((_, index) => imageUrls[index] || '');
+  const safeUrls = Array.isArray(imageUrls) ? imageUrls : [];
+
+const displayUrls = Array(3)
+  .fill("")
+  .map((_, index) => safeUrls[index] || "");
 
   const handleMouseEnter = (index: number, event: React.MouseEvent) => {
-    if (!displayUrls[index]) return;
+    if (!displayUrls?.[index]) return;
     
     const rect = event.currentTarget.getBoundingClientRect();
     setPreviewPosition({
@@ -66,6 +70,7 @@ const PhotoDisplay: React.FC<PhotoDisplayProps> = ({
                     alt={`Receipt ${displayIndex}`}
                     width={50}
                     height={50}
+                    onClick={() => onImageClick?.(url, displayIndex)}
                     style={{ 
                       cursor: 'pointer', 
                       objectFit: 'cover',
@@ -119,7 +124,7 @@ const PhotoDisplay: React.FC<PhotoDisplayProps> = ({
       </Box>
 
       {/* Hover preview positioned near the thumbnail */}
-      {hoveredIndex !== null && displayUrls[hoveredIndex] && (
+      {hoveredIndex !== null && displayUrls?.[hoveredIndex] && (
         <Box
           sx={{
             position: 'fixed',

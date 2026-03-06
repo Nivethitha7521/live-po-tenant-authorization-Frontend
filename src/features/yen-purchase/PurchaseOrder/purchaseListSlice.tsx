@@ -629,14 +629,13 @@ export const fetchAllImages = createAsyncThunk(
   "photos/fetchAllPhotos",
   async (purchaseOrderId: string, { rejectWithValue }) => {
     try {
-      const response = await purchaseApi.get<PhotosResponse>(
-        `/purchaseorders/view-all/${purchaseOrderId}`,
-      );
-      return { purchaseOrderId, imageUrls: response.data.imageUrls };
+      const response = await purchaseApi.get(`/purchaseorders/view-all/${purchaseOrderId}`);
+      return { purchaseOrderId, imageUrls: response.data.imageUrls || [] };
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || "Fetch failed");
+      // ❌ no reject
+      return { purchaseOrderId, imageUrls: [] };
     }
-  },
+  }
 );
 
 export const editPhotoByIndex = createAsyncThunk(

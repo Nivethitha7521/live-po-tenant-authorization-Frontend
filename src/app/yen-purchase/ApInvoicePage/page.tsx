@@ -936,8 +936,9 @@ const VerifiedApInvoicePage: React.FC = () => {
       totalAmount = verifiedInvoices.reduce((sum, invoice) => sum + (invoice.totalServiceFees || 0), 0);
     } else {
       totalAmount = verifiedInvoices.reduce((sum, invoice) => {
-        const total = invoice.itemDetails.reduce((totalItem, item) => totalItem + (item.stockQuantity * item.unitPrice), 0);
-        return sum + total;
+const total = (Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [])
+  .reduce((totalItem, item) =>
+    totalItem + ((item?.stockQuantity || 0) * (item?.unitPrice || 0)), 0);        return sum + total;
       }, 0);
     }
 
@@ -952,8 +953,10 @@ const VerifiedApInvoicePage: React.FC = () => {
     if (invoiceTypeFilter === 'service') {
       const headers = [["S.No", "AP.No", "Vendor Name", "Service Description", "SAC Code", "From Date", "To Date", "Amount", "Tax", "Total"]];
 
-      const rows = verifiedInvoices.map((invoice, index) => {
-        return invoice.descriptions.map((desc, descIndex) => [
+     const rows = verifiedInvoices.map((invoice, index) => {
+  const descList = Array.isArray(invoice.descriptions) ? invoice.descriptions : [];
+
+  return descList.map((desc, descIndex) => [
           (index + 1).toString(),
           invoice.randomId.toString(),
           invoice.vendorName,
@@ -1003,17 +1006,19 @@ const VerifiedApInvoicePage: React.FC = () => {
       const headers = [["S.No", "AP.No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Total"]];
 
       const rows = verifiedInvoices.map((invoice, index) => {
-        return invoice.itemDetails.map((item) => [
-          (index + 1).toString(),
-          invoice.randomId.toString(),
-          invoice.vendorName,
-          item.itemName,
-          item.stockQuantity.toString(),
-          item.unitPrice.toFixed(2),
-          `${item.purchasetaxName}%`,
-          (item.discountAmount || 0).toFixed(2),
-          item.totalPrice.toFixed(2),
-        ]);
+      const items = Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [];
+
+return items.map((item) => [
+  (index + 1).toString(),
+  invoice.randomId?.toString() || "",
+  invoice.vendorName || "",
+  item?.itemName || "",
+  (item?.stockQuantity || 0).toString(),
+  Number(item?.unitPrice || 0).toFixed(2),
+  `${item?.purchasetaxName || 0}%`,
+  Number(item?.discountAmount || 0).toFixed(2),
+  Number(item?.totalPrice || 0).toFixed(2),
+]);
       }).flat();
 
       doc.autoTable({
@@ -1086,7 +1091,9 @@ const VerifiedApInvoicePage: React.FC = () => {
       headers = ["S.No", "AP.No", "Vendor Name", "Service Description", "SAC Code", "From Date", "To Date", "Amount", "Tax", "Total"];
 
       rows = verifiedInvoices.map((invoice, index) => {
-        return invoice.descriptions.map((desc, descIndex) => [
+      const descList = Array.isArray(invoice.descriptions) ? invoice.descriptions : [];
+
+return descList.map((desc, descIndex) => [
           (index + 1).toString(),
           invoice.randomId.toString(),
           invoice.vendorName,
@@ -1103,7 +1110,9 @@ const VerifiedApInvoicePage: React.FC = () => {
       headers = ["S.No", "AP.No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Total"];
 
       rows = verifiedInvoices.map((invoice, index) => {
-        return invoice.itemDetails.map((item) => [
+      const items = Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [];
+
+return items.map((item) => [
           (index + 1).toString(),
           invoice.randomId.toString(),
           invoice.vendorName,
@@ -1995,7 +2004,7 @@ const VerifiedApInvoicePage: React.FC = () => {
                     </TableHead>
                     <TableBody>
                       {selectedInvoice.invoiceType === 'service' ? (
-                        selectedInvoice.descriptions.map((desc, index) => (
+                       (Array.isArray(selectedInvoice.descriptions) ? selectedInvoice.descriptions : []).map((desc, index) => (
                           <TableRow key={index}>
                             <TableCell>{index + 1}</TableCell>
                             <TableCell>{desc}</TableCell>
@@ -2017,7 +2026,7 @@ const VerifiedApInvoicePage: React.FC = () => {
                           </TableRow>
                         ))
                       ) : (
-                        selectedInvoice.itemDetails.map((item, index) => (
+                       (Array.isArray(selectedInvoice.itemDetails) ? selectedInvoice.itemDetails : []).map((item, index) => (
                           <TableRow key={item.itemId}>
                             <TableCell>{index + 1}</TableCell>
                             <TableCell>{item.itemName}</TableCell>

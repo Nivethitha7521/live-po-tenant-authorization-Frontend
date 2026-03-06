@@ -398,24 +398,22 @@ useEffect(() => {
     });
   }, [pendingPurchaseList, dispatch, fetchedPurchaseOrderIds]);
   // Alternative: If you want to fetch images one by one with indices
-  useEffect(() => {
-    (pendingPurchaseList || []).forEach(order => {
-      const orderId = order.purchaseOrderId;
-      // Check if we've already fetched images for this order
-      if (!fetchedPurchaseOrderIds.has(orderId)) {
-        // Fetch up to 3 images (indices 0, 1, 2)
-        [1, 2, 3].forEach(index => {
-          dispatch(fetchImageByIndex({ purchaseOrderId: orderId, index }))
-            .unwrap()
-            .catch(error => {
-              console.error(`Failed to fetch image ${index} for order ${orderId}:`, error);
-            });
+useEffect(() => {
+  (pendingPurchaseList || []).forEach(order => {
+    const orderId = order.purchaseOrderId;
+
+    if (!fetchedPurchaseOrderIds.has(orderId)) {
+      dispatch(fetchAllImages(orderId))
+        .unwrap()
+        .catch(() => {
+          // ❌ NO CONSOLE ERROR
+          dispatch(setOrderImageUrls({ orderId, urls: [] }));
         });
-        // Mark this order as fetched
-        setFetchedPurchaseOrderIds(prev => new Set(prev).add(orderId));
-      }
-    });
-  }, [pendingPurchaseList, dispatch, fetchedPurchaseOrderIds]);
+
+      setFetchedPurchaseOrderIds(prev => new Set(prev).add(orderId));
+    }
+  });
+}, [pendingPurchaseList]);
   // In your file input change handler:
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, orderId: string, displayIndex: number) => {
     const file = e.target.files?.[0];
@@ -1896,7 +1894,9 @@ useEffect(() => {
                       <TableCell>
                         <PhotoDisplay
                           orderId={order.purchaseOrderId}
-                          imageUrls={imageUrls[order.purchaseOrderId] || []}
+                         imageUrls={Array.isArray(imageUrls?.[order.purchaseOrderId]) 
+  ? imageUrls[order.purchaseOrderId] 
+  : []}
                            canAdd={canAdd} 
                            canEdit={canEdit}
                           onImageClick={(url, displayIndex) => {
