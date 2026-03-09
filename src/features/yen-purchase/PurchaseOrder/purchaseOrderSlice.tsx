@@ -146,7 +146,9 @@ export const initialState: PurchaseOrderState = {
     poQuantitycgst: 0,
     poQuantityigst: 0,
     grnPrice: 0,
-    randomId: ''
+    randomId: '',
+    availableStock: 0,  // Add this
+    locationId: '',      // Add this
   },
   purchaseorderitems: [],
   vendors: [],
@@ -192,7 +194,7 @@ export const calculateFreightTotals = createAsyncThunk(
     });
 
     const response = await purchaseApi.get(`/purchaseorders/freight/totals?${params}`);
-      return response.data;
+    return response.data;
   }
 );
 
@@ -266,7 +268,13 @@ export const fetchPurchaseOrderById = createAsyncThunk(
     const response = await purchaseApi.get<PurchaseOrderData>(
       `/purchaseorders/${purchaseOrderId}`,
     );
-    return response.data;
+    
+    const data = response.data;
+    
+    console.log('🔴 API RAW RESPONSE items[0]:', JSON.stringify(data.items?.[0]));
+    console.log('🔴 availableStock from API:', data.items?.[0]?.availableStock);
+    
+    return data;
   },
 );
 // Add a new function to invalidate cache when there are updates
@@ -378,10 +386,10 @@ export const calculateOverallDiscountForAllItems = createAsyncThunk<
     try {
       console.log('Sending to backend:', payload);
 
-     const response = await purchaseApi.post(
-  "/purchaseorders/items/calculate-overall-discount",
-  payload
-);
+      const response = await purchaseApi.post(
+        "/purchaseorders/items/calculate-overall-discount",
+        payload
+      );
       return response.data;
     } catch (error) {
       console.error('Error calculating overall discount:', error);
@@ -434,10 +442,10 @@ export const importCsvItems = createAsyncThunk(
     try {
       const state = getState() as { purchaseOrder: PurchaseOrderState };
       const currentPurchaseOrderData = state.purchaseOrder.purchaseOrderData;
- 
+
       const formData = new FormData();
       formData.append('file', file);
-   const response = await purchaseApi.post(
+      const response = await purchaseApi.post(
         "/poimport/import-items-csv",
         formData,
         {
@@ -445,7 +453,7 @@ export const importCsvItems = createAsyncThunk(
         },
       );
       const { success, message, imported_items, duplicates_merged, errors, updated_items, warnings, success_messages } = response.data;
- 
+
       if (success && imported_items.length > 0) {
         const state = getState() as { purchaseOrder: PurchaseOrderState };
         const currentPurchaseOrderData = state.purchaseOrder.purchaseOrderData;
@@ -492,7 +500,7 @@ export const importCsvItems = createAsyncThunk(
           barcode: '',
           expiryDate: null,
         }));
- 
+
         dispatch(setPurchaseOrderData({
           ...currentPurchaseOrderData,
           items: mappedItems,
@@ -501,7 +509,7 @@ export const importCsvItems = createAsyncThunk(
           pendingDiscountAmount: response.data.totalDiscount || 0,
         }));
       }
- 
+
       return {
         success,
         message,
@@ -537,7 +545,7 @@ export const updatePurchaseOrder = createAsyncThunk(
     purchaseOrderId: string;
     purchaseOrder: Partial<PurchaseOrderData>;
   }) => {
-     const purchaseOrderToUpdate = {
+    const purchaseOrderToUpdate = {
       ...purchaseOrder,
     };
     const response = await purchaseApi.patch(
@@ -557,12 +565,33 @@ const purchaseOrderSlice = createSlice({
   name: 'purchaseOrder',
   initialState,
   reducers: {
-    setPurchaseOrderData(state, action: PayloadAction<Partial<PurchaseOrderData>>) {
-      state.purchaseOrderData = { ...state.purchaseOrderData, ...action.payload };
-    },
-    setFreights(state, action: PayloadAction<Freight[]>) {
-  state.purchaseOrderData.freights = action.payload;
+   setPurchaseOrderData(state, action: PayloadAction<Partial<PurchaseOrderData>>) {
+  const existingItems = state.purchaseOrderData.items;
+  
+  const newItems = action.payload.items?.map(item => {
+    const existingItem = existingItems.find(e => e.randomId === item.randomId);
+    
+    // availableStock: payload-ல் இருந்தா அதை use பண்ணு, இல்லன்னா existing preserve பண்ணு
+    const stockValue = (item.availableStock !== undefined && item.availableStock !== null)
+      ? Number(item.availableStock)
+      : (existingItem?.availableStock ?? 0);
+
+    return {
+      ...item,
+      availableStock: stockValue,
+      locationId: item.locationId || existingItem?.locationId || '',
+    };
+  });
+
+  state.purchaseOrderData = {
+    ...state.purchaseOrderData,
+    ...action.payload,
+    ...(newItems ? { items: newItems } : {}),
+  };
 },
+    setFreights(state, action: PayloadAction<Freight[]>) {
+      state.purchaseOrderData.freights = action.payload;
+    },
     setNewItemData(state, action: PayloadAction<Partial<Item>>) {
       state.newItem = { ...state.newItem, ...action.payload };
     },
@@ -618,7 +647,11 @@ const purchaseOrderSlice = createSlice({
         pendingDiscountAmount: action.payload.pendingDiscountAmount,
         quantity: action.payload.quantity,
         poQuantity: action.payload.poQuantity,
-        eachQuantity: action.payload.eachQuantity
+        eachQuantity: action.payload.eachQuantity,
+        randomId: action.payload.randomId,
+        // CRITICAL: Add stock fields
+        availableStock: action.payload.availableStock || 0,
+        locationId: action.payload.locationId || '',
       };
     },
     clearItemForEditing(state) {
@@ -849,16 +882,44 @@ const purchaseOrderSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchPurchaseOrderById.fulfilled, (state, action: PayloadAction<PurchaseOrderData>) => {
-        state.loading = false;
-        state.purchaseOrderData = { ...action.payload };
-        state.error = null;
-      })
+     .addCase(fetchPurchaseOrderById.fulfilled, (state, action) => {
+  state.loading = false;
+
+  console.log('🚨 REDUX FULFILLED - raw payload:', 
+    action.payload.items?.map((i: Item) => ({
+      name: i.itemName,
+      stock: i.availableStock,
+      type: typeof i.availableStock
+    }))
+  );
+
+  const purchaseOrderData = { ...action.payload };
+
+  if (purchaseOrderData.items && Array.isArray(purchaseOrderData.items)) {
+    purchaseOrderData.items = purchaseOrderData.items.map(item => ({
+      ...item,
+      availableStock: item.availableStock !== undefined && item.availableStock !== null
+        ? Number(item.availableStock)
+        : 0,
+      locationId: item.locationId || ''
+    }));
+  }
+
+  console.log('🚨 REDUX FULFILLED - after processing:', 
+    purchaseOrderData.items?.map((i: Item) => ({
+      name: i.itemName,
+      stock: i.availableStock
+    }))
+  );
+
+  state.purchaseOrderData = purchaseOrderData;
+  state.error = null;
+})
       .addCase(fetchPurchaseOrderById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch purchase order';
       })
-      .addCase(setDiscountMode, (state, action) => { 
+      .addCase(setDiscountMode, (state, action) => {
         const { mode, recalculate = true } = action.payload;
         state.discountMode = mode;
         state.newItem.befTaxDiscountType = mode;

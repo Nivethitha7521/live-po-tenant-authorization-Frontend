@@ -6,6 +6,8 @@ import {
   Paper, CircularProgress, Select, FormControl, InputLabel, Chip, Alert, Checkbox,
   ListItemText, Snackbar, FormHelperText,
 } from '@mui/material';
+import InfoIcon from '@mui/icons-material/Info';
+import WarningIcon from '@mui/icons-material/Warning';
 import { BulkPaymentRequest, Outgoing, PaymentInfo } from '@/Models/outgoingModel';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch } from '@/redux/store';
@@ -33,7 +35,18 @@ interface PaymentDetailsState {
   bankName: string;
   cashAmount: number;
   referenceNumber: string;
-  paymentDate: Date;  // Ensure it's always a Date object
+  paymentDate: Date;
+}
+
+interface VendorWarning {
+  type: 'debit' | 'advance' | 'both';
+  message: string;
+  hasDebit: boolean;
+  hasAdvance: boolean;
+  debitCount: number;
+  advanceCount: number;
+  totalDebitAmount: number;
+  totalAdvanceAmount: number;
 }
 
 const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
@@ -49,17 +62,31 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     bankName: '',
     cashAmount: 0,
     referenceNumber: '',
-    paymentDate: new Date(),  // Initialize as current Date
+    paymentDate: new Date(),
   });
   const [paymentTypeMultiple, setPaymentTypeMultiple] = useState<Record<string, 'full' | 'partial'>>({});
   const [partialAmount, setPartialAmount] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [warnings, setWarnings] = useState<Record<string, VendorWarning>>({});
   const [selectedDebitNotes, setSelectedDebitNotes] = useState<Record<string, string[]>>({});
   const [selectedAdvancePayments, setSelectedAdvancePayments] = useState<Record<string, string[]>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showPaymentModeDialog, setShowPaymentModeDialog] = useState(false);
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Record<string, boolean>>({});
+
+  // FIRST: Define groupedOutgoings using useMemo
+  const groupedOutgoings = useMemo(() => {
+    return selectedOutgoings.reduce((acc, outgoing) => {
+      const vendorName = outgoing.vendorName || 'Unknown Vendor';
+      if (!acc[vendorName]) {
+        acc[vendorName] = [];
+      }
+      acc[vendorName].push(outgoing);
+      return acc;
+    }, {} as Record<string, Outgoing[]>);
+  }, [selectedOutgoings]);
 
   // Compute max invoice date for payment date constraints
   const maxInvoiceDate = useMemo(() => {
@@ -72,22 +99,86 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     return new Date(maxTime);
   }, [selectedOutgoings]);
 
-  // FIXED: Use local YYYY-MM-DD for input constraints
   const maxInvoiceDateStr = useMemo(() => 
     maxInvoiceDate.toLocaleDateString('en-CA'), [maxInvoiceDate]
   );
 
-  // FIXED: Use local YYYY-MM-DD for input constraints
   const currentDateStr = useMemo(() => 
     new Date().toLocaleDateString('en-CA'), []
   );
 
+  // Helper functions that depend on debits, advances, and groupedOutgoings
+  const getVendorDebitNotes = (vendorName: string) => {
+    return debits.filter(
+      (debit) => debit.vendorName === vendorName &&
+        debit.status !== 'Cleared' &&
+        (debit.pendingAmount || debit.finalAmount) > 0
+    );
+  };
+
+  const getVendorAdvancePayments = (vendorName: string) => {
+    return activeAdvances.filter(
+      (advance) => advance.vendorName === vendorName &&
+        advance.status !== 'Completed' &&
+        (advance.pendingAmount || 0) > 0
+    );
+  };
+
+  // Generate warnings for vendors with multiple payments
+  useEffect(() => {
+    const newWarnings: Record<string, VendorWarning> = {};
+    
+    Object.keys(groupedOutgoings).forEach(vendorName => {
+      const vendorDebits = getVendorDebitNotes(vendorName);
+      const vendorAdvances = getVendorAdvancePayments(vendorName);
+      
+      const hasDebit = vendorDebits.length > 0;
+      const hasAdvance = vendorAdvances.length > 0;
+      
+      if (hasDebit || hasAdvance) {
+        const totalDebitAmount = vendorDebits.reduce(
+          (sum, debit) => sum + (debit.pendingAmount || debit.finalAmount || 0), 
+          0
+        );
+        const totalAdvanceAmount = vendorAdvances.reduce(
+          (sum, advance) => sum + (advance.pendingAmount || 0), 
+          0
+        );
+        
+        let message = '';
+        if (hasDebit && hasAdvance) {
+          message = `This vendor has ${vendorDebits.length} debit note(s) (₹${totalDebitAmount.toLocaleString('en-IN')}) and ${vendorAdvances.length} advance payment(s) (₹${totalAdvanceAmount.toLocaleString('en-IN')}) available. Please select which ones to apply.`;
+        } else if (hasDebit) {
+          message = `This vendor has ${vendorDebits.length} debit note(s) totaling ₹${totalDebitAmount.toLocaleString('en-IN')} available. Select which ones to apply to reduce payment amount.`;
+        } else if (hasAdvance) {
+          message = `This vendor has ${vendorAdvances.length} advance payment(s) totaling ₹${totalAdvanceAmount.toLocaleString('en-IN')} available. Select which ones to apply to reduce payment amount.`;
+        }
+        
+        newWarnings[vendorName] = {
+          type: hasDebit && hasAdvance ? 'both' : hasDebit ? 'debit' : 'advance',
+          message,
+          hasDebit,
+          hasAdvance,
+          debitCount: vendorDebits.length,
+          advanceCount: vendorAdvances.length,
+          totalDebitAmount,
+          totalAdvanceAmount,
+        };
+      }
+    });
+    
+    setWarnings(newWarnings);
+    
+    // Reset acknowledgements when vendors change
+    setAcknowledgedWarnings({});
+  }, [debits, activeAdvances, groupedOutgoings]);
+
+  // Rest of your existing useEffect for fetching data
   useEffect(() => {
     if (open && selectedOutgoings.length > 0) {
       setIsLoading(true);
       setErrors((prev) => ({ ...prev, _general: '' }));
 
-      // Set payment date to current date, but ensure it's after max invoice date
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const maxInv = new Date(maxInvoiceDate);
@@ -102,14 +193,13 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       ].filter((name) => name && name !== 'Unknown Vendor');
 
       if (vendorNames.length > 0) {
-        // FIXED: Handle each dispatch individually to prevent overall failure on empty data
         const debitsPromise = dispatch(fetchActiveDebitsMultipleVendor(vendorNames)).unwrap().catch((error: any) => {
           console.error('Failed to fetch debits:', error);
-          return []; // Return empty on error/empty
+          return [];
         });
         const advancesPromise = dispatch(fetchActiveAdvancesMultipleVendor(vendorNames)).unwrap().catch((error: any) => {
           console.error('Failed to fetch advances:', error);
-          return []; // Return empty on error/empty
+          return [];
         });
 
         Promise.all([debitsPromise, advancesPromise])
@@ -134,17 +224,6 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       }
     };
   }, [open, selectedOutgoings, dispatch, maxInvoiceDate]);
-  // This will now show ALL selected outgoings across all pages
-  const groupedOutgoings = useMemo(() => {
-    return selectedOutgoings.reduce((acc, outgoing) => {
-      const vendorName = outgoing.vendorName || 'Unknown Vendor';
-      if (!acc[vendorName]) {
-        acc[vendorName] = [];
-      }
-      acc[vendorName].push(outgoing);
-      return acc;
-    }, {} as Record<string, Outgoing[]>);
-  }, [selectedOutgoings]);
 
   const totalOverallAmount = useMemo(() => {
     return selectedOutgoings.reduce(
@@ -152,22 +231,6 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       0
     );
   }, [selectedOutgoings]);
-
-  const getVendorDebitNotes = (vendorName: string) => {
-    return debits.filter(
-      (debit) => debit.vendorName === vendorName &&
-        debit.status !== 'Cleared' &&
-        (debit.pendingAmount || debit.finalAmount) > 0
-    );
-  };
-
-  const getVendorAdvancePayments = (vendorName: string) => {
-    return activeAdvances.filter(
-      (advance) => advance.vendorName === vendorName &&
-        advance.status !== 'Completed' &&
-        (advance.pendingAmount || 0) > 0
-    );
-  };
 
   const calculateVendorAdvanceTotal = (vendorName: string) => {
     const vendorAdvances = getVendorAdvancePayments(vendorName);
@@ -213,7 +276,6 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     return Math.max(0, (outgoing.totalPayableAmount || 0) - allocatedDebits - allocatedAdvances);
   };
 
-  // Calculate total payment amount after adjustments
   const totalPaymentAmount = useMemo(() => {
     return selectedOutgoings.reduce((total, outgoing) => {
       const outgoingId = outgoing.outgoingId as string;
@@ -229,6 +291,11 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     }, 0);
   }, [selectedOutgoings, paymentTypeMultiple, partialAmount]);
 
+  const hasUnacknowledgedWarnings = useMemo(() => {
+    return Object.keys(warnings).some(vendorName => !acknowledgedWarnings[vendorName]);
+  }, [warnings, acknowledgedWarnings]);
+
+  // Rest of your functions (validateAmount, handleAcknowledgeWarning, etc.) remain the same
   const validateAmount = (
     outgoingId: string,
     amount: string,
@@ -246,6 +313,13 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     }
 
     return '';
+  };
+
+  const handleAcknowledgeWarning = (vendorName: string) => {
+    setAcknowledgedWarnings(prev => ({
+      ...prev,
+      [vendorName]: true
+    }));
   };
 
   const handlePaymentTypeChangeMultiple = (
@@ -298,12 +372,10 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     setErrors((prev) => ({ ...prev, _paymentMode: '' }));
   };
 
-  // FIXED: Explicit local midnight parsing
   const handlePaymentDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
-    const newDate = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();  // Explicit local midnight
+    const newDate = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();
     
-    // Validate against max invoice date
     const maxInv = new Date(maxInvoiceDate);
     maxInv.setHours(0, 0, 0, 0);
     newDate.setHours(0, 0, 0, 0);
@@ -419,6 +491,12 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       }
     });
 
+    // Check if all warnings are acknowledged
+    if (hasUnacknowledgedWarnings) {
+      newErrors._warnings = 'Please acknowledge all warnings before proceeding';
+      isValid = false;
+    }
+
     setErrors((prev) => ({ ...prev, ...newErrors }));
     return isValid;
   };
@@ -444,14 +522,12 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
       return false;
     }
 
-    // Validate Date object
     if (isNaN(paymentDetails.paymentDate.getTime())) {
       newErrors._paymentDate = 'Invalid payment date';
       setErrors((prev) => ({ ...prev, ...newErrors }));
       return false;
     }
 
-    // Validate against max invoice date and future
     const selectedDate = new Date(paymentDetails.paymentDate);
     selectedDate.setHours(0, 0, 0, 0);
     const maxInv = new Date(maxInvoiceDate);
@@ -545,20 +621,13 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         (outgoing) => outgoing.outgoingId as string
       );
 
-      // FIXED: Normalize paymentDate to noon local time to prevent UTC serialization shift
       const normalizedPaymentDate = new Date(paymentDetails.paymentDate);
-      normalizedPaymentDate.setHours(12, 0, 0, 0);  // Set to noon local to ensure correct date in UTC
+      normalizedPaymentDate.setHours(12, 0, 0, 0);
 
-      // Debug log (remove in prod)
-      console.log('Bulk - Local paymentDate:', paymentDetails.paymentDate.toLocaleDateString());
-      console.log('Bulk - Normalized paymentDate:', normalizedPaymentDate.toLocaleDateString());
-      console.log('Bulk - Serialized paymentDate (ISO):', normalizedPaymentDate.toISOString());
-
-      // Use Date object directly (thunk will serialize to string)
       const bulkPaymentRequest: BulkPaymentRequest = {
         payments,
         outgoingIds,
-        paymentDate: normalizedPaymentDate,  // Use normalized date
+        paymentDate: normalizedPaymentDate,
       };
 
       const result = await dispatch(processBulkPayment(bulkPaymentRequest)).unwrap();
@@ -582,13 +651,15 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
         bankName: '',
         cashAmount: 0,
         referenceNumber: '',
-        paymentDate: new Date(),  // Reset to current Date
+        paymentDate: new Date(),
       });
       setPaymentTypeMultiple({});
       setPartialAmount({});
       setSelectedDebitNotes({});
       setSelectedAdvancePayments({});
       setErrors({});
+      setWarnings({});
+      setAcknowledgedWarnings({});
       setShowConfirmationDialog(false);
       
       if (result.totalFailed === 0) {
@@ -609,32 +680,32 @@ const BulkPaymentDialog: React.FC<PaymentDialogProps> = ({
     setShowPaymentModeDialog(true);
   };
 
-  // In your BulkPaymentDialog component
-const handleClose = () => {
-  setPaymentDetails({
-    paymentMode: 'Bank',
-    paymentMethod: 'neft',
-    bankName: '',
-    cashAmount: 0,
-    referenceNumber: '',
-    paymentDate: new Date(),
-  });
-  setPaymentTypeMultiple({});
-  setPartialAmount({});
-  setSelectedDebitNotes({});
-  setSelectedAdvancePayments({});
-  setErrors({});
-  setShowPaymentModeDialog(false);
-  setShowConfirmationDialog(false);
-  setSuccessMessage(null);
-  
-  // CLEAR SELECTION AFTER SUCCESSFUL PAYMENT
-  if (successMessage && successMessage.includes('successfully')) {
-    dispatch(clearSelection());
-  }
-  
-  onClose();
-};
+  const handleClose = () => {
+    setPaymentDetails({
+      paymentMode: 'Bank',
+      paymentMethod: 'neft',
+      bankName: '',
+      cashAmount: 0,
+      referenceNumber: '',
+      paymentDate: new Date(),
+    });
+    setPaymentTypeMultiple({});
+    setPartialAmount({});
+    setSelectedDebitNotes({});
+    setSelectedAdvancePayments({});
+    setErrors({});
+    setWarnings({});
+    setAcknowledgedWarnings({});
+    setShowPaymentModeDialog(false);
+    setShowConfirmationDialog(false);
+    setSuccessMessage(null);
+    
+    if (successMessage && successMessage.includes('successfully')) {
+      dispatch(clearSelection());
+    }
+    
+    onClose();
+  };
 
   return (
     <>
@@ -668,7 +739,7 @@ const handleClose = () => {
                 minimumFractionDigits: 2
               })}
             </Typography>
-            <Typography >
+            <Typography>
               Processing {selectedOutgoings.length} invoices across {Object.keys(groupedOutgoings).length} vendors
             </Typography>
           </Box>
@@ -676,6 +747,12 @@ const handleClose = () => {
           {errors._general && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {errors._general}
+            </Alert>
+          )}
+
+          {errors._warnings && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {errors._warnings}
             </Alert>
           )}
 
@@ -693,12 +770,61 @@ const handleClose = () => {
             const vendorDebitAmount = calculateVendorDebitAmount(vendorName);
             const vendorAdvanceAmount = calculateVendorAdvanceAmount(vendorName);
             const vendorAdvanceTotal = calculateVendorAdvanceTotal(vendorName);
+            const vendorWarning = warnings[vendorName];
+            const isWarningAcknowledged = acknowledgedWarnings[vendorName];
 
             return (
               <Paper key={vendorName} sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="h6" gutterBottom color="primary">
-                  {vendorName}
-                </Typography>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Typography variant="h6" color="primary">
+                    {vendorName}
+                  </Typography>
+                  
+                  {vendorWarning && !isWarningAcknowledged && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="warning"
+                      startIcon={<WarningIcon />}
+                      onClick={() => handleAcknowledgeWarning(vendorName)}
+                    >
+                      Acknowledge & Continue
+                    </Button>
+                  )}
+                  
+                  {vendorWarning && isWarningAcknowledged && (
+                    <Chip
+                      icon={<Checkbox checked size="small" />}
+                      label="Acknowledged"
+                      color="success"
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                </Box>
+
+                {vendorWarning && (
+                  <Alert 
+                    severity="warning" 
+                    sx={{ mb: 2 }}
+                    action={
+                      !isWarningAcknowledged && (
+                        <Button 
+                          color="inherit" 
+                          size="small"
+                          onClick={() => handleAcknowledgeWarning(vendorName)}
+                        >
+                          Acknowledge
+                        </Button>
+                      )
+                    }
+                  >
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <WarningIcon />
+                      <Typography variant="body2">{vendorWarning.message}</Typography>
+                    </Box>
+                  </Alert>
+                )}
 
                 <Box display="flex" gap={2} sx={{ mb: 3 }} flexWrap="wrap">
                   <Chip
@@ -710,12 +836,14 @@ const handleClose = () => {
                     <Chip
                       label={`Debit Applied: ₹${vendorDebitAmount.toLocaleString('en-IN')}`}
                       color="primary"
+                      icon={<InfoIcon />}
                     />
                   )}
                   {vendorAdvanceAmount > 0 && (
                     <Chip
                       label={`Advance Applied: ₹${vendorAdvanceAmount.toLocaleString('en-IN')}`}
                       color="secondary"
+                      icon={<InfoIcon />}
                     />
                   )}
                   {vendorAdvanceTotal > 0 && (
@@ -729,11 +857,14 @@ const handleClose = () => {
 
                 {vendorDebitNotes.length > 0 && (
                   <FormControl fullWidth sx={{ mb: 2 }}>
-                    <InputLabel>Select Debit Notes for {vendorName}</InputLabel>
+                    <InputLabel>
+                      Select Debit Notes for {vendorName}
+                      {vendorDebitNotes.length > 0 && ` (${vendorDebitNotes.length} available)`}
+                    </InputLabel>
                     <Select
                       multiple
                       value={selectedDebitNotes[vendorName] || []}
-                      label={`Select Debit Notes for ${vendorName}`}
+                      label={`Select Debit Notes for ${vendorName} (${vendorDebitNotes.length} available)`}
                       onChange={(e) =>
                         handleDebitNoteSelection(vendorName, e as SelectChangeEvent<string[]>)
                       }
@@ -764,16 +895,22 @@ const handleClose = () => {
                         </MenuItem>
                       ))}
                     </Select>
+                    <FormHelperText>
+                      {vendorDebitNotes.length} debit note(s) available. Select to reduce payment amount.
+                    </FormHelperText>
                   </FormControl>
                 )}
 
                 {vendorAdvancePayments.length > 0 && (
                   <FormControl fullWidth sx={{ mb: 3 }}>
-                    <InputLabel>Select Advance Payments for {vendorName}</InputLabel>
+                    <InputLabel>
+                      Select Advance Payments for {vendorName}
+                      {vendorAdvancePayments.length > 0 && ` (${vendorAdvancePayments.length} available)`}
+                    </InputLabel>
                     <Select
                       multiple
                       value={selectedAdvancePayments[vendorName] || []}
-                      label={`Select Advance Payments for ${vendorName}`}
+                      label={`Select Advance Payments for ${vendorName} (${vendorAdvancePayments.length} available)`}
                       onChange={(e) =>
                         handleAdvancePaymentSelection(vendorName, e as SelectChangeEvent<string[]>)
                       }
@@ -805,6 +942,9 @@ const handleClose = () => {
                         </MenuItem>
                       ))}
                     </Select>
+                    <FormHelperText>
+                      {vendorAdvancePayments.length} advance payment(s) available. Select to reduce payment amount.
+                    </FormHelperText>
                   </FormControl>
                 )}
 
@@ -834,7 +974,7 @@ const handleClose = () => {
                         return (
                           <TableRow key={outgoingId} hover>
                             <TableCell>
-                              <Typography  fontWeight="medium">
+                              <Typography fontWeight="medium">
                                 {outgoing.invoiceNo || 'N/A'}
                               </Typography>
                             </TableCell>
@@ -847,7 +987,6 @@ const handleClose = () => {
                             </TableCell>
                             <TableCell>
                               <Typography
-                                
                                 color={maxAllowed < payableAmount ? "warning.main" : "text.primary"}
                                 fontWeight="medium"
                               >
@@ -945,6 +1084,7 @@ const handleClose = () => {
             disabled={
               isLoading ||
               loading ||
+              hasUnacknowledgedWarnings ||
               Object.keys(errors).some(key =>
                 key !== '_general' && key !== '_paymentMode' && key !== '_paymentDate' && errors[key]
               )
@@ -960,13 +1100,8 @@ const handleClose = () => {
       <Dialog
         open={showPaymentModeDialog}
         onClose={() => setShowPaymentModeDialog(false)}
-        sx={{
-          '& .MuiDialog-container': {
-            '& .MuiPaper-root': {
-              maxWidth: '250px',
-            },
-          },
-        }}
+        maxWidth="sm"
+        fullWidth
       >
         <DialogTitle>
           <Typography variant="h6">Payment Details</Typography>
@@ -989,7 +1124,7 @@ const handleClose = () => {
                 minimumFractionDigits: 2
               })}
             </Typography>
-            <Typography >
+            <Typography>
               Configure payment details
             </Typography>
           </Box>
@@ -1060,12 +1195,11 @@ const handleClose = () => {
             </>
           )}
 
-          {/* FIXED: Use local YYYY-MM-DD for value */}
           <TextField
             fullWidth
             label="Payment Date"
             type="date"
-            value={paymentDetails.paymentDate.toLocaleDateString('en-CA')}  // FIXED: Local serialization
+            value={paymentDetails.paymentDate.toLocaleDateString('en-CA')}
             onChange={handlePaymentDateChange}
             error={!!errors._paymentDate}
             helperText={errors._paymentDate}
@@ -1104,13 +1238,8 @@ const handleClose = () => {
       <Dialog
         open={showConfirmationDialog}
         onClose={handleCancelConfirmation}
-        sx={{
-          '& .MuiDialog-container': {
-            '& .MuiPaper-root': {
-              maxWidth: '400px',
-            },
-          },
-        }}
+        maxWidth="sm"
+        fullWidth
       >
         <DialogTitle>
           <Typography variant="h6">Confirm Bulk Payment</Typography>
@@ -1120,7 +1249,7 @@ const handleClose = () => {
             <Typography variant="h6" gutterBottom>
               Final Payment Summary
             </Typography>
-            <Typography  color="success.dark">
+            <Typography color="success.dark">
               Please review all details before confirming
             </Typography>
           </Box>
@@ -1129,29 +1258,32 @@ const handleClose = () => {
             <Typography variant="subtitle1" gutterBottom fontWeight="bold">
               Payment Details:
             </Typography>
-            <Typography  gutterBottom>
+            <Typography gutterBottom>
               <strong>Total Amount:</strong> ₹{totalOverallAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </Typography>
-            <Typography  gutterBottom>
+            <Typography gutterBottom>
               <strong>Final Payment:</strong> ₹{totalPaymentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </Typography>
-            <Typography  gutterBottom>
+            <Typography gutterBottom>
+              <strong>Savings from Debits/Advances:</strong> ₹{(totalOverallAmount - totalPaymentAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </Typography>
+            <Typography gutterBottom>
               <strong>Payment Mode:</strong> {paymentDetails.paymentMode}
             </Typography>
             {paymentDetails.paymentMode === 'Bank' && (
               <>
-                <Typography  gutterBottom>
+                <Typography gutterBottom>
                   <strong>Bank:</strong> {paymentDetails.bankName}
                 </Typography>
-                <Typography  gutterBottom>
+                <Typography gutterBottom>
                   <strong>Method:</strong> {paymentDetails.paymentMethod.toUpperCase()}
                 </Typography>
-                <Typography  gutterBottom>
+                <Typography gutterBottom>
                   <strong>Reference:</strong> {paymentDetails.referenceNumber}
                 </Typography>
               </>
             )}
-            <Typography  gutterBottom>
+            <Typography gutterBottom>
               <strong>Payment Date:</strong> {paymentDetails.paymentDate.toLocaleDateString()}  
             </Typography>
           </Box>
@@ -1160,19 +1292,23 @@ const handleClose = () => {
             <Typography variant="subtitle1" gutterBottom fontWeight="bold">
               Transaction Summary:
             </Typography>
-            <Typography  gutterBottom>
+            <Typography gutterBottom>
               <strong>Invoices:</strong> {selectedOutgoings.length}
             </Typography>
-            <Typography  gutterBottom>
+            <Typography gutterBottom>
               <strong>Vendors:</strong> {Object.keys(groupedOutgoings).length}
+            </Typography>
+            <Typography gutterBottom>
+              <strong>Debit Notes Applied:</strong> {Object.values(selectedDebitNotes).reduce((sum, notes) => sum + notes.length, 0)}
+            </Typography>
+            <Typography gutterBottom>
+              <strong>Advance Payments Applied:</strong> {Object.values(selectedAdvancePayments).reduce((sum, advances) => sum + advances.length, 0)}
             </Typography>
           </Box>
 
-          
-            <Typography variant="body1">
-              Are you sure you want to process this bulk payment?
-            </Typography>
-       
+          <Typography variant="body1">
+            Are you sure you want to process this bulk payment?
+          </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button

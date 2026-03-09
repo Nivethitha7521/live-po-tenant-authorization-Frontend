@@ -16,6 +16,8 @@ import {
   ListItemText,
   CircularProgress,
   SelectChangeEvent,
+  Alert,
+  AlertTitle,
 } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/redux/store';
@@ -68,9 +70,15 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
     paymentDate: '',
   });
 
+  // State for dropdown menus
+  const [debitMenuOpen, setDebitMenuOpen] = useState(false);
+  const [advanceMenuOpen, setAdvanceMenuOpen] = useState(false);
+
   const [error, setError] = useState('');
+  const [bankError, setBankError] = useState('');
   const [dateError, setDateError] = useState('');
   const [dateWarning, setDateWarning] = useState('');
+  const [debitAdvanceWarning, setDebitAdvanceWarning] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
@@ -81,41 +89,64 @@ const SinglePaymentDialog: React.FC<SinglePaymentDialogProps> = ({
   const invoiceDateStr = invoiceDate.toISOString().split('T')[0];
   const currentDate = new Date().toISOString().split('T')[0];
 
-useEffect(()=>{
-  dispatch(fetchBank());
-},[dispatch]);
-useEffect(() => {
-  if (selectedOutgoing && open) {
-    dispatch(fetchActiveDebitsVendor(selectedOutgoing.vendorName));
-    dispatch(fetchActiveAdvancesVendorByName(selectedOutgoing.vendorName));
-    const initialAmount = totalPayable.toFixed(2);
-    const currentDateStr = new Date().toISOString().split('T')[0];
-    
-    // Debug: Check what date field contains
-    console.log('Invoice date field:', selectedOutgoing[dateField]);
-    console.log('Parsed invoice date:', new Date(selectedOutgoing[dateField]));
-    
-    setPaymentDetails({
-      paymentMethod: '',
-      neftNo: '',
-      amount: initialAmount,
-      bankName: '',
-      paymentType: 'full',
-      rtgsNo: '',
-      paymentMode: 'Bank',
-      cashAmount: 0,
-      upi: '',
-      impsNo: '',
-      selectedDebitNotes: [],
-      selectedAdvancePayments: [],
-      paymentDate: currentDateStr,
-    });
-    setError('');
-    setDateError('');
-    setDateWarning('');
-    setShowConfirmation(false);
-  }
-}, [selectedOutgoing, open, dispatch, totalPayable]);
+  // Check if there are available debit notes or advance payments
+  const hasAvailableDebits = debits && debits.length > 0;
+  const hasAvailableAdvances = singleadvance && singleadvance.length > 0;
+
+  // Check if user has selected any debits/advances when they're available
+  const hasSelectedDebitsOrAdvances =
+    (hasAvailableDebits && paymentDetails.selectedDebitNotes.length > 0) ||
+    (hasAvailableAdvances && paymentDetails.selectedAdvancePayments.length > 0);
+
+  useEffect(() => {
+    dispatch(fetchBank());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (selectedOutgoing && open) {
+      dispatch(fetchActiveDebitsVendor(selectedOutgoing.vendorName));
+      dispatch(fetchActiveAdvancesVendorByName(selectedOutgoing.vendorName));
+      const initialAmount = totalPayable.toFixed(2);
+      const currentDateStr = new Date().toISOString().split('T')[0];
+
+      // Debug: Check what date field contains
+      console.log('Invoice date field:', selectedOutgoing[dateField]);
+      console.log('Parsed invoice date:', new Date(selectedOutgoing[dateField]));
+
+      setPaymentDetails({
+        paymentMethod: '',
+        neftNo: '',
+        amount: initialAmount,
+        bankName: '',
+        paymentType: 'full',
+        rtgsNo: '',
+        paymentMode: 'Bank',
+        cashAmount: 0,
+        upi: '',
+        impsNo: '',
+        selectedDebitNotes: [],
+        selectedAdvancePayments: [],
+        paymentDate: currentDateStr,
+      });
+      setError('');
+      setBankError('');
+      setDateError('');
+      setDateWarning('');
+      setDebitAdvanceWarning('');
+      setShowConfirmation(false);
+    }
+  }, [selectedOutgoing, open, dispatch, totalPayable]);
+
+  // Check for debit/advance warning when dialog opens or when debits/advances change
+  useEffect(() => {
+    if (open && (hasAvailableDebits || hasAvailableAdvances) && !hasSelectedDebitsOrAdvances) {
+      setDebitAdvanceWarning(
+        'This vendor has available debit notes or advance payments. Consider applying them to reduce the payable amount.'
+      );
+    } else {
+      setDebitAdvanceWarning('');
+    }
+  }, [open, hasAvailableDebits, hasAvailableAdvances, hasSelectedDebitsOrAdvances]);
 
   const uncappedDebitSum = paymentDetails.selectedDebitNotes.reduce((sum, debitId) => {
     const debit = debits.find((d: any) => d.randomId === debitId);
@@ -148,25 +179,66 @@ useEffect(() => {
     return '';
   };
 
-const validateDate = (value: string): { error: string | null; warning: string | null } => {
-  if (!value) return { error: 'Payment date is required', warning: null };
-  
-  const selectedDate = new Date(value);
-  if (isNaN(selectedDate.getTime())) return { error: 'Invalid date format', warning: null };
-  
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  selectedDate.setHours(0, 0, 0, 0);
-  
-  // Fix: Ensure invoice date is also normalized for comparison
-  const normalizedInvoiceDate = new Date(invoiceDate);
-  normalizedInvoiceDate.setHours(0, 0, 0, 0);
-  
-  if (selectedDate > today) return { error: 'Future date not allowed', warning: null };
-  if (selectedDate < normalizedInvoiceDate) return { error: 'Payment date cannot be before invoice date', warning: null };
-  
-  return { error: null, warning: null };
-};
+  // Update the validateBankDetails function
+  const validateBankDetails = (): { isValid: boolean; errorMessage: string } => {
+    if (paymentDetails.paymentMode !== 'Bank') {
+      return { isValid: true, errorMessage: '' };
+    }
+
+    if (!paymentDetails.bankName) {
+      return { isValid: false, errorMessage: 'Please select a bank' };
+    }
+
+    if (!paymentDetails.paymentMethod) {
+      return { isValid: false, errorMessage: 'Please select a payment method' };
+    }
+
+    switch (paymentDetails.paymentMethod) {
+      case 'neft':
+        if (!paymentDetails.neftNo) {
+          return { isValid: false, errorMessage: 'Please enter NEFT number' };
+        }
+        break;
+      case 'rtgs':
+        if (!paymentDetails.rtgsNo) {
+          return { isValid: false, errorMessage: 'Please enter RTGS number' };
+        }
+        break;
+      case 'imps':
+        if (!paymentDetails.impsNo) {
+          return { isValid: false, errorMessage: 'Please enter IMPS number' };
+        }
+        break;
+      case 'upi':
+        if (!paymentDetails.upi) {
+          return { isValid: false, errorMessage: 'Please enter UPI ID' };
+        }
+        break;
+    }
+
+    return { isValid: true, errorMessage: '' };
+  };
+
+  const validateDate = (value: string): { error: string | null; warning: string | null } => {
+    if (!value) return { error: 'Payment date is required', warning: null };
+
+    const selectedDate = new Date(value);
+    if (isNaN(selectedDate.getTime())) return { error: 'Invalid date format', warning: null };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    // Fix: Ensure invoice date is also normalized for comparison
+    const normalizedInvoiceDate = new Date(invoiceDate);
+    normalizedInvoiceDate.setHours(0, 0, 0, 0);
+
+    if (selectedDate > today) return { error: 'Future date not allowed', warning: null };
+    if (selectedDate < normalizedInvoiceDate) return { error: 'Payment date cannot be before invoice date', warning: null };
+
+    return { error: null, warning: null };
+  };
+
   const handlePaymentTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedType = e.target.value as 'full' | 'partial';
     let newAmount;
@@ -186,6 +258,8 @@ const validateDate = (value: string): { error: string | null; warning: string | 
       cashAmount: prev.paymentMode === 'Cash' ? parseFloat(newAmount || '0') : 0,
     }));
     setError(validateAmount(newAmount, totalPayable, selectedType === 'partial'));
+    // Clear bank error when changing payment type
+    setBankError('');
   };
 
   const handlePaymentModeChange = (e: React.ChangeEvent<{ value: unknown }>) => {
@@ -202,6 +276,7 @@ const validateDate = (value: string): { error: string | null; warning: string | 
       upi: '',
     }));
     setError('');
+    setBankError(''); // Clear bank error when mode changes
   };
 
   const handlePaymentMethodChange = (e: React.ChangeEvent<{ value: unknown }>) => {
@@ -213,6 +288,8 @@ const validateDate = (value: string): { error: string | null; warning: string | 
       impsNo: '',
       upi: '',
     }));
+    // Clear bank error when method changes
+    setBankError('');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -234,6 +311,10 @@ const validateDate = (value: string): { error: string | null; warning: string | 
         const validation = validateDate(value);
         setDateError(validation.error || '');
         setDateWarning(validation.warning || '');
+      }
+      // Clear bank error when bank name changes
+      if (name === 'bankName') {
+        setBankError('');
       }
       return newDetails;
     });
@@ -257,6 +338,15 @@ const validateDate = (value: string): { error: string | null; warning: string | 
       cashAmount: prev.paymentMode === 'Cash' ? parseFloat(newAmount || '0') : 0,
     }));
     setError(paymentDetails.paymentType === 'partial' ? validateAmount(newAmount, totalPayable, true) : '');
+
+    // Clear warning if user selected something
+    if (selectedValues.length > 0 || paymentDetails.selectedAdvancePayments.length > 0) {
+      setDebitAdvanceWarning('');
+    } else if (hasAvailableAdvances) {
+      setDebitAdvanceWarning(
+        'This vendor has available debit notes or advance payments. Consider applying them to reduce the payable amount.'
+      );
+    }
   };
 
   const handleAdvancePaymentChange = (selectedValues: string[]) => {
@@ -277,6 +367,15 @@ const validateDate = (value: string): { error: string | null; warning: string | 
       cashAmount: prev.paymentMode === 'Cash' ? parseFloat(newAmount || '0') : 0,
     }));
     setError(paymentDetails.paymentType === 'partial' ? validateAmount(newAmount, totalPayable, true) : '');
+
+    // Clear warning if user selected something
+    if (selectedValues.length > 0 || paymentDetails.selectedDebitNotes.length > 0) {
+      setDebitAdvanceWarning('');
+    } else if (hasAvailableDebits) {
+      setDebitAdvanceWarning(
+        'This vendor has available debit notes or advance payments. Consider applying them to reduce the payable amount.'
+      );
+    }
   };
 
   const resetPaymentDetails = () => {
@@ -296,8 +395,10 @@ const validateDate = (value: string): { error: string | null; warning: string | 
       paymentDate: '',
     });
     setError('');
+    setBankError('');
     setDateError('');
     setDateWarning('');
+    setDebitAdvanceWarning('');
     setShowConfirmation(false);
   };
 
@@ -334,13 +435,27 @@ const validateDate = (value: string): { error: string | null; warning: string | 
       dispatch(setSnackbarOpen(true));
     }
 
+    // Validate bank details if payment mode is Bank
+    if (paymentDetails.paymentMode === 'Bank') {
+      const bankValidation = validateBankDetails();
+      if (!bankValidation.isValid) {
+        setBankError(bankValidation.errorMessage);
+        dispatch(setSnackbarMessage(bankValidation.errorMessage));
+        dispatch(setSnackbarOpen(true));
+        return;
+      }
+    }
+
+    // Clear bank error if validation passes
+    setBankError('');
+
     // Show confirmation dialog instead of processing immediately
     setShowConfirmation(true);
   };
 
   const handleConfirmPayment = async () => {
     const paymentAmount = parseFloat(paymentDetails.amount || '0');
-    
+
     // FIXED: Create date in local timezone without UTC conversion
     const paymentDate = new Date(paymentDetails.paymentDate);
     // Set to noon to avoid timezone issues
@@ -409,15 +524,23 @@ const validateDate = (value: string): { error: string | null; warning: string | 
           <Typography variant="body1" gutterBottom>
             Total Amount: ₹{totalPayable.toFixed(2)}
           </Typography>
-          <Typography  >
+          <Typography>
             Total Debit Amount: ₹{totalDebitAmount.toFixed(2)}
           </Typography>
-          <Typography  >
+          <Typography>
             Total Advance Amount: ₹{totalAdvanceAmount.toFixed(2)}
           </Typography>
-          <Typography  >
+          <Typography>
             Remaining Payable: ₹{(totalPayable - totalDebitAmount - totalAdvanceAmount).toFixed(2)}
           </Typography>
+
+          {/* Debit/Advance Warning */}
+          {debitAdvanceWarning && (
+            <Alert severity="warning" sx={{ mt: 2, mb: 1 }} onClose={() => setDebitAdvanceWarning('')}>
+              <AlertTitle>Available Adjustments</AlertTitle>
+              {debitAdvanceWarning}
+            </Alert>
+          )}
 
           <TextField
             type="date"
@@ -429,9 +552,10 @@ const validateDate = (value: string): { error: string | null; warning: string | 
             margin="normal"
             required
             error={!!dateError}
+            helperText={dateError || dateWarning}
             size="small"
             inputProps={{
-              min:invoiceDateStr,
+              min: invoiceDateStr,
               max: currentDate,
             }}
           />
@@ -462,8 +586,8 @@ const validateDate = (value: string): { error: string | null; warning: string | 
             error={!!error}
             helperText={error}
             disabled={paymentDetails.paymentType === 'full'} // Only disable for full payment
-            inputProps={{ 
-              type: 'number', 
+            inputProps={{
+              type: 'number',
               step: '0.01',
               min: 0,
               max: paymentDetails.paymentType === 'partial' ? totalPayable : undefined
@@ -497,6 +621,8 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                 fullWidth
                 margin="normal"
                 size="small"
+                error={!!bankError && !paymentDetails.bankName}
+                required
               >
                 {banks.map((bank: any) => (
                   <MenuItem key={bank.bankMasterId} value={bank.bankName}>
@@ -514,6 +640,8 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                 fullWidth
                 margin="normal"
                 size="small"
+                error={!!bankError && !paymentDetails.paymentMethod}
+                required
               >
                 <MenuItem value="neft">NEFT</MenuItem>
                 <MenuItem value="rtgs">RTGS</MenuItem>
@@ -532,6 +660,8 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                   margin="normal"
                   required
                   size="small"
+                  error={!!bankError && paymentDetails.paymentMethod === 'neft' && !paymentDetails.neftNo}
+                  helperText={bankError && paymentDetails.paymentMethod === 'neft' && !paymentDetails.neftNo ? bankError : ''}
                 />
               )}
 
@@ -546,6 +676,8 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                   margin="normal"
                   required
                   size="small"
+                  error={!!bankError && paymentDetails.paymentMethod === 'rtgs' && !paymentDetails.rtgsNo}
+                  helperText={bankError && paymentDetails.paymentMethod === 'rtgs' && !paymentDetails.rtgsNo ? bankError : ''}
                 />
               )}
 
@@ -560,6 +692,8 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                   margin="normal"
                   required
                   size="small"
+                  error={!!bankError && paymentDetails.paymentMethod === 'imps' && !paymentDetails.impsNo}
+                  helperText={bankError && paymentDetails.paymentMethod === 'imps' && !paymentDetails.impsNo ? bankError : ''}
                 />
               )}
 
@@ -574,11 +708,14 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                   margin="normal"
                   required
                   size="small"
+                  error={!!bankError && paymentDetails.paymentMethod === 'upi' && !paymentDetails.upi}
+                  helperText={bankError && paymentDetails.paymentMethod === 'upi' && !paymentDetails.upi ? bankError : ''}
                 />
               )}
             </>
           )}
 
+          {/* Apply Debit Notes with OK Button */}
           {debits.length > 0 && (
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2">Apply Debit Notes</Typography>
@@ -586,8 +723,14 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                 <InputLabel>Apply Debit Notes</InputLabel>
                 <Select
                   multiple
+                  open={debitMenuOpen}
+                  onOpen={() => setDebitMenuOpen(true)}
+                  onClose={() => setDebitMenuOpen(false)}
                   value={paymentDetails.selectedDebitNotes}
-                  onChange={(e: SelectChangeEvent<string[]>) => handleDebitNoteChange(e.target.value as string[])}
+                  onChange={(e: SelectChangeEvent<string[]>) => {
+                    handleDebitNoteChange(e.target.value as string[]);
+                    // Don't close automatically - let user click OK
+                  }}
                   label="Apply Debit Notes"
                   size="small"
                   renderValue={(selected) =>
@@ -600,6 +743,22 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                           })
                           .join(', ')
                   }
+                  MenuProps={{
+                    PaperProps: {
+                      style: {
+                        maxHeight: 300,
+                        width: 'auto',
+                      },
+                    },
+                    anchorOrigin: {
+                      vertical: 'bottom',
+                      horizontal: 'left',
+                    },
+                    transformOrigin: {
+                      vertical: 'top',
+                      horizontal: 'left',
+                    },
+                  }}
                 >
                   {debits.map((debit: any) => (
                     <MenuItem key={debit.randomId} value={debit.randomId}>
@@ -609,11 +768,34 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                       />
                     </MenuItem>
                   ))}
+                  {/* OK Button at the bottom of menu */}
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'flex-end', 
+                      p: 1, 
+                      borderTop: '1px solid #e0e0e0',
+                      position: 'sticky',
+                      bottom: 0,
+                      backgroundColor: 'white',
+                      zIndex: 1
+                    }}
+                  >
+                    <Button 
+                      size="small" 
+                      variant="contained" 
+                      onClick={() => setDebitMenuOpen(false)}
+                      sx={{ minWidth: '80px' }}
+                    >
+                      OK
+                    </Button>
+                  </Box>
                 </Select>
               </FormControl>
             </Box>
           )}
 
+          {/* Apply Advance Payments with OK Button */}
           {singleadvance.length > 0 && (
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2">Apply Advance Payments</Typography>
@@ -621,8 +803,14 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                 <InputLabel>Apply Advance Payments</InputLabel>
                 <Select
                   multiple
+                  open={advanceMenuOpen}
+                  onOpen={() => setAdvanceMenuOpen(true)}
+                  onClose={() => setAdvanceMenuOpen(false)}
                   value={paymentDetails.selectedAdvancePayments}
-                  onChange={(e: SelectChangeEvent<string[]>) => handleAdvancePaymentChange(e.target.value as string[])}
+                  onChange={(e: SelectChangeEvent<string[]>) => {
+                    handleAdvancePaymentChange(e.target.value as string[]);
+                    // Don't close automatically - let user click OK
+                  }}
                   label="Apply Advance Payments"
                   size="small"
                   renderValue={(selected) =>
@@ -641,6 +829,22 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                           })
                           .join(', ')
                   }
+                  MenuProps={{
+                    PaperProps: {
+                      style: {
+                        maxHeight: 300,
+                        width: 'auto',
+                      },
+                    },
+                    anchorOrigin: {
+                      vertical: 'bottom',
+                      horizontal: 'left',
+                    },
+                    transformOrigin: {
+                      vertical: 'top',
+                      horizontal: 'left',
+                    },
+                  }}
                 >
                   {singleadvance.map((advance: any) => {
                     const index = paymentDetails.selectedAdvancePayments.indexOf(advance.randomId);
@@ -661,6 +865,28 @@ const validateDate = (value: string): { error: string | null; warning: string | 
                       </MenuItem>
                     );
                   })}
+                  {/* OK Button at the bottom of menu */}
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'flex-end', 
+                      p: 1, 
+                      borderTop: '1px solid #e0e0e0',
+                      position: 'sticky',
+                      bottom: 0,
+                      backgroundColor: 'white',
+                      zIndex: 1
+                    }}
+                  >
+                    <Button 
+                      size="small" 
+                      variant="contained" 
+                      onClick={() => setAdvanceMenuOpen(false)}
+                      sx={{ minWidth: '80px' }}
+                    >
+                      OK
+                    </Button>
+                  </Box>
                 </Select>
               </FormControl>
             </Box>
@@ -692,40 +918,50 @@ const validateDate = (value: string): { error: string | null; warning: string | 
             width: '350px',
             maxWidth: '350px',
             minWidth: '350px',
-            fontSize:'16px',
+            fontSize: '16px',
           },
         }}
       >
         <DialogTitle>Confirm Payment</DialogTitle>
         <DialogContent>
-          <Typography  gutterBottom>
+          <Typography gutterBottom>
             Are you sure you want to process this payment?
           </Typography>
-          <Typography  gutterBottom>
+          <Typography gutterBottom>
             Total Amount: ₹{totalPayable.toFixed(2)}
           </Typography>
-          <Typography   gutterBottom>
+          <Typography gutterBottom>
             Payment Amount: ₹{parseFloat(paymentDetails.amount || '0').toFixed(2)}
           </Typography>
           {totalDebitAmount > 0 && (
-            <Typography  gutterBottom>
+            <Typography gutterBottom>
               Debit Adjustment: ₹{totalDebitAmount.toFixed(2)}
             </Typography>
           )}
           {totalAdvanceAmount > 0 && (
-            <Typography   gutterBottom>
+            <Typography gutterBottom>
               Advance Adjustment: ₹{totalAdvanceAmount.toFixed(2)}
             </Typography>
           )}
-          <Typography  >
+          <Typography>
             Payment Date: {paymentDetails.paymentDate}
           </Typography>
-          <Typography  >
+          <Typography>
             Payment Mode: {paymentDetails.paymentMode}
           </Typography>
           {paymentDetails.paymentMode === 'Bank' && paymentDetails.bankName && (
-            <Typography  >
+            <Typography>
               Bank: {paymentDetails.bankName}
+            </Typography>
+          )}
+          {paymentDetails.paymentMode === 'Bank' && paymentDetails.paymentMethod && (
+            <Typography>
+              {paymentDetails.paymentMethod.toUpperCase()} Number: {
+                paymentDetails.paymentMethod === 'neft' ? paymentDetails.neftNo :
+                  paymentDetails.paymentMethod === 'rtgs' ? paymentDetails.rtgsNo :
+                    paymentDetails.paymentMethod === 'imps' ? paymentDetails.impsNo :
+                      paymentDetails.upi
+              }
             </Typography>
           )}
         </DialogContent>

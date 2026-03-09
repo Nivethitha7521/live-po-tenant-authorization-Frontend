@@ -5,6 +5,7 @@ import {
   Box, TextField, Button, Typography, Grid, Paper, TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
   Autocomplete, Snackbar, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, RadioGroup,
   FormControlLabel, Radio, CircularProgress, Tooltip, Backdrop, Switch, FormControl,
+  Chip,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -14,7 +15,6 @@ import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import ClearIcon from '@mui/icons-material/Clear';
 import { usePermissions } from "@/hooks/usePermissions";
-
 import {
   addPurchaseOrder, fetchPurchaseOrders, fetchAllVendors, selectPurchaseOrderState, setPurchaseOrderData,
   setNewItemData, addItemToPurchaseOrder, setSnackbarMessage, clearSnackbarMessage, setSnackbarOpen,
@@ -28,7 +28,7 @@ import { addShipping, fetchBusinesses, fetchShipping, selectBusinesses } from '@
 import { fetchLocations, selectStorageLocations } from '../../../../features/yen-purchase/PurchaseMaster/StorageLocationSlice';
 import { AppDispatch, RootState } from '@/redux/store';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Freight, Item, PurchaseItemSearchAdd } from '../../../../Models/purchaseModel';
+import { Freight, Item, PurchaseItemSearchAdd, PurchaseOrderData } from '../../../../Models/purchaseModel';
 import { ShippingAddress } from '@/Models/businessModel';
 import { Location } from '@/Models/storagelocation';
 import PurchaseItemAutocomplete from '../../../../components/yen-purchase/pocreationcomponent/purchaseautocomplete';
@@ -105,80 +105,91 @@ const CreatePurchasePage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [freights, setFreights] = useState<FreightData[]>([]); // Updated to FreightData type
   const [openFreightDialog, setOpenFreightDialog] = useState(false); // Added: Freight dialog state
-  // NEW: Load specific PO data in edit mode
+  // Add this with your other useState declarations
+  const [selectedItemStock, setSelectedItemStock] = useState<number | null>(null);
   useEffect(() => {
-    if (isEditMode && editId) {
-      setOrderLoading(true);
-      dispatch(fetchPurchaseOrderById(editId))
-        .unwrap()
-        .then((data) => {
-          // Set the fetched data to Redux
-          dispatch(setPurchaseOrderData(data));
-          // Set freights from fetched data
-          setFreights(data.freights || []);
-          // Set overall discount if available in data (assuming data has these fields)
-          if (data.overallDiscountValue !== undefined) {
-            setOverallDiscountValue(data.overallDiscountValue);
-          }
-          if (data.roundOffValue !== undefined) {
-            setRoundOffValue(data.roundOffValue);
-          }
-          setOrderLoading(false);
-        })
-        .catch((error) => {
-          console.error('Failed to load purchase order for edit:', error);
-          dispatch(setSnackbarMessage('Failed to load purchase order data.'));
-          dispatch(setSnackbarOpen(true));
-          setOrderLoading(false);
-          router.push('/yen-purchase/PurchaseOrder'); // Redirect back if load fails
+  if (isEditMode && editId) {
+    setOrderLoading(true);
+    sessionStorage.removeItem('editOrderData');
+
+    dispatch(fetchPurchaseOrderById(editId))
+      .unwrap()
+      .then((data: PurchaseOrderData) => {
+        
+        const dataWithStock: PurchaseOrderData = {
+          ...data,
+          items: data.items?.map((item: Item) => ({
+            ...item,
+            availableStock: Number(item.availableStock ?? 0),
+            locationId: item.locationId || '',
+          })) || [],
+        };
+
+        console.log('✅ Stock after mapping:', 
+          dataWithStock.items.map(i => ({ name: i.itemName, stock: i.availableStock }))
+        );
+
+        // ✅ Direct state set - dispatch வழியா போகாம
+        dispatch({
+          type: 'purchaseOrder/fetchPurchaseOrderById/fulfilled',
+          payload: dataWithStock,
         });
-    }
-  }, [isEditMode, editId, dispatch, router]);
-  // Replace your problematic useEffect with this corrected version:
-  useEffect(() => {
-    const calculateAndUpdateTotals = async () => {
-      if (purchaseOrderData.items.length > 0 || freights.length > 0) {
-        try {
-          const result = await dispatch(calculatePurchaseOrderTotals({
-            items: purchaseOrderData.items,
-            freights: freights,
-          })).unwrap();
-          // Update local totals state with backend-calculated values
-          // Use proper property names that match your interface
-          setTotals({
-            subTotal: result.subTotal,
-            freightAmountTotal: result.totalFreightAmount,
-            freightTaxTotal: result.totalFreightTaxAmount,
-            roundedTotalOrderAmount: result.finalAmount, // This should work now
-            roundedTotalDiscount: result.totalDiscount,
-            roundedTotalTax: result.totalTax,
-            overallDiscountAmount: 0,
-            itemDiscountAmount: result.totalDiscount,
-            taxAmount: result.itemTaxAmount,
-            afterDiscount: result.amountAfterDiscount,
-          });
-          // Update Redux state
-          dispatch(setReduxTotals({
-            pendingOrderAmount: result.finalAmount,
-            pendingDiscountAmount: result.totalDiscount,
-            pendingTaxAmount: result.totalTax,
-            totalFreightAmount: result.totalFreightAmount,
-            totalFreightTaxAmount: result.totalFreightTaxAmount,
-          }));
-        } catch (error) {
-          console.error('Failed to calculate purchase order totals:', error);
-          // Fallback to frontend calculation if backend fails
-          const newTotals = calculateTotals;
-          setTotals(newTotals);
-        }
-      } else {
-        // Reset totals if no items or freights
-        const newTotals = calculateTotals;
-        setTotals(newTotals);
+        
+        setFreights(data.freights || []);
+        if (data.overallDiscountValue !== undefined) setOverallDiscountValue(data.overallDiscountValue);
+        if (data.roundOffValue !== undefined) setRoundOffValue(data.roundOffValue);
+        setOrderLoading(false);
+      })
+      .catch((error) => {
+        console.error('Failed to load PO:', error);
+        dispatch(setSnackbarMessage('Failed to load purchase order data.'));
+        dispatch(setSnackbarOpen(true));
+        setOrderLoading(false);
+        router.push('/yen-purchase/PurchaseOrder');
+      });
+  }
+}, [isEditMode, editId, dispatch, router]);
+useEffect(() => {
+  const calculateAndUpdateTotals = async () => {
+    if (purchaseOrderData.items.length > 0 || freights.length > 0) {
+      try {
+        const result = await dispatch(calculatePurchaseOrderTotals({
+          items: purchaseOrderData.items,
+          freights: freights,
+        })).unwrap();
+
+        setTotals({
+          subTotal: result.subTotal,
+          freightAmountTotal: result.totalFreightAmount,
+          freightTaxTotal: result.totalFreightTaxAmount,
+          roundedTotalOrderAmount: result.finalAmount,
+          roundedTotalDiscount: result.totalDiscount,
+          roundedTotalTax: result.totalTax,
+          overallDiscountAmount: 0,
+          itemDiscountAmount: result.totalDiscount,
+          taxAmount: result.itemTaxAmount,
+          afterDiscount: result.amountAfterDiscount,
+        });
+
+        // ✅ ONLY setReduxTotals - setPurchaseOrderData call பண்ணாதே!
+        dispatch(setReduxTotals({
+          pendingOrderAmount: result.finalAmount,
+          pendingDiscountAmount: result.totalDiscount,
+          pendingTaxAmount: result.totalTax,
+          totalFreightAmount: result.totalFreightAmount,
+          totalFreightTaxAmount: result.totalFreightTaxAmount,
+        }));
+
+      } catch (error) {
+        console.error('Failed to calculate totals:', error);
+        setTotals(calculateTotals);
       }
-    };
-    calculateAndUpdateTotals();
-  }, [purchaseOrderData.items, freights, dispatch]);
+    } else {
+      setTotals(calculateTotals);
+    }
+  };
+  calculateAndUpdateTotals();
+}, [purchaseOrderData.items, freights, dispatch]);
   useEffect(() => {
     if (isEditMode && purchaseOrderData.vendorName && vendors.length > 0) {
       const matchedVendor = vendors.find((vendor: VendorSummary) =>
@@ -427,14 +438,14 @@ const CreatePurchasePage: React.FC = () => {
     setFreights((prev) => prev.filter((_, i) => i !== index));
   }, []);
   const handleOrderDateChange = (date: Date | null) => {
-  let finalDate = date || new Date();
-  // Set to noon local to prevent timezone rollover
-  finalDate = new Date(finalDate.getTime() + 12 * 60 * 60 * 1000); // +12 hours
-  dispatch(setPurchaseOrderData({
-    ...purchaseOrderData,
-    orderDate: finalDate.toISOString()
-  }));
-};
+    let finalDate = date || new Date();
+    // Set to noon local to prevent timezone rollover
+    finalDate = new Date(finalDate.getTime() + 12 * 60 * 60 * 1000); // +12 hours
+    dispatch(setPurchaseOrderData({
+      ...purchaseOrderData,
+      orderDate: finalDate.toISOString()
+    }));
+  };
   const handleExpectedDeliveryDateChange = (date: Date | null) => {
     const finalDate = date || new Date();
     dispatch(setPurchaseOrderData({
@@ -596,6 +607,16 @@ const CreatePurchasePage: React.FC = () => {
   const handleItemSelection = (item: PurchaseItemSearchAdd | null) => {
     if (item) {
       setNewItemsearch(item);
+
+      // Store stock in state and in newItem
+      setSelectedItemStock(item.availableStock || 0);
+
+      console.log('📦 Selected item with stock:', {
+        name: item.itemName,
+        stock: item.availableStock,
+        randomId: item.randomId
+      });
+
       dispatch(setNewItemData({
         itemId: item.purchaseitemId,
         itemName: item.itemName,
@@ -620,7 +641,6 @@ const CreatePurchasePage: React.FC = () => {
         taxType: 'cgst_sgst',
         befTaxDiscountType: discountMode,
         afTaxDiscountType: discountMode,
-        // Initialize PO quantity fields
         poQuantity: 0,
         poQuantitypendingTotalPrice: 0,
         poQuantitypendingFinalPrice: 0,
@@ -629,46 +649,36 @@ const CreatePurchasePage: React.FC = () => {
         poQuantitysgst: 0,
         poQuantitycgst: 0,
         poQuantityigst: 0,
+        // CRITICAL: Store stock in newItem
+        availableStock: item.availableStock || 0,
+        locationId: item.locationId || '',
       }));
+
       setCountInput('1');
       setQuantityInput('');
       setNewPriceTypeInput(item.purchasePrice.toString());
+
+      // Show warning if low stock
+      if (item.availableStock !== undefined) {
+        if (item.availableStock <= 0) {
+          dispatch(setSnackbarMessage(`⚠️ ${item.itemName} is out of stock!`));
+          dispatch(setSnackbarOpen(true));
+        } else if (item.availableStock < 10) {
+          dispatch(setSnackbarMessage(`⚠️ Low stock: Only ${item.availableStock} ${item.uom || ''} available`));
+          dispatch(setSnackbarOpen(true));
+        }
+      }
     } else {
+      // Reset state when no item selected
       setNewItemsearch(null);
+      setSelectedItemStock(null);
+
       dispatch(setNewItemData({
-        itemId: '',
-        itemName: '',
-        quantity: 0,
-        count: 0,
-        eachQuantity: 0,
-        existingPrice: 0,
-        newPrice: 0,
-        taxPercentage: 0,
-        uom: '',
-        purchasecategoryName: '',
-        purchasesubcategoryName: '',
-        hsnCode: '',
-        befTaxDiscount: 0,
-        afTaxDiscount: 0,
-        befTaxDiscountAmount: 0,
-        afTaxDiscountAmount: 0,
-        pendingTotalPrice: 0,
-        taxType: 'cgst_sgst',
-        befTaxDiscountType: discountMode,
-        afTaxDiscountType: discountMode,
-        pendingCount: 0,
-        pendingQuantity: 0,
-        pendingTotalQuantity: 0,
-        // Reset PO quantity fields
-        poQuantity: 0,
-        poQuantitypendingTotalPrice: 0,
-        poQuantitypendingFinalPrice: 0,
-        poQuantityTaxAmount: 0,
-        poQuantityDiscountAmount: 0,
-        poQuantitysgst: 0,
-        poQuantitycgst: 0,
-        poQuantityigst: 0,
+        // ... reset fields ...
+        availableStock: 0,
+        locationId: '',
       }));
+
       setCountInput('');
       setQuantityInput('');
       setNewPriceTypeInput('');
@@ -740,6 +750,7 @@ const CreatePurchasePage: React.FC = () => {
     setVendorSearch(null);
     setLocationSearch(null);
     setNewItemsearch(null);
+    setSelectedItemStock(null);
     setCountInput('');
     setQuantityInput('');
     setNewPriceTypeInput('');
@@ -865,7 +876,7 @@ const CreatePurchasePage: React.FC = () => {
       dispatch(setPurchaseOrderData({
         ...purchaseOrderData,
         vendorName: vendor.vendorName,
-        vendorId:vendor.vendorId,
+        vendorId: vendor.vendorId,
         vendorContact: vendor.contactpersonPhone,
         contactpersonEmail: vendor.contactpersonEmail,
         address: vendor.address,
@@ -901,6 +912,16 @@ const CreatePurchasePage: React.FC = () => {
       }));
     }
   };
+  // Add this near your other useEffects
+  useEffect(() => {
+    console.log('🔍 DEBUG - Current purchaseOrderData:', purchaseOrderData);
+    console.log('🔍 DEBUG - Items with stock:', purchaseOrderData.items?.map(item => ({
+      name: item.itemName,
+      availableStock: item.availableStock,
+      randomId: item.randomId,
+      hasStock: item.availableStock !== undefined
+    })));
+  }, [purchaseOrderData]);
   const handleTaxTypeChange = (event: ChangeEvent<HTMLInputElement>) => {
     dispatch(setNewItemData({ ...newItem, taxType: event.target.value as 'cgst_sgst' | 'igst' }));
   };
@@ -918,15 +939,26 @@ const CreatePurchasePage: React.FC = () => {
   const handleEdit = (item: Item) => {
     const itemDiscountMode = (item.befTaxDiscountType || discountMode || 'percentage') as 'percentage' | 'amount';
     dispatch(setDiscountMode({ mode: itemDiscountMode }));
+
     const befDiscount = item.befTaxDiscount || 0;
     const afDiscount = item.afTaxDiscount || 0;
     const befDiscountAmount = item.befTaxDiscountAmount || 0;
     const afDiscountAmount = item.afTaxDiscountAmount || 0;
+
     let editedBef = itemDiscountMode === 'percentage' ? (befDiscount > 0 ? befDiscount : 0) : (befDiscountAmount > 0 ? befDiscountAmount : 0);
     let editedAf = itemDiscountMode === 'percentage' ? (afDiscount > 0 ? afDiscount : 0) : (afDiscountAmount > 0 ? afDiscountAmount : 0);
+
     if (editedBef > 0 && editedAf > 0) {
       editedAf = 0;
     }
+
+    console.log('Editing item with stock:', {
+      name: item.itemName,
+      availableStock: item.availableStock,
+      randomId: item.randomId,
+      locationId: item.locationId
+    });
+
     dispatch(setItemForEditing({
       ...item,
       befTaxDiscount: itemDiscountMode === 'percentage' ? editedBef : 0,
@@ -936,6 +968,7 @@ const CreatePurchasePage: React.FC = () => {
       befTaxDiscountType: itemDiscountMode,
       afTaxDiscountType: itemDiscountMode,
     }));
+
     const itemForSearch: PurchaseItemSearchAdd = {
       purchaseitemId: item.itemId,
       itemName: item.itemName,
@@ -946,9 +979,14 @@ const CreatePurchasePage: React.FC = () => {
       purchasesubcategoryName: item.purchasesubcategoryName,
       hsnCode: item.hsnCode,
       itemCode: item.itemCode,
-      randomId: item.randomId
+      randomId: item.randomId,
+      // CRITICAL: Include stock from the item
+      availableStock: item.availableStock || 0,
+      locationId: item.locationId || '',
     };
+
     setNewItemsearch(itemForSearch);
+    setSelectedItemStock(item.availableStock || 0);
     setCountInput(item.pendingCount.toString());
     setQuantityInput(item.pendingQuantity.toString());
     setNewPriceTypeInput(item.newPrice.toString());
@@ -1046,6 +1084,8 @@ const CreatePurchasePage: React.FC = () => {
         poQuantitysgst: 0,
         poQuantitycgst: 0,
         poQuantityigst: 0,
+        availableStock: 0,          // ← ADD THIS FIELD to the reset object
+        locationId: '',             // ← ADD THIS FIELD to the reset object
       }));
       setCountInput('');
       setQuantityInput('');
@@ -1309,12 +1349,12 @@ const CreatePurchasePage: React.FC = () => {
       const expectedDeliveryDate =
         purchaseOrderData.expectedDeliveryDate || new Date().toISOString();
       console.log("🚚 FREIGHTS BEFORE SUBMIT:", freights);
-console.log("🧾 FULL PO PAYLOAD:", {
-  ...purchaseOrderData,
-  freights
-});
+      console.log("🧾 FULL PO PAYLOAD:", {
+        ...purchaseOrderData,
+        freights
+      });
       const dataToSubmit = {
-        
+
         ...purchaseOrderData,
         orderDate,
         expectedDeliveryDate,
@@ -1437,49 +1477,49 @@ console.log("🧾 FULL PO PAYLOAD:", {
       </Box>
     );
   }
-const canEdit = hasPermission("yenerp", "purchaseorders_pending", "edit");
+  const canEdit = hasPermission("yenerp", "purchaseorders_pending", "edit");
 
-if (!isEditMode && !canAdd) {
-  return (
-    <Box sx={{ p: 4, textAlign: "center" }}>
-      <Typography variant="h5" color="error" sx={{ mb: 2 }}>
-        ❌ Access Denied
-      </Typography>
-      <Typography>
-        You don&apos;t have permission to create purchase orders.
-        Required permission: <strong>purchaseorders_pending.add</strong>
-      </Typography>
-      <Button
-        variant="contained"
-        sx={{ mt: 2 }}
-        onClick={() => router.push("/yen-purchase/PurchaseOrder")}
-      >
-        Back to Purchase Orders
-      </Button>
-    </Box>
-  );
-}
+  if (!isEditMode && !canAdd) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+          ❌ Access Denied
+        </Typography>
+        <Typography>
+          You don&apos;t have permission to create purchase orders.
+          Required permission: <strong>purchaseorders_pending.add</strong>
+        </Typography>
+        <Button
+          variant="contained"
+          sx={{ mt: 2 }}
+          onClick={() => router.push("/yen-purchase/PurchaseOrder")}
+        >
+          Back to Purchase Orders
+        </Button>
+      </Box>
+    );
+  }
 
-if (isEditMode && !canEdit) {
-  return (
-    <Box sx={{ p: 4, textAlign: "center" }}>
-      <Typography variant="h5" color="error" sx={{ mb: 2 }}>
-        ❌ Access Denied
-      </Typography>
-      <Typography>
-        You don&apos;t have permission to edit purchase orders.
-        Required permission: <strong>purchaseorders_pending.edit</strong>
-      </Typography>
-      <Button
-        variant="contained"
-        sx={{ mt: 2 }}
-        onClick={() => router.push("/yen-purchase/PurchaseOrder")}
-      >
-        Back to Purchase Orders
-      </Button>
-    </Box>
-  );
-}
+  if (isEditMode && !canEdit) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+          ❌ Access Denied
+        </Typography>
+        <Typography>
+          You don&apos;t have permission to edit purchase orders.
+          Required permission: <strong>purchaseorders_pending.edit</strong>
+        </Typography>
+        <Button
+          variant="contained"
+          sx={{ mt: 2 }}
+          onClick={() => router.push("/yen-purchase/PurchaseOrder")}
+        >
+          Back to Purchase Orders
+        </Button>
+      </Box>
+    );
+  }
 
   const taxDetails = calculateTaxDetails();
   const variancePrice = (newItem.newPrice - newItem.existingPrice).toFixed(2);
@@ -1489,19 +1529,19 @@ if (isEditMode && !canEdit) {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
       {/* Main Content */}
       <Box sx={{ flex: 1, p: 3, overflowY: 'auto', maxHeight: 'calc(100vh - 64px)' }}>
-       <Box sx={{
-  width: '100%',
-  maxWidth: {
-    xs: '100%',      // Mobile: full
-    sm: '100%',      // Tablets: full with padding
-    md: '1200px',    // Laptops (1366-1600px): comfortable fixed width
-    lg: '1400px',    // Large monitors: more space
-    xl: '1600px',    // XXL monitors (1920px+): max readable width
-  },
-  mx: 'auto',        // Centered
-  px: { xs: 2, sm: 3, md: 4},  // Generous side padding on big screens
-  py: 3,
-}}>
+        <Box sx={{
+          width: '100%',
+          maxWidth: {
+            xs: '100%',      // Mobile: full
+            sm: '100%',      // Tablets: full with padding
+            md: '1200px',    // Laptops (1366-1600px): comfortable fixed width
+            lg: '1400px',    // Large monitors: more space
+            xl: '1600px',    // XXL monitors (1920px+): max readable width
+          },
+          mx: 'auto',        // Centered
+          px: { xs: 2, sm: 3, md: 4 },  // Generous side padding on big screens
+          py: 3,
+        }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography fontWeight={'bold'} sx={{ textDecoration: 'underline' }}>
               {isEditMode ? `Edit Purchase Order - ${purchaseOrderData.randomId || editId}` : 'Create New Purchase Order'}
@@ -1587,7 +1627,7 @@ if (isEditMode && !canEdit) {
                 disabled
               />
             </Grid>
-           
+
           </Grid>
           {/* Add Item Section */}
           <Box sx={{
@@ -1665,6 +1705,28 @@ if (isEditMode && !canEdit) {
                   helperText={errors.itemName ? 'Item name is required' : ''}
                   inputRef={itemNameRef}
                 // key={newItemsearch ? newItemsearch.purchaseitemId : 'empty'} // Force re-render when cleared
+                />
+              </Grid>
+
+              {/* ADD THIS FIELD - Available Stock */}
+              <Grid item xs={12} sm={2} md={1}>
+                <TextField
+                  fullWidth
+                  disabled
+                  label="Available Stock"
+                  value={selectedItemStock !== null ? `${selectedItemStock} ${newItem.uom || ''}` : '-'}
+                  size="small"
+                  sx={{
+                    '& .MuiInputBase-input': {
+                      color: selectedItemStock === 0 ? 'error.main' :
+                        selectedItemStock && selectedItemStock < 10 ? 'warning.main' :
+                          selectedItemStock ? 'success.main' : 'text.primary',
+                      fontWeight: 'bold'
+                    }
+                  }}
+                  InputProps={{
+                    readOnly: true,
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={4} md={0.8}>
@@ -1909,6 +1971,7 @@ if (isEditMode && !canEdit) {
                   <TableRow>
                     <TableCell className='table-number-right'>S.No</TableCell>
                     <TableCell sx={{ fontWeight: 'bold' }}>Item Name</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Stock</TableCell>
                     <TableCell className='table-number-right' sx={{ fontWeight: 'bold' }}>Quantity</TableCell>
                     <TableCell className='table-text-left' sx={{ fontWeight: 'bold' }}>UOM</TableCell>
                     <TableCell className='table-number-right' sx={{ fontWeight: 'bold' }}>Existing Price</TableCell>
@@ -1930,6 +1993,18 @@ if (isEditMode && !canEdit) {
                       <TableRow key={index}>
                         <TableCell className='table-number-right'>{index + 1}</TableCell>
                         <TableCell sx={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }} className="table-text-left">{item.itemName || 'N/A'}</TableCell>
+                        <TableCell className='table-number-right'>
+                          <Chip
+                            label={`${item.availableStock ?? 0} ${item.uom || ''}`}
+                            size="small"
+                            color={
+                              !item.availableStock || item.availableStock === 0 ? 'error' :
+                                item.availableStock < 10 ? 'warning' : 'success'
+                            }
+                            variant="outlined"
+                            sx={{ fontWeight: 'bold', minWidth: '70px' }}
+                          />
+                        </TableCell>
                         <TableCell className='table-number-right'>{item.pendingTotalQuantity || 0}</TableCell>
                         <TableCell className='table-text-left'>{item.uom}</TableCell>
                         <TableCell className='table-number-right'>{(item.existingPrice || 0).toFixed(2)}</TableCell>
@@ -1949,7 +2024,7 @@ if (isEditMode && !canEdit) {
                   )}
                   {/* Totals Section */}
                   <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
-                    <TableCell className='table-number-right' colSpan={8} align="right">
+                    <TableCell className='table-number-right' colSpan={10} align="right">
                       <strong>Sub Total:</strong>
                     </TableCell>
                     <TableCell className='table-number-right' align="right">
@@ -1966,7 +2041,7 @@ if (isEditMode && !canEdit) {
                       <React.Fragment key={taxPercentage}>
                         {pendingIgst > 0 && (
                           <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
-                            <TableCell colSpan={8} className='table-number-right'>
+                            <TableCell colSpan={10} className='table-number-right'>
                               <strong>IGST ({percentage}%)</strong>
                             </TableCell>
                             <TableCell className='table-number-right'>
@@ -1978,7 +2053,7 @@ if (isEditMode && !canEdit) {
                         )}
                         {pendingSgst > 0 && (
                           <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
-                            <TableCell colSpan={8} className='table-number-right'>
+                            <TableCell colSpan={10} className='table-number-right'>
                               <strong>SGST ({halfPercentage}%)</strong>
                             </TableCell>
                             <TableCell className='table-number-right'>
@@ -1990,7 +2065,7 @@ if (isEditMode && !canEdit) {
                         )}
                         {pendingCgst > 0 && (
                           <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
-                            <TableCell colSpan={8} className='table-number-right'>
+                            <TableCell colSpan={10} className='table-number-right'>
                               <strong>CGST ({halfPercentage}%)</strong>
                             </TableCell>
                             <TableCell className='table-number-right'>
@@ -2004,7 +2079,7 @@ if (isEditMode && !canEdit) {
                     );
                   })}
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={8} align="right">
+                    <TableCell colSpan={10} align="right">
                       <strong>Total Item Tax:</strong>
                     </TableCell>
                     <TableCell className='table-number-right' align="right">
@@ -2015,7 +2090,7 @@ if (isEditMode && !canEdit) {
                   </TableRow>
                   {/* Added: Freight rows in totals */}
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={8} align="right">
+                    <TableCell colSpan={10} align="right">
                       <strong>Freight Amount:</strong>
                     </TableCell>
                     <TableCell className='table-number-right' align="right">
@@ -2025,7 +2100,7 @@ if (isEditMode && !canEdit) {
                     <TableCell />
                   </TableRow>
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={8} align="right">
+                    <TableCell colSpan={10} align="right">
                       <strong>Freight Tax:</strong>
                     </TableCell>
                     <TableCell className='table-number-right' align="right">
@@ -2035,7 +2110,7 @@ if (isEditMode && !canEdit) {
                     <TableCell />
                   </TableRow>
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={8} align="right">
+                    <TableCell colSpan={10} align="right">
                       <strong>Total Tax:</strong>
                     </TableCell>
                     <TableCell className='table-number-right' align="right">
@@ -2045,7 +2120,7 @@ if (isEditMode && !canEdit) {
                     <TableCell />
                   </TableRow>
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={8} align="right">
+                    <TableCell colSpan={10} align="right">
                       <strong>Item-wise Discount:</strong>
                     </TableCell>
                     <TableCell className='table-number-right'>
@@ -2055,7 +2130,7 @@ if (isEditMode && !canEdit) {
                     <TableCell />
                   </TableRow>
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={8} align="right">
+                    <TableCell colSpan={10} align="right">
                       <strong>Overall Discount:</strong>
                     </TableCell>
                     <TableCell className='table-number-right'>
@@ -2111,7 +2186,7 @@ if (isEditMode && !canEdit) {
                     <TableCell />
                   </TableRow>
                   <TableRow sx={{ fontWeight: 'bold' }}>
-                    <TableCell colSpan={8} align="right">
+                    <TableCell colSpan={10} align="right">
                       <strong>Total Discount:</strong>
                     </TableCell>
                     <TableCell className='table-number-right'>
@@ -2121,7 +2196,7 @@ if (isEditMode && !canEdit) {
                     <TableCell />
                   </TableRow>
                   <TableRow>
-                    <TableCell colSpan={8} align="right">
+                    <TableCell colSpan={10} align="right">
                       <strong>Round Off/Adjustment:</strong>
                     </TableCell>
                     <TableCell className='table-number-right'>
@@ -2144,7 +2219,7 @@ if (isEditMode && !canEdit) {
                     <TableCell />
                   </TableRow>
                   <TableRow sx={{ fontSize: '1.1em' }}>
-                    <TableCell colSpan={8} align="right">
+                    <TableCell colSpan={10} align="right">
                       <strong style={{ fontSize: '1.2em' }}>FINAL AMOUNT:</strong>
                     </TableCell>
                     <TableCell className='table-number-right' sx={{ fontSize: '1.2em', fontWeight: 'bold' }}>
@@ -2391,7 +2466,7 @@ if (isEditMode && !canEdit) {
             </Button>
           </Grid>
           <Grid item>
-             <Button
+            <Button
               variant="contained"
               color="primary"
               onClick={handleOpenDialog}
@@ -2415,7 +2490,7 @@ if (isEditMode && !canEdit) {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-         <Button
+          <Button
             onClick={handleSubmit}
             color="primary"
             variant="contained"

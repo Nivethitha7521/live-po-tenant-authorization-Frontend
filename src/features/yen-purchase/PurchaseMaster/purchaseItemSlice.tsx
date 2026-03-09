@@ -350,51 +350,36 @@ export const invalidatePOCache = createAsyncThunk('purchaseItems/invalidateCache
   console.log('Purchase items cache invalidated');
 });
 
-// ---------- SEARCH (GENERAL) ----------
 export const searchPurchaseItems = createAsyncThunk<
   PurchaseItemSearchAdd[],
   { searchQuery: string; skip: number; limit: number; forceRefresh?: boolean }
 >('purchaseOrder/searchPurchaseItems', async ({ searchQuery, skip, limit, forceRefresh = false }) => {
-  const cacheKey = `searchPurchaseItems_${searchQuery}_${skip}_${limit}`;
-  const now = Date.now();
-
-  const cachedData = localStorage.getItem(cacheKey);
-
-  if (!forceRefresh && cachedData) {
-    const { data, timestamp } = JSON.parse(cachedData);
-
-    if (now - timestamp < CACHE_DURATION) {
-      console.log('Using cached purchase items data');
-      return data || [];
-    } else {
-      console.log('Cache expired, fetching fresh data');
-      localStorage.removeItem(cacheKey);
-    }
-  }
-
   try {
+    console.log('🔍 searchPurchaseItems: Fetching fresh data with stock from API');
+    
+    // Always fetch fresh data, never use cache
     const response = await purchaseApi.get<SearchResponse>(
-      `http://127.0.0.1:8000/purchasetestapi/rawMaterials/search`,
+      `http://127.0.0.1:8000/purchasetestapi/rawMaterials/search-with-stock`,
       {
-        params: { itemName: searchQuery, skip, limit }
+        params: { 
+          itemName: searchQuery, 
+          skip, 
+          limit,
+          _t: Date.now() // Cache-busting parameter
+        }
       }
     );
-
+    
     const items = response.data?.items || [];
-    localStorage.setItem(
-      cacheKey,
-      JSON.stringify({
-        data: items,
-        timestamp: now,
-      })
-    );
-
+    console.log(`✅ searchPurchaseItems: Received ${items.length} items with stock`);
+    
     return items;
   } catch (error) {
-    console.error('Error fetching purchase items:', error);
+    console.error('❌ Error fetching purchase items:', error);
     return [];
   }
 });
+
 
 export const invalidatePurchaseItemsCache = createAsyncThunk(
   'purchaseItems/invalidateCache',
@@ -408,7 +393,6 @@ export const invalidatePurchaseItemsCache = createAsyncThunk(
   }
 );
 
-// ---------- UPDATE ITEM ----------
 // ---------- UPDATE ITEM ----------
 export const updatePurchaseItem = createAsyncThunk(
   'purchaseItems/update',
@@ -446,7 +430,6 @@ export const updatePurchaseItem = createAsyncThunk(
   }
 );
 
-// ---------- DEACTIVATE ----------
 // ---------- DEACTIVATE ----------
 export const deactivatePurchaseItem = createAsyncThunk('purchaseItems/deactivate', async (id: string, { rejectWithValue }) => {
   try {

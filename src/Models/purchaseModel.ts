@@ -71,6 +71,8 @@ export interface Item {
   additionalTaxes?: { [key: string]: number }; // Optional additional taxes
   status: string;
   randomId: string;
+   availableStock?: number;
+  locationId?: string;
 }
 
 export interface PurchaseOrderData {
@@ -165,6 +167,8 @@ export interface PurchaseItemSearchAdd {
   uom: string;
   hsnCode: string;
   randomId: string;
+  availableStock?: number;  // NEW: Added from inventory
+  locationId?: string;       // NEW: Added from inventory
 }
 
 // Add these interfaces to your purchaseModel.ts

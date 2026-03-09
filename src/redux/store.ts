@@ -58,7 +58,7 @@ import serviceReducer from '../app/yen-purchase/PurchaseMaster/Service/Features/
 // import freetypeReducer from '@/features/yen-crm/freetypeSlice';
 
 import roleReducer from '@/features/account-setting/roleSlice';
-
+import PurchaseDateSettingsReducer from '@/app/yen-settings/Features/PurchaseDateSettingSlice';
 // import categoryReducer from '../features/masterAdminSlice/categorySlice';
 import uomReducer from '../features/uomSlice';
 import vendorMasterReducer from '../features/yen-purchase/PurchaseMaster/vendorMaster';
@@ -175,6 +175,7 @@ const store = configureStore({
     serviceOrder:serviceOrderReducer,
     serviceList:serviceListReducer,
     serviceId:serviceIdSliceReducer,
+    purchaseDateSettings:PurchaseDateSettingsReducer
     // addOns: addOnReducer,    
     // variants: variantReducer,
 

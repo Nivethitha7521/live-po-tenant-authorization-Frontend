@@ -29,19 +29,22 @@ const Navbar: React.FC<NavbarProps> = ({ moduleName, username, onToggleMenu }) =
  
 
   // Fetch businesses on mount
-  useEffect(() => {
+// Fetch businesses on mount — only if not already loaded
+useEffect(() => {
+  if (businesses.length === 0) {
     dispatch(fetchBusinesses());
-  }, [dispatch]);
+  }
+}, [dispatch, businesses.length]);
 
-  // Fetch business photos
-  useEffect(() => {
-    businesses.forEach((business) => {
-      if (!fetchedBusinessIds.has(business.businessId)) {
-        dispatch(fetchPhoto(business.businessId));
-        setFetchedBusinessIds((prevSet) => new Set([...prevSet, business.businessId]));
-      }
-    });
-  }, [businesses, fetchedBusinessIds, dispatch]);
+// Fetch business photos — only if imageUrl missing
+useEffect(() => {
+  businesses.forEach((business) => {
+    if (!business.imageUrl && !fetchedBusinessIds.has(business.businessId)) {
+      dispatch(fetchPhoto(business.businessId));
+      setFetchedBusinessIds((prevSet) => new Set([...prevSet, business.businessId]));
+    }
+  });
+}, [businesses, fetchedBusinessIds, dispatch]);
 
 
 
