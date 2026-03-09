@@ -13,7 +13,7 @@ import pytz
 from middlewares.permission_middleware import check_permission
 from dependencies.auth import validate_token
 
-from utils.database import get_itemgroup_collection, get_purchaseitem_collection, get_revert_collection
+from utils.database import get_inventory_collection, get_itemgroup_collection, get_purchaseitem_collection, get_revert_collection
 from utils.database import get_storagelocation_collection
 from utils.database import get_itemtype_collection
 from utils.database import get_purchasecategory_collection
@@ -76,21 +76,23 @@ class PurchaseItemSummary(BaseModel):
     purchaseitemId: str
     itemName: str
 
-class PurchaseItemDetails(BaseModel):
+class PurchaseItemWithStockResponse(BaseModel):
     purchaseitemId: str
     itemName: str
-    itemCode:Optional[str]=None
-    randomId:str
+    itemCode: Optional[str] = None
+    randomId: str
     purchasePrice: float
     purchasetaxName: int
-    uom: Optional[str] = None  # Optional field
-    purchasecategoryName: Optional[str] = None  # Optional field
-    purchasesubcategoryName: Optional[str] = None  # Optional field
-    hsnCode: Optional[str] = None  # Optional field
-    
-class SearchResponse(BaseModel):
+    uom: Optional[str] = None
+    purchasecategoryName: Optional[str] = None
+    purchasesubcategoryName: Optional[str] = None
+    hsnCode: Optional[str] = None
+    availableStock: int = 0  # NEW: Stock from inventory
+    locationId: Optional[str] = None  # NEW: Location from inventory
+
+class SearchWithStockResponse(BaseModel):
     total: int
-    items: List[PurchaseItemDetails]
+    items: List[PurchaseItemWithStockResponse]
 
 @router.post("/", response_model=str)
 async def create_purchaseitem( request: Request,purchaseitem_data: PurchaseItemPost,user = Depends(validate_token), permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "add"))):
@@ -134,47 +136,69 @@ async def create_purchaseitem( request: Request,purchaseitem_data: PurchaseItemP
     except Exception as e:
         logging.error(f"Error creating purchase item: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
-@router.get("/search", response_model=SearchResponse)
-async def search_items( request: Request,
+@router.get("/search-with-stock", response_model=SearchWithStockResponse)
+async def search_items_with_stock(
+    request: Request,
     itemName: Optional[str] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-     user = Depends(validate_token),
+    user = Depends(validate_token),
     permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "read"))
 ):
     tenant_id = request.state.tenant_id
-    collection = get_purchaseitem_collection(tenant_id)
+    purchase_collection = get_purchaseitem_collection(tenant_id)
+    inventory_collection = get_inventory_collection()
 
     try:
         # Build query based on input parameters
         query = {}
         if itemName:
-            # Escape special regex characters
             escaped_itemName = re.escape(itemName)
             query['itemName'] = {"$regex": escaped_itemName, "$options": "i"}
             
         # Get total count for pagination info
-        total = collection.count_documents(query)
+        total = purchase_collection.count_documents(query)
             
         # Fetch items with pagination
-        cursor = collection.find(query).skip(skip).limit(limit)
-            
-        # Format items using the PurchaseItemDetails model
+        cursor = purchase_collection.find(query).skip(skip).limit(limit)
+        
+        # Get all randomIds from purchase items
+        purchase_items = list(cursor)
+        random_ids = [str(item.get("randomId")) for item in purchase_items if item.get("randomId")]
+        
+        # Fetch inventory stock for all randomIds in one query
+        inventory_map = {}
+        if random_ids:
+            inventory_cursor = inventory_collection.find({"randomId": {"$in": random_ids}})
+            for inv in inventory_cursor:
+                inventory_map[inv.get("randomId")] = {
+                    "systemStock": inv.get("systemStock", 0),
+                    "locationId": inv.get("locationId", "")
+                }
+        
+        # Format items with stock information
         formatted_items = []
         validation_errors = 0
         skipped_items = 0
         
-        for item in cursor:
+        for item in purchase_items:
             try:
                 item_data = dict(item)
                 item_data["purchaseitemId"] = str(item_data.pop("_id"))
+                random_id = item_data.get("randomId")
+                
+                # Add stock information from inventory map
+                if random_id and random_id in inventory_map:
+                    item_data["availableStock"] = inventory_map[random_id]["systemStock"]
+                    item_data["locationId"] = inventory_map[random_id]["locationId"]
+                else:
+                    item_data["availableStock"] = 0
+                    item_data["locationId"] = None
                 
                 # Handle missing or null fields with defaults
-                # Ensure itemCode is not null
                 if item_data.get("itemCode") is None:
-                    item_data["itemCode"] = ""  # or use a default value
+                    item_data["itemCode"] = ""
                 
-                # Ensure other required string fields are not null
                 if item_data.get("itemName") is None:
                     item_data["itemName"] = ""
                 
@@ -182,7 +206,7 @@ async def search_items( request: Request,
                     item_data["randomId"] = ""
                 
                 if item_data.get("purchasetaxName") is None:
-                    item_data["purchasetaxName"] = ""
+                    item_data["purchasetaxName"] = 0
                 
                 # Convert hsnCode to string if it's a number or handle null
                 if "hsnCode" in item_data:
@@ -193,20 +217,19 @@ async def search_items( request: Request,
                 
                 # Validate purchasePrice
                 if item_data.get("purchasePrice") is None:
-                    item_data["purchasePrice"] = 0.0  # default value
+                    item_data["purchasePrice"] = 0.0
                 elif not isinstance(item_data["purchasePrice"], (int, float)):
                     try:
                         item_data["purchasePrice"] = float(item_data["purchasePrice"])
                     except (ValueError, TypeError):
                         item_data["purchasePrice"] = 0.0
                 
-                # Validate the item with Pydantic model
-                validated_item = PurchaseItemDetails(**item_data)
+                # Validate with model
+                validated_item = PurchaseItemWithStockResponse(**item_data)
                 formatted_items.append(validated_item)
                 
             except ValidationError as ve:
                 logging.warning(f"Validation error for item {item.get('_id')}: {ve}")
-                logging.warning(f"Problematic item data: {item_data}")
                 validation_errors += 1
                 continue
             except Exception as e:
@@ -223,8 +246,9 @@ async def search_items( request: Request,
         }
         
     except Exception as e:
-        logging.error(f"Error occurred while fetching purchase items: {e}")
+        logging.error(f"Error occurred while fetching purchase items with stock: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
 @router.get("/", response_model=Dict)
 async def get_all_items( request: Request,
     skip: int = Query(0, ge=0),

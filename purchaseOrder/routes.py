@@ -20,7 +20,7 @@ from dependencies.auth import validate_token
 # from Vendor.utils import get_vendor_collection
 
 from .models import PurchaseInvoice, PurchaseOrderPostExtended, PurchaseOrderState, PurchaseOrderPost,Item, PurchaseRandomId
-from utils.database import get_image_collection, get_purchaseorder_collection,get_purchaseitem_collection
+from utils.database import get_inventory_collection, get_purchaseorder_collection
 import boto3
 from botocore.exceptions import ClientError
 import os
@@ -473,21 +473,114 @@ async def update_purchaseorder(request:Request,
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="PurchaseOrder not found")
     return {"message": "PurchaseOrder updated successfully"}
-
 @router.get("/{purchaseorder_id}", response_model=PurchaseOrderState)
-async def get_purchaseorder_by_id(request:Request,
+async def get_purchaseorder_by_id(
+    request: Request,
     purchaseorder_id: str,
-    
+    user = Depends(validate_token),
+    permissions: dict = Depends(check_permission("yenerp", "purchaseorders_pending", "read"))
 ):
     tenant_id = request.state.tenant_id
+    print(f"🔍 Tenant ID: {tenant_id}")
+    print(f"🔍 PurchaseOrder ID: {purchaseorder_id}")
+    
+    # Get purchase order collection
     collection = get_purchaseorder_collection(tenant_id)
-    purchaseorder = collection.find_one({"_id": ObjectId(purchaseorder_id)})
-    if purchaseorder:
-        # Ensure that purchaseOrderId is returned properly
-        return {"purchaseOrderId": str(purchaseorder["_id"]), **purchaseorder}
-    else:
-        raise HTTPException(status_code=404, detail="Purchaseorder not found")
-
+    
+    # Get inventory collection
+    try:
+        # Check if the function expects tenant_id
+        import inspect
+        sig = inspect.signature(get_inventory_collection)
+        if len(sig.parameters) > 0:
+            # Function expects parameters
+            inventory_collection = get_inventory_collection(tenant_id)
+        else:
+            # Function expects no parameters
+            inventory_collection = get_inventory_collection()
+        
+        has_inventory = True
+        print("✅ Inventory collection accessed")
+    except Exception as e:
+        has_inventory = False
+        inventory_collection = None
+        print(f"⚠️ Inventory collection error: {e}")
+    
+    # Find the purchase order
+    try:
+        purchaseorder = collection.find_one({"_id": ObjectId(purchaseorder_id)})
+    except Exception as e:
+        print(f"❌ Error finding PO: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid PO ID format: {purchaseorder_id}")
+    
+    if not purchaseorder:
+        print(f"❌ Purchase order not found for ID: {purchaseorder_id}")
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
+    print(f"✅ Purchase order found: {purchaseorder.get('randomId')}")
+    
+    # Convert ObjectId to string
+    purchaseorder["purchaseOrderId"] = str(purchaseorder.pop("_id"))
+    
+    # --- CRITICAL FIX: Fetch inventory stock for each item ---
+    if "items" in purchaseorder and purchaseorder["items"]:
+        print(f"📦 PO has {len(purchaseorder['items'])} items")
+        
+        # Get all randomIds from items
+        item_random_ids = []
+        for item in purchaseorder["items"]:
+            if item.get("randomId"):
+                item_random_ids.append(item["randomId"])
+            else:
+                # If no randomId, set default stock
+                item["availableStock"] = 0
+                item["locationId"] = ""
+        
+        # Fetch inventory stock for all items in one query
+        # FIX: Check if inventory_collection is not None (not just truthy)
+        if item_random_ids and inventory_collection is not None:
+            try:
+                # Query inventory for all item randomIds
+                inventory_cursor = inventory_collection.find(
+                    {"randomId": {"$in": item_random_ids}}
+                )
+                
+                # Create a map of randomId -> stock info
+                inventory_map = {}
+                for inv in inventory_cursor:
+                    inventory_map[inv.get("randomId")] = {
+                        "systemStock": inv.get("systemStock", 0),
+                        "locationId": inv.get("locationId", "")
+                    }
+                
+                print(f"📊 Found inventory for {len(inventory_map)} items")
+                
+                # Update each item with stock information
+                for item in purchaseorder["items"]:
+                    random_id = item.get("randomId")
+                    if random_id and random_id in inventory_map:
+                        item["availableStock"] = inventory_map[random_id]["systemStock"]
+                        item["locationId"] = inventory_map[random_id]["locationId"]
+                        print(f"  ✅ Item {item.get('itemName')} - Stock: {item['availableStock']}")
+                    else:
+                        item["availableStock"] = 0
+                        item["locationId"] = ""
+                        print(f"  ⚠️ No inventory found for {item.get('itemName')} (randomId: {random_id})")
+                        
+            except Exception as e:
+                print(f"❌ Error fetching inventory: {e}")
+                # Set default values on error
+                for item in purchaseorder["items"]:
+                    item["availableStock"] = 0
+                    item["locationId"] = ""
+        else:
+            # No randomIds or no inventory collection
+            print("⚠️ No randomIds found or inventory collection unavailable")
+            for item in purchaseorder["items"]:
+                item["availableStock"] = 0
+                item["locationId"] = ""
+    
+    return purchaseorder
 @router.patch("/{purchaseorder_id}")
 async def patch_purchaseorder(request:Request,
     purchaseorder_id: str,

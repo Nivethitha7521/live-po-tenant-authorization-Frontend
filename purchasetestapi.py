@@ -155,7 +155,8 @@ def debug_module_import(module_name: str):
 # the prefix for the routes, and tags for the OpenAPI docs.
 routes_info = [
     # Purchase-related routes
-     {"module": "Tenant.routes", "prefix": "/purchasetestapi/tenants", "tags": ["Tenants"]},
+    {"module": "Tenant.routes", "prefix": "/purchasetestapi/tenants", "tags": ["Tenants"]},
+    {"module": "settings.settings_routes", "prefix": "/purchasetestapi/purchasesettings", "tags": ["purchasesetting"]},
     {"module": "Tenant.tenant_image_upload", "prefix": "/purchasetestapi/tenants-images", "tags": ["Tenants-images"]},
     {"module": "vendortype.routes", "prefix": "/purchasetestapi/vendortypes", "tags": ["vendortypes"]},
     {"module": "purchasecategory.routes", "prefix": "/purchasetestapi/purchasecategories", "tags": ["purchasecategories"]},

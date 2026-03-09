@@ -348,8 +348,9 @@ def get_tenant_collection():
     """Get tenant collection - sync"""
     _, db = get_sync_connection()
     return db['tenants']
-# Add this to your database.py file, in the COLLECTION GETTERS section
-
+async def get_settings_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["purchasesettings"]
 def get_tenant_image_collection(tenant_id: str):
     """
     Get image collection for a specific tenant.

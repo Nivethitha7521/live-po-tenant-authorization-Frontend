@@ -60,6 +60,8 @@ class Item(BaseModel):
     poPhoto: Optional[str] = None
     status: Optional[str] = None
     randomId:Optional[str] = None
+    availableStock: Optional[float] = 0     
+    locationId: Optional[str] = ""           
 class Freight(BaseModel):
     id: Optional[str] = None
     name: Optional[str] = None  # Fixed: Consistent naming
