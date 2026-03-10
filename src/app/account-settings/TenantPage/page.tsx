@@ -12,6 +12,7 @@ interface Tenant {
   tenantId: string;
   tenantName: string;
   status: string;
+  domains?: string[];
 }
 
 export default function TenantPage() {
@@ -19,6 +20,7 @@ export default function TenantPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showActive, setShowActive] = useState(true);
   const [tenantModal, setTenantModal] = useState(false);
+  const [domain, setDomain] = useState("");
   const [tenantName, setTenantName] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [restoreId, setRestoreId] = useState<string | null>(null);
@@ -55,32 +57,44 @@ const [snackbar, setSnackbar] = useState({
   );
 
   // ✅ Create tenant
-  const handleCreateTenant = async () => {
-    try {
-      await axios.post(`${API}/tenants/`, {
-        tenantName,
-        description: "",
-        status: "active",
-        createDefaultCollections: true,
-      });
+const handleCreateTenant = async () => {
 
-      setSnackbar({
-        open: true,
-        message: "Tenant created successfully",
-        severity: "success",
-      });
+  if (!tenantName.trim() || !domain.trim()) {
+    setSnackbar({
+      open: true,
+      message: "Tenant name and domain required",
+      severity: "error",
+    });
+    return;
+  }
 
-      setTenantModal(false);
-      setTenantName("");
-      fetchTenants();
-    } catch (err) {
-      setSnackbar({
-        open: true,
-        message: "Failed to create tenant",
-        severity: "error",
-      });
-    }
-  };
+  try {
+    await axios.post(`${API}/tenants/`, {
+      tenantName: tenantName.trim(),
+      domains: [domain],   // 🔥 AUTO ARRAY SAVE
+      description: "",
+      status: "active",
+    });
+
+    setSnackbar({
+      open: true,
+      message: "Tenant created successfully",
+      severity: "success",
+    });
+
+    setTenantModal(false);
+    setTenantName("");
+    setDomain("");   // 🔥 clear field
+    fetchTenants();
+
+  } catch (err) {
+    setSnackbar({
+      open: true,
+      message: "Failed to create tenant",
+      severity: "error",
+    });
+  }
+};
 const handleUpdateTenant = async () => {
   if (!editingTenantId) return;
  if (!tenantName.trim()) {
@@ -94,7 +108,7 @@ const handleUpdateTenant = async () => {
   try {
     const res = await axios.put(`${API}/tenants/${editingTenantId}`, {
       tenantName: tenantName,   // ✅ explicit key
-      description: "",          // ✅ send optional fields
+       domains: [domain.trim()],          // ✅ send optional fields
     });
 
     setSnackbar({
@@ -251,6 +265,7 @@ const handleActivateTenant = async () => {
   onClick={() => {
     setEditingTenantId(t._id);
     setTenantName(t.tenantName);
+    setDomain((t as any).domains?.[0] || "");
     setTenantModal(true);
   }}
   className="p-2 border rounded-lg text-blue-600"
@@ -313,6 +328,16 @@ focus:ring-blue-600
 focus:border-blue-600"
 
             />
+                      <input
+ placeholder="Domain"
+ value={domain}
+ onChange={(e) => setDomain(e.target.value)}
+   className="w-full border border-gray-300 p-2 rounded-lg 
+focus:outline-none 
+focus:ring-2 
+focus:ring-blue-600 
+focus:border-blue-600"
+/>
             <div className="flex justify-end gap-3">
              <button
   onClick={() => {
@@ -332,7 +357,9 @@ focus:border-blue-600"
               </button>
             </div>
           </div>
+
         </div>
+        
       )}
 
       {/* 🗑 CONFIRM DELETE */}
