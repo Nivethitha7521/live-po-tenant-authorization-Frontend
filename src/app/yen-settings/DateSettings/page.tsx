@@ -55,7 +55,12 @@ const { settings, loading, error, lastUpdated } = useSelector(
 );
 
 const role = useSelector((state: RootState) => state.auth.role);
-
+const [successMessage, setSuccessMessage] = useState('');
+const [saveError, setSaveError] = useState('');
+ useEffect(() => {
+    // Fetch both permissions and settings when page loads
+    dispatch(fetchDateSettings());
+  }, [dispatch]);
 // ✅ BLOCK NON-ADMIN HERE (ADD THIS EXACT PLACE)
 if (role !== "Admin") {
   return (
@@ -65,7 +70,7 @@ if (role !== "Admin") {
       </Typography>
 
       <Typography color="textSecondary">
-        You don't have permission to access this page.
+        You don&apos;t have permission to access this page.
       </Typography>
 
       <Button sx={{ mt: 2 }} variant="contained" onClick={() => router.push("/")}>
@@ -74,13 +79,9 @@ if (role !== "Admin") {
     </Box>
   );
 }  
-  const [successMessage, setSuccessMessage] = useState('');
-  const [saveError, setSaveError] = useState('');
 
-  useEffect(() => {
-    // Fetch both permissions and settings when page loads
-    dispatch(fetchDateSettings());
-  }, [dispatch]);
+
+ 
 
   const handleRestrictionTypeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value as RestrictionType;

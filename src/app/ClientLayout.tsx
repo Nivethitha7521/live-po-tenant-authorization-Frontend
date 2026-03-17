@@ -77,7 +77,7 @@ const rawPermissions = useSelector(
 const permissions: string[] = Array.isArray(rawPermissions)
   ? rawPermissions
   : [];
-
+const token = useSelector((state: RootState) => state.auth.token);
 const role = useSelector((state: RootState) => state.auth.role);
 const permissionObject = useSelector((state: RootState) => state.auth.permissions);
 
@@ -95,7 +95,26 @@ const hasPurchaseAccess = useMemo(() => {
   });
 }, [permissionObject]);
 
+const INVENTORY_KEYS = [
+  "physicalstockmodification",
+  "physicalstockvariancemodification",
+  "stockledger",
+  "warehousephysicalstockmodification",
+  "warehousephysicalstockvariancemodification",
+  "warehousestockledger",
+];
 
+const hasInventoryAccess = useMemo(() => {
+  if (!permissionObject?.yenerp) return false;
+
+  const yenerp = permissionObject.yenerp;
+
+  return INVENTORY_KEYS.some((key) => yenerp[key]?.read === true);
+}, [permissionObject]);
+useEffect(() => {
+  console.log("PERMISSIONS 👉", permissionObject);
+  console.log("HAS INVENTORY 👉", hasInventoryAccess);
+}, [permissionObject, hasInventoryAccess]);
 const hasBookAccess = useMemo(() => {
   if (!permissionObject || !permissionObject.yenerp) return false;
 
@@ -121,6 +140,55 @@ const hasBookAccess = useMemo(() => {
 useEffect(() => {
   setupAxios();
 }, []);
+
+useEffect(() => {
+  if (!isLoggedIn || !token) return;
+
+  console.log("✅ Activity tracking started");
+
+  let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const sendPing = async () => {
+    try {
+      console.log("🔥 ACTIVITY PING");
+
+      await fetch("http://127.0.0.1:8000/purchasetestapi/ping", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    } catch (e) {
+      console.log("ping error", e);
+    }
+  };
+
+  const events = ["mousemove", "keydown", "click", "scroll"];
+
+  const handler = () => {
+    if (!throttleTimer) {
+      throttleTimer = setTimeout(() => {
+        sendPing();
+        throttleTimer = null;
+      }, 10000); // 🔥 throttle 10 sec
+    }
+  };
+
+  // 👉 event listeners add
+  events.forEach((e) => window.addEventListener(e, handler));
+
+  // 👉 fallback (activity illa na)
+  const fallbackInterval = setInterval(sendPing, 5 * 60 * 1000);
+
+  return () => {
+    events.forEach((e) => window.removeEventListener(e, handler));
+    clearInterval(fallbackInterval);
+
+    if (throttleTimer) clearTimeout(throttleTimer);
+  };
+
+}, [isLoggedIn, token]);
 useEffect(() => {
   const handleStorage = (event: StorageEvent) => {
     if (event.key === "forceLogout" && event.newValue) {
@@ -238,6 +306,9 @@ const handleLogout = async () => {
   activePath={pathname || '/yen-purchase'}
   showPurchaseMenu={hasPurchaseAccess}
   showBookMenu={hasBookAccess}
+  showInventoryMenu={hasInventoryAccess}
+  
+  
 />
 
           )}

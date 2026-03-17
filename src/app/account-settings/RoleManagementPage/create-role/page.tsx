@@ -34,7 +34,15 @@ const getBackendSubmoduleKey = (submoduleId: string, submoduleName: string): str
     'grn_return': 'grns_return',
     'ap_list': 'apinvoices',
     
-    
+     // YEN_INVENTORY submodules (MATCH DB EXACTLY)
+
+'oi_psm': 'physicalstockmodification',
+'oi_psvm': 'physicalstockvariancemodification',
+'oi_sl': 'stockledger',
+
+'wi_psm': 'warehousephysicalstockmodification',
+'wi_psvm': 'warehousephysicalstockvariancemodification',
+'wi_sl': 'warehousestockledger',
     // YEN_BOOK submodules
     'op_outgoing': 'outgoingpayment',
     'op_advance': 'advancepayment',
@@ -83,9 +91,14 @@ const transformPermissionsForBackend = (frontendPermissions: AppPermissions[]): 
     // ✅ CHANGE: Map both YEN_PURCHASE and YEN_BOOK to "yenerp"
   let appName: string;
 
-if (app.appName === "YEN_PURCHASE" || app.appName === "YEN_BOOK") {
+if (
+  app.appName === "YEN_PURCHASE" ||
+  app.appName === "YEN_BOOK" ||
+  app.appName === "YEN_INVENTORY"
+) {
   appName = "yenerp";
-} else if (app.appName === "YEN_OUTLET_MANAGER") {
+}
+else if (app.appName === "YEN_OUTLET_MANAGER") {
   appName = "outlet_manager"; // 🔥 THIS IS THE KEY FIX
   } else if (app.appName === "YEN_POS") {
   appName = "pos";
@@ -257,7 +270,56 @@ const HARD_MODULES: AppPermissions[] = [
       }
     ]
   },
+{
+  appName: "YEN_INVENTORY",
+  modules: [
 
+    {
+      id: "outlet_inventory",
+      name: "Outlet Inventory Management",
+      submodules: [
+        {
+          id: "oi_psm",
+          name: "Physical Stock Modification",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        },
+        {
+          id: "oi_psvm",
+          name: "Physical Stock Variance Modification",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        },
+        {
+          id: "oi_sl",
+          name: "Stock Ledger",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        }
+      ]
+    },
+
+    {
+      id: "warehouse_inventory",
+      name: "Warehouse Inventory Management",
+      submodules: [
+        {
+          id: "wi_psm",
+          name: "Physical Stock Modification",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        },
+        {
+          id: "wi_psvm",
+          name: "Physical Stock Variance Modification",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        },
+        {
+          id: "wi_sl",
+          name: "Stock Ledger",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        }
+      ]
+    }
+
+  ]
+},
   {
   appName: "YEN_OUTLET_MANAGER",
   modules: [

@@ -42,6 +42,15 @@ export const menuItems: MenuItem[] = [
     subItems: ['Vendor', 'Purchase Item', 'Purchase Order', 'Goods Receipt Note', 'AP Invoice'],
     path: '/yen-purchase',
   },
+   {
+    text: 'YEN INVENTORY',
+    icon: <Inventory2Icon />,
+    subItems: [
+      'Outlets Inventory Management',
+      'Warehouse Inventory Management',
+    ],
+    path: '/yen-inventory',
+  },
   {
     text: 'ACCOUNT SETTINGS',
     icon: <AccountCircleIcon />,
@@ -61,9 +70,10 @@ interface SideMenuProps {
   activePath: string;
   showPurchaseMenu?: boolean;
   showBookMenu?: boolean;
+  showInventoryMenu?: boolean;
 }
 
-const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick, showPurchaseMenu, showBookMenu }) => {
+const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick, showPurchaseMenu, showBookMenu,showInventoryMenu }) => {
   const role = useSelector((state: RootState) => state.auth.role);
   const isAdmin = role === "Admin";
 
@@ -132,7 +142,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick, showPurchaseMenu, show
               if (menuItem.text === "YEN BOOK" && !showBookMenu) {
                 return false;
               }
-
+              if (menuItem.text === "YEN INVENTORY" && !showInventoryMenu)
+              { return false;
+              }
               // ACCOUNT SETTINGS only for Admin
               if (menuItem.text === "ACCOUNT SETTINGS" && !isAdmin) {
                 return false;
@@ -148,21 +160,30 @@ const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick, showPurchaseMenu, show
             })
             .map((menuItem, index) => (
               <React.Fragment key={index}>
-                <ListItem
-                  button
-                  onClick={() => handleMenuItemClick(menuItem)}
-                  className="menu-item"
-                >
-                  <ListItemIcon>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <span>{menuItem.icon}</span>
-                      {!open && (
-                        <Typography variant="caption" className="menu-text-small">
-                          {menuItem.text}
-                        </Typography>
-                      )}
-                    </div>
-                  </ListItemIcon>
+<ListItem 
+  button 
+  onClick={() => handleMenuItemClick(menuItem)}
+  sx={{ 
+    justifyContent: open ? 'flex-start' : 'center',
+    px: open ? 2 : 0,
+  }}
+>
+                 <ListItemIcon sx={{ minWidth: 0, justifyContent: 'center', width: '100%' }}>
+  <div style={{ 
+    display: 'flex', 
+    flexDirection: 'column', 
+    alignItems: 'center',
+    width: '100%',
+    textAlign: 'center'
+  }}>
+    <span>{menuItem.icon}</span>
+    {!open && (
+      <Typography variant="caption" className="menu-text-small">
+        {menuItem.text}
+      </Typography>
+    )}
+  </div>
+</ListItemIcon>
                   {open && <ListItemText primary={menuItem.text} />}
                 </ListItem>
 

@@ -22,6 +22,7 @@ interface AuthState {
     permissionReady: boolean;
    snackbarOpen: boolean; // ✅ ADD THIS
   snackbarMessage: string | null; // ✅ ADD THIS
+  token: string | null;
 }
 
 const initialState: AuthState = {
@@ -36,6 +37,7 @@ const initialState: AuthState = {
    permissionReady: false,
    snackbarOpen: false, // ✅ ADD THIS
   snackbarMessage: null, // ✅ ADD THIS
+  token: null 
 };
 
 
@@ -198,7 +200,9 @@ initializeAuth(state) {
   state.username = action.payload.username;
   state.permissions = action.payload.permissions;
    state.role = action.payload.role; 
+   state.token = action.payload.token; 
     state.permissionReady = true;
+    
   state.error = null;
   state.isInitialized = true;
 },

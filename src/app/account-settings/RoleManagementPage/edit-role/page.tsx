@@ -129,6 +129,56 @@ const HARD_MODULES: AppPermissions[] = [
     ]
   },
   {
+  appName: "YEN_INVENTORY",
+  modules: [
+
+    {
+      id: "outlet_inventory",
+      name: "Outlet Inventory Management",
+      submodules: [
+        {
+          id: "oi_psm",
+          name: "Physical Stock Modification",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        },
+        {
+          id: "oi_psvm",
+          name: "Physical Stock Variance Modification",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        },
+        {
+          id: "oi_sl",
+          name: "Stock Ledger",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        }
+      ]
+    },
+
+    {
+      id: "warehouse_inventory",
+      name: "Warehouse Inventory Management",
+      submodules: [
+        {
+          id: "wi_psm",
+          name: "Physical Stock Modification",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        },
+        {
+          id: "wi_psvm",
+          name: "Physical Stock Variance Modification",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        },
+        {
+          id: "wi_sl",
+          name: "Stock Ledger",
+          actions: { read:false, add:false, edit:false, delete:false, hide:false, approve:false }
+        }
+      ]
+    }
+
+  ]
+},
+  {
   appName: "YEN_OUTLET_MANAGER",
   modules: [
     {
@@ -637,7 +687,13 @@ const [confirmDialog, setConfirmDialog] = useState<{
     'om_so': 'sale_order',
     'om_lst': 'location_stock_transfer',
     'om_sfg': 'sfg_to_fg',
+'oi_psm': 'physicalstockmodification',
+'oi_psvm': 'physicalstockvariancemodification',
+'oi_sl': 'stockledger',
 
+'wi_psm': 'warehousephysicalstockmodification',
+'wi_psvm': 'warehousephysicalstockvariancemodification',
+'wi_sl': 'warehousestockledger',
     // POS submodules
 'pos_order_mgmt': 'order_management',
 'pos_sales_return': 'sales_return',
@@ -662,6 +718,7 @@ const convertBackendToFrontend = useCallback((backendPermissions: any): AppPermi
   }
 
   const yenerpData = backendPermissions.YENERP || backendPermissions.yenerp || backendPermissions;
+  //const inventoryData = backendPermissions.inventory;
   const outletData = backendPermissions.outlet_manager;
   const posData = backendPermissions.pos;
 
@@ -669,17 +726,17 @@ const convertBackendToFrontend = useCallback((backendPermissions: any): AppPermi
     if (
       app.appName !== "YEN_PURCHASE" &&
       app.appName !== "YEN_BOOK" &&
+      app.appName !== "YEN_INVENTORY" &&
       app.appName !== "YEN_OUTLET_MANAGER" &&
       app.appName !== "YEN_POS"
     ) return;
 
-    const permissionSource =
-      app.appName === "YEN_OUTLET_MANAGER"
-        ? outletData
-        : app.appName === "YEN_POS"
-        ? posData
-        : yenerpData;
-
+  const permissionSource =
+  app.appName === "YEN_OUTLET_MANAGER"
+    ? outletData
+    : app.appName === "YEN_POS"
+    ? posData
+    : yenerpData;
     if (!permissionSource) return;
 
     app.modules.forEach((module: ModuleItem) => {
@@ -916,7 +973,11 @@ const toggleAction = (ai: number, mi: number, si: number, act: ActionKeys) => {
 frontendPermissions.forEach((app: AppPermissions) => {
     let appName: string;
 
-    if (app.appName === "YEN_PURCHASE" || app.appName === "YEN_BOOK") {
+    if (
+      app.appName === "YEN_PURCHASE" ||
+      app.appName === "YEN_BOOK" ||
+      app.appName === "YEN_INVENTORY"
+    ) {
       appName = "yenerp";
     } else if (app.appName === "YEN_OUTLET_MANAGER") {
       appName = "outlet_manager"; // ✅ IMPORTANT

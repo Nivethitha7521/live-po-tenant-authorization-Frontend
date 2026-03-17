@@ -15,8 +15,7 @@ const Login: React.FC = () => {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [tenantId, setTenantId] = useState('');
-  const [tenants, setTenants] = useState<any[]>([])
+
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -26,22 +25,7 @@ const Login: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isLoggedIn } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
-useEffect(() => {
-  const fetchTenants = async () => {
-    try {
-   const res = await fetch(
-  "http://127.0.0.1:8000/purchasetestapi/tenants?status=active"
-);
 
-      const data = await res.json();
-      setTenants(data);
-    } catch (err) {
-      console.error("Failed to fetch tenants");
-    }
-  };
-
-  fetchTenants();
-}, []);
   // Check if image exists on component mount
   useEffect(() => {
     const checkImage = async () => {
@@ -63,23 +47,24 @@ useEffect(() => {
   setIsCheckingSession(false);
 }, []);
 
-
+const getDomain = () => {
+ if (typeof window !== "undefined") {
+   return window.location.host;   // 🔥 includes port also
+ }
+ return "";
+};
 // In your login/page.tsx - SIMPLIFIED
 const handleLogin = async () => {
   if (isLoggingIn) return;
 
   const trimmedUsername = username.trim();
   const trimmedPassword = password.trim();
-  const trimmedTenant = tenantId.trim();
 
   if (!trimmedUsername || !trimmedPassword) {
     toast.error('Please enter both username and password');
     return;
   }
-if (!trimmedTenant) {
-  toast.error("Please select a tenant");
-  return;
-}
+
   setIsLoggingIn(true);
 // ⭐ ONE browser = ONE session id
 let browserSessionId = localStorage.getItem("browserSessionId");
@@ -94,7 +79,7 @@ if (!browserSessionId) {
   method: 'POST',
   headers: {
     'Authorization': `Basic ${btoa(`${trimmedUsername}:${trimmedPassword}`)}`,
-    'tenant-id': trimmedTenant,   // 🔥 THIS IS THE IMPORTANT FIX
+    'x-domain': getDomain(),    // 🔥 THIS IS THE IMPORTANT FIX
   'x-browser-session-id':browserSessionId,
   },
 });
@@ -120,21 +105,10 @@ const result = await response.json();
 
 // Save token
 sessionStorage.setItem("accessToken", result.access_token);
-sessionStorage.setItem("tenant_id", trimmedTenant);
-let slug = "";
-// ⭐ Get selected tenant object
-const selectedTenant = tenants.find(t => t._id === trimmedTenant);
 
-if (selectedTenant) {
-  // ⭐ Create slug (lowercase + remove spaces)
-  slug = selectedTenant.tenantName
-    .toLowerCase()
-    .replace(/\s+/g, '');
- console.log("LOGIN SLUG 👉", slug);
-  localStorage.setItem("tenant_slug", slug);
-  sessionStorage.setItem("tenant_slug", slug);
-  document.cookie = `tenant_slug=${slug}; path=/`;
-}
+
+
+
 localStorage.setItem("username", result.username);
 
 localStorage.setItem("userPermissions", JSON.stringify(result.permissions));
@@ -146,7 +120,8 @@ localStorage.setItem("userRole", result.role_name);
 dispatch(jwtLoginSuccess({
   username: result.username,
   permissions: result.permissions,
-  role: result.role_name
+  role: result.role_name,
+   token: result.access_token 
 }));
 
 toast.success(
@@ -154,13 +129,12 @@ toast.success(
 );
 
 
+router.push("/yen-purchase");
 
 
 
 
 
-console.log("REDIRECTING TO 👉", `/${slug}/yen-purchase`);
-router.push(`/${slug}/yen-purchase`);
 
     
   } catch (error) {
@@ -290,27 +264,7 @@ router.push(`/${slug}/yen-purchase`);
                   </button>
                 </div>
               </div>
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Select Tenant
-  </label>
-  <select
-    className="w-full px-4 py-3 border border-gray-300 rounded-lg 
-focus:outline-none focus:ring-2 focus:ring-blue-500 
-focus:border-blue-500 transition-colors"
 
-    value={tenantId}
-    onChange={(e) => setTenantId(e.target.value)}
-    disabled={isLoggingIn}
-  >
-    <option value="">Select Tenant</option>
-    {tenants.map((tenant) => (
-      <option key={tenant._id} value={tenant._id}>
-        {tenant.tenantName}
-      </option>
-    ))}
-  </select>
-</div>
 
               <button
                 type="submit"

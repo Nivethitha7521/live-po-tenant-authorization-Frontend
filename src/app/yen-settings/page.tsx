@@ -113,7 +113,7 @@ const YenSettingsPage = () => {
             Access Denied
           </Typography>
           <Typography color="textSecondary" sx={{ mb: 3 }}>
-            You don't have permission to access Settings. Contact your administrator.
+            You don&apos;t have permission to access Settings. Contact your administrator.. Contact your administrator.
           </Typography>
           <Button 
             variant="contained" 

@@ -2959,7 +2959,7 @@ if (!validateExpiryDates()) {
             </Grid>
           </Grid>
         </Box>
-        <TableContainer component={Paper} sx={{ maxHeight: "calc(100vh - 230px)", overflowY: "auto", width: "100%", marginLeft: 2 }}>
+        <TableContainer component={Paper} sx={{ maxHeight: "calc(100vh - 250px)", overflowY: "auto", width: "100%", marginLeft: 2 }}>
           <Table stickyHeader>
             <TableHead>
               <TableRow>

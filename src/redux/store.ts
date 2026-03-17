@@ -3,6 +3,7 @@ import onlinePartnersReducer from '../features/onlinePartnersSlice';
 import billReceiptsReducer from '../features/billReceiptsSlice';
 import purchaseOrderReducer from '../features/yen-purchase/PurchaseOrder/purchaseOrderSlice';
 import grnReducer from '../features/yen-purchase/GRN/grnSlice';
+import dataReducer from '../features/yen_inventory/OutletPhysicalVarianceSlice';
 import debitNoteReducer from '../features/debitNotesAllSlice';
 import apInvoiceReducer from '../features/yen-purchase/AP/apInvoiceSlice';
 import outgoingPaymentReducer from '../features/yen-purchase/Outgoing/outgoingPaymentSlice';
@@ -32,7 +33,6 @@ import cashReducer from '../features/cashSlice';
 import openingCashReducer from '../features/openingCashSlice';
 import outletsInventoryReducer from '../features/outletsInventorySlice';
 import warehouseInventoryReducer from '../features/wharehouseInventorySlice';
-import outletPhysicalStockReducer from '../features/outletPhysicalStockSlice';
 import warehouseStoreStockReducer from '../features/warehouseStoreStockSlice';
 import barcodeItemsReducer from '../features/barcodeItemsSlice';
 import printUniqueBarcodesReducer from '../features/printUniqueBarcodesSlice';
@@ -95,8 +95,12 @@ import paymentHistoryReducer from '../features/yen-purchase/Outgoing/paymentHist
 import serviceOrderReducer from '../app/yen-purchase/ServiceOrder/Features/servicepo'
 import serviceListReducer from '../app/yen-purchase/ServiceOrder/Features/servicelist';
 import serviceIdSliceReducer from '../app/yen-purchase/ServiceOrder/Features/ServiceIdSlice';
-
-
+import outletVarianceReducer from '../features/yen_inventory/OutletPhysicalVarianceSlice';
+import rawMaterialReducer from "../features/yen_inventory/wharehoueSlice";
+import rawMaterialStoreReducer from "../features/yen_inventory/wharehoueStoreSlice";
+import stockSummaryReducer from "../features/yen_inventory/ledgerrawSlice";
+import stockSummaryOutletReducer from "../features/yen_inventory/ledgeroutletSlice";
+import itemsReducer from '../features/yen_inventory/OuletePhysicalStockSlice';
 const store = configureStore({
   reducer: {
     // locations: locationAreaReducer,
@@ -138,7 +142,7 @@ const store = configureStore({
     openingCash: openingCashReducer,
     outletsInventory: outletsInventoryReducer,
     warehouseInventory: warehouseInventoryReducer,
-    outletPhysicalStock: outletPhysicalStockReducer,
+    items: itemsReducer,
     warehouseStoreStock: warehouseStoreStockReducer,
     barcodeItems: barcodeItemsReducer,
     printUniqueBarcodes: printUniqueBarcodesReducer,
@@ -175,7 +179,13 @@ const store = configureStore({
     serviceOrder:serviceOrderReducer,
     serviceList:serviceListReducer,
     serviceId:serviceIdSliceReducer,
-    purchaseDateSettings:PurchaseDateSettingsReducer
+    purchaseDateSettings:PurchaseDateSettingsReducer,
+    outletVariance: outletVarianceReducer,
+    data: dataReducer,  
+  rawMaterials: rawMaterialReducer,
+  rawMaterialStore: rawMaterialStoreReducer,
+  stockSummary: stockSummaryReducer,
+  stockSummaryOutlet: stockSummaryOutletReducer,
     // addOns: addOnReducer,    
     // variants: variantReducer,
 
@@ -198,6 +208,7 @@ const store = configureStore({
     // freetype: freetypeReducer,
     // locations: locationReducer,
     // posDevice: posDeviceReducer,
+ 
   },
   
 });
