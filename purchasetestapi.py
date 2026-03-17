@@ -1,5 +1,6 @@
 import importlib
 import logging
+from db.connection import MongoDB
 from fastapi import FastAPI, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -7,7 +8,6 @@ import asyncio
 from bson import ObjectId
 from fastapi import HTTPException
 from fastapi.security import HTTPBasic,HTTPBasicCredentials
-from logincheck.utils import fix_all_users_sessions
 from logincheck.clean_service import inactivity_cleanup
 from bcrypt import hashpw, gensalt, checkpw
 from jose import jwt, JWTError
@@ -23,6 +23,10 @@ from routes.permission_routes import router as permission_router
 from routes.user_routes import router as user_router
 from dotenv import load_dotenv
 from middleware.tenant_middleware import TenantMiddleware
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from WarehouseInventoryVariance.routes import create_daily_rm_snapshot_all_warehouses
+from OutletInventoryVariance.routes import create_inventory_snapshot_all_branches
 
 load_dotenv()   # <-- THIS LINE IS CRITICAL
 import os
@@ -35,21 +39,50 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     print("🚀 Starting app with inactivity cleanup")
 
-    # Fix null sessions
-    await fix_all_users_sessions()
-
-    # Start cleanup
+    # cleanup start
     cleanup_task = asyncio.create_task(inactivity_cleanup.start())
+
+    # ✅ Mongo connect
+    MongoDB.connect()
+
+    # ✅ SCHEDULER START HERE
+    scheduler = AsyncIOScheduler()
+
+    async def run_daily_all_snapshots():
+        try:
+            await create_daily_rm_snapshot_all_warehouses(createdBy="Inventory-admin")
+        except Exception as e:
+            print(f"RM FAILED → ALL WAREHOUSES | Error: {e}")
+
+        try:
+            await create_inventory_snapshot_all_branches(createdBy="Inventory-admin")
+        except Exception as e:
+            print(f"FG FAILED → ALL BRANCHES | Error: {e}")
+
+        print("All Snapshots Completed")
+
+    trigger = CronTrigger(hour=23, minute=59, timezone="Asia/Kolkata")
+
+    scheduler.add_job(run_daily_all_snapshots, trigger, id="daily_stock_job", replace_existing=True)
+
+    scheduler.start()
 
     yield
 
     print("🛑 Shutting down cleanup")
+
     inactivity_cleanup.stop()
     cleanup_task.cancel()
+
     try:
         await cleanup_task
     except asyncio.CancelledError:
         pass
+
+    # ✅ shutdown time la stop pannalam
+    scheduler.shutdown()
+
+    MongoDB.close()
 # Create the FastAPI app
 app = FastAPI(
     title="Combined Role Management + YEN ERP API",
@@ -91,30 +124,30 @@ def custom_openapi():
     return app.openapi_schema
 app.openapi = custom_openapi
 app.add_middleware(TenantMiddleware)
-@app.middleware("http")
-async def update_last_active(request: Request, call_next):
-    response = await call_next(request)
+# 🔥 REMOVE HEARTBEAT + CUSTOM MIDDLEWARE
 
-    auth_header = request.headers.get("Authorization")
+# only keep lifespan cleanup
+@app.post("/purchasetestapi/ping")
+async def ping(user_data=Depends(validate_token)):
+    try:
+        session = await db_global["sessions"].find_one({
+            "username": user_data["username"],
+            "tenant_id": user_data["tenant_id"],
+            "is_active": True
+        })
 
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-
-        try:
-            token_data = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-
+        if session:
             await db_global["sessions"].update_one(
-                {
-                    "username": token_data["username"],
-                    "tenant_id": token_data.get("tenant_id"),
-                    "is_active": True
-                },
+                {"_id": session["_id"]},
                 {"$set": {"last_active": datetime.utcnow()}}
             )
-        except:
-            pass
 
-    return response
+        return {"status": "ok"}
+
+    except Exception as e:
+        print("ping error:", e)
+        raise HTTPException(status_code=500, detail="Ping failed")
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -156,6 +189,11 @@ def debug_module_import(module_name: str):
 routes_info = [
     # Purchase-related routes
     {"module": "Tenant.routes", "prefix": "/purchasetestapi/tenants", "tags": ["Tenants"]},
+    # INVENTORY ROUTES
+{"module": "OutletInventory.routes", "prefix": "/purchasetestapi/outletinventory", "tags": ["Outlet Inventory"]},
+{"module": "OutletInventoryVariance.routes", "prefix": "/purchasetestapi/outletinventoryvariance", "tags": ["Outlet Inventory Variance"]},
+{"module": "WarehouseInventory.routes", "prefix": "/purchasetestapi/warehouseinventory", "tags": ["Warehouse Inventory"]},
+{"module": "WarehouseInventoryVariance.routes", "prefix": "/purchasetestapi/warehouseinventoryvariance", "tags": ["Warehouse Inventory Variance"]},
     {"module": "settings.settings_routes", "prefix": "/purchasetestapi/purchasesettings", "tags": ["purchasesetting"]},
     {"module": "Tenant.tenant_image_upload", "prefix": "/purchasetestapi/tenants-images", "tags": ["Tenants-images"]},
     {"module": "vendortype.routes", "prefix": "/purchasetestapi/vendortypes", "tags": ["vendortypes"]},
@@ -267,7 +305,7 @@ db_global = client_global["purchasetest"]
 @app.post("/purchasetestapi/login")
 async def login_user(
     credentials: HTTPBasicCredentials = Depends(security),
-    tenant_id: str = Header(...),
+    x_domain: str = Header(...),
     x_browser_session_id: str = Header(...),
     request: Request = None
 ):
@@ -284,9 +322,15 @@ async def login_user(
             raise HTTPException(status_code=403, detail="Your account is deactivated")
 
         # 🔍 Validate tenant
-        tenant = await db["tenants"].find_one({"_id": ObjectId(tenant_id)})
+        tenant = await db["tenants"].find_one({
+         "domains": x_domain,
+         "status": "active"
+})
+
         if not tenant:
-            raise HTTPException(status_code=404, detail="Tenant not found")
+          raise HTTPException(404, "Tenant not mapped to this domain")
+
+        tenant_id = str(tenant["_id"])   # 🔥 IMPORTANT
 
         if tenant.get("status") != "active":
             raise HTTPException(status_code=403, detail="Tenant inactive")
@@ -327,7 +371,8 @@ async def login_user(
                     "token_type": "bearer",
                     "username": user["username"],
                     "role_name": user["role_name"],
-                    "permissions": permission["permissions"] if permission else {}
+                    "permissions": permission["permissions"] if permission else {},
+                    "tenant_slug": tenant["tenantName"].lower().replace(" ", "")
                 }
 
             # ❌ DIFFERENT BROWSER → BLOCK
@@ -372,7 +417,8 @@ async def login_user(
             "token_type": "bearer",
             "username": user["username"],
             "role_name": user["role_name"],
-            "permissions": permission["permissions"] if permission else {}
+            "permissions": permission["permissions"] if permission else {},
+            "tenant_slug": tenant["tenantName"].lower().replace(" ", "")
         }
 
     except HTTPException as e:

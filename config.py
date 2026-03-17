@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from pydantic_settings import BaseSettings,SettingsConfigDict
 
 load_dotenv()
 
@@ -21,3 +22,18 @@ class Config:
         print(f"  Database: {cls.MONGODB_DATABASE}")
         print(f"  URI: {'*' * 20}")  # Hide URI for security
         print("Configuration validated successfully")
+
+
+
+class Settings(BaseSettings):
+    TEST_URI: str
+    LIVE_URI: str
+    INVENTORY_URI: str
+    PURCHASE_URI: str
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore"
+    )
+
+settings = Settings()

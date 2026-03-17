@@ -8,7 +8,7 @@ import secrets
 import string
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
-
+from utils.database import create_inventory_collections_for_tenant
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status, BackgroundTasks
 from PIL import Image
 from bson import ObjectId, errors
@@ -249,7 +249,7 @@ def setup_tenant_database(tenant_id: str, tenant_name: str, random_id: str):
                 }
             }
         )
-        
+        create_inventory_collections_for_tenant(db_name)
         # Log summary
         logger.info(f"📊 Database setup complete for {tenant_name}:")
         logger.info(f"   Database: {db_name}")
@@ -309,7 +309,8 @@ async def create_tenant(
             "createdDate": current_time,
             "lastUpdatedDate": current_time,
             "settings": {},
-            "databaseName": None  # Will be set during database creation
+            "databaseName": None, 
+            "domains": tenant.domains or []
         }
         
         # Insert tenant
@@ -318,8 +319,8 @@ async def create_tenant(
         
         # Setup database and collections in background if requested
         if tenant.createDefaultCollections:
-            background_tasks.add_task(
-                setup_tenant_database,
+           
+                setup_tenant_database(
                 tenant_id,
                 tenant.tenantName,
                 tenant_random_id

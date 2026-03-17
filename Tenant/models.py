@@ -27,6 +27,7 @@ class TenantBase(BaseModel):
     status: TenantStatus = TenantStatus.ACTIVE
 
 class TenantCreate(TenantBase):
+    domains: Optional[List[str]] = None
     createDefaultCollections: bool = True
 
 class TenantUpdate(BaseModel):
@@ -41,11 +42,13 @@ class TenantUpdate(BaseModel):
     )
     logoUrl: Optional[str] = None
     status: Optional[TenantStatus] = None
+    domains: Optional[List[str]] = None
 
 class Tenant(TenantBase):
     mongo_id: str = Field(..., alias="_id", description="MongoDB ObjectId")
     tenantId: str = Field(..., description="Tenant ID like TNT001, TNT002, etc.")
     logoUrl: Optional[str] = None
+    domains: Optional[List[str]] = [] 
     createdDate: datetime
     databaseName: Optional[str] = None
     lastUpdatedDate: Optional[datetime] = None

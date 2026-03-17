@@ -84,24 +84,27 @@ def get_tenant_database(tenant_id: str, use_async: bool = False):
         
         database_name = tenant.get("databaseName")
         if not database_name:
-            # Generate database name from tenant name
-            import re
-            tenant_name = tenant.get("tenantName", "").strip()
-            if tenant_name:
-                db_name = tenant_name.lower()
-                db_name = re.sub(r'[^a-z0-9_]', '_', db_name)
-                db_name = re.sub(r'+', '', db_name)
-                db_name = db_name.strip('_')
-                database_name = f"{db_name}_purchase"
-            else:
-                database_name = f"tenant_{tenant_id}_purchase"
-            
-            # Save to tenant document
-            tenant_collection.update_one(
-                {"_id": ObjectId(tenant_id)},
-                {"$set": {"databaseName": database_name}}
-            )
-        
+    # Generate database name from tenant name
+           import re
+           tenant_name = tenant.get("tenantName", "").strip()
+  
+           if tenant_name:
+              db_name = tenant_name.lower()
+              db_name = re.sub(r'[^a-z0-9_]', '_', db_name)
+              db_name = db_name.strip('_')
+              database_name = f"{db_name}_purchase"
+           else:
+              database_name = f"tenant_{tenant_id}_purchase"
+
+    # Save DB name
+           tenant_collection.update_one(
+               {"_id": ObjectId(tenant_id)},
+               {"$set": {"databaseName": database_name}}
+    )
+
+    # 🔥🔥🔥 MUST ADD THIS LINE
+           create_inventory_collections_for_tenant(database_name)
+       
         mongodb_uri = os.getenv("MONGODB_URI")
         if not mongodb_uri:
             raise ValueError("MONGODB_URI not found")
@@ -568,3 +571,32 @@ def get_inventory_connection():
             logger.error(f"❌ Inventory connection error: {e}")
             raise
     return _inventory_client, _inventory_db
+
+
+def create_inventory_collections_for_tenant(database_name: str):
+    """
+    Auto-create inventory collections when new tenant DB is created
+    """
+    try:
+        mongodb_uri = os.getenv("MONGODB_URI")
+        client = MongoClient(mongodb_uri)
+        db = client[database_name]
+
+        collections = [
+            "approvedstocksOutlet",
+            "approvedstocksWarehouse",
+            "closingstocksOutlet",
+            "closingstocksWarehouse",
+            "inventoryStock",
+            "stockOutHist",
+            "stockWhHist"
+        ]
+
+        for col in collections:
+            if col not in db.list_collection_names():
+                db[col].insert_one({"_init": True})   # 🔥 FORCE CREATE
+                db[col].delete_many({"_init": True})  # clean
+                logger.info(f"✅ Created {col} for {database_name}")
+
+    except Exception as e:
+        logger.error(f"❌ Inventory collection create error: {e}")
