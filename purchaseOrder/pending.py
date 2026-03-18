@@ -202,8 +202,8 @@ async def get_purchaseorders(
 
         total = collection.count_documents(query)
 
-        # Fetch with sort (descending by date_field) - no aggregation used
-        cursor = collection.find(query).sort(date_field, -1).skip(skip).limit(limit)
+        # Fetch with sort by randomId descending only
+        cursor = collection.find(query).sort("randomId", -1).skip(skip).limit(limit)
         purchases = list(cursor)
 
         formatted_purchaseorders = []

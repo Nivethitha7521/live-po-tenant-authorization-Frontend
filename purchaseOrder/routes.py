@@ -15,6 +15,7 @@ from pydantic import BaseModel, ValidationError
 import pytz
 from middlewares.permission_middleware import check_permission
 from dependencies.auth import validate_token
+from utils.financial_year import get_business_alias, get_financial_year, get_legacy_counter_value, get_next_counter_value
 
 # from Business.utils import get_businessdetails_collection
 # from Vendor.utils import get_vendor_collection
@@ -121,28 +122,93 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Expected format is dd-MM-yyyy.")
     return None
+# # ==================== FINANCIAL YEAR FUNCTIONS ====================
 
-def get_next_counter_value(tenant_id:str): 
+# def get_financial_year(date=None):
+#     """
+#     Get financial year string based on date.
+#     Financial year: April to March
+#     Format: YY-YY (e.g., 26-27, 27-28)
+#     """
+#     if date is None:
+#         date = datetime.now()
+    
+#     year = date.year
+#     month = date.month
+    
+#     if month >= 4:
+#         start_year = year % 100
+#         end_year = (year + 1) % 100
+#     else:
+#         start_year = (year - 1) % 100
+#         end_year = year % 100
+    
+#     return f"{start_year:02d}-{end_year:02d}"
+
+# async def get_business_alias(tenant_id: str) -> str:
+#     """
+#     Fetch business alias from database
+#     Returns "BM" as default if not found
+#     """
+#     try:
+#         from utils.database import get_businessdetails_collection
+#         business_collection = get_businessdetails_collection(tenant_id)
+#         business = business_collection.find_one({})
+        
+#         if business and business.get("aliasName"):
+#             return business["aliasName"].strip().upper()
+#         else:
+#             return "BM"
+#     except Exception as e:
+#         print(f"Error fetching business alias: {e}")
+#         return "BM"
+
+# def get_next_counter_value(tenant_id: str, financial_year: str = None):
+#     """
+#     Get next counter value - Auto resets every financial year
+#     """
+#     counter_collection = get_purchaseorder_collection(tenant_id).database["counters"]
+    
+#     if financial_year is None:
+#         financial_year = get_financial_year()
+    
+#     # Use financial year in counter ID
+#     counter_id = f"purchaseorderId_{financial_year}"
+    
+#     counter = counter_collection.find_one_and_update(
+#         {"_id": counter_id},
+#         {"$inc": {"sequence_value": 1}},
+#         upsert=True,
+#         return_document=True
+#     )
+#     return counter["sequence_value"]
+async def generate_random_id(tenant_id: str):
+    """
+    Generate random ID with TRANSITION LOGIC
+    """
+    current_date = datetime.now()
+    TRANSITION_DATE = datetime(2026, 4, 1)
+    
     counter_collection = get_purchaseorder_collection(tenant_id).database["counters"]
-    counter = counter_collection.find_one_and_update(
-        {"_id": "purchaseorderId"},
-        {"$inc": {"sequence_value": 1}},
-        upsert=True,
-        return_document=True
-    )
-    return counter["sequence_value"]
-
-def reset_counter(tenant_id:str):
-    counter_collection = get_purchaseorder_collection(tenant_id).database["counters"]
-    counter_collection.update_one(
-        {"_id": "purchaseorderId"},
-        {"$set": {"sequence_value": 0}},
-        upsert=True
-    )
-
-def generate_random_id(tenant_id:str):
-    counter_value = get_next_counter_value(tenant_id)
-    return f"PO{counter_value:04d}"
+    
+    # ===== BEFORE APRIL 1, 2026 =====
+    if current_date < TRANSITION_DATE:
+        # ✅ USE COMMON FUNCTION for legacy counter
+        counter_value = get_legacy_counter_value(counter_collection, "purchaseorderId")
+        random_id = f"PO{counter_value:04d}"
+        return random_id
+    
+    # ===== AFTER APRIL 1, 2026 =====
+    else:
+        financial_year = get_financial_year(current_date)
+        business_alias = await get_business_alias(tenant_id)
+        
+        # ✅ USE COMMON FUNCTION for FY counter
+        counter_id = f"purchaseorderId_{financial_year}"
+        counter_value = get_next_counter_value(counter_collection, counter_id)
+        
+        random_id = f"{business_alias}/{financial_year}/PO{counter_value:04d}"
+        return random_id
 async def get_user_id_by_username(username: str):
     user = await db["users"].find_one({"username": username})
     if not user:
@@ -150,36 +216,59 @@ async def get_user_id_by_username(username: str):
     return str(user["_id"])
 
 @router.post("/", response_model=PurchaseOrderState)
-async def create_purchaseorder(request:Request,
-    purchaseorder: PurchaseOrderPostExtended,user = Depends(validate_token),
-      permissions: dict = Depends(check_permission("yenerp", "purchaseorders_pending", "add"))
+async def create_purchaseorder(
+    request: Request,
+    purchaseorder: PurchaseOrderPostExtended,
+    user = Depends(validate_token),
+    permissions: dict = Depends(check_permission("yenerp", "purchaseorders_pending", "add"))
 ):
     tenant_id = request.state.tenant_id
     collection = get_purchaseorder_collection(tenant_id)
-    # Reset counter if collection is empty
-    if collection.count_documents({}) == 0:
-        reset_counter(tenant_id)
+    
+    # # Reset counter if collection is empty
+    # if collection.count_documents({}) == 0:
+    #     reset_counter(tenant_id)
     
     # Generate random ID for the purchase order
-    random_id = generate_random_id(tenant_id)
+    random_id = await generate_random_id(tenant_id)
     
     # Convert the input purchase order to a dictionary
     new_purchaseorder_data = purchaseorder.dict()
+    
+    # IMPORTANT: Ensure orderDate is preserved as UTC midnight
+    if 'orderDate' in new_purchaseorder_data and new_purchaseorder_data['orderDate']:
+        # If orderDate is a datetime string, ensure it's stored as UTC midnight
+        if isinstance(new_purchaseorder_data['orderDate'], str):
+            try:
+                # Parse the ISO string and convert to UTC midnight
+                dt = datetime.fromisoformat(new_purchaseorder_data['orderDate'].replace('Z', '+00:00'))
+                # Set to UTC midnight
+                dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                new_purchaseorder_data['orderDate'] = dt
+            except (ValueError, AttributeError):
+                # If parsing fails, use current date at midnight
+                current_utc = get_current_date_and_time()['datetime']
+                new_purchaseorder_data['orderDate'] = current_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            # If it's already a datetime object, ensure it's midnight UTC
+            new_purchaseorder_data['orderDate'] = new_purchaseorder_data['orderDate'].replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+    else:
+        # If no orderDate provided, use current date at midnight
+        current_utc = get_current_date_and_time()['datetime']
+        new_purchaseorder_data['orderDate'] = current_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    
     username = user.get("username")
-
     user_id = await get_user_id_by_username(username)
-
     new_purchaseorder_data["poCreatedPerson"] = user_id
 
-
-
-    # Get the current date and time
+    # Get the current date and time for createdDate only
     current_date_and_time = get_current_date_and_time()
     
     # Generate ObjectIds for each item
     if new_purchaseorder_data.get('items'):
         for item in new_purchaseorder_data['items']:
-            # Generate a new ObjectId for each item
             item['itemId'] = str(ObjectId())
     
     # Set status fields based on isHoldOrder
@@ -189,7 +278,7 @@ async def create_purchaseorder(request:Request,
     else:
         new_purchaseorder_data['poStatus'] = 'Pending for Approve'
            
-    # Automatically add the date/time fields
+    # Add createdDate (this is different from orderDate)
     new_purchaseorder_data['createdDate'] = current_date_and_time['datetime']
     
     # Insert the purchase order into the database
@@ -200,9 +289,8 @@ async def create_purchaseorder(request:Request,
     
     # Convert ObjectId to string for the purchase order
     created_purchaseorder["_id"] = str(created_purchaseorder["_id"])
-
     created_purchaseorder["purchaseOrderId"] = str(created_purchaseorder["_id"])
-   
+    
     return created_purchaseorder
 
 @router.get("/getAll", response_model=List[PurchaseOrderState])
@@ -1316,4 +1404,37 @@ async def update_multiple_items(request:Request,
         "itemCount": len(updated_item_ids),
         "updatedItemIds": updated_item_ids
     }
-
+@router.get("/debug/live-check/{tenant_id}")
+async def live_check(tenant_id: str):
+    """Check what will happen LIVE"""
+    
+    current_date = datetime.now()
+    TRANSITION_DATE = datetime(2026, 4, 1)
+    
+    business_alias = await get_business_alias(tenant_id)
+    counter_collection = get_purchaseorder_collection(tenant_id).database["counters"]
+    
+    # Old counter value
+    old_counter = counter_collection.find_one({"_id": "purchaseorderId"})
+    old_value = old_counter.get("sequence_value", 0) if old_counter else 0
+    
+    # Current mode
+    if current_date < TRANSITION_DATE:
+        mode = "🔵 OLD FORMAT"
+        next_po = f"PO{old_value + 1:04d}"
+        next_change = (TRANSITION_DATE - current_date).days
+        message = f"{next_change} days left in old format"
+    else:
+        mode = "✅ NEW FORMAT"
+        current_fy = get_financial_year()
+        next_po = f"{business_alias}/{current_fy}/PO{old_value + 1:04d}"
+        message = "New format active"
+    
+    return {
+        "live_server_time": current_date.strftime("%d-%m-%Y %H:%M:%S"),
+        "mode": mode,
+        "next_po": next_po,
+        "message": message,
+        "april_1_2026": f"{business_alias}/26-27/PO0001 ⭐",
+        "guarantee": "This WILL auto-change on April 1, 2026 at 00:00 AM server time!"
+    }

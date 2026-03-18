@@ -37,3 +37,4 @@
 2026-03-05 17:57:18,855 - GRN_REVERT|grn_id=69a97671b59f6ba1215a32e5|po_id=69a975225cc5ccd68f7a630e|timestamp=2026-03-05 17:57:18.255919+05:30|inventory_only
 2026-03-05 18:20:48,230 - GRN_RETURN|grn_id=69a97ba1b59f6ba1215a32ec|returned_by=admincheck
 2026-03-05 18:22:38,453 - GRN_REVERT|grn_id=69a97ba1b59f6ba1215a32ec|po_id=69a97ab8b59f6ba1215a32eb|timestamp=2026-03-05 18:22:38.048278+05:30|inventory_only
+2026-03-17 18:12:51,510 - GRN_REVERT|grn_id=69b94c10e04f535da4ba266e|po_id=69b54a283318936bea687cef|timestamp=2026-03-17 18:12:51.151953+05:30|inventory_only

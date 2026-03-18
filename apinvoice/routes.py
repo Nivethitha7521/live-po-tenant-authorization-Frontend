@@ -4,6 +4,8 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query,Request
 from bson import ObjectId
 import pytz
+
+from utils.financial_year import get_business_alias, get_financial_year
 from .models import ApRandomId, Apinvoice, ApinvoicePost, FrontendApInvoiceResponse, FrontendItemDetail,PaginatedApInvoices
 from utils.database import get_apinvoice_collection,get_grn_collection
 from dependencies.auth import validate_token
@@ -113,46 +115,51 @@ def initialize_ap_counter_if_needed(tenant_id: str,force_reset=False):
 
 def generate_ap_id(tenant_id: str):
     """
-    Generates the next sequential AP ID in the format AP0001, AP0002, etc.
-    Checks if the collection is empty to reset counter if needed.
-    Only increments counter for new AP invoices.
+    Generates AP ID with TRANSITION LOGIC - SYNC VERSION
     """
-    counter_collection = get_apinvoice_collection(tenant_id).database["counters"]
+    current_date = datetime.now()
+    TRANSITION_DATE = datetime(2026, 4, 1)
+    
+    # Get sync collections
     ap_collection = get_apinvoice_collection(tenant_id)
+    counter_collection = ap_collection.database["counters"]
     
-    # Check if the AP collection is empty
-    if ap_collection.count_documents({}) == 0:
-        # If empty, reset counter to start from 1
-        counter_collection.update_one(
+    if current_date < TRANSITION_DATE:
+        # Check if collection is empty
+        if ap_collection.count_documents({}) == 0:
+            counter_collection.update_one(
+                {"_id": "invoiceId"},
+                {"$set": {"sequence_value": 0}},
+                upsert=True
+            )
+        
+        counter = counter_collection.find_one_and_update(
             {"_id": "invoiceId"},
-            {"$set": {"sequence_value": 0}},
-            upsert=True
+            {"$inc": {"sequence_value": 1}},
+            upsert=True,
+            return_document=True
         )
-    
-    # Get the next counter value and increment only for new AP invoices
-    counter = counter_collection.find_one_and_update(
-        {"_id": "invoiceId"},
-        {"$inc": {"sequence_value": 1}},
-        upsert=True,
-        return_document=True
-    )
-    
-    # Format the AP ID with leading zeros (AP0001, AP0002, etc.)
-    ap_id = f"AP{counter['sequence_value']:04d}"
-    return ap_id
-
-def set_counter_value(tenant_id: str,value: int):
-    """Manually set the counter value (for testing or recovery)"""
-    counter_collection = get_apinvoice_collection(tenant_id).database["counters"]
-    try:
-        counter_collection.update_one(
-            {"_id": "invoiceId"},
-            {"$set": {"sequence_value": value}},
-            upsert=True
+        counter_value = counter["sequence_value"]
+        ap_id = f"AP{counter_value:04d}"
+        
+        logger.info(f"Generated AP ID: {ap_id}")
+        return ap_id
+    else:
+        financial_year = get_financial_year(current_date)
+        business_alias = get_business_alias(tenant_id)  # You need a sync version of this
+        
+        counter_id = f"invoiceId_{financial_year}"
+        
+        counter = counter_collection.find_one_and_update(
+            {"_id": counter_id},
+            {"$inc": {"sequence_value": 1}},
+            upsert=True,
+            return_document=True
         )
-    except Exception as e:
-        print(f"Error setting counter value: {e}")
-
+        counter_value = counter["sequence_value"]
+        ap_id = f"{business_alias}/{financial_year}/AP{counter_value:04d}"
+        
+        return ap_id
 @router.post("/force-reset-counter")
 async def force_reset_counter(request: Request):
     """Force reset the counter to 0 regardless of database state"""

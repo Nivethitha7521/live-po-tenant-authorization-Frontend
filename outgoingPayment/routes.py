@@ -12,6 +12,8 @@ from middlewares.permission_middleware import check_any_permission
 import pymongo
 import pytz
 
+from utils.financial_year import get_business_alias, get_financial_year
+
 from .models import IST,  Outgoing, OutgoingPost, OutgoingResponse, OutgoingResponseGET, TaxDetail, VendorDetail
 from utils.database import get_vendor_collection,get_outgoingpayment_collection,get_debit_collection
 
@@ -45,53 +47,70 @@ def get_current_date_and_time(timezone: str = "Asia/Kolkata") -> dict:
         "datetime": naive_ist  # Naive datetime in IST timezone
     }
 
-def get_next_counter_value(tenant_id:str):
-    outgoing_collection = get_outgoingpayment_collection(tenant_id)
-    counter_collection = outgoing_collection.database["counters"]   
-    counter = counter_collection.find_one_and_update(
-        {"_id": "outgoingId"},
-        {"$inc": {"sequence_value": 1}},
-        upsert=True,
-        return_document=True
-    )
-    return counter["sequence_value"]
+# def get_next_counter_value(tenant_id:str):
+#     outgoing_collection = get_outgoingpayment_collection(tenant_id)
+#     counter_collection = outgoing_collection.database["counters"]   
+#     counter = counter_collection.find_one_and_update(
+#         {"_id": "outgoingId"},
+#         {"$inc": {"sequence_value": 1}},
+#         upsert=True,
+#         return_document=True
+#     )
+#     return counter["sequence_value"]
 
-def reset_counter(tenant_id: str):
-    outgoing_collection = get_outgoingpayment_collection(tenant_id)
-    counter_collection = outgoing_collection.database["counters"]
-    counter_collection.update_one(
-        {"_id": "outgoingId"},
-        {"$set": {"sequence_value": 0}},
-        upsert=True
-    )
+# def reset_counter(tenant_id: str):
+#     outgoing_collection = get_outgoingpayment_collection(tenant_id)
+#     counter_collection = outgoing_collection.database["counters"]
+#     counter_collection.update_one(
+#         {"_id": "outgoingId"},
+#         {"$set": {"sequence_value": 0}},
+#         upsert=True
+#     )
 
 def generate_outgoing_random_id(tenant_id: str):
     """
-    Generates the next sequential GRN ID in the format GN0001, GN0002, etc.
-    Checks if the collection is empty to reset counter if needed.
+    Generates Outgoing ID with TRANSITION LOGIC - SYNC VERSION
     """
+    current_date = datetime.now()
+    TRANSITION_DATE = datetime(2026, 4, 1)
+    
     outgoing_collection = get_outgoingpayment_collection(tenant_id)
     counter_collection = outgoing_collection.database["counters"]
-    # Check if the GRN collection is empty
-    if outgoing_collection.count_documents({}) == 0:
-        # If empty, reset counter to start from 1
-        counter_collection.update_one(
+    
+    if current_date < TRANSITION_DATE:
+        if outgoing_collection.count_documents({}) == 0:
+            counter_collection.update_one(
+                {"_id": "outgoingId"},
+                {"$set": {"sequence_value": 0}},
+                upsert=True
+            )
+        
+        counter = counter_collection.find_one_and_update(
             {"_id": "outgoingId"},
-            {"$set": {"sequence_value": 0}},
-            upsert=True
+            {"$inc": {"sequence_value": 1}},
+            upsert=True,
+            return_document=True
         )
-    
-    # Get the next counter value
-    counter = counter_collection.find_one_and_update(
-        {"_id": "outgoingId"},
-        {"$inc": {"sequence_value": 1}},
-        upsert=True,
-        return_document=True
-    )
-    
-    # Format the GRN ID with leading zeros (GN0001, GN0002, etc.)
-    grn_id = f"OT{counter['sequence_value']:04d}"
-    return grn_id
+        counter_value = counter["sequence_value"]
+        outgoing_id = f"OT{counter_value:04d}"
+        
+        return outgoing_id
+    else:
+        financial_year = get_financial_year(current_date)
+        business_alias = get_business_alias(tenant_id)  # Sync version
+        
+        counter_id = f"outgoingId_{financial_year}"
+        
+        counter = counter_collection.find_one_and_update(
+            {"_id": counter_id},
+            {"$inc": {"sequence_value": 1}},
+            upsert=True,
+            return_document=True
+        )
+        counter_value = counter["sequence_value"]
+        outgoing_id = f"{business_alias}/{financial_year}/OT{counter_value:04d}"
+        
+        return outgoing_id
 
 def get_vendor_debit_credit_totals(tenant_id: str,vendor_name: str):
     debit_collection = get_debit_collection(tenant_id)

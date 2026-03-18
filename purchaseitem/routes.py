@@ -5,7 +5,7 @@ import logging
 import re
 from fastapi import Request
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Form, HTTPException, Query, UploadFile, File,Depends
+from fastapi import APIRouter, Form, HTTPException, Query, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 from bson import ObjectId
 from pydantic import BaseModel, ValidationError
@@ -21,9 +21,8 @@ from utils.database import get_purchasesubcategory_collection
 from utils.database import get_purchasetax_collection
 from utils.database import get_purchaseuom_collection
 
-
-from .models import PurchaseItem, PurchaseItemPost  # Adjust paths as per your project structure
-from .utils import (  # Import the utility functions from the new file
+from .models import PurchaseItem, PurchaseItemPost
+from .utils import (
     CSVImportValidator,
     find_max_random_id,
     get_current_counter_value,
@@ -52,7 +51,7 @@ HEADER_MAPPING = {
     "purchasePrice": "Purchase Price",
     "purchasetaxName": "Tax Rate",
     "reorderLevel": "Reorder Level",
-    "itemType": "Item Type",
+    "itemType": "Item Type",  # This will be the display name
     "hsnCode": "HSN Code",
     "shelfLife": "Shelf Life",
     "vendorTag": "Vendor Tags",
@@ -67,10 +66,10 @@ HEADER_MAPPING = {
 REVERSE_HEADER_MAPPING = {v: k for k, v in HEADER_MAPPING.items()}
 
 class PaginatedPurchaseItemsResponse(BaseModel):
-    items: List[PurchaseItem]  # List of PurchaseItem objects
-    totalItems: int  # Total count of items
-    currentPage: int  # Current page number
-    pageSize: int  # Page size
+    items: List[PurchaseItem]
+    totalItems: int
+    currentPage: int
+    pageSize: int
 
 class PurchaseItemSummary(BaseModel):
     purchaseitemId: str
@@ -87,15 +86,22 @@ class PurchaseItemWithStockResponse(BaseModel):
     purchasecategoryName: Optional[str] = None
     purchasesubcategoryName: Optional[str] = None
     hsnCode: Optional[str] = None
-    availableStock: int = 0  # NEW: Stock from inventory
-    locationId: Optional[str] = None  # NEW: Location from inventory
+    itemTypeId: Optional[str] = None  # Store the ID
+    itemType: Optional[str] = None     # Store the name for display
+    availableStock: int = 0
+    locationId: Optional[str] = None
 
 class SearchWithStockResponse(BaseModel):
     total: int
     items: List[PurchaseItemWithStockResponse]
 
 @router.post("/", response_model=str)
-async def create_purchaseitem( request: Request,purchaseitem_data: PurchaseItemPost,user = Depends(validate_token), permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "add"))):
+async def create_purchaseitem(
+    request: Request,
+    purchaseitem_data: PurchaseItemPost,
+    user = Depends(validate_token), 
+    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "add"))
+):
     tenant_id = request.state.tenant_id
     collection = get_purchaseitem_collection(tenant_id)
 
@@ -109,7 +115,7 @@ async def create_purchaseitem( request: Request,purchaseitem_data: PurchaseItemP
         
         # Synchronize counter with max_id if necessary
         if max_id >= current_counter:
-            set_counter_value(tenant_id,max_id + 1)
+            set_counter_value(tenant_id, max_id + 1)
             current_counter = max_id + 1
             logging.info(f"Counter synchronized from {current_counter} to {max_id + 1}")
         
@@ -130,12 +136,13 @@ async def create_purchaseitem( request: Request,purchaseitem_data: PurchaseItemP
             raise HTTPException(status_code=500, detail="Failed to insert purchase item")
         
         # Increment counter after successful insertion
-        set_counter_value(tenant_id,current_counter + 1)
+        set_counter_value(tenant_id, current_counter + 1)
         
         return random_id
     except Exception as e:
         logging.error(f"Error creating purchase item: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
 @router.get("/search-with-stock", response_model=SearchWithStockResponse)
 async def search_items_with_stock(
     request: Request,
@@ -148,6 +155,7 @@ async def search_items_with_stock(
     tenant_id = request.state.tenant_id
     purchase_collection = get_purchaseitem_collection(tenant_id)
     inventory_collection = get_inventory_collection()
+    itemtype_collection = get_itemtype_collection(tenant_id)
 
     try:
         # Build query based on input parameters
@@ -175,6 +183,11 @@ async def search_items_with_stock(
                     "systemStock": inv.get("systemStock", 0),
                     "locationId": inv.get("locationId", "")
                 }
+        
+        # Fetch item types for lookup if needed
+        itemtypes_by_randomid = {}
+        async for itemtype in itemtype_collection.find({"status": "active"}):
+            itemtypes_by_randomid[itemtype["randomId"]] = itemtype["itemtypeName"]
         
         # Format items with stock information
         formatted_items = []
@@ -207,6 +220,17 @@ async def search_items_with_stock(
                 
                 if item_data.get("purchasetaxName") is None:
                     item_data["purchasetaxName"] = 0
+                
+                # Handle itemType fields
+                if "itemTypeId" not in item_data or item_data["itemTypeId"] is None:
+                    item_data["itemTypeId"] = ""
+                
+                # If itemType (display name) is missing but we have itemTypeId, try to get it
+                if ("itemType" not in item_data or not item_data["itemType"]) and item_data["itemTypeId"]:
+                    item_data["itemType"] = itemtypes_by_randomid.get(item_data["itemTypeId"], "")
+                
+                if "itemType" not in item_data or item_data["itemType"] is None:
+                    item_data["itemType"] = ""
                 
                 # Convert hsnCode to string if it's a number or handle null
                 if "hsnCode" in item_data:
@@ -248,20 +272,21 @@ async def search_items_with_stock(
     except Exception as e:
         logging.error(f"Error occurred while fetching purchase items with stock: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
-
+    
 @router.get("/", response_model=Dict)
-async def get_all_items( request: Request,
+async def get_all_items(
+    request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, le=5000),
     itemName: Optional[str] = Query(None),
     purchasecategoryName: Optional[str] = Query(None),
     purchasesubcategoryName: Optional[str] = Query(None),
-    
     user = Depends(validate_token),
     permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "read"))
 ):
     tenant_id = request.state.tenant_id
     collection = get_purchaseitem_collection(tenant_id)
+    itemtype_collection = get_itemtype_collection(tenant_id)
 
     try:
         # Build match stage for aggregation
@@ -275,6 +300,11 @@ async def get_all_items( request: Request,
 
         # Get total count before pagination
         total_count = collection.count_documents(match_stage)
+
+        # Fetch all item types for lookup
+        itemtypes_by_randomid = {}
+        async for itemtype in itemtype_collection.find({"status": "active"}):
+            itemtypes_by_randomid[itemtype["randomId"]] = itemtype["itemtypeName"]
 
         # Use aggregation pipeline for proper numeric sorting
         pipeline = []
@@ -303,8 +333,21 @@ async def get_all_items( request: Request,
         formatted_items = []
         for item in purchaseitems:
             item["purchaseitemId"] = str(item["_id"])
+            
+            # Ensure itemType fields are present
+            if "itemTypeId" not in item:
+                item["itemTypeId"] = ""
+            
+            # If itemType (display name) is missing but we have itemTypeId, try to get it
+            if ("itemType" not in item or not item.get("itemType")) and item.get("itemTypeId"):
+                item["itemType"] = itemtypes_by_randomid.get(item["itemTypeId"], "")
+            
+            if "itemType" not in item or item["itemType"] is None:
+                item["itemType"] = ""
+            
             if "purchasetaxName" in item and isinstance(item["purchasetaxName"], float):
                 item["purchasetaxName"] = round(item["purchasetaxName"])
+            
             formatted_items.append(PurchaseItem(**item))
 
         return {
@@ -316,7 +359,11 @@ async def get_all_items( request: Request,
         logging.error(f"Error occurred while fetching purchase items: {e}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 @router.get("/getAll", response_model=Dict)
-async def get_all_items_without_pagination( request: Request,user = Depends(validate_token),permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "read"))):
+async def get_all_items_without_pagination(
+    request: Request,
+    user = Depends(validate_token),
+    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "read"))
+):
     tenant_id = request.state.tenant_id
     collection = get_purchaseitem_collection(tenant_id)
 
@@ -342,8 +389,16 @@ async def get_all_items_without_pagination( request: Request,user = Depends(vali
         formatted_items = []
         for item in purchaseitems:
             item["purchaseitemId"] = str(item["_id"])
+            
+            # Ensure itemType fields are present
+            if "itemTypeId" not in item:
+                item["itemTypeId"] = ""
+            if "itemType" not in item:
+                item["itemType"] = item.get("itemTypeId", "")
+            
             if "purchasetaxName" in item and isinstance(item["purchasetaxName"], float):
                 item["purchasetaxName"] = round(item["purchasetaxName"])
+            
             formatted_items.append(PurchaseItem(**item))
 
         return {
@@ -354,8 +409,10 @@ async def get_all_items_without_pagination( request: Request,user = Depends(vali
     except Exception as e:
         logging.error(f"Error occurred while fetching all purchase items: {e}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
 @router.get("/exact-name/", response_model=List[PurchaseItemSummary])
-async def get_items_by_exact_name( request: Request,
+async def get_items_by_exact_name(
+    request: Request,
     item_name: Optional[str] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
@@ -391,8 +448,15 @@ async def get_items_by_exact_name( request: Request,
     except Exception as e:
         logging.error(f"Error occurred while fetching items: {e}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
 @router.put("/{purchaseitem_id}")
-async def update_purchaseitem( request: Request,purchaseitem_id: str, purchaseitem_data: PurchaseItemPost,user = Depends(validate_token), permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "edit"))):
+async def update_purchaseitem(
+    request: Request,
+    purchaseitem_id: str, 
+    purchaseitem_data: PurchaseItemPost,
+    user = Depends(validate_token), 
+    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "edit"))
+):
     tenant_id = request.state.tenant_id
     collection = get_purchaseitem_collection(tenant_id)
 
@@ -401,7 +465,7 @@ async def update_purchaseitem( request: Request,purchaseitem_id: str, purchaseit
         current_date_and_time = get_current_date_and_time()
         updated_purchaseitem['lastUpdatedDate'] = current_date_and_time['datetime']
 
-        result =collection.replace_one({"_id": ObjectId(purchaseitem_id)}, updated_purchaseitem)
+        result = collection.replace_one({"_id": ObjectId(purchaseitem_id)}, updated_purchaseitem)
         if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="PurchaseItem not found")
         
@@ -412,10 +476,11 @@ async def update_purchaseitem( request: Request,purchaseitem_id: str, purchaseit
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.patch("/{purchaseitem_id}/deactivate")
-async def deactivate_purchaseitem( request: Request,
+async def deactivate_purchaseitem(
+    request: Request,
     purchaseitem_id: str,
     user = Depends(validate_token),
-    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "delete"))  # ✅ USE DELETE PERMISSION
+    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "delete"))
 ):
     tenant_id = request.state.tenant_id
     collection = get_purchaseitem_collection(tenant_id)
@@ -440,10 +505,11 @@ async def deactivate_purchaseitem( request: Request,
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.patch("/{purchaseitem_id}/activate")
-async def activate_purchaseitem( request: Request,
+async def activate_purchaseitem(
+    request: Request,
     purchaseitem_id: str,
     user = Depends(validate_token),
-    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "delete"))  # ✅ USE DELETE PERMISSION
+    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "delete"))
 ):
     tenant_id = request.state.tenant_id
     collection = get_purchaseitem_collection(tenant_id)
@@ -467,9 +533,14 @@ async def activate_purchaseitem( request: Request,
         logging.error(f"Error activating purchase item: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-
 @router.patch("/{purchaseitem_id}")
-async def patch_purchaseitem( request: Request,purchaseitem_id: str, purchaseitem_patch: PurchaseItemPost,user = Depends(validate_token), permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "edit"))):
+async def patch_purchaseitem(
+    request: Request,
+    purchaseitem_id: str, 
+    purchaseitem_patch: PurchaseItemPost,
+    user = Depends(validate_token), 
+    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "edit"))
+):
     tenant_id = request.state.tenant_id
     collection = get_purchaseitem_collection(tenant_id)
 
@@ -503,9 +574,15 @@ async def patch_purchaseitem( request: Request,purchaseitem_id: str, purchaseite
     except Exception as e:
         logging.error(f"Error occurred while patching PurchaseItem: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
 @router.post("/import_csv")
-async def import_purchase_items_from_csv( request: Request,file: UploadFile = File(...), mode: str = Form("merge"),user = Depends(validate_token),
-    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "read"))):
+async def import_purchase_items_from_csv(
+    request: Request,
+    file: UploadFile = File(...), 
+    mode: str = Form("merge"),
+    user = Depends(validate_token),
+    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "read"))
+):
     tenant_id = request.state.tenant_id
     try:
         if not file.filename.endswith('.csv'):
@@ -532,20 +609,27 @@ async def import_purchase_items_from_csv( request: Request,file: UploadFile = Fi
         subcategories = {item["purchasesubcategoryName"].lower(): item for item in await purchasesubcategory_collection.find({"status": "active"}).to_list(None)}
         taxes = {str(item["purchasetaxPercentage"]): item for item in await purchasetax_collection.find({"status": "active"}).to_list(None)}
         uoms = {item["uom"].lower(): item for item in await purchaseuom_collection.find({"status": "active"}).to_list(None)}
-        itemtypes = {item["itemtypeName"].lower(): item for item in await itemtype_collection.find({"status": "active"}).to_list(None)}
+        
+        # Item types - store by name for lookup, but use randomId for ID field
+        itemtypes_by_name = {}
+        itemtypes_by_randomid = {}
+        async for item in itemtype_collection.find({"status": "active"}):
+            itemtypes_by_name[item["itemtypeName"].lower()] = item
+            itemtypes_by_randomid[item["randomId"]] = item
+        
         storagelocations = {item["locationName"].lower(): item for item in await storagelocation_collection.find({"status": "active"}).to_list(None)}
 
         # Synchronize counter with max randomId
         max_id = find_max_random_id(tenant_id)
         current_counter = get_current_counter_value(tenant_id)
         if max_id >= current_counter:
-            set_counter_value(tenant_id,max_id + 1)
+            set_counter_value(tenant_id, max_id + 1)
             current_counter = max_id + 1
             logging.info(f"Counter synchronized from {current_counter} to {max_id + 1}")
 
         # Handle rollback mode
         if mode.lower() == "rollback":
-            return await handle_rollback(main_collection, revert_collection,tenant_id)
+            return await handle_rollback(main_collection, revert_collection, tenant_id)
 
         # Read and process CSV file
         contents = await file.read()
@@ -590,7 +674,7 @@ async def import_purchase_items_from_csv( request: Request,file: UploadFile = Fi
                 revert_collection.delete_many({})
                 main_collection.aggregate([{"$match": {}}, {"$out": "revertpurchaseitems"}])
             main_collection.delete_many({})
-            reset_counter(tenant_id,1)
+            reset_counter(tenant_id, 1)
             current_counter = 1
 
         for idx, row in enumerate(csv_reader, 1):
@@ -646,12 +730,19 @@ async def import_purchase_items_from_csv( request: Request,file: UploadFile = Fi
                 elif uom:
                     row["uom"] = uoms[uom]["uom"]
                 
-                # Validate item type
-                item_type = row.get("itemtypeName", "").strip().lower()
-                if item_type and item_type not in itemtypes:
-                    validation_errors.append(f"Item Type '{row.get('itemtypeName')}' not found in master data")
-                elif item_type:
-                    row["itemType"] = itemtypes[item_type]["itemtypeName"]
+                # Validate item type - store randomId in itemTypeId and name in itemType
+                item_type_name = row.get("itemType", "").strip()
+                if item_type_name:
+                    item_type_name_lower = item_type_name.lower()
+                    if item_type_name_lower not in itemtypes_by_name:
+                        validation_errors.append(f"Item Type '{item_type_name}' not found in master data")
+                    else:
+                        item_type_obj = itemtypes_by_name[item_type_name_lower]
+                        row["itemTypeId"] = item_type_obj["randomId"]  # Store the randomId (e.g., "IT001")
+                        row["itemType"] = item_type_obj["itemtypeName"]  # Store the name
+                else:
+                    row["itemTypeId"] = ""
+                    row["itemType"] = ""
                 
                 # Validate storage location
                 location = row.get("locationName", "").strip().lower()
@@ -670,7 +761,7 @@ async def import_purchase_items_from_csv( request: Request,file: UploadFile = Fi
                     continue
 
                 item_name = row.get("itemName", "").strip()
-                item_code = row.get("itemCode", "").strip()  # Can be empty
+                item_code = row.get("itemCode", "").strip()
                 random_id = row.get("randomId", "").strip()
 
                 # Check for duplicate itemName
@@ -739,7 +830,7 @@ async def import_purchase_items_from_csv( request: Request,file: UploadFile = Fi
                             })
                             continue
                 else:
-                    item_code = ""  # or None, depending on schema
+                    item_code = ""
 
                 # Validate row
                 validator = CSVImportValidator()
@@ -764,8 +855,10 @@ async def import_purchase_items_from_csv( request: Request,file: UploadFile = Fi
                     })
                     continue
 
-                # Update item_data with itemCode
+                # Update item_data with itemCode and itemType fields
                 item_data["itemCode"] = item_code
+                item_data["itemTypeId"] = row.get("itemTypeId", "")  # This will be the randomId like "IT001"
+                item_data["itemType"] = row.get("itemType", "")      # This will be the display name
 
                 # Prepare for bulk insert
                 item_object_id = ObjectId()
@@ -782,12 +875,12 @@ async def import_purchase_items_from_csv( request: Request,file: UploadFile = Fi
                 if item_code:
                     seen_item_codes.add(item_code_lower)
                 seen_random_ids.add(random_id)
-                current_counter += 1  # Increment counter for next randomId
+                current_counter += 1
 
                 if len(batch) >= 100:
                     main_collection.insert_many(batch)
                     inserted_count += len(batch)
-                    set_counter_value(tenant_id,current_counter)
+                    set_counter_value(tenant_id, current_counter)
                     batch = []
 
             except ValueError as e:
@@ -808,7 +901,7 @@ async def import_purchase_items_from_csv( request: Request,file: UploadFile = Fi
         if batch:
             main_collection.insert_many(batch)
             inserted_count += len(batch)
-            set_counter_value(tenant_id,current_counter)
+            set_counter_value(tenant_id, current_counter)
 
         response = {
             "message": "CSV import processed successfully" if not failed else "CSV import completed with errors",
@@ -840,7 +933,7 @@ def parse_date(date_str: str) -> Optional[datetime]:
         except ValueError:
             return None
 
-async def handle_rollback(main_collection, revert_collection,tenant_id):
+async def handle_rollback(main_collection, revert_collection, tenant_id):
     revert_data = list(revert_collection.find({}))
     if not revert_data:
         raise HTTPException(status_code=400, detail="No backup data to revert")
@@ -861,7 +954,7 @@ async def handle_rollback(main_collection, revert_collection,tenant_id):
     main_collection.delete_many({})
     if documents_to_restore:
         main_collection.insert_many(documents_to_restore)
-        set_counter_value(tenant_id,max_counter + 1 if max_counter > 0 else 1)
+        set_counter_value(tenant_id, max_counter + 1 if max_counter > 0 else 1)
 
     revert_collection.delete_many({})
     return {
@@ -871,8 +964,11 @@ async def handle_rollback(main_collection, revert_collection,tenant_id):
     }
 
 @router.get("/purchaseitemexport/export_csv")
-async def export_all_purchase_items_to_csv( request: Request,user = Depends(validate_token),
-    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "read"))):
+async def export_all_purchase_items_to_csv(
+    request: Request,
+    user = Depends(validate_token),
+    permissions: dict = Depends(check_permission("yenerp", "purchaseitem", "read"))
+):
     tenant_id = request.state.tenant_id
     collection = get_purchaseitem_collection(tenant_id)
     try:
@@ -901,6 +997,9 @@ async def export_all_purchase_items_to_csv( request: Request,user = Depends(vali
                         else:
                             vendor_tags = [str(vendor_tags)]
                     row[HEADER_MAPPING[field]] = ",".join(vendor_tags)
+                elif field == "itemType":
+                    # Export the display name, not the ID
+                    row[HEADER_MAPPING[field]] = item.get("itemType", "")
                 elif field in ("createdDate", "lastUpdatedDate"):
                     date_value = item.get(field)
                     if isinstance(date_value, datetime):

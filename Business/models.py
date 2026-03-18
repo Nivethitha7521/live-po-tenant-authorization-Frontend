@@ -5,6 +5,7 @@ from datetime import datetime
 class Business(BaseModel):
     businessId: Optional[str] = None  # Define _id field explicitly
     companyName: Optional[str] = None
+    aliasName:Optional[str] = None
     address1: Optional[str] = None
     address2: Optional[str] = None
     phoneNo: Optional[str] = None
@@ -18,6 +19,7 @@ class Business(BaseModel):
 
 class BusinessPost(BaseModel):
     companyName: Optional[str] = None
+    aliasName:Optional[str] = None
     address1: Optional[str] = None
     address2: Optional[str] = None
     phoneNo: Optional[str] = None

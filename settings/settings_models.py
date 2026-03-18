@@ -1,28 +1,34 @@
-# yen-purchase/PurchaseOrder/settings_models.py
-from pydantic import BaseModel, Field
-from typing import Optional, Literal
+# models/settings_models.py
+
+from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 class DateRestriction(BaseModel):
-    id: Optional[str] = None
-    restrictionType: Literal["no_restriction", "current_only", "days_before", "days_after", "date_range"] = "no_restriction"
-    daysValue: int = Field(default=0, ge=0)
+    restrictionType: str
+    daysValue: int = 0
     startDate: Optional[datetime] = None
     endDate: Optional[datetime] = None
     isActive: bool = True
-    createdBy: Optional[str] = None
-    updatedBy: Optional[str] = None
-    createdAt: Optional[datetime] = None
-    updatedAt: Optional[datetime] = None
+    
+    class Config:
+        # Allow ORM mode and handle datetime serialization
+        from_attributes = True
+        json_encoders = {
+            datetime: lambda dt: dt.isoformat() if dt else None
+        }
 
 class PurchaseDateSettings(BaseModel):
-    id: Optional[str] = None
     orderDateRestriction: DateRestriction
-    expectedDeliveryDays: int = Field(default=7, ge=1, le=365)
-    invoiceDateRestriction: Literal["same_as_order", "after_order", "any"] = "any"
-    invoiceDaysAfterOrder: int = Field(default=0, ge=0, le=365)
-    createdBy: Optional[str] = None
-    updatedBy: Optional[str] = None
+    expectedDeliveryRestriction: DateRestriction
+    invoiceDateRestriction: DateRestriction
+    expectedDeliveryDays: int = 7
+    invoiceDaysAfterOrder: int = 0
     createdAt: Optional[datetime] = None
     updatedAt: Optional[datetime] = None
-
+    
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            datetime: lambda dt: dt.isoformat() if dt else None
+        }

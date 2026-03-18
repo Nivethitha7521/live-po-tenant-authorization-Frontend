@@ -240,7 +240,7 @@ async def patch_received_count(request: Request,
     
     # Get logged-in user ID
     username = user.get("username")
-    user_data = await db["users"].find_one({"username": username})
+    user_data = await db["user"].find_one({"username": username})
     user_id = str(user_data["_id"]) if user_data else None
     
     """Main endpoint - ALWAYS CREATE NEW GRN, NEVER REUSE OLD ID"""
@@ -529,7 +529,7 @@ async def patch_received_count(request: Request,
         # Create new GRN if there are received items
         if newly_received_items:
             # Generate new random ID for GRN
-            target_grn_random_id = generate_grnrandom_id(tenant_id)
+            target_grn_random_id =await generate_grnrandom_id(tenant_id)
             
             # Build GRN items
             grn_item_details = []
@@ -587,6 +587,7 @@ async def patch_received_count(request: Request,
                     "vendorId": existing_purchaseorder.get('vendorId', ''),
                     "grnDate": purchaseOrderPatch.grnDate or current_datetime,
                     "poDate": existing_purchaseorder.get('orderDate'),
+                    "warehouseId":"WH001",
                     "itemDetails": grn_item_details,
                     "totalReceivedAmount": grn_total,
                     "grnAmount": grn_total,

@@ -15,6 +15,8 @@ from bson import ObjectId
 from pymongo import UpdateOne
 import pymongo
 import pytz
+
+from utils.financial_year import get_business_alias, get_financial_year, get_legacy_counter_value, get_next_counter_value
 from .models import  FrontendGrnResponse, Grn, GrnPost
 from utils.database import  get_debit_collection, get_grn_collection
 from PIL import Image
@@ -73,56 +75,33 @@ print("Local 12hr:", current_time['local_12hr'])  # "09:46:00 AM"
 
 # 12-hour formatted UTC time
 print("UTC 12hr:", current_time['utc_12hr'])      # "04:16:00 AM"
-
-def get_next_counter_value(tenant_id:str):
-    collection = get_grn_collection(tenant_id)
-    counter_collection = collection.database["counters"]
-    counter = counter_collection.find_one_and_update(
-        {"_id": "grnId"},
-        {"$inc": {"sequence_value": 1}},
-        upsert=True,
-        return_document=True
-    )
-    return counter["sequence_value"]
-
-def reset_counter(tenant_id: str):
-    collection = get_grn_collection(tenant_id)
-    counter_collection = collection.database["counters"]
-
-    counter_collection.update_one(
-        {"_id": "grnId"},
-        {"$set": {"sequence_value": 0}},
-        upsert=True
-    )
-
-def generate_grnrandom_id(tenant_id: str):
+async def generate_grnrandom_id(tenant_id: str):
     """
-    Generates the next sequential GRN ID in the format GN0001, GN0002, etc.
-    Checks if the collection is empty to reset counter if needed.
+    Generate GRN random ID with TRANSITION LOGIC
     """
-    collection = get_grn_collection(tenant_id)
-    counter_collection = collection.database["counters"]
+    current_date = datetime.now()
+    TRANSITION_DATE = datetime(2026, 4, 1)
     
-    # Check if the GRN collection is empty
-    if collection.count_documents({}) == 0:
-        # If empty, reset counter to start from 1
-        counter_collection.update_one(
-            {"_id": "grnId"},
-            {"$set": {"sequence_value": 0}},
-            upsert=True
-        )
+    counter_collection = get_grn_collection(tenant_id).database["counters"]
     
-    # Get the next counter value
-    counter = counter_collection.find_one_and_update(
-        {"_id": "grnId"},
-        {"$inc": {"sequence_value": 1}},
-        upsert=True,
-        return_document=True
-    )
+    # ===== BEFORE APRIL 1, 2026 =====
+    if current_date < TRANSITION_DATE:
+        # ✅ USE COMMON FUNCTION for legacy counter
+        counter_value = get_legacy_counter_value(counter_collection, "grnId")
+        random_id = f"GN{counter_value:04d}"
+        return random_id
     
-    # Format the GRN ID with leading zeros (GN0001, GN0002, etc.)
-    grn_id = f"GN{counter['sequence_value']:04d}"
-    return grn_id
+    # ===== AFTER APRIL 1, 2026 =====
+    else:
+        financial_year = get_financial_year(current_date)
+        business_alias = await get_business_alias(tenant_id)
+        
+        # ✅ USE COMMON FUNCTION for FY counter
+        counter_id = f"grnId_{financial_year}"
+        counter_value = get_next_counter_value(counter_collection, counter_id)
+        
+        random_id = f"{business_alias}/{financial_year}/GN{counter_value:04d}"
+        return random_id
 
 # Custom rounding function
 def custom_round(amount):
@@ -247,7 +226,7 @@ async def create_grn(request:Request,grn: GrnPost,
     
     current_date_and_time = get_current_date_and_time()
 
-    random_id =generate_grnrandom_id(tenant_id)
+    random_id =await generate_grnrandom_id(tenant_id)
     new_grn_data = grn.dict()
     new_grn_data['randomId'] = random_id
     new_grn_data['createdDate'] = current_date_and_time['utc_datetime']  # Add created date

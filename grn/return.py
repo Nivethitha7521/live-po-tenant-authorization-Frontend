@@ -678,7 +678,7 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
                 "noteType": "debit",
                 "status": "Active",
                 "returnDate": returned_date_ist.isoformat(),
-                "randomId": generate_note_random_id(tenant_id)
+                "randomId": await generate_note_random_id(tenant_id)
             }
 
             insert_result = debit_credit_note_collection.insert_one(note_data)
@@ -953,7 +953,7 @@ async def create_amount_debit_note(httprequest:Request,request: CreateAmountDebi
                 }
             )
         
-        note_id = generate_note_random_id(tenant_id)
+        note_id =await generate_note_random_id(tenant_id)
         
         source_doc = None
         document_type = request.documentType

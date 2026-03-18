@@ -117,4 +117,4 @@ async def format_stock_for_response(item: dict, stock_value: float) -> float:
     uom_id = item.get("item_Uom") or item.get("variance_Uom")
     precision = await get_uom_precision(uom_id)
 
-    return round(float(stock_value or 0), precision)
+    return round(float(stock_value or 0.0), precision)

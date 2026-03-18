@@ -6,7 +6,8 @@ import requests  # Add this separate import
 from pymongo import MongoClient
 from bson import ObjectId
 import pytz
-from utils.database import get_debit_collection
+from utils.database import get_counter_collection, get_debit_collection
+from utils.financial_year import get_business_alias, get_financial_year, get_legacy_counter_value, get_next_counter_value
 
 client = MongoClient("mongodb://purchasetestuser:qv8D%25%3AWZG%7DRmW%3B%5Du@194.233.78.90:27017/purchasetest?authSource=purchasetest&authMechanism=SCRAM-SHA-256&replicaSet=yenerp-cluster" )
 db = client["purchasetest"]  # Adjust database name as per your MongoDB setup
@@ -137,22 +138,35 @@ def calculate_item_financialsReturn(item: Dict, units: float) -> Dict:
     logger.debug(f"Return financials calculated: {result}")
     return result
 
-def generate_note_random_id(tenant_id: str):
-        collection = get_debit_collection(tenant_id)
-        pipeline = [
-            {"$match": {"randomId": {"$regex": "^NOTE\\d+$"}}},
-            {"$project": {
-                "_id": 0,
-                "noteNumber": {
-                    "$toInt": {"$substr": ["$randomId", 4, -1]}
-                }
-            }},
-            {"$sort": {"noteNumber": -1}},
-            {"$limit": 1}
-        ]
-        result = list(collection.aggregate(pipeline))
-        next_number = 1 if not result else result[0]["noteNumber"] + 1
-        return f"NOTE{next_number}"
+async def generate_note_random_id(tenant_id: str) -> str:
+    """
+    Generate random ID for debit notes with transition logic
+    Format before April 1, 2026: NOTE1, NOTE2, NOTE3...
+    Format after April 1, 2026: BM/26-27/NOTE1, BM/26-27/NOTE2...
+    """
+    current_date = datetime.now()
+    TRANSITION_DATE = datetime(2026, 4, 1)
+    
+    counters_collection = get_counter_collection(tenant_id)
+    
+    # ===== BEFORE APRIL 1, 2026 =====
+    if current_date < TRANSITION_DATE:
+        # ✅ USE LEGACY COUNTER
+        counter_value = get_legacy_counter_value(counters_collection, "debitNoteId")
+        random_id = f"NOTE{counter_value}"
+        return random_id
+    
+    # ===== AFTER APRIL 1, 2026 =====
+    else:
+        financial_year = get_financial_year(current_date)
+        business_alias = await get_business_alias(tenant_id)
+        
+        # ✅ USE FY COUNTER
+        counter_id = f"debitNoteId_{financial_year}"
+        counter_value = get_next_counter_value(counters_collection, counter_id)
+        
+        random_id = f"{business_alias}/{financial_year}/NOTE{counter_value}"
+        return random_id
 
 def get_current_ist_datetime() -> datetime:
     try:
