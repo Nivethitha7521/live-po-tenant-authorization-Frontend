@@ -142,9 +142,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick, showPurchaseMenu, show
               if (menuItem.text === "YEN BOOK" && !showBookMenu) {
                 return false;
               }
-              if (menuItem.text === "YEN INVENTORY" && !showInventoryMenu)
-              { return false;
-              }
+             // if (menuItem.text === "YEN INVENTORY" && !showInventoryMenu)
+             // { return false;
+            //  }
               // ACCOUNT SETTINGS only for Admin
               if (menuItem.text === "ACCOUNT SETTINGS" && !isAdmin) {
                 return false;

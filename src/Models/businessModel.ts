@@ -24,6 +24,7 @@
     randomId: string;
     imageUrl: string | null;  // Add imageUrl here to hold the URL of the fetched photo
     isFetched: boolean;  // Add the 'isFetched' property
+    aliasName:string;
   }
 
 export interface Photo {
@@ -68,12 +69,13 @@ export const initialState: BusinessPhotoState = {
     phoneNo: '',
     emailId: '',
     gstIn: '',
-    createdDate:null,
+    createdDate: null,
     lastupdatedDate: null,
     status: 'active',
     randomId: '',
     imageUrl: null, // Initialize imageUrl as null
-    isFetched: false, // Set it to false initially
+    isFetched: false,
+    aliasName: ""
   },
   uploadStatus: 'idle',
   uploadError: null,

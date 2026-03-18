@@ -21,6 +21,7 @@ import {
   Paper,
   IconButton,
   MenuItem,
+  CircularProgress,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -52,7 +53,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 const AdvancePaymentPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-   const { hasPermission, isModuleVisible } = usePermissions();
+  const { hasPermission, isModuleVisible } = usePermissions();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canRead = hasPermission("yenerp", "advancepayment", "read");
   const canAdd = hasPermission("yenerp", "advancepayment", "add");
@@ -123,11 +125,17 @@ const AdvancePaymentPage: React.FC = () => {
   const handleOpenNewPaymentDialog = () => {
     setOpenNewPaymentDialog(true);
   };
-
-  const handleCloseNewPaymentDialog = () => {
-    setOpenNewPaymentDialog(false);
-  };
-
+const handleCloseNewPaymentDialog = () => {
+  setOpenNewPaymentDialog(false);
+  setIsSubmitting(false); // Reset submitting state when dialog closes
+  setSelectedVendor(null); // Clear selected vendor
+  // Also refresh advances without vendor filter
+  dispatch(
+    fetchAdvances({
+      filterBy: "createdDate",
+    })
+  );
+};
   const handleDialogOpen = () => {
     dispatch(setDialogOpen("edit"));
   };
@@ -176,7 +184,9 @@ const AdvancePaymentPage: React.FC = () => {
     remarks: Yup.string().optional(),
   });
 
-  const handleNewPaymentSubmit = async (values: any) => {
+  const handleNewPaymentSubmit = async (values: any, { resetForm }: any) => {
+    setIsSubmitting(true); // Disable submit button
+    
     const paymentData: Partial<AdvancePayment> = {
       vendorId: values.vendor.vendorId,
       vendorName: values.vendor.vendorName,
@@ -195,22 +205,31 @@ const AdvancePaymentPage: React.FC = () => {
 
     try {
       await dispatch(createAdvancePayment(paymentData)).unwrap();
+      
+      // Close dialog and reset form
       setOpenNewPaymentDialog(false);
-      setSelectedVendor(values.vendor);
+      resetForm();
+      
+      // Update the selected vendor and refresh data
+      setSelectedVendor(null);
       dispatch(
         fetchAdvances({
           filterBy: "createdDate",
-          vendorName: values.vendor.vendorName,
+         
         })
       );
+      
       dispatch(setSnackbarMessage("Advance payment created successfully"));
       dispatch(setSnackbarOpen(true));
     } catch (error: any) {
       dispatch(setSnackbarMessage(`Failed to create advance payment: ${error}`));
       dispatch(setSnackbarOpen(true));
+    } finally {
+      setIsSubmitting(false); // Re-enable submit button
     }
   };
- if (!canRead) {
+
+  if (!canRead) {
     return (
       <Box p={2}>
         <Typography color="error">
@@ -219,6 +238,7 @@ const AdvancePaymentPage: React.FC = () => {
       </Box>
     );
   }
+
   return (
     <Box sx={{ backgroundColor: "white" }}>
       <YenBookPage />
@@ -320,7 +340,13 @@ const AdvancePaymentPage: React.FC = () => {
         >
           Advance Payment
         </Button>
-        <TableContainer component={Paper}>
+        <TableContainer 
+    component={Paper} 
+    sx={{ 
+      maxHeight: '400px',
+      overflow: 'auto'
+    }}
+  >
           <Table>
             <TableHead>
               <TableRow>
@@ -482,6 +508,7 @@ const AdvancePaymentPage: React.FC = () => {
                       {values.paymentMethod === "neft" && (
                         <Grid item xs={12}>
                           <TextField
+                          autoComplete="off"
                             label="NEFT Number"
                             fullWidth
                             name="neftNo"
@@ -496,6 +523,7 @@ const AdvancePaymentPage: React.FC = () => {
                       {values.paymentMethod === "rtgs" && (
                         <Grid item xs={12}>
                           <TextField
+                          autoComplete="off"
                             label="RTGS Number"
                             fullWidth
                             name="rtgsNo"
@@ -510,6 +538,7 @@ const AdvancePaymentPage: React.FC = () => {
                       {values.paymentMethod === "imps" && (
                         <Grid item xs={12}>
                           <TextField
+                          autoComplete="off"
                             label="IMPS Number"
                             fullWidth
                             name="impsNo"
@@ -524,6 +553,7 @@ const AdvancePaymentPage: React.FC = () => {
                       {values.paymentMethod === "upi" && (
                         <Grid item xs={12}>
                           <TextField
+                          autoComplete="off"
                             label="UPI ID/Number"
                             fullWidth
                             name="upi"
@@ -539,6 +569,7 @@ const AdvancePaymentPage: React.FC = () => {
                   )}
                   <Grid item xs={12}>
                     <TextField
+                    autoComplete="off"
                       label="Remarks"
                       fullWidth
                       name="remarks"
@@ -551,9 +582,20 @@ const AdvancePaymentPage: React.FC = () => {
                   </Grid>
                 </Grid>
                 <DialogActions sx={{ mt: 2 }}>
-                  <Button onClick={handleCloseNewPaymentDialog}>Cancel</Button>
-                  <Button type="submit" variant="contained" color="primary">
-                    Submit
+                  <Button 
+                    onClick={handleCloseNewPaymentDialog}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    variant="contained" 
+                    color="primary"
+                    disabled={isSubmitting}
+                    startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Submit'}
                   </Button>
                 </DialogActions>
               </Form>

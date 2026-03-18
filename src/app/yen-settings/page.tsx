@@ -66,7 +66,6 @@ const YenSettingsPage = () => {
     permissionsLoaded &&
     !purchaseKeys.some((key: string) => isModuleVisible(key));
 
-  // Settings modules - இது தான் Settings பக்கத்தில் காட்டப்படும்
   const settingsModules = [
     {
       title: "Date Settings",
@@ -74,7 +73,7 @@ const YenSettingsPage = () => {
       icon: <DateRangeIcon sx={{ fontSize: 40 }} />,
       path: "/yen-settings/DateSettings",
       color: "#1976d2",
-      visible: true // Admin-க்கு எப்போதும் visible
+      visible: true
     },
     {
       title: "Purchase Settings",
@@ -104,7 +103,7 @@ const YenSettingsPage = () => {
       <div>
         <SideMenu
           onMenuClick={handleMenuClick}
-          activePath={pathname || '/'}
+          activePath={pathname || "/"}
           showPurchaseMenu={!hidePurchaseMenu}
         />
         <Box sx={{ p: 4, textAlign: 'center', mt: 8 }}>
@@ -113,12 +112,12 @@ const YenSettingsPage = () => {
             Access Denied
           </Typography>
           <Typography color="textSecondary" sx={{ mb: 3 }}>
-            You don&apos;t have permission to access Settings. Contact your administrator.. Contact your administrator.
+           You do not have permission to access Settings. Contact your administrator.
           </Typography>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            onClick={() => router.push('/')}
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => router.push("/")}
           >
             Go to Dashboard
           </Button>
@@ -131,7 +130,7 @@ const YenSettingsPage = () => {
     <div>
       <SideMenu
         onMenuClick={handleMenuClick}
-        activePath={pathname || '/'}
+        activePath={pathname || "/"}
         showPurchaseMenu={!hidePurchaseMenu}
       />
 
@@ -150,8 +149,8 @@ const YenSettingsPage = () => {
         <Grid container spacing={3}>
           {settingsModules.map((module) => (
             <Grid item xs={12} md={4} key={module.title}>
-              <Card 
-                sx={{ 
+              <Card
+                sx={{
                   height: '100%',
                   transition: 'transform 0.2s, box-shadow 0.2s',
                   '&:hover': {
@@ -160,13 +159,13 @@ const YenSettingsPage = () => {
                   }
                 }}
               >
-                <CardActionArea 
+                <CardActionArea
                   onClick={() => router.push(module.path)}
                   sx={{ height: '100%', p: 2 }}
                 >
                   <CardContent sx={{ textAlign: 'center' }}>
-                    <Box sx={{ 
-                      color: module.color, 
+                    <Box sx={{
+                      color: module.color,
                       mb: 2,
                       display: 'flex',
                       justifyContent: 'center'
@@ -179,17 +178,25 @@ const YenSettingsPage = () => {
                     <Typography variant="body2" color="textSecondary">
                       {module.description}
                     </Typography>
-                    <Button 
-                      variant="outlined" 
-                      size="small"
-                      sx={{ mt: 2 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(module.path);
+                    <Box
+                      sx={{
+                        mt: 2,
+                        display: 'inline-block',
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'primary.main',
+                        color: 'primary.main',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        '&:hover': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.04)'
+                        }
                       }}
                     >
                       Configure
-                    </Button>
+                    </Box>
                   </CardContent>
                 </CardActionArea>
               </Card>
@@ -197,29 +204,6 @@ const YenSettingsPage = () => {
           ))}
         </Grid>
 
-        {/* Quick Actions */}
-        <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            Quick Actions
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            {settingsModules.map((module) => (
-              <Button
-                key={module.title}
-                variant="outlined"
-                startIcon={module.icon}
-                onClick={() => router.push(module.path)}
-                sx={{
-                  textTransform: 'none',
-                  borderRadius: '20px',
-                  padding: '8px 16px',
-                }}
-              >
-                {module.title}
-              </Button>
-            ))}
-          </Box>
-        </Box>
       </Box>
     </div>
   );

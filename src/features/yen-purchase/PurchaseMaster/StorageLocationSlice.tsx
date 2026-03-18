@@ -1,20 +1,18 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import purchaseApi from "@/utils/api"; 
+import purchaseApi from "@/utils/api";
 import axios from 'axios';
 import { RootState } from '../../../redux/store';
-import { initialState, StorageLocationItem,Location } from '@/Models/storagelocation';
+import { initialState, StorageLocationItem, Location } from '@/Models/storagelocation';
 import { ImportResult } from '@/Models/importResult';
 
 export const fetchStorageLocations = createAsyncThunk('storageLocations/fetchStorageLocations', async () => {
   const response = await purchaseApi.get('/storagelocations/');
   return response.data;
 });
-
 export const fetchLocations = createAsyncThunk('locations/fetchLocations', async () => {
-  const response = await axios.get('https://yenerp.com/fastapi/branches/');
-  return response.data;
+  const response = await axios.get('https://yenerp.com/masteradminapi/devicecode/device-location');
+  return response.data; // Returns array of {locationId, branchName, aliasName}
 });
-
 export const addStorageLocation = createAsyncThunk<StorageLocationItem, StorageLocationItem>('storageLocations/addStorageLocation', async (locationData, { rejectWithValue }) => {
   try {
     const response = await purchaseApi.post('/storagelocations/', locationData);
@@ -123,7 +121,7 @@ const storageLocationSlice = createSlice({
     setLocationNameTouched(state, action: PayloadAction<boolean>) {
       state.locationNameTouched = action.payload;
     },
-   resetImportState(state) {
+    resetImportState(state) {
       state.importSuccess = false;
       state.importError = null;
       state.importResult = null;
@@ -154,12 +152,18 @@ const storageLocationSlice = createSlice({
       .addCase(fetchStorageLocations.rejected, (state) => {
         state.loading = false;
       })
-       .addCase(fetchLocations.pending, (state) => {
+      .addCase(fetchLocations.pending, (state) => {
         state.loading = true;
       })
       .addCase(fetchLocations.fulfilled, (state, action) => {
         state.loading = false;
-        state.location = action.payload.filter((location: Location) => location.status === '1');
+        // This API has no status field, so all locations are considered active
+        // Map the response to your Location interface
+        state.location = action.payload.map((loc: any) => ({
+          locationId: loc.locationId,
+          branchName: loc.branchName,
+          branchId: loc.locationId, // Use locationId as branchId if needed
+        }));
       })
       .addCase(fetchLocations.rejected, (state) => {
         state.loading = false;
@@ -190,7 +194,7 @@ const storageLocationSlice = createSlice({
           state.deactivatedItems.splice(index, 1);
         }
       })
-     .addCase(importStorageLocation.pending, (state) => {
+      .addCase(importStorageLocation.pending, (state) => {
         state.importing = true;
         state.importSuccess = false;
         state.importError = null;
@@ -238,7 +242,7 @@ export const {
   setShowDeactivated,
   setEditIndex,
   setLocationNameTouched,
- resetImportState,
+  resetImportState,
   resetExportState,
   setShowImportResultDialog,
 } = storageLocationSlice.actions;

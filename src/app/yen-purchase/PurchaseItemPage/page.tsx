@@ -492,14 +492,11 @@ const handleConfirmDeactivate = async () => {
 
     return changes;
   }
-
- // Update your handleSubmit function in PurchasePage with detailed logging
-// Update your handleSubmit function in PurchasePage with detailed logging
+// In your PurchasePage.tsx, update the handleSubmit function
 const handleSubmit = async (values: any) => {
   try {
     console.log('🔄 Submitting form data:', values);
-    console.log('📝 Edit Index:', editIndex);
-
+    
     // Check if editIndex is valid for edit mode
     if (editIndex !== null && (editIndex < 0 || editIndex >= items.length)) {
       console.error('❌ Invalid edit index:', editIndex);
@@ -507,7 +504,26 @@ const handleSubmit = async (values: any) => {
       dispatch(setSnackbarOpen(true));
       return;
     }
-    // REMOVE THE handleRefresh FUNCTION FROM HERE
+
+    // Validate itemType is selected
+    if (!values.itemType) {
+      dispatch(setSnackbarMessage('Item Type is required'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+
+    // Find the selected item type to get both randomId and name
+    const selectedItemType = itemtypes.find(
+      (type: any) => type.itemtypeName === values.itemType
+    );
+
+    // Check if selected item type exists
+    if (!selectedItemType) {
+      console.error('❌ Selected item type not found:', values.itemType);
+      dispatch(setSnackbarMessage('Selected item type not found in master data'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
 
     const normalizedItemName = values.itemName.trim().toLowerCase();
     const isDuplicate = items.some(
@@ -525,7 +541,7 @@ const handleSubmit = async (values: any) => {
     let dataToSend;
 
     if (editIndex !== null) {
-      // EDIT MODE - Ensure we have a valid item to edit
+      // EDIT MODE
       const itemToEdit = items[editIndex];
       if (!itemToEdit) {
         console.error('❌ No item found at edit index:', editIndex);
@@ -534,38 +550,41 @@ const handleSubmit = async (values: any) => {
         return;
       }
 
-      console.log('✏️ Editing item:', itemToEdit);
-      
       dataToSend = {
         ...getChangedFields(initialPurchaseState, values),
         purchaseitemId: itemToEdit.purchaseitemId,
         itemName: values.itemName.trim(),
+        // Ensure both itemTypeId and itemType are included
+        itemTypeId: selectedItemType.randomId, // Now TypeScript knows this exists
+        itemType: values.itemType || itemToEdit.itemType,
       };
 
-      console.log('📤 Update data being sent:', dataToSend);
-      console.log('🆔 Item ID being updated:', itemToEdit.purchaseitemId);
+      console.log('📤 Edit data being sent:', dataToSend);
+      console.log('📤 Item Type randomId being sent:', selectedItemType.randomId);
 
     } else {
       // ADD MODE
       dataToSend = { 
         ...values, 
         itemName: values.itemName.trim(),
-        status: 'active'
+        status: 'active',
+        // Use the selected item type's randomId for new items
+        itemTypeId: selectedItemType.randomId, // Now TypeScript knows this exists
+        itemType: values.itemType,
       };
-      console.log('➕ Add data being sent:', dataToSend);
+      
+      console.log('📤 Add data being sent:', dataToSend);
+      console.log('📤 Item Type randomId being sent:', selectedItemType.randomId);
     }
 
     if (editIndex !== null) {
-      console.log('✏️ Starting update process...');
       const result = await dispatch(updatePurchaseItem(dataToSend)).unwrap();
-      console.log('✅ Update result:', result);
       dispatch(setSnackbarMessage('Item updated successfully'));
       
       // Refresh the data after update
       dispatch(fetchPurchaseItems({ page: currentPage, size: pageSize }));
     } else {
       const result = await dispatch(addPurchaseItem(dataToSend)).unwrap();
-      console.log('✅ Add result:', result);
       dispatch(setSnackbarMessage('Item added successfully'));
       dispatch(fetchPurchaseItems({ page: newPage, size: pageSize }));
     }
@@ -578,7 +597,6 @@ const handleSubmit = async (values: any) => {
     let errorMessage = `Failed to ${editIndex !== null ? 'update' : 'add'} item`;
     
     if (error.payload) {
-      console.error('📋 Error payload:', error.payload);
       errorMessage = error.payload.message || errorMessage;
     } else if (error.message) {
       errorMessage = error.message;
@@ -588,7 +606,6 @@ const handleSubmit = async (values: any) => {
     dispatch(setSnackbarOpen(true));
   }
 };
-
 // ✅ ADD handleRefresh FUNCTION HERE - after handleSubmit and before paginatedItems
 const handleRefresh = () => {
   console.log('🔄 Manual refresh triggered');

@@ -79,9 +79,9 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
   const totalSteps = steps.length;
   const inputRef = useRef<HTMLInputElement>(null);
   const [localCategories, setLocalCategories] = useState(propCategories);
-  
-  // ✅ GET ALL SUBCATEGORIES FROM CATEGORIES WITH UNIQUE KEYS
-  const allSubcategories = localCategories.flatMap(category => 
+
+  // GET ALL SUBCATEGORIES FROM CATEGORIES WITH UNIQUE KEYS
+  const allSubcategories = localCategories.flatMap(category =>
     (category.subcategories || []).map((subcategoryName: string) => ({
       name: subcategoryName,
       category: category.purchasecategoryName,
@@ -297,10 +297,22 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
   const handleFormSubmit = async (values: any, actions: FormikHelpers<any>) => {
     try {
       setLoading(true);
+
+      // Find the selected item type to get both ID and name
+      const selectedItemType = itemtypes.find(
+        type => type.itemtypeName === values.itemType
+      );
+
+      // Prepare the data with both itemTypeId and itemType
       const normalizedValues = {
         ...values,
-        itemName: values.itemName.trim()
+        itemName: values.itemName.trim(),
+        // If editing and values.itemTypeId exists, keep it; otherwise set from selected item type
+        itemTypeId: selectedItemType ? selectedItemType.itemtypeId : values.itemTypeId || '',
+        // Always set itemType to the display name
+        itemType: values.itemType || ''
       };
+
       await onSubmit(normalizedValues);
       handleDialogClose(true);
     } catch (error) {
@@ -326,7 +338,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
       <Box sx={{ px: 3, pt: 2 }}>
         <Stepper activeStep={activeStep} alternativeLabel>
           {steps.map((label, index) => (
-            <Step key={`step-${index}`}> {/* ✅ FIXED: Add key to Step */}
+            <Step key={`step-${index}`}>
               <StepLabel>{label}</StepLabel>
             </Step>
           ))}
@@ -383,7 +395,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                     />
                   </Grid>
 
-                  {/* ✅ PURCHASE SUBCATEGORY DROPDOWN - FIXED KEYS */}
+                  {/* Purchase Subcategory Dropdown */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.purchasesubcategoryName && Boolean(errors.purchasesubcategoryName)}>
                       <InputLabel>Purchase Subcategory*</InputLabel>
@@ -394,7 +406,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                         onChange={(event) => {
                           const selectedSubcategory = event.target.value as string;
                           setFieldValue('purchasesubcategoryName', selectedSubcategory);
-                          
+
                           const foundCategory = allSubcategories.find(
                             sub => sub.name === selectedSubcategory
                           );
@@ -418,7 +430,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                         {allSubcategories.length > 0 ? (
                           allSubcategories.map((subcategory) => (
                             <MenuItem
-                              key={subcategory.uniqueKey} 
+                              key={subcategory.uniqueKey}
                               value={subcategory.name}
                             >
                               {subcategory.name}
@@ -436,7 +448,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                     </FormControl>
                   </Grid>
 
-                  {/* ✅ PURCHASE CATEGORY DROPDOWN - FIXED KEYS */}
+                  {/* Purchase Category Dropdown */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.purchasecategoryName && Boolean(errors.purchasecategoryName)}>
                       <InputLabel>Purchase Category*</InputLabel>
@@ -465,7 +477,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                         {localCategories.length > 0 ? (
                           localCategories.map((category) => (
                             <MenuItem
-                              key={category.purchasecategoryId} 
+                              key={category.purchasecategoryId}
                               value={category.purchasecategoryName}
                             >
                               {category.purchasecategoryName}
@@ -483,7 +495,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                     </FormControl>
                   </Grid>
 
-                  {/* ✅ ITEM GROUP DROPDOWN - FIXED KEYS */}
+                  {/* Item Group Dropdown */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.itemgroupName && Boolean(errors.itemgroupName)}>
                       <InputLabel>Item Group*</InputLabel>
@@ -496,8 +508,8 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                       >
                         {groupitems.length > 0 ? (
                           groupitems.map((groupitem, index) => (
-                            <MenuItem 
-                              key={groupitem.itemgroupId || `group-${index}`} 
+                            <MenuItem
+                              key={groupitem.itemgroupId || `group-${index}`}
                               value={groupitem.itemgroupName}
                             >
                               {groupitem.itemgroupName}
@@ -513,7 +525,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                     </FormControl>
                   </Grid>
 
-                  {/* ✅ ITEM TYPE DROPDOWN - FIXED KEYS */}
+                  {/* Item Type Dropdown - This sets both itemType (name) and itemTypeId (randomId) */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.itemType && Boolean(errors.itemType)}>
                       <InputLabel id="itemType-label">Item Type*</InputLabel>
@@ -521,17 +533,30 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                         labelId="itemType-label"
                         label="Item Type*"
                         name="itemType"
-                        value={values.itemType}
-                        onChange={handleChange}
+                        value={values.itemType || ''}
+                        onChange={(event) => {
+                          const selectedTypeName = event.target.value;
+                          const selectedType = itemtypes.find(
+                            (type: any) => type.itemtypeName === selectedTypeName
+                          );
+
+                          // Set both the name (for display) and randomId (for backend)
+                          setFieldValue('itemType', selectedTypeName);
+                          if (selectedType) {
+                            // Store the randomId (e.g., "IT001") in itemTypeId
+                            setFieldValue('itemTypeId', selectedType.randomId);
+                            console.log(`✅ Selected item type: ${selectedTypeName} with randomId: ${selectedType.randomId}`);
+                          }
+                        }}
                         required
                       >
                         {itemtypes.length > 0 ? (
-                          itemtypes.map((type, index) => (
-                            <MenuItem 
-                              key={type.itemtypeId || `type-${index}`}
+                          itemtypes.map((type: any, index: number) => (
+                            <MenuItem
+                              key={type.randomId || `type-${index}`}
                               value={type.itemtypeName}
                             >
-                              {type.itemtypeName}
+                              {type.itemtypeName} 
                             </MenuItem>
                           ))
                         ) : (
@@ -543,7 +568,6 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                       </FormHelperText>
                     </FormControl>
                   </Grid>
-
                   {/* Supplier */}
                   <Grid item xs={12} sm={6} md={3}>
                     <TextField
@@ -562,7 +586,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
 
               {activeStep === 1 && (
                 <Grid container spacing={2}>
-                  {/* ✅ UOM DROPDOWN - FIXED KEYS */}
+                  {/* UOM Dropdown */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.uom && Boolean(errors.uom)}>
                       <InputLabel>UOM*</InputLabel>
@@ -575,8 +599,8 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                       >
                         {uoms.length > 0 ? (
                           uoms.map((uom, index) => (
-                            <MenuItem 
-                              key={uom.uomId || `uom-${index}`} 
+                            <MenuItem
+                              key={uom.uomId || `uom-${index}`}
                               value={uom.uom}
                             >
                               {uom.uom}
@@ -607,7 +631,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                     />
                   </Grid>
 
-                  {/* ✅ TAX PERCENTAGE DROPDOWN - FIXED KEYS */}
+                  {/* Tax Percentage Dropdown */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.purchasetaxName && Boolean(errors.purchasetaxName)}>
                       <InputLabel>Tax Percentage*</InputLabel>
@@ -620,8 +644,8 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                       >
                         {taxes.length > 0 ? (
                           taxes.map((tax, index) => (
-                            <MenuItem 
-                              key={tax.purchasetaxId || `tax-${index}`} 
+                            <MenuItem
+                              key={tax.purchasetaxId || `tax-${index}`}
                               value={tax.purchasetaxPercentage}
                             >
                               {`${tax.purchasetaxPercentage}%`}
@@ -682,7 +706,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                     />
                   </Grid>
 
-                  {/* ✅ STORAGE LOCATION DROPDOWN - FIXED KEYS */}
+                  {/* Storage Location Dropdown */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth error={touched.locationName && Boolean(errors.locationName)}>
                       <InputLabel>Storage Location*</InputLabel>
@@ -695,8 +719,8 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
                       >
                         {locations.length > 0 ? (
                           locations.map((location, index) => (
-                            <MenuItem 
-                              key={location.locationId || `location-${index}`} 
+                            <MenuItem
+                              key={location.locationId || `location-${index}`}
                               value={location.locationName}
                             >
                               {location.locationName}
@@ -805,7 +829,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
         confirmText="Confirm"
         cancelText="Cancel"
       />
-      
+
       <ConfirmationDialog
         open={showDuplicateDialog}
         title="Duplicate Item Name"

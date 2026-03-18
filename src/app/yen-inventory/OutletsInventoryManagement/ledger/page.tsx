@@ -70,14 +70,7 @@ const StockSummaryPage = () => {
 
   const canRead = hasPermission("yenerp", "stockledger", "read");
 
-  useEffect(() => {
-    if (!canRead) {
-      router.replace("/unauthorized"); // 👉 illa na "/" use pannalaam
-    }
-  }, [canRead, router]);
 
-  if (!canRead) return null;
-  /* ✅ RBAC END */
 
   const dispatch = useDispatch<AppDispatch>();
 
@@ -120,7 +113,13 @@ const StockSummaryPage = () => {
     py: 1.5,
     borderBottom: '2px solid #e2e8f0'
   };
+  useEffect(() => {
+    if (!canRead) {
+      router.replace("/unauthorized"); // 👉 illa na "/" use pannalaam
+    }
+  }, [canRead, router]);
 
+  /* ✅ RBAC END */
   useEffect(() => {
     dispatch(searchPurchaseItems({ page: 1, limit: 20 }));
     dispatch(searchBranches({ search: "", page: 1, limit: 50 }));
@@ -401,6 +400,7 @@ const StockSummaryPage = () => {
       : "All Locations";
   })();
 
+  if (!canRead) return null;
 
   return (
     <Box sx={{ backgroundColor: '#f9f9f9', minHeight: '100vh', pb: 4 }}>

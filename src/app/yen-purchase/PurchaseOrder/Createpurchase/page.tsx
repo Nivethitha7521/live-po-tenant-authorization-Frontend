@@ -6,6 +6,7 @@ import {
   Autocomplete, Snackbar, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, RadioGroup,
   FormControlLabel, Radio, CircularProgress, Tooltip, Backdrop, Switch, FormControl,
   Chip,
+  Alert,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -39,7 +40,9 @@ import * as Yup from 'yup';
 import { useBeforeUnload } from 'react-use';
 import { VendorSummary } from '@/Models/vendor';
 import SmartDatePicker from '@/components/SmartDatePicker';
+import { OrderDatePicker } from '../Component/OrderdatePicker';
 import FreightSelectionDialog, { FreightData } from '../Component/freightSelectionDialog'; // Updated import
+import { ExpectedDeliveryDatePicker } from '../Component/ExpectedDateDialog';
 // Validation schema
 const validationSchema = Yup.object({
   vendorName: Yup.string().required('Vendor name is required'),
@@ -107,89 +110,145 @@ const CreatePurchasePage: React.FC = () => {
   const [openFreightDialog, setOpenFreightDialog] = useState(false); // Added: Freight dialog state
   // Add this with your other useState declarations
   const [selectedItemStock, setSelectedItemStock] = useState<number | null>(null);
+  // Replace the existing order date related state declarations
+  // Replace this entire block:
+  const [orderDate, setOrderDate] = useState<Date | null>(() => {
+    if (isEditMode && purchaseOrderData.orderDate) {
+      return new Date(purchaseOrderData.orderDate);
+    }
+    return new Date();
+  });
+  const [isOrderDateValid, setIsOrderDateValid] = useState(true);
+  const [dateError, setDateError] = useState('');
+
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState<Date | null>(null);
+  const [isExpectedDateValid, setIsExpectedDateValid] = useState(true);
+  // In the useEffect for loading edit mode data, REMOVE invoiceDate from the code
   useEffect(() => {
-  if (isEditMode && editId) {
-    setOrderLoading(true);
-    sessionStorage.removeItem('editOrderData');
+    if (isEditMode && editId) {
+      setOrderLoading(true);
+      sessionStorage.removeItem('editOrderData');
 
-    dispatch(fetchPurchaseOrderById(editId))
-      .unwrap()
-      .then((data: PurchaseOrderData) => {
-        
-        const dataWithStock: PurchaseOrderData = {
-          ...data,
-          items: data.items?.map((item: Item) => ({
-            ...item,
-            availableStock: Number(item.availableStock ?? 0),
-            locationId: item.locationId || '',
-          })) || [],
-        };
+      dispatch(fetchPurchaseOrderById(editId))
+        .unwrap()
+        .then((data: PurchaseOrderData) => {
+          // Set dates - ONLY orderDate and expectedDeliveryDate
+          // Set dates
+          if (data.orderDate) {
+            try {
+              const parsedDate = new Date(data.orderDate);
+              if (!isNaN(parsedDate.getTime())) {
+                setOrderDate(parsedDate);
+              }
+            } catch (e) {
+              console.error('Error parsing order date:', e);
+            }
+          }
 
-        console.log('✅ Stock after mapping:', 
-          dataWithStock.items.map(i => ({ name: i.itemName, stock: i.availableStock }))
-        );
+          setIsOrderDateValid(true);
 
-        // ✅ Direct state set - dispatch வழியா போகாம
-        dispatch({
-          type: 'purchaseOrder/fetchPurchaseOrderById/fulfilled',
-          payload: dataWithStock,
+          if (data.expectedDeliveryDate) {
+            setExpectedDeliveryDate(new Date(data.expectedDeliveryDate));
+          }
+          // REMOVE: if (data.invoiceDate) { setInvoiceDate(new Date(data.invoiceDate)); }
+
+          const dataWithStock: PurchaseOrderData = {
+            ...data,
+            items: data.items?.map((item: Item) => ({
+              ...item,
+              availableStock: Number(item.availableStock ?? 0),
+              locationId: item.locationId || '',
+            })) || [],
+          };
+
+          dispatch({
+            type: 'purchaseOrder/fetchPurchaseOrderById/fulfilled',
+            payload: dataWithStock,
+          });
+
+          setFreights(data.freights || []);
+          if (data.overallDiscountValue !== undefined) setOverallDiscountValue(data.overallDiscountValue);
+          if (data.roundOffValue !== undefined) setRoundOffValue(data.roundOffValue);
+          setOrderLoading(false);
+        })
+        .catch((error) => {
+          console.error('Failed to load PO:', error);
+          dispatch(setSnackbarMessage('Failed to load purchase order data.'));
+          dispatch(setSnackbarOpen(true));
+          setOrderLoading(false);
+          router.push('/yen-purchase/PurchaseOrder');
         });
-        
-        setFreights(data.freights || []);
-        if (data.overallDiscountValue !== undefined) setOverallDiscountValue(data.overallDiscountValue);
-        if (data.roundOffValue !== undefined) setRoundOffValue(data.roundOffValue);
-        setOrderLoading(false);
-      })
-      .catch((error) => {
-        console.error('Failed to load PO:', error);
-        dispatch(setSnackbarMessage('Failed to load purchase order data.'));
-        dispatch(setSnackbarOpen(true));
-        setOrderLoading(false);
-        router.push('/yen-purchase/PurchaseOrder');
-      });
-  }
-}, [isEditMode, editId, dispatch, router]);
-useEffect(() => {
-  const calculateAndUpdateTotals = async () => {
-    if (purchaseOrderData.items.length > 0 || freights.length > 0) {
-      try {
-        const result = await dispatch(calculatePurchaseOrderTotals({
-          items: purchaseOrderData.items,
-          freights: freights,
-        })).unwrap();
+    }
+  }, [isEditMode, editId, dispatch, router]);
 
-        setTotals({
-          subTotal: result.subTotal,
-          freightAmountTotal: result.totalFreightAmount,
-          freightTaxTotal: result.totalFreightTaxAmount,
-          roundedTotalOrderAmount: result.finalAmount,
-          roundedTotalDiscount: result.totalDiscount,
-          roundedTotalTax: result.totalTax,
-          overallDiscountAmount: 0,
-          itemDiscountAmount: result.totalDiscount,
-          taxAmount: result.itemTaxAmount,
-          afterDiscount: result.amountAfterDiscount,
-        });
+  // Update the useEffect for default dates in create mode
+  useEffect(() => {
+    // Only set default dates in create mode
+    if (!isEditMode) {
+      const today = new Date();
 
-        // ✅ ONLY setReduxTotals - setPurchaseOrderData call பண்ணாதே!
-        dispatch(setReduxTotals({
-          pendingOrderAmount: result.finalAmount,
-          pendingDiscountAmount: result.totalDiscount,
-          pendingTaxAmount: result.totalTax,
-          totalFreightAmount: result.totalFreightAmount,
-          totalFreightTaxAmount: result.totalFreightTaxAmount,
+      // Only update if not already set
+      if (!purchaseOrderData.orderDate) {
+        // Store as UTC midnight
+        const utcMidnight = new Date(Date.UTC(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate(),
+          0, 0, 0, 0
+        ));
+
+        dispatch(setPurchaseOrderData({
+          ...purchaseOrderData,
+          orderDate: utcMidnight.toISOString(),
         }));
+      }
 
-      } catch (error) {
-        console.error('Failed to calculate totals:', error);
+      // Update local state with today's date (not UTC)
+      setOrderDate(today);
+    }
+  }, [isEditMode, dispatch]);
+  // Remove purchaseOrderData dependency to prevent loops
+  useEffect(() => {
+    const calculateAndUpdateTotals = async () => {
+      if (purchaseOrderData.items.length > 0 || freights.length > 0) {
+        try {
+          const result = await dispatch(calculatePurchaseOrderTotals({
+            items: purchaseOrderData.items,
+            freights: freights,
+          })).unwrap();
+
+          setTotals({
+            subTotal: result.subTotal,
+            freightAmountTotal: result.totalFreightAmount,
+            freightTaxTotal: result.totalFreightTaxAmount,
+            roundedTotalOrderAmount: result.finalAmount,
+            roundedTotalDiscount: result.totalDiscount,
+            roundedTotalTax: result.totalTax,
+            overallDiscountAmount: 0,
+            itemDiscountAmount: result.totalDiscount,
+            taxAmount: result.itemTaxAmount,
+            afterDiscount: result.amountAfterDiscount,
+          });
+
+          // ✅ ONLY setReduxTotals - setPurchaseOrderData call பண்ணாதே!
+          dispatch(setReduxTotals({
+            pendingOrderAmount: result.finalAmount,
+            pendingDiscountAmount: result.totalDiscount,
+            pendingTaxAmount: result.totalTax,
+            totalFreightAmount: result.totalFreightAmount,
+            totalFreightTaxAmount: result.totalFreightTaxAmount,
+          }));
+
+        } catch (error) {
+          console.error('Failed to calculate totals:', error);
+          setTotals(calculateTotals);
+        }
+      } else {
         setTotals(calculateTotals);
       }
-    } else {
-      setTotals(calculateTotals);
-    }
-  };
-  calculateAndUpdateTotals();
-}, [purchaseOrderData.items, freights, dispatch]);
+    };
+    calculateAndUpdateTotals();
+  }, [purchaseOrderData.items, freights, dispatch]);
   useEffect(() => {
     if (isEditMode && purchaseOrderData.vendorName && vendors.length > 0) {
       const matchedVendor = vendors.find((vendor: VendorSummary) =>
@@ -438,21 +497,72 @@ useEffect(() => {
     setFreights((prev) => prev.filter((_, i) => i !== index));
   }, []);
   const handleOrderDateChange = (date: Date | null) => {
-    let finalDate = date || new Date();
-    // Set to noon local to prevent timezone rollover
-    finalDate = new Date(finalDate.getTime() + 12 * 60 * 60 * 1000); // +12 hours
-    dispatch(setPurchaseOrderData({
-      ...purchaseOrderData,
-      orderDate: finalDate.toISOString()
-    }));
+    console.log('📅 Order date changed:', date);
+
+    if (date) {
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.error('❌ Invalid date received');
+        setIsOrderDateValid(false);
+        setDateError('Invalid date');
+        return;
+      }
+
+      setOrderDate(date);
+
+      // Create UTC midnight date for backend
+      const utcMidnight = new Date(Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        0, 0, 0, 0
+      ));
+
+      dispatch(setPurchaseOrderData({
+        ...purchaseOrderData,
+        orderDate: utcMidnight.toISOString()
+      }));
+    } else {
+      // If date is cleared, set to current date
+      const today = new Date();
+      const utcMidnight = new Date(Date.UTC(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+        0, 0, 0, 0
+      ));
+      setOrderDate(today);
+      dispatch(setPurchaseOrderData({
+        ...purchaseOrderData,
+        orderDate: utcMidnight.toISOString()
+      }));
+    }
+  };
+  const handleValidationChange = (isValid: boolean) => {
+    setIsOrderDateValid(isValid);
   };
   const handleExpectedDeliveryDateChange = (date: Date | null) => {
-    const finalDate = date || new Date();
-    dispatch(setPurchaseOrderData({
-      ...purchaseOrderData,
-      expectedDeliveryDate: finalDate.toISOString()
-    }));
+    setExpectedDeliveryDate(date);
+    if (date) {
+      const utcMidnight = new Date(Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        0, 0, 0, 0
+      ));
+
+      dispatch(setPurchaseOrderData({
+        ...purchaseOrderData,
+        expectedDeliveryDate: utcMidnight.toISOString()
+      }));
+    } else {
+      dispatch(setPurchaseOrderData({
+        ...purchaseOrderData,
+        expectedDeliveryDate: null
+      }));
+    }
   };
+
   const resetFileInput = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -684,6 +794,7 @@ useEffect(() => {
       setNewPriceTypeInput('');
     }
   };
+  // In the handleClear function, REMOVE invoiceDate from reset
   const handleClear = () => {
     const currentDate = new Date().toISOString();
     dispatch(setPurchaseOrderData({
@@ -692,6 +803,7 @@ useEffect(() => {
       vendorContact: '',
       orderDate: currentDate,
       expectedDeliveryDate: currentDate,
+      // REMOVE: invoiceDate: null,
       poStatus: '',
       items: [],
       pendingOrderAmount: 0,
@@ -709,44 +821,14 @@ useEffect(() => {
       city: '',
       postalCode: 0,
       gstNumber: '',
-      freights: [], // Added
+      freights: [],
     }));
-    dispatch(setNewItemData({
-      itemId: '',
-      itemName: '',
-      quantity: 0,
-      count: 0,
-      eachQuantity: 0,
-      existingPrice: 0,
-      newPrice: 0,
-      taxPercentage: 0,
-      totalPrice: 0,
-      befTaxDiscount: 0,
-      afTaxDiscount: 0,
-      befTaxDiscountAmount: 0,
-      afTaxDiscountAmount: 0,
-      uom: '',
-      pendingCount: 0,
-      itemCode: '',
-      pendingQuantity: 0,
-      pendingTotalQuantity: 0,
-      purchasecategoryName: '',
-      purchasesubcategoryName: '',
-      hsnCode: '',
-      taxType: 'cgst_sgst',
-      pendingTotalPrice: 0,
-      befTaxDiscountType: discountMode,
-      afTaxDiscountType: discountMode,
-      // Reset PO quantity fields
-      poQuantity: 0,
-      poQuantitypendingTotalPrice: 0,
-      poQuantitypendingFinalPrice: 0,
-      poQuantityTaxAmount: 0,
-      poQuantityDiscountAmount: 0,
-      poQuantitysgst: 0,
-      poQuantitycgst: 0,
-      poQuantityigst: 0,
-    }));
+
+    // Reset local state
+    setOrderDate(new Date());
+    setExpectedDeliveryDate(null);
+    // REMOVE: setInvoiceDate(null);
+
     setVendorSearch(null);
     setLocationSearch(null);
     setNewItemsearch(null);
@@ -757,14 +839,16 @@ useEffect(() => {
     setOverallDiscountValue(0);
     setOverallDiscountMode('percentage');
     setRoundOffValue(0);
-    setFreights([]); // Added
+    setFreights([]);
     setIsFormDirty(false);
     setFormErrors({ vendorName: false, billingAddress: false, shippingAddress: false, locationName: false, paymentTerms: false, creditLimit: false });
+
     // If in edit mode, go back to list
     if (isEditMode) {
       router.push('/yen-purchase/PurchaseOrder');
     }
   };
+
   const enforceOneDiscount = (name: string, value: number) => {
     const updatedItem = { ...newItem, [name]: value };
     if (name === 'befTaxDiscount' || name === 'befTaxDiscountAmount') {
@@ -1344,7 +1428,10 @@ useEffect(() => {
         dispatch(setSnackbarOpen(true));
         return;
       }
-
+      if (!isOrderDateValid) {
+        setDateError('Please select a valid order date');
+        return;
+      }
       const orderDate = purchaseOrderData.orderDate || new Date().toISOString();
       const expectedDeliveryDate =
         purchaseOrderData.expectedDeliveryDate || new Date().toISOString();
@@ -1618,16 +1705,43 @@ useEffect(() => {
                 helperText={formErrors.creditLimit ? 'Credit limit is required' : ''}
               />
             </Grid>
+            {/* Order Date - Required */}
             <Grid item xs={12} sm={3} md={2}>
-              <SmartDatePicker
-                label="Order Date"
-                value={purchaseOrderData.orderDate ? new Date(purchaseOrderData.orderDate) : null}
+              <OrderDatePicker
+                value={orderDate}
                 onChange={handleOrderDateChange}
-                maxDate={new Date()}
-                disabled
+                onValidationChange={setIsOrderDateValid}
+                label="Order Date"
+                required={true}
+                skipInitialValidation={isEditMode}
+                initialValue={isEditMode ? orderDate : null}
+              />
+              {!isOrderDateValid && orderDate && (
+                <Alert severity="error" sx={{ mt: 1, fontSize: '0.75rem' }}>
+                  Invalid date selected
+                </Alert>
+              )}
+            </Grid>
+            <Grid item xs={12} sm={3} md={2}>
+              <ExpectedDeliveryDatePicker
+                value={expectedDeliveryDate}
+                onChange={handleExpectedDeliveryDateChange}
+                onValidationChange={setIsExpectedDateValid}
+                label="Expected Delivery"
+                required={false}
+                orderDate={orderDate}  // Pass order date for validation
+                disabled={!orderDate}   // Disable if order date not selected
               />
             </Grid>
-
+            <Grid item xs={12} sm={4} md={2}>
+              <LocationAutocomplete
+                value={locationSearch}
+                onChange={handleLocationChange}
+                label="Location"
+                error={formErrors.locationName}
+                helperText={formErrors.locationName ? 'Location is required' : ''}
+              />
+            </Grid>
           </Grid>
           {/* Add Item Section */}
           <Box sx={{
@@ -2398,15 +2512,7 @@ useEffect(() => {
                 </Grid>
               </Grid>
             </Grid>
-            <Grid item xs={12} sm={4} md={2}>
-              <LocationAutocomplete
-                value={locationSearch}
-                onChange={handleLocationChange}
-                label="Location"
-                error={formErrors.locationName}
-                helperText={formErrors.locationName ? 'Location is required' : ''}
-              />
-            </Grid>
+
             <Grid item xs={6}>
               <TextField
                 fullWidth

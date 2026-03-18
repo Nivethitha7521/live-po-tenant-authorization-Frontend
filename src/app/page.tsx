@@ -105,23 +105,20 @@ const result = await response.json();
 
 // Save token
 sessionStorage.setItem("accessToken", result.access_token);
-
-
-
-
 localStorage.setItem("username", result.username);
 
 localStorage.setItem("userPermissions", JSON.stringify(result.permissions));
 
 sessionStorage.setItem("accessToken", result.access_token);
 sessionStorage.setItem("username", result.username);
+sessionStorage.setItem("tenant_id", result.tenant_id);
+
 localStorage.setItem("userRole", result.role_name);  
 // 🔥 NEW — TELL REDUX LOGIN SUCCESS
 dispatch(jwtLoginSuccess({
   username: result.username,
   permissions: result.permissions,
-  role: result.role_name,
-   token: result.access_token 
+  role: result.role_name
 }));
 
 toast.success(

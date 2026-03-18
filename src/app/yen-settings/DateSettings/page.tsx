@@ -1,6 +1,5 @@
 // app/yen-settings/DateSettings/page.tsx
 'use client';
-
 import React, { useEffect, useState } from 'react';
 import {
   Box,
@@ -20,7 +19,9 @@ import {
   Chip,
   Stack,
   IconButton,
+  Divider,
   FormControl,
+  Container
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
@@ -34,161 +35,278 @@ import {
   fetchDateSettings,
   saveDateSettings,
   updateOrderDateRestriction,
+  updateExpectedDeliveryRestriction,
+  updateInvoiceDateRestriction,
   updateExpectedDeliveryDays,
-  updateInvoiceRestriction,
-  clearError,
-  RestrictionType,
-  InvoiceRestrictionType,
-  UpdateRestrictionPayload,
-  UpdateInvoicePayload
+  updateInvoiceDaysAfterOrder,
+  clearError
 } from '../Features/PurchaseDateSettingSlice';
 import { format, addDays, subDays } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { RestrictionType, UpdateRestrictionPayload } from '../Models/Datesetting';
 
 const DateSettingsPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  
-  // Fix: Add proper type safety with RootState
-const { settings, loading, error, lastUpdated } = useSelector(
-  (state: RootState) => state.purchaseDateSettings
-);
 
-const role = useSelector((state: RootState) => state.auth.role);
-const [successMessage, setSuccessMessage] = useState('');
-const [saveError, setSaveError] = useState('');
- useEffect(() => {
-    // Fetch both permissions and settings when page loads
-    dispatch(fetchDateSettings());
-  }, [dispatch]);
-// ✅ BLOCK NON-ADMIN HERE (ADD THIS EXACT PLACE)
-if (role !== "Admin") {
-  return (
-    <Box sx={{ p: 4, textAlign: "center", mt: 8 }}>
-      <Typography variant="h5" color="error" gutterBottom>
-        Access Denied
-      </Typography>
-
-      <Typography color="textSecondary">
-        You don&apos;t have permission to access this page.
-      </Typography>
-
-      <Button sx={{ mt: 2 }} variant="contained" onClick={() => router.push("/")}>
-        Go Dashboard
-      </Button>
-    </Box>
+  const { settings, loading, error, lastUpdated } = useSelector(
+    (state: RootState) => state.purchaseDateSettings
   );
-}  
 
+  const role = useSelector((state: RootState) => state.auth.role);
 
  
 
-  const handleRestrictionTypeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value as RestrictionType;
-    const payload: UpdateRestrictionPayload = { restrictionType: value };
-    dispatch(updateOrderDateRestriction(payload));
-  };
+  const [successMessage, setSuccessMessage] = useState('');
+  const [saveError, setSaveError] = useState('');
 
-  const handleDaysValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value) || 0;
-    const payload: UpdateRestrictionPayload = { daysValue: value };
-    dispatch(updateOrderDateRestriction(payload));
-  };
-
-  const handleDateRangeChange = (field: 'startDate' | 'endDate', value: string) => {
+  useEffect(() => {
+    dispatch(fetchDateSettings());
+  }, [dispatch]);
+ // Block non-admin
+  if (role !== "Admin") {
+    return (
+      <Box sx={{ p: 4, textAlign: "center", mt: 8 }}>
+        <Typography variant="h5" color="error" gutterBottom>
+          Access Denied
+        </Typography>
+        <Typography color="textSecondary">
+          You don&apos;t have permission to access this page
+        </Typography>
+        <Button sx={{ mt: 2 }} variant="contained" onClick={() => router.push("/")}>
+          Go Dashboard
+        </Button>
+      </Box>
+    );
+  }
+  // Generic handler for restriction changes
+  const handleRestrictionChange = (
+    restrictionType: 'order' | 'expected' | 'invoice',
+    field: keyof UpdateRestrictionPayload,
+    value: any
+  ) => {
     const payload: UpdateRestrictionPayload = { [field]: value };
-    dispatch(updateOrderDateRestriction(payload));
-  };
 
-  const handleExpectedDeliveryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value) || 0;
-    dispatch(updateExpectedDeliveryDays(value));
-  };
-
-  const handleInvoiceRestrictionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value as InvoiceRestrictionType;
-    const payload: UpdateInvoicePayload = { type: value };
-    dispatch(updateInvoiceRestriction(payload));
-  };
-
-  const handleInvoiceDaysChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value) || 0;
-    const payload: UpdateInvoicePayload = { 
-      type: settings?.invoiceDateRestriction || 'any', 
-      days: value 
-    };
-    dispatch(updateInvoiceRestriction(payload));
-  };
-
-  const handleSave = async () => {
-    if (!settings) return;
-    
-    try {
-      setSaveError('');
-      await dispatch(saveDateSettings(settings)).unwrap();
-      setSuccessMessage('Date settings saved successfully!');
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (error: any) {
-      setSaveError(error.message || 'Failed to save settings');
+    switch (restrictionType) {
+      case 'order':
+        dispatch(updateOrderDateRestriction(payload));
+        break;
+      case 'expected':
+        dispatch(updateExpectedDeliveryRestriction(payload));
+        break;
+      case 'invoice':
+        dispatch(updateInvoiceDateRestriction(payload));
+        break;
     }
   };
 
+  const handleRestrictionTypeChange = (
+    restrictionType: 'order' | 'expected' | 'invoice',
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = event.target.value as RestrictionType;
+    handleRestrictionChange(restrictionType, 'restrictionType', value);
+  };
+
+  const handleDaysValueChange = (
+    restrictionType: 'order' | 'expected' | 'invoice',
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = parseInt(e.target.value) || 0;
+    handleRestrictionChange(restrictionType, 'daysValue', value);
+  };
+
+  const handleDateRangeChange = (
+    restrictionType: 'order' | 'expected' | 'invoice',
+    field: 'startDate' | 'endDate',
+    value: string
+  ) => {
+    handleRestrictionChange(restrictionType, field, value);
+  };
+
+const handleSave = async () => {
+  if (!settings) return;
+
+  try {
+    setSaveError('');
+    
+    // Log what we're saving
+    console.log('💾 Saving settings:', settings);
+    
+    // Call PATCH endpoint (uses Redux loading state automatically)
+    const result = await dispatch(saveDateSettings(settings)).unwrap();
+    
+    console.log('✅ Save successful:', result);
+    setSuccessMessage('Date settings saved successfully!');
+    
+    // Refresh data to ensure UI is in sync
+    await dispatch(fetchDateSettings());
+    
+    setTimeout(() => setSuccessMessage(''), 3000);
+  } catch (error: any) {
+    console.error('❌ Save failed:', error);
+    setSaveError(error.message || 'Failed to save settings');
+  }
+  // No finally block needed - Redux manages loading state
+};
   const handleReset = () => {
     dispatch(fetchDateSettings());
   };
 
-  const getDateRestrictionPreview = () => {
-    if (!settings) return null;
-    
+  const getRestrictionPreview = (restriction: any) => {
+    if (!restriction) return null;
+
     const today = new Date();
-    const { restrictionType, daysValue, startDate, endDate } = settings.orderDateRestriction;
+    const { restrictionType, daysValue, startDate, endDate } = restriction;
 
     switch (restrictionType) {
       case 'current_only':
         return (
-          <Chip 
-            icon={<TodayIcon />} 
-            label={`Only today's date (${format(today, 'dd/MM/yyyy')})`} 
-            color="info" 
+          <Chip
+            icon={<TodayIcon />}
+            label={`Only today's date (${format(today, 'dd/MM/yyyy')})`}
+            color="info"
             variant="outlined"
+            size="small"
           />
         );
       case 'days_before':
         return (
-          <Chip 
-            icon={<EventAvailableIcon />} 
-            label={`Allow dates from ${format(subDays(today, daysValue), 'dd/MM/yyyy')} to today`} 
-            color="info" 
+          <Chip
+            icon={<EventAvailableIcon />}
+            label={`From ${format(subDays(today, daysValue), 'dd/MM/yyyy')} to today`}
+            color="info"
             variant="outlined"
+            size="small"
           />
         );
       case 'days_after':
         return (
-          <Chip 
-            icon={<EventAvailableIcon />} 
-            label={`Allow dates from today to ${format(addDays(today, daysValue), 'dd/MM/yyyy')}`} 
-            color="info" 
+          <Chip
+            icon={<EventAvailableIcon />}
+            label={`From today to ${format(addDays(today, daysValue), 'dd/MM/yyyy')}`}
+            color="info"
             variant="outlined"
+            size="small"
           />
         );
       case 'date_range':
         return startDate && endDate ? (
-          <Chip 
-            icon={<DateRangeIcon />} 
-            label={`Allow dates from ${format(new Date(startDate), 'dd/MM/yyyy')} to ${format(new Date(endDate), 'dd/MM/yyyy')}`} 
-            color="info" 
+          <Chip
+            icon={<DateRangeIcon />}
+            label={`${format(new Date(startDate), 'dd/MM/yyyy')} to ${format(new Date(endDate), 'dd/MM/yyyy')}`}
+            color="info"
             variant="outlined"
+            size="small"
           />
         ) : (
-          <Chip 
-            label="Select start and end dates" 
-            color="warning" 
-            variant="outlined"
-          />
+          <Chip label="Select date range" color="warning" variant="outlined" size="small" />
         );
       default:
-        return <Chip label="No restrictions (all dates allowed)" color="default" variant="outlined" />;
+        return <Chip label="No restrictions" color="default" variant="outlined" size="small" />;
     }
+  };
+
+  const renderRestrictionCard = (
+    title: string,
+    icon: React.ReactNode,
+    restrictionType: 'order' | 'expected' | 'invoice',
+    restriction: any,
+    showDaysInput: boolean = true,
+    showDateRange: boolean = true
+  ) => {
+    if (!restriction) return null;
+
+    return (
+      <Card sx={{ mb: 2 }}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 600 }}>
+            {icon}
+            {title}
+          </Typography>
+
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <FormControl component="fieldset" size="small">
+                <RadioGroup
+                  row
+                  value={restriction.restrictionType}
+                  onChange={(e) => handleRestrictionTypeChange(restrictionType, e)}
+                  sx={{ flexWrap: 'wrap', gap: 1 }}
+                >
+                  <FormControlLabel value="no_restriction" control={<Radio size="small" />} label={<Typography variant="body2">No Restriction</Typography>} />
+                  <FormControlLabel value="current_only" control={<Radio size="small" />} label={<Typography variant="body2">Current Date Only</Typography>} />
+                  <FormControlLabel value="days_before" control={<Radio size="small" />} label={<Typography variant="body2">Days Before</Typography>} />
+                  <FormControlLabel value="days_after" control={<Radio size="small" />} label={<Typography variant="body2">Days After</Typography>} />
+                  <FormControlLabel value="date_range" control={<Radio size="small" />} label={<Typography variant="body2">Date Range</Typography>} />
+                </RadioGroup>
+              </FormControl>
+            </Grid>
+
+            {/* Days input for before/after */}
+            {(restriction.restrictionType === 'days_before' || restriction.restrictionType === 'days_after') && showDaysInput && (
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  autoComplete='false'
+                  size="small"
+                  type="number"
+                  label="Number of Days"
+                  value={restriction.daysValue}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleDaysValueChange(restrictionType, e)}
+                  InputProps={{ inputProps: { min: 1, max: 365 } }}
+                />
+              </Grid>
+            )}
+
+            {/* Date range inputs */}
+            {restriction.restrictionType === 'date_range' && showDateRange && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    autoComplete='false'
+                    size="small"
+                    type="date"
+                    label="Start Date"
+                    value={restriction.startDate?.split('T')[0] || ''}
+                    onChange={(e) => handleDateRangeChange(restrictionType, 'startDate', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    autoComplete='off'
+                    size="small"
+                    type="date"
+                    label="End Date"
+                    value={restriction.endDate?.split('T')[0] || ''}
+                    onChange={(e) => handleDateRangeChange(restrictionType, 'endDate', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{
+                      min: restriction.startDate?.split('T')[0]
+                    }}
+                  />
+                </Grid>
+              </>
+            )}
+
+            {/* Preview */}
+            <Grid item xs={12}>
+              <Box sx={{ mt: 1, p: 1.5, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                <Typography variant="caption" color="textSecondary" gutterBottom>
+                  Preview:
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  {getRestrictionPreview(restriction)}
+                </Box>
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+    );
   };
 
   if (loading && !settings) {
@@ -199,284 +317,177 @@ if (role !== "Admin") {
     );
   }
 
-
   return (
-    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
-      {/* Header with Back Button */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <IconButton 
-          onClick={() => router.push('/yen-settings')}
-          sx={{ mr: 2 }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" fontWeight="bold">
-          Date Settings
-        </Typography>
+    <Box sx={{ 
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      bgcolor: '#f5f5f5',
+      overflow: 'hidden'
+    }}>
+      {/* Fixed Header */}
+      <Box sx={{ 
+        p: 2, 
+        bgcolor: 'white', 
+        borderBottom: 1, 
+        borderColor: 'divider',
+        boxShadow: 1,
+        zIndex: 10
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', maxWidth: 1200, mx: 'auto' }}>
+          <IconButton onClick={() => router.push('/yen-settings')} sx={{ mr: 2 }} size="small">
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h5" fontWeight="bold">
+            Date Settings
+          </Typography>
+        </Box>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => dispatch(clearError())}>
-          {error}
-        </Alert>
-      )}
-
-      {successMessage && (
-        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage('')}>
-          {successMessage}
-        </Alert>
-      )}
-
-      {saveError && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSaveError('')}>
-          {saveError}
-        </Alert>
-      )}
-
-     
-
-      {settings && (
-        <>
-          {/* Order Date Settings */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <DateRangeIcon color="primary" />
-                Order Date Restrictions
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-                Control what dates users can select for Purchase Order creation
-              </Typography>
-
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <FormControl component="fieldset">
-                    <FormLabel component="legend">Restriction Type</FormLabel>
-                    <RadioGroup
-                      row
-                      value={settings.orderDateRestriction.restrictionType}
-                      onChange={handleRestrictionTypeChange}
-                    >
-                      <FormControlLabel 
-                        value="no_restriction" 
-                        control={<Radio />} 
-                        label="No Restriction" 
-                      />
-                      <FormControlLabel 
-                        value="current_only" 
-                        control={<Radio />} 
-                        label="Current Date Only" 
-                     
-                      />
-                      <FormControlLabel 
-                        value="days_before" 
-                        control={<Radio />} 
-                        label="Days Before Today" 
-                   
-                      />
-                      <FormControlLabel 
-                        value="days_after" 
-                        control={<Radio />} 
-                        label="Days After Today" 
-                     
-                      />
-                      <FormControlLabel 
-                        value="date_range" 
-                        control={<Radio />} 
-                        label="Specific Date Range" 
-                        
-                      />
-                    </RadioGroup>
-                  </FormControl>
-                </Grid>
-
-                {/* Days input for before/after */}
-                {(settings.orderDateRestriction.restrictionType === 'days_before' ||
-                  settings.orderDateRestriction.restrictionType === 'days_after') && (
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Number of Days"
-                      value={settings.orderDateRestriction.daysValue}
-                      onChange={handleDaysValueChange}
-                      InputProps={{ inputProps: { min: 1, max: 365 } }}
-                      helperText={
-                        settings.orderDateRestriction.restrictionType === 'days_before'
-                          ? `User can select dates up to ${settings.orderDateRestriction.daysValue} days before today`
-                          : `User can select dates up to ${settings.orderDateRestriction.daysValue} days after today`
-                      }
-                     
-                    />
-                  </Grid>
-                )}
-
-                {/* Date range inputs */}
-                {settings.orderDateRestriction.restrictionType === 'date_range' && (
-                  <>
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        type="date"
-                        label="Start Date"
-                        value={settings.orderDateRestriction.startDate?.split('T')[0] || ''}
-                        onChange={(e) => handleDateRangeChange('startDate', e.target.value)}
-                        InputLabelProps={{ shrink: true }}
-                       
-                      />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        type="date"
-                        label="End Date"
-                        value={settings.orderDateRestriction.endDate?.split('T')[0] || ''}
-                        onChange={(e) => handleDateRangeChange('endDate', e.target.value)}
-                        InputLabelProps={{ shrink: true }}
-                        inputProps={{ 
-                          min: settings.orderDateRestriction.startDate?.split('T')[0] 
-                        }}
-                        
-                      />
-                    </Grid>
-                  </>
-                )}
-
-                {/* Preview */}
-                <Grid item xs={12}>
-                  <Box sx={{ mt: 2, p: 2, bgcolor: '#f9f9f9', borderRadius: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Preview:
-                    </Typography>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      {getDateRestrictionPreview()}
-                    </Stack>
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-
-          {/* Expected Delivery Settings */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <EventAvailableIcon color="primary" />
-                Expected Delivery Settings
-              </Typography>
-
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    type="number"
-                    label="Default Delivery Days"
-                    value={settings.expectedDeliveryDays}
-                    onChange={handleExpectedDeliveryChange}
-                    InputProps={{ inputProps: { min: 1, max: 365 } }}
-                    helperText="Number of days to add to order date for expected delivery"
-                
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Paper sx={{ p: 2, bgcolor: '#f5f5f5' }}>
-                    <Typography variant="body2">
-                      <strong>Example:</strong> If order date is today ({format(new Date(), 'dd/MM/yyyy')}), 
-                      expected delivery will be {format(addDays(new Date(), settings.expectedDeliveryDays), 'dd/MM/yyyy')}
-                    </Typography>
-                  </Paper>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-
-          {/* Invoice Date Settings */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <EventAvailableIcon color="primary" />
-                Invoice Date Settings
-              </Typography>
-
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <FormControl component="fieldset">
-                    <FormLabel component="legend">Invoice Date Restriction</FormLabel>
-                    <RadioGroup
-                      row
-                      value={settings.invoiceDateRestriction}
-                      onChange={handleInvoiceRestrictionChange}
-                    >
-                      <FormControlLabel 
-                        value="any" 
-                        control={<Radio />} 
-                        label="Any Date" 
-                  
-                      />
-                      <FormControlLabel 
-                        value="same_as_order" 
-                        control={<Radio />} 
-                        label="Same as Order Date" 
-              
-                      />
-                      <FormControlLabel 
-                        value="after_order" 
-                        control={<Radio />} 
-                        label="After Order Date" 
-          
-                      />
-                    </RadioGroup>
-                  </FormControl>
-                </Grid>
-
-                {settings.invoiceDateRestriction === 'after_order' && (
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Minimum Days After Order"
-                      value={settings.invoiceDaysAfterOrder}
-                      onChange={handleInvoiceDaysChange}
-                      InputProps={{ inputProps: { min: 0, max: 365 } }}
-                      helperText="Invoice date must be at least this many days after order date"
-          
-                    />
-                  </Grid>
-                )}
-              </Grid>
-            </CardContent>
-          </Card>
-
-          {/* Last Updated Info */}
-          {lastUpdated && (
-            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
-              Last updated: {format(new Date(lastUpdated), 'dd/MM/yyyy HH:mm')}
-            </Typography>
+      {/* Scrollable Content */}
+      <Box sx={{ 
+        flex: 1,
+        overflow: 'auto',
+        p: 2
+      }}>
+        <Container maxWidth="lg" sx={{ height: '100%' }}>
+          {/* Alerts */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => dispatch(clearError())} >
+              {error}
+            </Alert>
+          )}
+          {successMessage && (
+            <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage('')}>
+              {successMessage}
+            </Alert>
+          )}
+          {saveError && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setSaveError('')}>
+              {saveError}
+            </Alert>
           )}
 
-          {/* Action Buttons */}
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 3 }}>
-            <Button
-              variant="outlined"
-              startIcon={<RestartAltIcon />}
-              onClick={handleReset}
-              disabled={loading }
-            >
-              Reset
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<SaveIcon />}
-              onClick={handleSave}
-              disabled={loading}
-              size="large"
-            >
-              {loading ? <CircularProgress size={24} /> : 'Save Settings'}
-            </Button>
-          </Box>
-        </>
-      )}
+          {settings && (
+            <>
+              {/* Order Date Settings */}
+              {renderRestrictionCard(
+                'Order Date',
+                <DateRangeIcon color="primary" fontSize="small" />,
+                'order',
+                settings.orderDateRestriction
+              )}
+
+              {/* Expected Delivery Settings */}
+              {renderRestrictionCard(
+                'Expected Delivery',
+                <EventAvailableIcon color="primary" fontSize="small" />,
+                'expected',
+                settings.expectedDeliveryRestriction
+              )}
+
+              {/* Additional Expected Delivery Days Input */}
+              <Card sx={{ mb: 2 }}>
+                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                  <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
+                    Default Delivery Days
+                  </Typography>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="number"
+                        label="Days to Add"
+                        value={settings.expectedDeliveryDays}
+                        onChange={(e) => dispatch(updateExpectedDeliveryDays(parseInt(e.target.value) || 0))}
+                        InputProps={{ inputProps: { min: 1, max: 365 } }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="textSecondary">
+                        Example: Order today + {settings.expectedDeliveryDays} days ={' '}
+                        <strong>{format(addDays(new Date(), settings.expectedDeliveryDays), 'dd/MM/yyyy')}</strong>
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+
+              {/* Invoice Date Settings */}
+              {renderRestrictionCard(
+                'Invoice Date',
+                <EventAvailableIcon color="primary" fontSize="small" />,
+                'invoice',
+                settings.invoiceDateRestriction
+              )}
+
+              {/* Additional Invoice Days Input */}
+              <Card sx={{ mb: 2 }}>
+                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                  <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
+                    Minimum Invoice Days After Order
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="number"
+                        label="Days After Order"
+                        value={settings.invoiceDaysAfterOrder}
+                        onChange={(e) => dispatch(updateInvoiceDaysAfterOrder(parseInt(e.target.value) || 0))}
+                        InputProps={{ inputProps: { min: 0, max: 365 } }}
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+
+              {/* Last Updated */}
+              {lastUpdated && (
+                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
+                  Last updated: {format(new Date(lastUpdated), 'dd/MM/yyyy HH:mm')}
+                </Typography>
+              )}
+
+              {/* Action Buttons - Fixed at bottom */}
+              <Box sx={{ 
+                position: 'sticky',
+                bottom: 16,
+                display: 'flex',
+                gap: 1,
+                justifyContent: 'flex-end',
+                bgcolor: 'white',
+                p: 2,
+                borderRadius: 1,
+                boxShadow: 3,
+                zIndex: 5
+              }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<RestartAltIcon />}
+                  onClick={handleReset}
+                  disabled={loading}
+                  size="small"
+                >
+                  Reset
+                </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSave}
+                  disabled={loading}
+                  size="small"
+                >
+                  {loading ? <CircularProgress size={20} /> : 'Save'}
+                </Button>
+              </Box>
+            </>
+          )}
+        </Container>
+      </Box>
     </Box>
   );
 };

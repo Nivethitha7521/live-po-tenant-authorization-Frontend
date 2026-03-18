@@ -1,12 +1,11 @@
 // hooks/usePurchaseDateRestrictions.ts
 import { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch } from '@/redux/store';
+import { AppDispatch, RootState } from '@/redux/store';
 import {
   fetchDateSettings,
-  validateOrderDate,
-  calculateExpectedDelivery,
-  validateInvoiceDate
+  validateDate,  // Use unified validateDate for all types
+  calculateExpectedDelivery
 } from '../Features/PurchaseDateSettingSlice';
 import { addDays, subDays, startOfDay } from 'date-fns';
 
@@ -19,7 +18,7 @@ interface ValidationResult {
 
 export const usePurchaseDateRestrictions = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { settings, loading } = useSelector((state: any) => state.purchaseDateSettings);
+  const { settings, loading } = useSelector((state: RootState) => state.purchaseDateSettings);
   
   const [minDate, setMinDate] = useState<Date | null>(null);
   const [maxDate, setMaxDate] = useState<Date | null>(null);
@@ -62,9 +61,14 @@ export const usePurchaseDateRestrictions = () => {
     }
   }, [settings]);
 
+  // Unified validation function for order date
   const validateOrderDateFn = useCallback(async (date: Date): Promise<boolean> => {
     try {
-      const result = await dispatch(validateOrderDate(date)).unwrap();
+      const result = await dispatch(validateDate({ 
+        date, 
+        dateType: 'order' 
+      })).unwrap();
+      
       if (!result.valid) {
         setDateError(result.message);
         return false;
@@ -77,6 +81,7 @@ export const usePurchaseDateRestrictions = () => {
     }
   }, [dispatch]);
 
+  // Get expected delivery date
   const getExpectedDeliveryDate = useCallback(async (orderDate: Date): Promise<Date> => {
     try {
       const result = await dispatch(calculateExpectedDelivery(orderDate)).unwrap();
@@ -87,9 +92,15 @@ export const usePurchaseDateRestrictions = () => {
     }
   }, [dispatch, settings]);
 
+  // Unified validation function for invoice date
   const validateInvoiceDateFn = useCallback(async (invoiceDate: Date, orderDate: Date): Promise<boolean> => {
     try {
-      const result = await dispatch(validateInvoiceDate({ invoiceDate, orderDate })).unwrap();
+      const result = await dispatch(validateDate({ 
+        date: invoiceDate, 
+        dateType: 'invoice',
+        orderDate: orderDate 
+      })).unwrap();
+      
       if (!result.valid) {
         setInvoiceError(result.message);
         return false;
@@ -98,6 +109,46 @@ export const usePurchaseDateRestrictions = () => {
       return true;
     } catch (error) {
       setInvoiceError('Validation failed');
+      return false;
+    }
+  }, [dispatch]);
+
+  // Helper function to validate any date type
+  const validateAnyDate = useCallback(async (
+    date: Date, 
+    dateType: 'order' | 'expected' | 'invoice',
+    relatedOrderDate?: Date
+  ): Promise<boolean> => {
+    try {
+      const params: any = { date, dateType };
+      if (relatedOrderDate) {
+        params.orderDate = relatedOrderDate;
+      }
+      
+      const result = await dispatch(validateDate(params)).unwrap();
+      
+      if (!result.valid) {
+        if (dateType === 'invoice') {
+          setInvoiceError(result.message);
+        } else {
+          setDateError(result.message);
+        }
+        return false;
+      }
+      
+      if (dateType === 'invoice') {
+        setInvoiceError('');
+      } else {
+        setDateError('');
+      }
+      return true;
+    } catch (error) {
+      const errorMsg = 'Validation failed';
+      if (dateType === 'invoice') {
+        setInvoiceError(errorMsg);
+      } else {
+        setDateError(errorMsg);
+      }
       return false;
     }
   }, [dispatch]);
@@ -112,6 +163,7 @@ export const usePurchaseDateRestrictions = () => {
     validateOrderDate: validateOrderDateFn,
     getExpectedDeliveryDate,
     validateInvoiceDate: validateInvoiceDateFn,
+    validateAnyDate,  // New generic function
     expectedDeliveryDays: settings?.expectedDeliveryDays || 7
   };
 };

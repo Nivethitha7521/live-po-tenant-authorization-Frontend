@@ -1,5 +1,5 @@
 // LocationAutocomplete.tsx
-// Fixed: Defaults to "Tehri" dynamically, shows/updates selections reliably
+// Working with the actual API response
 
 "use client";
 import React, { useEffect, useState, useRef } from "react";
@@ -7,10 +7,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { Autocomplete, TextField, CircularProgress } from "@mui/material";
 import { AppDispatch, RootState } from "@/redux/store";
 import {
-  fetchStorageLocations,
+  fetchLocations,
   selectStorageLocations,
 } from "../../../features/yen-purchase/PurchaseMaster/StorageLocationSlice";
-
 import { Location } from "@/Models/storagelocation";
 
 interface LocationAutocompleteProps {
@@ -34,29 +33,26 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { location: locations, loading } = useSelector((state: RootState) =>
-    selectStorageLocations(state),
+    selectStorageLocations(state)
   );
   const [options, setOptions] = useState<Location[]>([]);
   const hasSetDefault = useRef(false);
 
+  // Fetch locations from the API
   useEffect(() => {
     if (locations.length === 0) {
-      dispatch(fetchStorageLocations());
+      dispatch(fetchLocations());
     }
   }, [dispatch, locations.length]);
 
+  // Process locations when they change
   useEffect(() => {
-    // Filter active locations (status === 'active' or '1')
-    const activeLocations = locations.filter(
-      (loc: Location) =>
-        loc.status === "active" ||
-        loc.status === "1" ||
-        loc.status === "Active",
-    );
-
-    // Sort alphabetically for better UX
-    const sortedLocations = [...activeLocations].sort((a, b) =>
-      a.branchName?.localeCompare(b.branchName || ""),
+    console.log("All locations from API:", locations);
+    
+    // Locations are already filtered to active ones in the slice
+    // Just sort alphabetically for better UX
+    const sortedLocations = [...locations].sort((a, b) =>
+      (a.branchName || "").localeCompare(b.branchName || "")
     );
 
     setOptions(sortedLocations);
@@ -65,10 +61,17 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
     if (!value && sortedLocations.length > 0 && !hasSetDefault.current) {
       // Try to find "Tehri" (case-insensitive)
       let defaultLocation = sortedLocations.find((loc: Location) =>
-        loc.branchName?.toLowerCase().includes("tehri"),
+        loc.branchName?.toLowerCase().includes("tehri")
       );
 
-      // Fallback to first location if "Tehri" not found
+      // If "Tehri" not found, try "ECR" 
+      if (!defaultLocation) {
+        defaultLocation = sortedLocations.find((loc: Location) =>
+          loc.branchName?.toLowerCase().includes("ecr")
+        );
+      }
+
+      // Fallback to first location if no specific match found
       if (!defaultLocation) {
         defaultLocation = sortedLocations[0];
       }
@@ -76,14 +79,14 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
       if (defaultLocation) {
         onChange(defaultLocation);
         hasSetDefault.current = true;
-        console.log("Location default set to:", defaultLocation.branchName);
+        console.log("Default location set to:", defaultLocation.branchName);
       }
     }
   }, [locations, value, onChange]);
 
   const handleChange = (
     event: React.SyntheticEvent,
-    newValue: Location | null,
+    newValue: Location | null
   ) => {
     onChange(newValue);
     if (newValue === null) {
@@ -91,14 +94,16 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
     }
   };
 
-  // Debug logging (remove in production)
-  console.log("Location options:", options);
-  console.log("Current value:", value);
-
-  // Filter active locations (status === '1')
-
   if (loading && options.length === 0) {
-    return <TextField label={label} disabled size="small" variant="outlined" />; // Graceful loading placeholder
+    return (
+      <TextField
+        label={label}
+        disabled
+        size="small"
+        variant="outlined"
+        fullWidth
+      />
+    );
   }
 
   return (
@@ -107,9 +112,9 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
       options={options}
       value={value}
       onChange={handleChange}
-      getOptionLabel={(option) => option.branchName || ""}
-      isOptionEqualToValue={(option, value) =>
-        option.branchId === value?.branchId
+      getOptionLabel={(option) => option?.branchName || ""}
+      isOptionEqualToValue={(option, value) => 
+        option?.locationId === value?.locationId
       }
       loading={loading}
       disabled={disabled || loading}
@@ -135,7 +140,11 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
           }}
         />
       )}
-      noOptionsText={loading ? "Loading..." : "No active locations available"}
+      noOptionsText={
+        loading 
+          ? "Loading locations..." 
+          : "No active locations available"
+      }
     />
   );
 };

@@ -17,7 +17,6 @@ import {
   Vendor
 } from '@/Models/purchaseitem';
 import { PurchaseItemType } from '@/Models/itemType';
-import { PurchaseGroupItem } from '@/Models/itemgroup';
 
 // ✅ IMPORTANT: use the existing category thunk from PurchaseCategorySlice
 import { fetchCategories } from './PurchaseCategorySlice';
@@ -164,7 +163,8 @@ export const fetchPurchaseItemtype = createAsyncThunk('itemtype/fetch', async ()
     
     const itemtypes = response.data.map(item => ({
       itemtypeId: item.itemtypeId,
-      itemtypeName: item.itemtypeName
+      itemtypeName: item.itemtypeName,
+      randomId: item.randomId, // This is crucial for storing in itemTypeId
     }));
 
     return itemtypes;
