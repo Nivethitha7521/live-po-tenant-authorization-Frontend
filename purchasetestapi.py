@@ -243,6 +243,111 @@ routes_info = [
     {"module" :"ServiceOrder.servicelist","prefix":"/purchasetestapi/servicepo","tags":["servicepo"]},
     {"module" :"ServiceOrder.filterpatch","prefix":"/purchasetestapi/servicepo","tags":["servicepo"]},
     {"module" :"ServiceOrder.service_ap_outgoing","prefix":"/purchasetestapi/servicepo","tags":["servicepo"]},
+    {
+        "module": "purchaseOrderReport.routes",
+        "prefix": "/purchasetestapi/purchaseOrders",
+        "tags": ["Purchase Orders"],
+    },
+    {
+        "module": "itemDateReport.routes",
+        "prefix": "/purchasetestapi/itemwisedate",
+        "tags": ["Item Date Report"],
+    },
+    {
+        "module": "grnagainstReport.routes",
+        "prefix": "/purchasetestapi/grnagainst",
+        "tags": ["GRN Against"],
+    },
+    {
+        "module": "ApInvoiceReport.routes",
+        "prefix": "/purchasetestapi/apinvoices",
+        "tags": ["AP Invoices"],
+    },
+    {
+        "module": "OutgoingPaymentReport.routes",
+        "prefix": "/purchasetestapi/outgoingPayment",
+        "tags": ["Outgoing Payments"],
+    },
+    {
+        "module": "rawmaterialReport.routes",
+        "prefix": "/purchasetestapi/rawmaterial",
+        "tags": ["Raw Material Dispatch"],
+    },
+    {
+        "module": "DebitnoteReport.routes",
+        "prefix": "/purchasetestapi/debitnote",
+        "tags": ["Debit Notes"],
+    },
+    {
+        "module": "ServiceReport.routes",
+        "prefix": "/purchasetestapi/Service",
+        "tags": ["Service PO"],
+    },
+    {
+        "module": "PettyCashExpanseReport.routes",
+        "prefix": "/purchasetestapi/pettycashExpense",
+        "tags": ["Petty Cash Expenses"],
+    },
+    {
+        "module": "ProductionEntrysReport.routes",
+        "prefix": "/purchasetestapi/productionEntry",
+        "tags": ["Production Entries"],
+    },
+    {
+        "module": "DispatchReport.routes",
+        "prefix": "/purchasetestapi/dispatch",
+        "tags": ["Dispatch Reports"],
+    },
+    {
+        "module": "SalesorderReport.routes",
+        "prefix": "/purchasetestapi/Salesorder",
+        "tags": ["Sales Orders"],
+    },
+    {
+        "module": "allrestaurants.routes",
+        "prefix": "/purchasetestapi/allrestaurants",
+        "tags": ["Restaurants & Payment Modes"],
+    },
+    {
+        "module": "ItemOrderReport.routes",
+        "prefix": "/purchasetestapi/itemOrder",
+        "tags": ["Item Order Sales"],
+    },
+    {
+        "module": "ItemwiseSalesReport.routes",
+        "prefix": "/purchasetestapi/itemwiseSales",
+        "tags": ["Itemwise Sales"],
+    },
+    {
+        "module": "itemTransferReport.routes",
+        "prefix": "/purchasetestapi/ItemTransfers",
+        "tags": ["Item Transfers"],
+    },
+    {
+        "module": "CancelOrderReport.routes",
+        "prefix": "/purchasetestapi/CancelOrder",
+        "tags": ["Cancelled Orders"],
+    },
+    {
+        "module": "DayEndReport.routes",
+        "prefix": "/purchasetestapi/dayend",
+        "tags": ["Day End Reports"],
+    },
+    {
+        "module": "WastageReceiveReport.routes",
+        "prefix": "/purchasetestapi/WastageReceives",
+        "tags": ["Warehouse Return"],
+    },
+    {
+        "module": "WastageEntryReport.routes",
+        "prefix": "/purchasetestapi/wastageEntrys",
+        "tags": ["Wastage Entries"],
+    },
+    {
+        "module": "birthdaycakeReport.routes",
+        "prefix": "/purchasetestapi/birthdaycake",
+        "tags": ["Birthday Cake App"],
+    },
 ]
 # ✅ Include YEN ERP routers
 for route in routes_info:
