@@ -154,6 +154,7 @@ const HARD_MODULES: AppPermissions[] = [
       ]
     },
 
+
     {
       id: "warehouse_inventory",
       name: "Warehouse Inventory Management",
@@ -176,6 +177,27 @@ const HARD_MODULES: AppPermissions[] = [
       ]
     }
 
+  ]
+},
+{
+  appName: "YEN_REPORTS",
+  modules: [
+    {
+      id: "reports",
+      name: "Reports",
+      submodules: [
+        {
+          id: "rpt_po",
+          name: "Purchase Order Report",
+          actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false }
+        },
+        {
+          id: "rpt_pos",
+          name: "POS Report",
+          actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false }
+        }
+      ]
+    }
   ]
 },
   {
@@ -694,6 +716,8 @@ const [confirmDialog, setConfirmDialog] = useState<{
 'wi_psm': 'warehousephysicalstockmodification',
 'wi_psvm': 'warehousephysicalstockvariancemodification',
 'wi_sl': 'warehousestockledger',
+'rpt_po': 'purchaseorderreport',
+'rpt_pos': 'posreport',
     // POS submodules
 'pos_order_mgmt': 'order_management',
 'pos_sales_return': 'sales_return',
@@ -727,11 +751,12 @@ const convertBackendToFrontend = useCallback((backendPermissions: any): AppPermi
       app.appName !== "YEN_PURCHASE" &&
       app.appName !== "YEN_BOOK" &&
       app.appName !== "YEN_INVENTORY" &&
+      app.appName !== "YEN_REPORTS" && 
       app.appName !== "YEN_OUTLET_MANAGER" &&
       app.appName !== "YEN_POS"
     ) return;
 
-  const permissionSource =
+const permissionSource =
   app.appName === "YEN_OUTLET_MANAGER"
     ? outletData
     : app.appName === "YEN_POS"
@@ -976,7 +1001,8 @@ frontendPermissions.forEach((app: AppPermissions) => {
     if (
       app.appName === "YEN_PURCHASE" ||
       app.appName === "YEN_BOOK" ||
-      app.appName === "YEN_INVENTORY"
+      app.appName === "YEN_INVENTORY" ||
+      app.appName === "YEN_REPORTS"
     ) {
       appName = "yenerp";
     } else if (app.appName === "YEN_OUTLET_MANAGER") {

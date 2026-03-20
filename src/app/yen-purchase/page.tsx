@@ -138,6 +138,17 @@ const purchaseKeys: string[] = [
   ...apInvoiceKeys,
  
 ];
+// ✅ இந்த calculations add பண்ணுங்க (purchaseKeys-க்கு கீழே)
+const INVENTORY_KEYS = [
+  "physicalstockmodification",
+  "physicalstockvariancemodification",
+  "stockledger",
+  "warehousephysicalstockmodification",
+  "warehousephysicalstockvariancemodification",
+  "warehousestockledger",
+];
+const showInventoryMenu = INVENTORY_KEYS.some((k) => isModuleVisible(k));
+const showReportsMenu = isModuleVisible("posreport") || isModuleVisible("purchaseorderreport");
 const normalizedPath = useMemo(() => {
   if (!pathname) return "";
   const parts = pathname.split("/").filter(Boolean);
@@ -173,6 +184,8 @@ const isActiveRoute = (itemPath: string) =>
         activePath={pathname || "/"}
         showPurchaseMenu={!hidePurchaseMenu}
   showBookMenu={!hideBookMenu}
+  showInventoryMenu={showInventoryMenu}   
+  showReportsMenu={showReportsMenu}       
       />
       <div className="flex flex-wrap gap-2 ml-4 items-center justify-start">
         {subItems.map((item) => {

@@ -43,6 +43,8 @@ const getBackendSubmoduleKey = (submoduleId: string, submoduleName: string): str
 'wi_psm': 'warehousephysicalstockmodification',
 'wi_psvm': 'warehousephysicalstockvariancemodification',
 'wi_sl': 'warehousestockledger',
+'rpt_po': 'purchaseorderreport',
+'rpt_pos': 'posreport',
     // YEN_BOOK submodules
     'op_outgoing': 'outgoingpayment',
     'op_advance': 'advancepayment',
@@ -94,7 +96,8 @@ const transformPermissionsForBackend = (frontendPermissions: AppPermissions[]): 
 if (
   app.appName === "YEN_PURCHASE" ||
   app.appName === "YEN_BOOK" ||
-  app.appName === "YEN_INVENTORY"
+  app.appName === "YEN_INVENTORY" ||
+  app.appName === "YEN_REPORTS"
 ) {
   appName = "yenerp";
 }
@@ -318,6 +321,28 @@ const HARD_MODULES: AppPermissions[] = [
       ]
     }
 
+  ]
+},
+// YEN_INVENTORY block-க்கு கீழே, YEN_OUTLET_MANAGER-க்கு மேலே இதை add பண்ணுங்க
+{
+  appName: "YEN_REPORTS",
+  modules: [
+    {
+      id: "reports",
+      name: "Reports",
+      submodules: [
+        {
+          id: "rpt_po",
+          name: "Purchase Order Report",
+          actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false }
+        },
+        {
+          id: "rpt_pos",
+          name: "POS Report",
+          actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false }
+        }
+      ]
+    }
   ]
 },
   {

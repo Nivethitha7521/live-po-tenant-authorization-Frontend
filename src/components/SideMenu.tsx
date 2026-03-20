@@ -1,19 +1,15 @@
 // components/SideMenu.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton, Divider, Typography } from '@mui/material';
+import { Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton, Typography } from '@mui/material';
 import {
   Menu as MenuIcon,
   Close as CloseIcon,
-  AdminPanelSettings as AdminPanelSettingsIcon,
-  ReceiptLong as ReceiptLongIcon,
-  Group as GroupIcon,
-  PeopleAlt as PeopleAltIcon,
   BookOnline as BookOnlineIcon,
   ShoppingCart as ShoppingCartIcon,
-  StoreMallDirectory as StoreMallDirectoryIcon,
   Inventory2 as Inventory2Icon,
   AccountCircle as AccountCircleIcon,
   Settings as SettingsIcon,
+  Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import Image from 'next/image';
 import './SideMenu.css';
@@ -42,7 +38,7 @@ export const menuItems: MenuItem[] = [
     subItems: ['Vendor', 'Purchase Item', 'Purchase Order', 'Goods Receipt Note', 'AP Invoice'],
     path: '/yen-purchase',
   },
-   {
+  {
     text: 'YEN INVENTORY',
     icon: <Inventory2Icon />,
     subItems: [
@@ -50,6 +46,12 @@ export const menuItems: MenuItem[] = [
       'Warehouse Inventory Management',
     ],
     path: '/yen-inventory',
+  },
+  {
+    text: 'YEN REPORTS',
+    icon: <AssessmentIcon />,
+    subItems: [],
+    path: '/QlikReport',
   },
   {
     text: 'ACCOUNT SETTINGS',
@@ -71,9 +73,16 @@ interface SideMenuProps {
   showPurchaseMenu?: boolean;
   showBookMenu?: boolean;
   showInventoryMenu?: boolean;
+  showReportsMenu?: boolean;
 }
 
-const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick, showPurchaseMenu, showBookMenu,showInventoryMenu }) => {
+const SideMenu: React.FC<SideMenuProps> = ({
+  onMenuClick,
+  showPurchaseMenu,
+  showBookMenu,
+  showInventoryMenu,
+  showReportsMenu,
+}) => {
   const role = useSelector((state: RootState) => state.auth.role);
   const isAdmin = role === "Admin";
 
@@ -83,7 +92,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick, showPurchaseMenu, show
 
   const handleDrawerOpen = () => setOpen(true);
   const handleDrawerClose = () => setOpen(false);
-  
+
   const handleSubMenuToggle = (index: number) => {
     setSubMenuOpen(subMenuOpen === index ? null : index);
   };
@@ -99,7 +108,6 @@ const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick, showPurchaseMenu, show
         handleDrawerClose();
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -130,60 +138,44 @@ const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick, showPurchaseMenu, show
             {open ? <CloseIcon /> : <MenuIcon className="menu-header" />}
           </IconButton>
         </div>
+
         <List>
           {menuItems
             .filter((menuItem) => {
-              // Hide YEN PURCHASE if no permission
-              if (menuItem.text === "YEN PURCHASE" && !showPurchaseMenu) {
-                return false;
-              }
-
-              // Hide YEN BOOK if no permission
-              if (menuItem.text === "YEN BOOK" && !showBookMenu) {
-                return false;
-              }
-             // if (menuItem.text === "YEN INVENTORY" && !showInventoryMenu)
-             // { return false;
-            //  }
-              // ACCOUNT SETTINGS only for Admin
-              if (menuItem.text === "ACCOUNT SETTINGS" && !isAdmin) {
-                return false;
-              }
-
-              // SETTINGS - Show only for Admin (or based on your permission logic)
-              if (menuItem.text === "SETTINGS") {
-                // Show only for Admin users
-                return isAdmin;
-              }
-
+              if (menuItem.text === "YEN PURCHASE" && !showPurchaseMenu) return false;
+              if (menuItem.text === "YEN BOOK" && !showBookMenu) return false;
+              if (menuItem.text === "YEN INVENTORY" && !showInventoryMenu) return false; // ✅ FIX
+              if (menuItem.text === "YEN REPORTS" && !showReportsMenu) return false;
+              if (menuItem.text === "ACCOUNT SETTINGS" && !isAdmin) return false;
+              if (menuItem.text === "SETTINGS") return isAdmin;
               return true;
             })
             .map((menuItem, index) => (
               <React.Fragment key={index}>
-<ListItem 
-  button 
-  onClick={() => handleMenuItemClick(menuItem)}
-  sx={{ 
-    justifyContent: open ? 'flex-start' : 'center',
-    px: open ? 2 : 0,
-  }}
->
-                 <ListItemIcon sx={{ minWidth: 0, justifyContent: 'center', width: '100%' }}>
-  <div style={{ 
-    display: 'flex', 
-    flexDirection: 'column', 
-    alignItems: 'center',
-    width: '100%',
-    textAlign: 'center'
-  }}>
-    <span>{menuItem.icon}</span>
-    {!open && (
-      <Typography variant="caption" className="menu-text-small">
-        {menuItem.text}
-      </Typography>
-    )}
-  </div>
-</ListItemIcon>
+                <ListItem
+                  button
+                  onClick={() => handleMenuItemClick(menuItem)}
+                  sx={{
+                    justifyContent: open ? 'flex-start' : 'center',
+                    px: open ? 2 : 0,
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 0, justifyContent: 'center', width: '100%' }}>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      width: '100%',
+                      textAlign: 'center'
+                    }}>
+                      <span>{menuItem.icon}</span>
+                      {!open && (
+                        <Typography variant="caption" className="menu-text-small">
+                          {menuItem.text}
+                        </Typography>
+                      )}
+                    </div>
+                  </ListItemIcon>
                   {open && <ListItemText primary={menuItem.text} />}
                 </ListItem>
 
@@ -193,9 +185,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ onMenuClick, showPurchaseMenu, show
                       <ListItem
                         button
                         className="menu-sub-item"
-                        onClick={() => handleMenuItemClick({ 
-                          path: `${menuItem.path}/${subItem.replace(/\s+/g, '')}`, 
-                          text: subItem 
+                        onClick={() => handleMenuItemClick({
+                          path: `${menuItem.path}/${subItem.replace(/\s+/g, '')}`,
+                          text: subItem
                         })}
                         key={subIndex}
                       >

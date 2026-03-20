@@ -101,6 +101,10 @@ import rawMaterialStoreReducer from "../features/yen_inventory/wharehoueStoreSli
 import stockSummaryReducer from "../features/yen_inventory/ledgerrawSlice";
 import stockSummaryOutletReducer from "../features/yen_inventory/ledgeroutletSlice";
 import itemsReducer from '../features/yen_inventory/OuletePhysicalStockSlice';
+import dailyActivitiesReducer from '../app/QlikReport/PurchaseOrder/RawMaterials/features/branchesSlice';
+import dispatchesReducer from '../app/QlikReport/PurchaseOrder/RawMaterials/features/storedispatch';
+import dateFilterReducer from '../glopals/dateFilterSlice';
+import { reportReducers } from '../redux/reportRegistry';
 const store = configureStore({
   reducer: {
     // locations: locationAreaReducer,
@@ -186,6 +190,11 @@ const store = configureStore({
   rawMaterialStore: rawMaterialStoreReducer,
   stockSummary: stockSummaryReducer,
   stockSummaryOutlet: stockSummaryOutletReducer,
+
+  dailyActivities: dailyActivitiesReducer,
+    dispatches: dispatchesReducer,
+    dateFilter: dateFilterReducer,
+    ...reportReducers,
     // addOns: addOnReducer,    
     // variants: variantReducer,
 

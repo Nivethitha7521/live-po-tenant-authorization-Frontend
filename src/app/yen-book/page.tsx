@@ -69,7 +69,17 @@ const hidePurchaseMenu =
 const hideBookMenu =
   permissionsLoaded &&
   !bookKeys.some((key: string) => isModuleVisible(key));
-
+// ✅ இந்த calculations add பண்ணுங்க (hideBookMenu-க்கு கீழே)
+const INVENTORY_KEYS = [
+  "physicalstockmodification",
+  "physicalstockvariancemodification",
+  "stockledger",
+  "warehousephysicalstockmodification",
+  "warehousephysicalstockvariancemodification",
+  "warehousestockledger",
+];
+const showInventoryMenu = INVENTORY_KEYS.some((k) => isModuleVisible(k));
+const showReportsMenu = isModuleVisible("posreport") || isModuleVisible("purchaseorderreport");
  const subItems = useMemo(
   () =>
     [
@@ -96,6 +106,8 @@ const hideBookMenu =
         activePath={pathname || '/'} // Fallback to '/' if pathname is null
         showBookMenu={!hideBookMenu}
   showPurchaseMenu={!hidePurchaseMenu}
+  showInventoryMenu={showInventoryMenu} 
+  showReportsMenu={showReportsMenu} 
       />
 
       <div className="flex flex-wrap gap-2 mt-1 ml-5 mr:1 items-center justify-start">
