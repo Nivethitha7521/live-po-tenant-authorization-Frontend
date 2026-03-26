@@ -187,12 +187,12 @@ const CustomMenuList = memo<ExtendedMenuListProps>(function CustomMenuList(props
   return (
     <div
       ref={(node) => {
-        if (innerRef) {
-          if (typeof innerRef === 'function') innerRef(node);
-          else innerRef.current = node;
-        }
-        listRef.current = node;
-      }}
+  if (innerRef) {
+    if (typeof innerRef === 'function') innerRef(node);
+    else (innerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+  }
+  listRef.current = node;
+}}
       {...innerProps}
       onScroll={onScroll}
       style={{

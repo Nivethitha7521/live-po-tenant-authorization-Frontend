@@ -37,7 +37,15 @@ const bookKeys = [
   "paymentdone",
   "paymenthistory",
   "ledger",
-  "purchasereturn"
+  "purchasereturn",
+  "expensecategory",
+  "expensesubcategory", 
+  "expensename"
+];
+const expenseKeys = [
+  "expensecategory",
+  "expensesubcategory", 
+  "expensename"
 ];
 const purchaseKeys = [
   "purchasecategory",
@@ -78,6 +86,8 @@ const INVENTORY_KEYS = [
   "warehousephysicalstockvariancemodification",
   "warehousestockledger",
 ];
+const showExpenseMenu = permissionsLoaded && expenseKeys.some((key) => isModuleVisible(key));
+
 const showInventoryMenu = INVENTORY_KEYS.some((k) => isModuleVisible(k));
 const showReportsMenu = isModuleVisible("posreport") || isModuleVisible("purchaseorderreport");
  const subItems = useMemo(
@@ -87,6 +97,11 @@ const showReportsMenu = isModuleVisible("posreport") || isModuleVisible("purchas
         label: "Outgoing Payment",
         path: "/yen-book/OutgoingPaymentPage",
         visible: isModuleVisible("outgoingpayment"),
+      },
+         {
+        label: "Expense Management",
+        path: "/yen-book/ExpenseManagementPage",
+        visible: showExpenseMenu, // always visible
       },
     ].filter((item) => item.visible),
   [permissions]

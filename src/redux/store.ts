@@ -105,6 +105,9 @@ import dailyActivitiesReducer from '../app/QlikReport/PurchaseOrder/RawMaterials
 import dispatchesReducer from '../app/QlikReport/PurchaseOrder/RawMaterials/features/storedispatch';
 import dateFilterReducer from '../glopals/dateFilterSlice';
 import { reportReducers } from '../redux/reportRegistry';
+import expenseCategoryReducer from '../features/yen-book/ExpenseCategorySlice';
+import expenseSubcategoryReducer from '../features/yen-book/ExpenseSubcategorySlice';
+import expenseNameReducer from '../features/yen-book/ExpenseNameSlice';
 const store = configureStore({
   reducer: {
     // locations: locationAreaReducer,
@@ -195,6 +198,9 @@ const store = configureStore({
     dispatches: dispatchesReducer,
     dateFilter: dateFilterReducer,
     ...reportReducers,
+        expenseCategory: expenseCategoryReducer,
+    expenseName: expenseNameReducer,
+    expenseSubcategory: expenseSubcategoryReducer,
     // addOns: addOnReducer,    
     // variants: variantReducer,
 

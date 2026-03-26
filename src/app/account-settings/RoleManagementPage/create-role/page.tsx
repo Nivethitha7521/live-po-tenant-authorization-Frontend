@@ -29,7 +29,9 @@ const getBackendSubmoduleKey = (submoduleId: string, submoduleName: string): str
     'so_pending': 'serviceorders_pending',
     'so_approved': 'serviceorders_approved',
     'so_rejected': 'serviceorders_rejected',
-
+'em_ec': 'expensecategory',
+'em_es': 'expensesubcategory',
+'em_en': 'expensename',
     'grn_list': 'grns',
     'grn_return': 'grns_return',
     'ap_list': 'apinvoices',
@@ -270,7 +272,16 @@ const HARD_MODULES: AppPermissions[] = [
          { id: "op_ledger", name: "Ledger", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
           { id: "op_return", name: "Purchase Return", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } }
         ]
-      }
+      },
+        {
+      id: "expense_mgmt",
+      name: "Expense Management",
+      submodules: [
+        { id: "em_ec", name: "Expense Category", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
+        { id: "em_es", name: "Expense Subcategory", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
+        { id: "em_en", name: "Expense Name", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
+      ]
+    }
     ]
   },
 {

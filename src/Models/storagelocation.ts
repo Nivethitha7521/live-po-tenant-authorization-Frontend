@@ -11,19 +11,13 @@ export interface StorageLocationItem {
   createdDate: Date | null;
   lastUpdatedDate: Date | null;
 }
-
-
-
+// In your storagelocation.ts models file
 export interface Location {
-  storageLocationId: string;  // Changed from optional to required
-  branchId: string;
-  branchName: string;
-  locationName?: string;  // Optional for backward compatibility
-  status: string;
-  randomId?: string;
-  createdDate?: Date | null;
-  lastUpdatedDate?: Date | null;
-  [key: string]: any;  // Allow additional properties
+  locationId: string;   // "LOC015"
+  branchName: string;   // "ECR 2"
+  status: string;       // "active"
+  aliasName?: string;   // "ECR2" - Add this if you want to display it
+  branchId?: string;    // "69b2baaa1775a4429f8cad7e"
 }
 // Interface for Storage Location slice state
 export interface StorageLocationState {
@@ -79,16 +73,15 @@ export const initialState: StorageLocationState = {
   importResult: null,
   showImportResultDialog: false,
 };
-
-
+// Then the conversion function becomes simpler:
 export const convertToLocation = (item: StorageLocationItem): Location => {
   return {
-    ...item,
-    branchName: item.locationName,  // Map locationName to branchName
-    branchId: item.branchId || item.storageLocationId, // Use branchId if exists, otherwise use storageLocationId
+    locationId: item.branchId || item.storageLocationId,
+    branchName: item.branchName || item.locationName,
+    status: item.status,
+    branchId: item.branchId,
   };
 };
-
 // Helper function to convert array of StorageLocationItem to Location[]
 export const convertToLocations = (items: StorageLocationItem[]): Location[] => {
   return items.map(convertToLocation);

@@ -74,7 +74,10 @@ export interface Item {
    availableStock?: number;
   locationId?: string;
 }
-
+export interface ApprovalHistory {
+  userId: string;
+  approvedAt?: string;
+}
 export interface PurchaseOrderData {
   purchaseOrderId: string;
   vendorName: string;
@@ -122,7 +125,7 @@ export interface PurchaseOrderData {
   locationName: string;
   totalFreightAmount: number;
   totalFreightTaxAmount: number;
-
+  approvalHistory?: ApprovalHistory[];
   // ADD THESE GRN-SPECIFIC FIELDS (MAKE THEM OPTIONAL)
   poQuantitypendingTotalPrice?: number;
   poQuantitypendingFinalPrice?: number;

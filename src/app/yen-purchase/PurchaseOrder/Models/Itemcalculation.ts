@@ -76,6 +76,8 @@ export interface PurchaseOrderWithItems {
   termsandConditions?: string[];
   items: ItemWithCalculations[];
   freights:Freight[];
+  locationId:string;
+  locationName?: string;
 }
 
 // NEW: Request types for overall discount API

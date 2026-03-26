@@ -73,12 +73,23 @@ const isProtectedRoute = useMemo(() =>
   const role = useSelector((state: RootState) => state.auth.role);
   const permissionObject = useSelector((state: RootState) => state.auth.permissions);
 
-  const hasPurchaseAccess = useMemo(() => {
-    if (!permissionObject || !permissionObject.yenerp) return false;
-    const yenerp = permissionObject.yenerp as Record<string, { read?: boolean }>;
-     const excludeKeys = ['purchaseorderreport', 'posreport'];
-    return Object.keys(yenerp).some((key) => yenerp[key]?.read === true);
-  }, [permissionObject]);
+const hasPurchaseAccess = useMemo(() => {
+  if (!permissionObject?.yenerp) return false;
+  const yenerp = permissionObject.yenerp as Record<string, { read?: boolean }>;
+  const excludeKeys = [
+    'purchaseorderreport', 'posreport',
+    // inventory keys
+    'physicalstockmodification', 'physicalstockvariancemodification', 'stockledger',
+    'warehousephysicalstockmodification', 'warehousephysicalstockvariancemodification', 'warehousestockledger',
+    // book keys
+    'outgoingpayment', 'advancepayment', 'partialpayment', 'paymentdone',
+    'paymenthistory', 'ledger', 'purchasereturn', 'expensecategory',
+    'expensesubcategory', 'expensename',
+  ];
+  return Object.keys(yenerp)
+    .filter((key) => !excludeKeys.includes(key))
+    .some((key) => yenerp[key]?.read === true);
+}, [permissionObject]);
 
 
 
@@ -98,17 +109,16 @@ const isProtectedRoute = useMemo(() =>
 
 
 
-  const hasBookAccess = useMemo(() => {
-    if (!permissionObject || !permissionObject.yenerp) return false;
-    const yenerp = permissionObject.yenerp as Record<string, { read?: boolean }>;
-    return Object.keys(yenerp).some((key) => {
-      const perm = yenerp[key];
-      return (
-        perm?.read === true &&
-        (key.includes("outgoing") || key.includes("payment") || key.includes("ledger"))
-      );
-    });
-  }, [permissionObject]);
+const hasBookAccess = useMemo(() => {
+  if (!permissionObject?.yenerp) return false;
+  const yenerp = permissionObject.yenerp as Record<string, { read?: boolean }>;
+  const BOOK_KEYS = [
+    'outgoingpayment', 'advancepayment', 'partialpayment',
+    'paymentdone', 'paymenthistory', 'ledger',
+    'purchasereturn', 'expensecategory', 'expensesubcategory', 'expensename',
+  ];
+  return BOOK_KEYS.some((key) => yenerp[key]?.read === true);
+}, [permissionObject]);
 
   // ✅ NEW - Reports access
  const hasPurchaseReportAccess = useMemo(() => {

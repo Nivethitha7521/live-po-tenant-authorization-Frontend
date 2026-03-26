@@ -1883,6 +1883,16 @@ useEffect(() => {
               ) : (
                 // Display orders when data is available
                 (pendingPurchaseList || []).map((order, index) => {
+                const currentUserId = localStorage.getItem("userId");
+
+const isAlreadyApproved = order.approvalHistory?.some(
+  (h: any) => h.userId === currentUserId
+);
+
+const role = localStorage.getItem("userRole") || "";
+const isAdmin = role.toLowerCase() === "admin";
+
+//const disableApprove = !isAdmin && isAlreadyApproved;
                   const totalQuantity = Array.isArray(order.items)
                     ? order.items.reduce((acc, item) => acc + (item.pendingTotalQuantity || 0), 0)
                     : 0;

@@ -46,6 +46,9 @@ const isModuleVisible = (key: string) => {
     "paymenthistory",
     "ledger",
     "purchasereturn",
+    "expensecategory",
+  "expensesubcategory",
+  "expensename",
   ];
 
   const hideBookMenu = !yenBookKeys.some((k) => isModuleVisible(k));

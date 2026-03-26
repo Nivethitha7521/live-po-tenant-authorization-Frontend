@@ -125,7 +125,16 @@ const HARD_MODULES: AppPermissions[] = [
           { id: "op_ledger", name: "Ledger", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
           { id: "op_return", name: "Purchase Return", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } }
         ]
-      }
+      },
+        {
+      id: "expense_mgmt",
+      name: "Expense Management",
+      submodules: [
+        { id: "em_ec", name: "Expense Category", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
+        { id: "em_es", name: "Expense Subcategory", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
+        { id: "em_en", name: "Expense Name", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
+      ]
+    }
     ]
   },
   {
@@ -728,6 +737,11 @@ const [confirmDialog, setConfirmDialog] = useState<{
 'pos_credit_customer': 'credit_customer',
 'pos_device_config': 'device_configurations',
 'pos_customer_mgmt': 'customer_management',
+
+
+'em_ec': 'expensecategory',
+'em_es': 'expensesubcategory',
+'em_en': 'expensename',
 
   };
   return idMap[submoduleId] || submoduleName.toLowerCase().replace(/\s+/g, '');

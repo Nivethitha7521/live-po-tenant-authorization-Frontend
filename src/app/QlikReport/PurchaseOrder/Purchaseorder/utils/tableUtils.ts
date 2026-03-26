@@ -1,4 +1,4 @@
-import { ALL_COLUMNS } from '../constants/tableConstants';
+{/*/ import { ALL_COLUMNS } from '../constants/tableConstants';
 import { Poreport } from '../Models/Model';
 
 
@@ -36,3 +36,7 @@ export const formatValue = (value: unknown): string => {
   if (value === null || value === undefined || value === 0 || value === '') return '-';
   return String(value);
 };
+
+
+
+/*/ }  
