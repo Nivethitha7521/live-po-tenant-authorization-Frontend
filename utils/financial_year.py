@@ -40,11 +40,13 @@ async def get_business_alias(tenant_id: str) -> str:
     except Exception as e:
         print(f"Error fetching business alias: {e}")
         return "BM"
-
 def get_next_counter_value(counter_collection, counter_id: str):
     """
     Generic function to get next counter value
+    Maintains sequence even if documents are deleted
     """
+    # Use find_one_and_update with upsert to create if not exists
+    # This ensures counter persists even if actual documents are deleted
     counter = counter_collection.find_one_and_update(
         {"_id": counter_id},
         {"$inc": {"sequence_value": 1}},
@@ -55,7 +57,8 @@ def get_next_counter_value(counter_collection, counter_id: str):
 
 def get_legacy_counter_value(counter_collection, counter_name: str):
     """
-    Generic function to get legacy counter value
+    Get legacy counter value (for simple PO format)
+    Maintains sequence independently
     """
     counter = counter_collection.find_one_and_update(
         {"_id": counter_name},
@@ -64,3 +67,14 @@ def get_legacy_counter_value(counter_collection, counter_name: str):
         return_document=True
     )
     return counter["sequence_value"]
+
+def reset_counter(counter_collection, counter_id: str, value: int = 0):
+    """
+    Optional: Reset counter to specific value (use carefully)
+    Only use this when explicitly needed
+    """
+    counter_collection.update_one(
+        {"_id": counter_id},
+        {"$set": {"sequence_value": value}},
+        upsert=True
+    )

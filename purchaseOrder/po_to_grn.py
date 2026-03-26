@@ -29,9 +29,12 @@ logging.basicConfig(
 
 logger = logging.getLogger('inventory_ops')
 logger.propagate = False
-
-# ========== OPTIMIZED STOCK AND PRICE UPDATE FUNCTION ==========
-def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id: str, is_revert: bool = False):
+def update_stock_and_prices_with_master(
+    grn_item_details: List[Dict], 
+    tenant_id: str, 
+    is_revert: bool = False, 
+    receiving_location_id: str = "WH001"
+):
     """
     Update stock quantities in inventory AND prices in item master
     - Inventory: ALWAYS update stock quantities (location-based)
@@ -48,7 +51,7 @@ def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id:
         success_items = []
         failed_items = []
         
-        RECEIVING_LOCATION_ID = "WH001"
+        RECEIVING_LOCATION_ID = receiving_location_id  # Use the passed location
         CREATED_BY = "grn"
         
         # Batch operations for better performance
@@ -67,7 +70,7 @@ def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id:
             )
         }
         
-        # Fetch all inventory items in one query
+        # Fetch all inventory items in one query for the RECEIVING location
         inventory_items = {
             (item['randomId'], item['locationId']): item
             for item in inventory_collection.find({
@@ -123,7 +126,7 @@ def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id:
                     "update": {"$set": {"systemStock": new_system_stock, "lastUpdatedDate": current_datetime}}
                 })
             else:
-                new_system_stock = received_quantity if not is_revert else 0  # Can't have negative for new record
+                new_system_stock = received_quantity if not is_revert else 0
                 location_stock_change = new_system_stock
                 
                 inventory_inserts.append({
@@ -132,11 +135,9 @@ def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id:
                     "systemStock": new_system_stock,
                     "createdBy": CREATED_BY,
                     "createdDate": current_datetime,
-                    "lastUpdatedDate": current_datetime
                 })
             
             # ========== STEP 2: ITEM MASTER PRICE UPDATE ==========
-            # Current values from item master
             current_master_price = purchase_item.get('purchasePrice', 0)
             
             price_updated = False
@@ -147,7 +148,7 @@ def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id:
             # Only update prices for normal receipt (not revert)
             if not is_revert and grn_price > 0 and received_quantity > 0:
                 
-                # Check if the new price (grn_price) is different from current master price
+                # Check if the new price is different from current master price
                 if current_master_price != grn_price:
                     # CORRECT LOGIC:
                     # 1. Move current purchasePrice to oldPrice
@@ -158,7 +159,7 @@ def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id:
                     
                     logger.info(f"PRICE_UPDATE|item={random_id}|old_master_price={current_master_price}|new_master_price={grn_price}")
             
-            # Queue purchaseitem update (even if only lastUpdatedDate changes)
+            # Queue purchaseitem update
             purchaseitem_updates.append({
                 "filter": {"randomId": random_id},
                 "update": {"$set": update_data}
@@ -168,8 +169,8 @@ def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id:
             success_items.append({
                 'randomId': random_id,
                 'itemName': purchase_item.get('itemName', item_name),
-                'stockChange': 0,  # Item Master stock NOT updated during receipt
-                'newStock': purchase_item.get('stockQuantity', 0),  # Keep original stock
+                'stockChange': 0,
+                'newStock': purchase_item.get('stockQuantity', 0),
                 'locationStockChange': location_stock_change,
                 'newLocationStock': new_system_stock,
                 'locationId': RECEIVING_LOCATION_ID,
@@ -182,7 +183,7 @@ def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id:
             
             if price_updated:
                 price_updates_count += 1
-            if not is_revert:  # Only count stock updates for normal receipt
+            if not is_revert:
                 stock_updates_count += 1
         
         # Execute batch updates
@@ -212,7 +213,8 @@ def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id:
             'items': success_items + failed_items,
             'stock_updates': stock_updates_count,
             'price_updates': price_updates_count,
-            'operation': 'revert' if is_revert else 'normal'
+            'operation': 'revert' if is_revert else 'normal',
+            'receiving_location': RECEIVING_LOCATION_ID
         }
         
     except Exception as e:
@@ -230,7 +232,8 @@ def update_stock_and_prices_with_master(grn_item_details: List[Dict], tenant_id:
             'price_updates': 0
         }
 @router.patch("/receivedupdates/{purchaseOrderId}")
-async def patch_received_count(request: Request,
+async def patch_received_count(
+    request: Request,
     purchaseOrderId: str,
     purchaseOrderPatch: PurchaseOrderPatch,
     user = Depends(validate_token),
@@ -240,9 +243,9 @@ async def patch_received_count(request: Request,
     
     # Get logged-in user ID
     username = user.get("username")
-    user_data = await db["user"].find_one({"username": username})
+    user_data = await db["users"].find_one({"username": username})
     user_id = str(user_data["_id"]) if user_data else None
-    
+
     """Main endpoint - ALWAYS CREATE NEW GRN, NEVER REUSE OLD ID"""
     try:
         if not ObjectId.is_valid(purchaseOrderId):
@@ -256,6 +259,13 @@ async def patch_received_count(request: Request,
             raise HTTPException(status_code=404, detail="Purchase order not found")
 
         logger.info(f"PATCH_START|po={purchaseOrderId}")
+
+        # ===== DETERMINE LOCATION =====
+        # Priority: 1. From patch (user selected), 2. From PO (default)
+        receiving_location_id = purchaseOrderPatch.locationId or existing_purchaseorder.get('locationId') or "WH001" 
+        receiving_location_name = purchaseOrderPatch.locationName or existing_purchaseorder.get('locationName') or "Production WH-Main"
+        
+        logger.info(f"LOCATION|po_location={existing_purchaseorder.get('locationId')}|selected_location={receiving_location_id}")
 
         # Process freights
         current_freights = purchaseOrderPatch.freights or []
@@ -319,29 +329,21 @@ async def patch_received_count(request: Request,
                 price_source = "existing"
                 logger.info(f"PRICE_SOURCE|item={item_patch.itemId}|using=existing|value={grn_price_value}")
             
-            # ===== CRITICAL CHANGE 1: Update newPrice in PO item with grnPrice =====
-            # This ensures newPrice reflects the actual received price
+            # Update newPrice in PO item with grnPrice
             updated_item['newPrice'] = grn_price_value
-            
-            # Also set grnPrice for reference
             updated_item['grnPrice'] = grn_price_value
             
-            # ===== CRITICAL CHANGE 2: Track price changes for item master update =====
-            # Store current master price to move to oldPrice later
+            # Track price changes for item master update
             received_quantity = item_patch.receivedQuantity or 0
             if received_quantity > 0 and current_master_price and grn_price_value != current_master_price:
-                # This will be used by update_stock_and_prices_with_master
-                # The function will move current_master_price to oldPrice
-                # and set new purchasePrice to grn_price_value
-                
                 price_changes.append({
                     'itemId': item_patch.itemId,
                     'itemName': updated_item.get('itemName'),
                     'randomId': updated_item.get('randomId'),
-                    'oldMasterPrice': current_master_price,  # This will become oldPrice
-                    'newMasterPrice': grn_price_value,       # This will become new purchasePrice
+                    'oldMasterPrice': current_master_price,
+                    'newMasterPrice': grn_price_value,
                     'priceSource': price_source,
-                    'poNewPriceUpdated': True  # Indicating newPrice in PO was updated
+                    'poNewPriceUpdated': True
                 })
                 logger.info(f"PRICE_CHANGE_DETECTED|item={item_patch.itemId}|old_master={current_master_price}|new_master={grn_price_value}|source={price_source}|po_new_price_updated={grn_price_value}")
             
@@ -383,7 +385,7 @@ async def patch_received_count(request: Request,
                 updated_item['receivedQuantity'] = 0
                 updated_item['count'] = 0
             
-            # Calculate amounts (use grn_price_value for all calculations)
+            # Calculate amounts
             tax_percentage = updated_item.get('taxPercentage', 0)
             bef_tax_discount = updated_item['befTaxDiscount']
             af_tax_discount = updated_item['afTaxDiscount']
@@ -410,7 +412,7 @@ async def patch_received_count(request: Request,
             else:
                 updated_item['igst'] = round(received_tax, 2)
             
-            # Pending calculations (use the SAME grn_price_value for pending items)
+            # Pending calculations
             pending_quantity = updated_item['pendingTotalQuantity']
             if pending_quantity > 0:
                 pending_total_price = pending_quantity * grn_price_value
@@ -460,7 +462,7 @@ async def patch_received_count(request: Request,
                 existing_item['pendingTotalQuantity'] = pending_total
                 
                 if pending_total > 0:
-                    # Use newPrice for pending calculations (which would have been updated if received earlier)
+                    # Use newPrice for pending calculations
                     grn_price = existing_item.get('newPrice', existing_item.get('grnPrice', 0))
                     tax_percentage = existing_item.get('taxPercentage', 0)
                     bef_discount = existing_item.get('befTaxDiscount', 0)
@@ -529,7 +531,7 @@ async def patch_received_count(request: Request,
         # Create new GRN if there are received items
         if newly_received_items:
             # Generate new random ID for GRN
-            target_grn_random_id =await generate_grnrandom_id(tenant_id)
+            target_grn_random_id = await generate_grnrandom_id(tenant_id)
             
             # Build GRN items
             grn_item_details = []
@@ -559,7 +561,7 @@ async def patch_received_count(request: Request,
                     "finalPrice": item.get('finalPrice', 0),
                     "expiryDate": item.get('expiryDate'),
                     "item_rand": receipt['item_random_id'],
-                    "purchasetaxName": item.get('taxPercentage', 0)  # ← ADD THIS LINE - map taxPercentage to purchasetaxName
+                    "purchasetaxName": item.get('taxPercentage', 0)
                 }
                 
                 # Tax breakdown
@@ -579,7 +581,7 @@ async def patch_received_count(request: Request,
                 grn_total_before_round = items_total + total_freight_amount + total_freight_tax
                 grn_total = custom_round(grn_total_before_round + round_off_amount)
                 
-                # Create new GRN
+                # Create new GRN with selected location
                 grn_data = {
                     "purchaseOrderId": purchaseOrderId,
                     "poRandomID": existing_purchaseorder.get('randomId'),
@@ -587,7 +589,8 @@ async def patch_received_count(request: Request,
                     "vendorId": existing_purchaseorder.get('vendorId', ''),
                     "grnDate": purchaseOrderPatch.grnDate or current_datetime,
                     "poDate": existing_purchaseorder.get('orderDate'),
-                    "warehouseId":"WH001",
+                    "receivingLocation": receiving_location_name,  # Store location name here
+                    "locationId": receiving_location_id,  # Store location ID if you want to keep it
                     "itemDetails": grn_item_details,
                     "totalReceivedAmount": grn_total,
                     "grnAmount": grn_total,
@@ -618,14 +621,15 @@ async def patch_received_count(request: Request,
                     {"$set": {"grnId": grn_id}}
                 )
                 
-                # ===== CRITICAL: Update stock and prices =====
-                # This function will:
-                # 1. Move current purchasePrice to oldPrice in item master
-                # 2. Set new purchasePrice to grn_price in item master
-                # 3. Update inventory stock
-                stock_update_result = update_stock_and_prices_with_master(grn_item_details, tenant_id, is_revert=False)
+                # ===== CRITICAL: Update stock and prices with SELECTED LOCATION =====
+                stock_update_result = update_stock_and_prices_with_master(
+                    grn_item_details, 
+                    tenant_id, 
+                    is_revert=False,
+                    receiving_location_id=receiving_location_id
+                )
                 
-                logger.info(f"NEW_GRN_CREATED|po={purchaseOrderId}|grn_id={grn_id}|random_id={target_grn_random_id}|items={len(grn_item_details)}")
+                logger.info(f"NEW_GRN_CREATED|po={purchaseOrderId}|grn_id={grn_id}|random_id={target_grn_random_id}|items={len(grn_item_details)}|location={receiving_location_id}")
         
         # Default stock result if no updates
         if stock_update_result is None:
@@ -639,7 +643,7 @@ async def patch_received_count(request: Request,
                 'price_updates': 0
             }
         
-        # Update PO - set pendingGrnId to the NEW GRN ID
+        # Update PO
         update_data = {
             "totalOrderAmount": totalOrderAmount,
             "pendingOrderAmount": pendingOrderAmount,
@@ -668,7 +672,7 @@ async def patch_received_count(request: Request,
             {"$set": update_data}
         )
         
-        logger.info(f"PATCH_COMPLETE|po={purchaseOrderId}|status={po_status}|new_grn={grn_id}|items={len(newly_received_items)}|price_updates={len(price_changes)}")
+        logger.info(f"PATCH_COMPLETE|po={purchaseOrderId}|status={po_status}|new_grn={grn_id}|items={len(newly_received_items)}|price_updates={len(price_changes)}|location={receiving_location_id}")
         
         return {
             "message": "Purchase order updated successfully with NEW GRN",
@@ -684,7 +688,8 @@ async def patch_received_count(request: Request,
             "priceUpdates": len(price_changes),
             "priceChanges": price_changes,
             "stockUpdate": stock_update_result,
-            "note": "New GRN created - PO item newPrice updated with grnPrice",
+            "locationUsed": receiving_location_id,
+            "note": f"New GRN created - Items received at location: {receiving_location_name} ({receiving_location_id})",
             "summary": {
                 "poNewPriceUpdated": True,
                 "itemMasterUpdated": stock_update_result.get('price_updates', 0) > 0,

@@ -16,7 +16,7 @@ from pymongo import UpdateOne
 import pymongo
 import pytz
 
-from utils.financial_year import get_business_alias, get_financial_year, get_legacy_counter_value, get_next_counter_value
+from utils.financial_year import get_business_alias, get_financial_year, get_legacy_counter_value, get_next_counter_value, reset_counter
 from .models import  FrontendGrnResponse, Grn, GrnPost
 from utils.database import  get_debit_collection, get_grn_collection
 from PIL import Image
@@ -75,19 +75,35 @@ print("Local 12hr:", current_time['local_12hr'])  # "09:46:00 AM"
 
 # 12-hour formatted UTC time
 print("UTC 12hr:", current_time['utc_12hr'])      # "04:16:00 AM"
-async def generate_grnrandom_id(tenant_id: str):
+# grn/routes.py
+
+async def generate_grnrandom_id(tenant_id: str, vendor_id: str = None, vendor_name: str = None):
     """
     Generate GRN random ID with TRANSITION LOGIC
+    - Before April 1, 2026: Legacy format "GN####"
+    - After April 1, 2026: New format "{business_alias}/{financial_year}/GN####"
+    - Resets counter to 0 when no documents exist
     """
     current_date = datetime.now()
     TRANSITION_DATE = datetime(2026, 4, 1)
     
-    counter_collection = get_grn_collection(tenant_id).database["counters"]
+    # Get collections
+    grn_collection = get_grn_collection(tenant_id)
+    counter_collection = grn_collection.database["counters"]
+    
+    # Check if there are any documents in the GRN collection
+    document_count = grn_collection.count_documents({})
     
     # ===== BEFORE APRIL 1, 2026 =====
     if current_date < TRANSITION_DATE:
-        # ✅ USE COMMON FUNCTION for legacy counter
-        counter_value = get_legacy_counter_value(counter_collection, "grnId")
+        # Counter ID: "grnId" - persists even if GRNs deleted
+        counter_id = "grnId"
+        
+        # If no documents exist, reset the counter to 0
+        if document_count == 0:
+            reset_counter(counter_collection, counter_id, 0)
+        
+        counter_value = get_legacy_counter_value(counter_collection, counter_id)
         random_id = f"GN{counter_value:04d}"
         return random_id
     
@@ -96,13 +112,25 @@ async def generate_grnrandom_id(tenant_id: str):
         financial_year = get_financial_year(current_date)
         business_alias = await get_business_alias(tenant_id)
         
-        # ✅ USE COMMON FUNCTION for FY counter
+        # Counter ID includes year: "grnId_{financial_year}"
+        # Each financial year has its own independent sequence
         counter_id = f"grnId_{financial_year}"
+        
+        # Check if there are any documents for this specific financial year
+        # Query documents that have randomId containing this financial year
+        year_pattern = f"{business_alias}/{financial_year}"
+        year_document_count = grn_collection.count_documents({
+            "randomId": {"$regex": f"^{year_pattern}"}
+        })
+        
+        # If no documents exist for this financial year, reset the counter
+        if year_document_count == 0:
+            reset_counter(counter_collection, counter_id, 0)
+        
         counter_value = get_next_counter_value(counter_collection, counter_id)
         
         random_id = f"{business_alias}/{financial_year}/GN{counter_value:04d}"
         return random_id
-
 # Custom rounding function
 def custom_round(amount):
     """ 

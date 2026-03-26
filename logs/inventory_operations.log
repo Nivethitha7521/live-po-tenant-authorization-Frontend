@@ -81130,3 +81130,2421 @@ Expiry Dates: PRESERVED
 2026-03-26 11:05:11,209 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
 2026-03-26 11:05:11,954 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
 2026-03-26 11:05:12,256 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:52:43,823 - ✅ Successfully imported: purchaseOrder.po_to_grn
+2026-03-26 12:52:43,824 - ✅ Router found in: purchaseOrder.po_to_grn
+2026-03-26 12:52:43,827 - ✅ Included YEN ERP: purchaseOrder.po_to_grn
+2026-03-26 12:52:43,827 - 🟡 Attempting to import: purchaseOrder.grnConverted
+2026-03-26 12:52:43,847 - ✅ Successfully imported: purchaseOrder.grnConverted
+2026-03-26 12:52:43,847 - ✅ Router found in: purchaseOrder.grnConverted
+2026-03-26 12:52:43,852 - ✅ Included YEN ERP: purchaseOrder.grnConverted
+2026-03-26 12:52:43,853 - 🟡 Attempting to import: purchaseOrder.poedit
+2026-03-26 12:52:43,856 - ✅ Successfully imported: purchaseOrder.poedit
+2026-03-26 12:52:43,856 - ✅ Router found in: purchaseOrder.poedit
+2026-03-26 12:52:43,856 - ✅ Included YEN ERP: purchaseOrder.poedit
+2026-03-26 12:52:43,856 - 🟡 Attempting to import: purchaseOrder.freightfunction
+2026-03-26 12:52:43,872 - ✅ Successfully imported: purchaseOrder.freightfunction
+2026-03-26 12:52:43,872 - ✅ Router found in: purchaseOrder.freightfunction
+2026-03-26 12:52:43,887 - ✅ Included YEN ERP: purchaseOrder.freightfunction
+2026-03-26 12:52:43,887 - 🟡 Attempting to import: purchaseOrder.pending
+2026-03-26 12:52:43,918 - ✅ Successfully imported: purchaseOrder.pending
+2026-03-26 12:52:43,918 - ✅ Router found in: purchaseOrder.pending
+2026-03-26 12:52:43,918 - ✅ Included YEN ERP: purchaseOrder.pending
+2026-03-26 12:52:43,918 - 🟡 Attempting to import: grn.routes
+2026-03-26 12:52:43,918 - ✅ Successfully imported: grn.routes
+2026-03-26 12:52:43,918 - ✅ Router found in: grn.routes
+2026-03-26 12:52:44,054 - ✅ Included YEN ERP: grn.routes
+2026-03-26 12:52:44,054 - 🟡 Attempting to import: grn.return
+2026-03-26 12:52:44,120 - ✅ Successfully imported: grn.return
+2026-03-26 12:52:44,120 - ✅ Router found in: grn.return
+2026-03-26 12:52:44,135 - ✅ Included YEN ERP: grn.return
+2026-03-26 12:52:44,135 - 🟡 Attempting to import: grn.grn_to_ap
+2026-03-26 12:52:44,278 - ✅ Successfully imported: grn.grn_to_ap
+2026-03-26 12:52:44,278 - ✅ Router found in: grn.grn_to_ap
+2026-03-26 12:52:44,279 - ✅ Included YEN ERP: grn.grn_to_ap
+2026-03-26 12:52:44,279 - 🟡 Attempting to import: grn.debitnote
+2026-03-26 12:52:45,236 - ✅ Successfully imported: grn.debitnote
+2026-03-26 12:52:45,236 - ✅ Router found in: grn.debitnote
+2026-03-26 12:52:45,255 - ✅ Included YEN ERP: grn.debitnote
+2026-03-26 12:52:45,255 - 🟡 Attempting to import: grn.grn_to_ap_outgoing
+2026-03-26 12:52:45,439 - ✅ Successfully imported: grn.grn_to_ap_outgoing
+2026-03-26 12:52:45,439 - ✅ Router found in: grn.grn_to_ap_outgoing
+2026-03-26 12:52:45,439 - ✅ Included YEN ERP: grn.grn_to_ap_outgoing
+2026-03-26 12:52:45,439 - 🟡 Attempting to import: grn.grn_to_po
+2026-03-26 12:52:45,458 - ✅ Successfully imported: grn.grn_to_po
+2026-03-26 12:52:45,458 - ✅ Router found in: grn.grn_to_po
+2026-03-26 12:52:45,458 - ✅ Included YEN ERP: grn.grn_to_po
+2026-03-26 12:52:45,458 - 🟡 Attempting to import: apinvoice.routes
+2026-03-26 12:52:45,458 - ✅ Successfully imported: apinvoice.routes
+2026-03-26 12:52:45,458 - ✅ Router found in: apinvoice.routes
+2026-03-26 12:52:45,517 - ✅ Included YEN ERP: apinvoice.routes
+2026-03-26 12:52:45,517 - 🟡 Attempting to import: apinvoice.ap_to_outgoing
+2026-03-26 12:52:45,531 - ✅ Successfully imported: apinvoice.ap_to_outgoing
+2026-03-26 12:52:45,531 - ✅ Router found in: apinvoice.ap_to_outgoing
+2026-03-26 12:52:45,532 - ✅ Included YEN ERP: apinvoice.ap_to_outgoing
+2026-03-26 12:52:45,533 - 🟡 Attempting to import: apinvoice.apReturned
+2026-03-26 12:52:45,538 - ✅ Successfully imported: apinvoice.apReturned
+2026-03-26 12:52:45,538 - ✅ Router found in: apinvoice.apReturned
+2026-03-26 12:52:45,538 - ✅ Included YEN ERP: apinvoice.apReturned
+2026-03-26 12:52:45,538 - 🟡 Attempting to import: outgoingPayment.routes
+2026-03-26 12:52:45,538 - ✅ Successfully imported: outgoingPayment.routes
+2026-03-26 12:52:45,538 - ✅ Router found in: outgoingPayment.routes
+2026-03-26 12:52:45,573 - ✅ Included YEN ERP: outgoingPayment.routes
+2026-03-26 12:52:45,573 - 🟡 Attempting to import: outgoingPayment.bulk_payment
+2026-03-26 12:52:45,617 - ✅ Successfully imported: outgoingPayment.bulk_payment
+2026-03-26 12:52:45,617 - ✅ Router found in: outgoingPayment.bulk_payment
+2026-03-26 12:52:45,617 - ✅ Included YEN ERP: outgoingPayment.bulk_payment
+2026-03-26 12:52:45,617 - 🟡 Attempting to import: outgoingPayment.vendor_ledger
+2026-03-26 12:52:45,632 - ✅ Successfully imported: outgoingPayment.vendor_ledger
+2026-03-26 12:52:45,632 - ✅ Router found in: outgoingPayment.vendor_ledger
+2026-03-26 12:52:45,632 - ✅ Included YEN ERP: outgoingPayment.vendor_ledger
+2026-03-26 12:52:45,632 - 🟡 Attempting to import: outgoingPayment.single_payment
+2026-03-26 12:52:45,648 - ✅ Successfully imported: outgoingPayment.single_payment
+2026-03-26 12:52:45,648 - ✅ Router found in: outgoingPayment.single_payment
+2026-03-26 12:52:45,648 - ✅ Included YEN ERP: outgoingPayment.single_payment
+2026-03-26 12:52:45,648 - 🟡 Attempting to import: outgoingPayment.payment_history
+2026-03-26 12:52:45,693 - ✅ Successfully imported: outgoingPayment.payment_history
+2026-03-26 12:52:45,693 - ✅ Router found in: outgoingPayment.payment_history
+2026-03-26 12:52:45,696 - ✅ Included YEN ERP: outgoingPayment.payment_history
+2026-03-26 12:52:45,696 - 🟡 Attempting to import: outgoingPayment.advance_routes
+2026-03-26 12:52:45,755 - ✅ Successfully imported: outgoingPayment.advance_routes
+2026-03-26 12:52:45,755 - ✅ Router found in: outgoingPayment.advance_routes
+2026-03-26 12:52:45,771 - ✅ Included YEN ERP: outgoingPayment.advance_routes
+2026-03-26 12:52:45,771 - 🟡 Attempting to import: Business.routes
+2026-03-26 12:52:45,809 - ✅ Successfully imported: Business.routes
+2026-03-26 12:52:45,809 - ✅ Router found in: Business.routes
+2026-03-26 12:52:45,824 - ✅ Included YEN ERP: Business.routes
+2026-03-26 12:52:45,824 - 🟡 Attempting to import: Personal.routes
+2026-03-26 12:52:45,866 - ✅ Successfully imported: Personal.routes
+2026-03-26 12:52:45,866 - ✅ Router found in: Personal.routes
+2026-03-26 12:52:45,870 - ✅ Included YEN ERP: Personal.routes
+2026-03-26 12:52:45,870 - 🟡 Attempting to import: shippingaddress.routes
+2026-03-26 12:52:45,886 - ✅ Successfully imported: shippingaddress.routes
+2026-03-26 12:52:45,886 - ✅ Router found in: shippingaddress.routes
+2026-03-26 12:52:45,910 - ✅ Included YEN ERP: shippingaddress.routes
+2026-03-26 12:52:45,910 - 🟡 Attempting to import: ItemGroup.routes
+2026-03-26 12:52:45,954 - ✅ Successfully imported: ItemGroup.routes
+2026-03-26 12:52:45,954 - ✅ Router found in: ItemGroup.routes
+2026-03-26 12:52:45,977 - ✅ Included YEN ERP: ItemGroup.routes
+2026-03-26 12:52:45,977 - 🟡 Attempting to import: FreightMaster.routes
+2026-03-26 12:52:46,046 - ✅ Successfully imported: FreightMaster.routes
+2026-03-26 12:52:46,046 - ✅ Router found in: FreightMaster.routes
+2026-03-26 12:52:46,062 - ✅ Included YEN ERP: FreightMaster.routes
+2026-03-26 12:52:46,062 - 🟡 Attempting to import: purchaseOrder.poimport
+2026-03-26 12:52:46,092 - ✅ Successfully imported: purchaseOrder.poimport
+2026-03-26 12:52:46,092 - ✅ Router found in: purchaseOrder.poimport
+2026-03-26 12:52:46,100 - ✅ Included YEN ERP: purchaseOrder.poimport
+2026-03-26 12:52:46,100 - 🟡 Attempting to import: ServiceOrder.routes
+2026-03-26 12:52:46,337 - ✅ Successfully imported: ServiceOrder.routes
+2026-03-26 12:52:46,337 - ✅ Router found in: ServiceOrder.routes
+2026-03-26 12:52:46,370 - ✅ Included YEN ERP: ServiceOrder.routes
+2026-03-26 12:52:46,370 - 🟡 Attempting to import: Service.serviceSummary
+2026-03-26 12:52:46,370 - ✅ Successfully imported: Service.serviceSummary
+2026-03-26 12:52:46,370 - ✅ Router found in: Service.serviceSummary
+2026-03-26 12:52:46,370 - ✅ Included YEN ERP: Service.serviceSummary
+2026-03-26 12:52:46,370 - 🟡 Attempting to import: ServiceOrder.servicelist
+2026-03-26 12:52:46,412 - ✅ Successfully imported: ServiceOrder.servicelist
+2026-03-26 12:52:46,412 - ✅ Router found in: ServiceOrder.servicelist
+2026-03-26 12:52:46,429 - ✅ Included YEN ERP: ServiceOrder.servicelist
+2026-03-26 12:52:46,429 - 🟡 Attempting to import: ServiceOrder.filterpatch
+2026-03-26 12:52:46,478 - ✅ Successfully imported: ServiceOrder.filterpatch
+2026-03-26 12:52:46,478 - ✅ Router found in: ServiceOrder.filterpatch
+2026-03-26 12:52:46,487 - ✅ Included YEN ERP: ServiceOrder.filterpatch
+2026-03-26 12:52:46,487 - 🟡 Attempting to import: ServiceOrder.service_ap_outgoing
+2026-03-26 12:52:46,537 - ✅ Successfully imported: ServiceOrder.service_ap_outgoing
+2026-03-26 12:52:46,537 - ✅ Router found in: ServiceOrder.service_ap_outgoing
+2026-03-26 12:52:46,554 - ✅ Included YEN ERP: ServiceOrder.service_ap_outgoing
+2026-03-26 12:52:46,554 - 🟡 Attempting to import: purchaseOrderReport.routes
+2026-03-26 12:52:46,671 - ✅ Successfully imported: purchaseOrderReport.routes
+2026-03-26 12:52:46,671 - ✅ Router found in: purchaseOrderReport.routes
+2026-03-26 12:52:46,688 - ✅ Included YEN ERP: purchaseOrderReport.routes
+2026-03-26 12:52:46,688 - 🟡 Attempting to import: itemDateReport.routes
+2026-03-26 12:52:46,803 - ❌ Failed to import itemDateReport.routes: APIRouter.get() got an unexpected keyword argument 'user'
+2026-03-26 12:52:46,803 - 🟡 Attempting to import: grnagainstReport.routes
+2026-03-26 12:52:46,847 - ✅ Successfully imported: grnagainstReport.routes
+2026-03-26 12:52:46,847 - ✅ Router found in: grnagainstReport.routes
+2026-03-26 12:52:46,862 - ✅ Included YEN ERP: grnagainstReport.routes
+2026-03-26 12:52:46,862 - 🟡 Attempting to import: ApInvoiceReport.routes
+2026-03-26 12:52:46,878 - ✅ Successfully imported: ApInvoiceReport.routes
+2026-03-26 12:52:46,878 - ✅ Router found in: ApInvoiceReport.routes
+2026-03-26 12:52:46,878 - ✅ Included YEN ERP: ApInvoiceReport.routes
+2026-03-26 12:52:46,878 - 🟡 Attempting to import: OutgoingPaymentReport.routes
+2026-03-26 12:52:46,897 - ✅ Successfully imported: OutgoingPaymentReport.routes
+2026-03-26 12:52:46,897 - ✅ Router found in: OutgoingPaymentReport.routes
+2026-03-26 12:52:46,913 - ✅ Included YEN ERP: OutgoingPaymentReport.routes
+2026-03-26 12:52:46,913 - 🟡 Attempting to import: rawmaterialReport.routes
+2026-03-26 12:52:46,963 - ✅ Successfully imported: rawmaterialReport.routes
+2026-03-26 12:52:46,963 - ✅ Router found in: rawmaterialReport.routes
+2026-03-26 12:52:46,963 - ✅ Included YEN ERP: rawmaterialReport.routes
+2026-03-26 12:52:46,963 - 🟡 Attempting to import: DebitnoteReport.routes
+2026-03-26 12:52:47,014 - ✅ Successfully imported: DebitnoteReport.routes
+2026-03-26 12:52:47,014 - ✅ Router found in: DebitnoteReport.routes
+2026-03-26 12:52:47,014 - ✅ Included YEN ERP: DebitnoteReport.routes
+2026-03-26 12:52:47,014 - 🟡 Attempting to import: ServiceReport.routes
+2026-03-26 12:52:47,064 - ✅ Successfully imported: ServiceReport.routes
+2026-03-26 12:52:47,064 - ✅ Router found in: ServiceReport.routes
+2026-03-26 12:52:47,080 - ✅ Included YEN ERP: ServiceReport.routes
+2026-03-26 12:52:47,080 - 🟡 Attempting to import: PettyCashExpanseReport.routes
+2026-03-26 12:52:47,120 - ✅ Successfully imported: PettyCashExpanseReport.routes
+2026-03-26 12:52:47,120 - ✅ Router found in: PettyCashExpanseReport.routes
+2026-03-26 12:52:47,139 - ✅ Included YEN ERP: PettyCashExpanseReport.routes
+2026-03-26 12:52:47,140 - 🟡 Attempting to import: ProductionEntrysReport.routes
+2026-03-26 12:52:47,203 - ✅ Successfully imported: ProductionEntrysReport.routes
+2026-03-26 12:52:47,203 - ✅ Router found in: ProductionEntrysReport.routes
+2026-03-26 12:52:47,203 - ✅ Included YEN ERP: ProductionEntrysReport.routes
+2026-03-26 12:52:47,203 - 🟡 Attempting to import: DispatchReport.routes
+2026-03-26 12:52:47,303 - ✅ Successfully imported: DispatchReport.routes
+2026-03-26 12:52:47,303 - ✅ Router found in: DispatchReport.routes
+2026-03-26 12:52:47,320 - ✅ Included YEN ERP: DispatchReport.routes
+2026-03-26 12:52:47,320 - 🟡 Attempting to import: SalesorderReport.routes
+2026-03-26 12:52:47,420 - ✅ Successfully imported: SalesorderReport.routes
+2026-03-26 12:52:47,420 - ✅ Router found in: SalesorderReport.routes
+2026-03-26 12:52:47,437 - ✅ Included YEN ERP: SalesorderReport.routes
+2026-03-26 12:52:47,437 - 🟡 Attempting to import: allrestaurants.routes
+2026-03-26 12:52:47,508 - ✅ Successfully imported: allrestaurants.routes
+2026-03-26 12:52:47,508 - ✅ Router found in: allrestaurants.routes
+2026-03-26 12:52:47,520 - ✅ Included YEN ERP: allrestaurants.routes
+2026-03-26 12:52:47,520 - 🟡 Attempting to import: ItemOrderReport.routes
+2026-03-26 12:52:47,587 - ✅ Successfully imported: ItemOrderReport.routes
+2026-03-26 12:52:47,587 - ✅ Router found in: ItemOrderReport.routes
+2026-03-26 12:52:47,587 - ✅ Included YEN ERP: ItemOrderReport.routes
+2026-03-26 12:52:47,587 - 🟡 Attempting to import: ItemwiseSalesReport.routes
+2026-03-26 12:52:47,637 - ✅ Successfully imported: ItemwiseSalesReport.routes
+2026-03-26 12:52:47,637 - ✅ Router found in: ItemwiseSalesReport.routes
+2026-03-26 12:52:47,658 - ✅ Included YEN ERP: ItemwiseSalesReport.routes
+2026-03-26 12:52:47,658 - 🟡 Attempting to import: itemTransferReport.routes
+2026-03-26 12:52:47,706 - ✅ Successfully imported: itemTransferReport.routes
+2026-03-26 12:52:47,706 - ✅ Router found in: itemTransferReport.routes
+2026-03-26 12:52:47,720 - ✅ Included YEN ERP: itemTransferReport.routes
+2026-03-26 12:52:47,720 - 🟡 Attempting to import: CancelOrderReport.routes
+2026-03-26 12:52:47,786 - ✅ Successfully imported: CancelOrderReport.routes
+2026-03-26 12:52:47,786 - ✅ Router found in: CancelOrderReport.routes
+2026-03-26 12:52:47,786 - ✅ Included YEN ERP: CancelOrderReport.routes
+2026-03-26 12:52:47,786 - 🟡 Attempting to import: DayEndReport.routes
+2026-03-26 12:52:47,866 - ✅ Successfully imported: DayEndReport.routes
+2026-03-26 12:52:47,867 - ✅ Router found in: DayEndReport.routes
+2026-03-26 12:52:47,892 - ✅ Included YEN ERP: DayEndReport.routes
+2026-03-26 12:52:47,892 - 🟡 Attempting to import: WastageReceiveReport.routes
+2026-03-26 12:52:47,965 - ✅ Successfully imported: WastageReceiveReport.routes
+2026-03-26 12:52:47,965 - ✅ Router found in: WastageReceiveReport.routes
+2026-03-26 12:52:47,977 - ✅ Included YEN ERP: WastageReceiveReport.routes
+2026-03-26 12:52:47,977 - 🟡 Attempting to import: WastageEntryReport.routes
+2026-03-26 12:52:48,020 - ✅ Successfully imported: WastageEntryReport.routes
+2026-03-26 12:52:48,020 - ✅ Router found in: WastageEntryReport.routes
+2026-03-26 12:52:48,040 - ✅ Included YEN ERP: WastageEntryReport.routes
+2026-03-26 12:52:48,040 - 🟡 Attempting to import: birthdaycakeReport.routes
+2026-03-26 12:52:48,107 - ✅ Successfully imported: birthdaycakeReport.routes
+2026-03-26 12:52:48,107 - ✅ Router found in: birthdaycakeReport.routes
+2026-03-26 12:52:48,126 - ✅ Included YEN ERP: birthdaycakeReport.routes
+2026-03-26 12:52:48,469 - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-26 12:52:48,482 - Added job "lifespan.<locals>.run_daily_all_snapshots" to job store "default"
+2026-03-26 12:52:48,482 - Scheduler started
+2026-03-26 12:52:48,482 - Creating database indexes...
+2026-03-26 12:53:48,687 - ✅ Main sync connection created
+2026-03-26 12:53:49,154 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:53:49,254 - ✅ Tenant 69a7f2078098476ab963ec8a sync DB: test_tenant_TNT016
+2026-03-26 12:53:50,080 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:10,680 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:10,759 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:10,865 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:10,966 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:12,143 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:12,258 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:12,756 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:12,855 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:31,870 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:32,169 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:32,275 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:32,372 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:32,468 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:32,554 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:32,941 - ✅ Tenant 69a7f2078098476ab963ec8a async DB: test_tenant_TNT016
+2026-03-26 12:54:33,060 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:33,678 - ✅ Inventory connection created
+2026-03-26 12:54:34,457 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:34,561 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:34,663 - Search results: total=8, items=8, locationId=None
+2026-03-26 12:54:34,759 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:34,879 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:34,958 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:35,459 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:36,059 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:36,063 - Search results: total=8, items=8, locationId=None
+2026-03-26 12:54:36,265 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:50,574 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:52,955 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:53,874 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:54,363 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:55,873 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:56,655 - Search results: total=4, items=4, locationId=None
+2026-03-26 12:54:58,071 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:54:58,860 - Search results: total=1, items=1, locationId=None
+2026-03-26 12:55:01,968 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:02,800 - Search results: total=3, items=3, locationId=None
+2026-03-26 12:55:04,152 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:04,956 - Search results: total=1, items=1, locationId=None
+2026-03-26 12:55:08,151 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:09,047 - Search results: total=2, items=2, locationId=None
+2026-03-26 12:55:10,261 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:11,384 - Search results: total=1, items=1, locationId=None
+2026-03-26 12:55:18,559 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:19,269 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:26,255 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:27,071 - Search results: total=4, items=4, locationId=None
+2026-03-26 12:55:29,459 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:30,253 - Search results: total=1, items=1, locationId=None
+2026-03-26 12:55:42,252 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:42,369 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:52,660 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:54,156 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:55:54,695 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:03,969 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:15,895 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:17,270 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:18,460 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:18,761 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:18,862 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:18,961 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:19,460 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:19,756 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:20,359 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:20,556 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:21,381 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:27,574 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:28,445 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:49,282 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:49,557 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:49,666 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:49,961 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:50,271 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:50,865 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:52,763 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:56:53,173 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:12,250 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:14,653 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:38,402 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:38,552 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:38,850 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:38,952 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:39,460 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:39,757 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:39,864 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 12:57:39,968 - Raw total matching GRNs: 1
+2026-03-26 12:57:40,069 - Fetched 1 raw GRNs from cursor
+2026-03-26 12:57:40,302 - GRN 69c4dfd167e6d8e19c807489: vendorName raw='NAMMAKADAI', stripped='NAMMAKADAI', filter='None'
+2026-03-26 12:57:40,302 - Matched GRN 69c4dfd167e6d8e19c807489: vendorName='NAMMAKADAI'
+2026-03-26 12:57:40,334 - Final filtered GRNs: 1 (skipped: 0 total fetched: 1)
+2026-03-26 12:57:40,455 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:40,788 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:57:41,158 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 12:57:41,253 - Raw total matching GRNs: 1
+2026-03-26 12:57:41,352 - Fetched 1 raw GRNs from cursor
+2026-03-26 12:57:41,552 - GRN 69c4dfd167e6d8e19c807489: vendorName raw='NAMMAKADAI', stripped='NAMMAKADAI', filter='None'
+2026-03-26 12:57:41,552 - Matched GRN 69c4dfd167e6d8e19c807489: vendorName='NAMMAKADAI'
+2026-03-26 12:57:41,553 - Final filtered GRNs: 1 (skipped: 0 total fetched: 1)
+2026-03-26 12:57:43,155 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:08,552 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:08,768 - === STARTING CONVERSION FOR GRN: 69c4dfd167e6d8e19c807489 ===
+2026-03-26 12:58:08,768 - AP Round Off: 0.00
+2026-03-26 12:58:09,452 - Conversion Check - AP exists: False, Outgoing exists: False
+2026-03-26 12:58:09,452 - Processing item_id: 69c4df9867e6d8e19c807487
+2026-03-26 12:58:09,452 - Validating item 69c4df9867e6d8e19c807487: unit_price=205.00, received_quantity=55.00, total_price_before_discount=11275.0000
+2026-03-26 12:58:09,452 - Financials for item 69c4df9867e6d8e19c807487: {'totalPrice': Decimal('11275.00'), 'befTaxDiscountAmount': Decimal('0.00'), 'afTaxDiscountAmount': Decimal('0.00'), 'taxAmount': Decimal('563.75'), 'sgst': Decimal('281.88'), 'cgst': Decimal('281.88'), 'igst': Decimal('0.00'), 'finalPrice': Decimal('11838.75')}
+2026-03-26 12:58:09,652 - GRN updated: 2 documents
+2026-03-26 12:58:09,968 - Generated AP ID: AP0003
+2026-03-26 12:58:10,051 - Generated unique AP ID: AP0003 (attempt 1)
+2026-03-26 12:58:10,051 - CREATING NEW AP with randomId: AP0003
+2026-03-26 12:58:10,252 - VERIFIED AP - ID: 69c4e00a67e6d8e19c80748b, RandomId: AP0003
+2026-03-26 12:58:10,252 - Processing Outgoing for AP: 69c4e00a67e6d8e19c80748b, randomId: AP0003
+2026-03-26 12:58:10,653 - Generated unique Outgoing ID: OT0003 (attempt 1)
+2026-03-26 12:58:10,653 - CREATING NEW OUTGOING for AP: 69c4e00a67e6d8e19c80748b with randomId: OT0003
+2026-03-26 12:58:10,760 - Updating vendor payable for: NAMMAKADAI
+2026-03-26 12:58:10,953 - Updated vendor payableAmount: 11881.00 (AP amount: 11881.00)
+2026-03-26 12:58:11,068 - FINAL VERIFICATION - Outgoing 69c4e00a67e6d8e19c80748c linked to AP: 69c4e00a67e6d8e19c80748b
+2026-03-26 12:58:11,068 - === CONVERSION COMPLETED SUCCESSFULLY ===
+2026-03-26 12:58:11,356 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:11,653 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 12:58:11,753 - Raw total matching GRNs: 0
+2026-03-26 12:58:11,853 - Fetched 0 raw GRNs from cursor
+2026-03-26 12:58:11,853 - No GRNs found matching the criteria
+2026-03-26 12:58:21,557 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:21,856 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:22,164 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:22,466 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:22,567 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:22,874 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:23,354 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:32,251 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:33,852 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:35,674 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:35,956 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:36,057 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:36,152 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:36,657 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 12:58:36,743 - Raw total matching GRNs: 1
+2026-03-26 12:58:36,864 - Fetched 1 raw GRNs from cursor
+2026-03-26 12:58:37,047 - GRN 69c4dfd167e6d8e19c807489: vendorName raw='NAMMAKADAI', stripped='NAMMAKADAI', filter='None'
+2026-03-26 12:58:37,047 - Matched GRN 69c4dfd167e6d8e19c807489: vendorName='NAMMAKADAI'
+2026-03-26 12:58:37,047 - Final filtered GRNs: 1 (skipped: 0 total fetched: 1)
+2026-03-26 12:58:37,154 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:37,459 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:37,557 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:37,654 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:58:38,247 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 12:58:38,348 - Raw total matching GRNs: 1
+2026-03-26 12:58:38,456 - Fetched 1 raw GRNs from cursor
+2026-03-26 12:58:38,651 - GRN 69c4dfd167e6d8e19c807489: vendorName raw='NAMMAKADAI', stripped='NAMMAKADAI', filter='None'
+2026-03-26 12:58:38,651 - Matched GRN 69c4dfd167e6d8e19c807489: vendorName='NAMMAKADAI'
+2026-03-26 12:58:38,651 - Final filtered GRNs: 1 (skipped: 0 total fetched: 1)
+2026-03-26 12:58:50,747 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:59:16,953 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:59:17,249 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:59:52,881 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 12:59:53,252 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:03:46,042 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:03:46,355 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:03:46,447 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:03:46,989 - ✅ Retrieved 3/3 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:03:47,100 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:03:47,547 - ✅ Retrieved 3/3 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:05:09,659 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:09,961 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:10,049 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:10,149 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:10,648 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:11,082 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:20,796 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:24,375 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:24,863 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:29,340 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:41,988 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:42,283 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:42,366 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:42,851 - ✅ Retrieved 3/3 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:05:42,956 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:43,362 - ✅ Retrieved 3/3 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:05:50,181 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:50,268 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:50,365 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:50,664 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:50,945 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:05:51,049 - Raw total matching GRNs: 0
+2026-03-26 13:05:51,147 - Fetched 0 raw GRNs from cursor
+2026-03-26 13:05:51,147 - No GRNs found matching the criteria
+2026-03-26 13:05:51,457 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:51,759 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:51,854 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:51,954 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:05:52,363 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:05:52,447 - Raw total matching GRNs: 0
+2026-03-26 13:05:52,551 - Fetched 0 raw GRNs from cursor
+2026-03-26 13:05:52,551 - No GRNs found matching the criteria
+2026-03-26 13:11:58,848 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:12:12,168 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:12:12,461 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:12:44,778 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:03,742 - Tenant context set: 698d68b26e0e40f613847b0c -> purchasetest
+2026-03-26 13:13:03,871 - ✅ Tenant 698d68b26e0e40f613847b0c sync DB: purchasetest
+2026-03-26 13:13:37,035 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:37,339 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:37,440 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:37,933 - ✅ Retrieved 3/3 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:13:38,045 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:38,436 - ✅ Retrieved 3/3 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:13:40,370 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:40,648 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:40,740 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:40,955 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:41,354 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:41,551 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:42,931 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:44,364 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:44,851 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:44,941 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:13:47,157 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:06,136 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:06,339 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:18,430 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:20,133 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:20,437 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:20,552 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:21,045 - ✅ Retrieved 4/4 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:14:21,146 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:21,547 - ✅ Retrieved 4/4 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:14:24,046 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:24,467 - Service Order SR0010 approved successfully
+2026-03-26 13:14:24,753 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:25,144 - ✅ Retrieved 3/3 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:14:35,537 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:35,869 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:35,948 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:36,538 - ✅ Retrieved 2/2 service orders with status=Approved (sorted by serviceId DESC - highest number first)
+2026-03-26 13:14:36,654 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:37,045 - ✅ Retrieved 2/2 service orders with status=Approved (sorted by serviceId DESC - highest number first)
+2026-03-26 13:14:55,647 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:55,872 - === STARTING SERVICE CONVERSION: 69c4e3d367e6d8e19c807493 ===
+2026-03-26 13:14:55,872 - Parameters - apRoundOff: 0.00, invoiceNo: 8989, invoiceDate: 2026-03-26
+2026-03-26 13:14:56,257 - 🔍 Checking service conversion status...
+2026-03-26 13:14:56,350 - Conversion status: NOT_CONVERTED
+2026-03-26 13:14:56,350 - 🔍 Validating service...
+2026-03-26 13:14:56,454 - ✅ Service validated: SR0010, Vendor: SRI THIRUMALAI STORE
+2026-03-26 13:14:56,454 - 🔍 Validating AP round off...
+2026-03-26 13:14:56,470 - ✅ AP round off validated: 0.00
+2026-03-26 13:14:56,478 - Using provided invoice date: 2026-03-26 00:00:00
+2026-03-26 13:14:56,478 - Final invoice number: 8989
+2026-03-26 13:14:56,478 - 📊 Calculating totals...
+2026-03-26 13:14:56,492 - ✅ Found amount using key 'total_amount': 444.0
+2026-03-26 13:14:56,494 - 📄 Creating new AP invoice...
+2026-03-26 13:14:56,762 - Generated AP ID: AP0004
+2026-03-26 13:14:56,866 - Generated unique AP ID: AP0004
+2026-03-26 13:14:56,878 - Creating new service AP invoice with randomId: AP0004
+2026-03-26 13:14:56,979 - ✅ Created new AP invoice with ID: 69c4e3f867e6d8e19c807494
+2026-03-26 13:14:56,979 - ✅ AP invoice created: 69c4e3f867e6d8e19c807494
+2026-03-26 13:14:57,034 - 💰 Creating outgoing payment...
+2026-03-26 13:14:57,439 - Generated unique Outgoing ID: OT0004
+2026-03-26 13:14:57,440 - Creating new service outgoing with randomId: OT0004
+2026-03-26 13:14:57,595 - ✅ Created new outgoing with ID: 69c4e3f967e6d8e19c807495
+2026-03-26 13:14:57,595 - ✅ Outgoing payment created: 69c4e3f967e6d8e19c807495
+2026-03-26 13:14:57,597 - Updating vendor payable - ID: 69a7f544b2b3fa65e2ef88cd, Name: SRI THIRUMALAI STORE, Amount: 444.0, Operation: add
+2026-03-26 13:14:57,748 - Vendor update attempted by ID: 69a7f544b2b3fa65e2ef88cd, matched: 1
+2026-03-26 13:14:57,843 - ✅ Vendor payable updated via vendorId - Amount: 444.0
+2026-03-26 13:14:57,843 - ✅ Vendor payable updated
+2026-03-26 13:14:57,844 - 🔄 Updating service status to APConverted...
+2026-03-26 13:14:58,043 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:58,048 - ✅ Service status updated to APConverted
+2026-03-26 13:14:58,048 - 🎉 CONVERSION COMPLETED SUCCESSFULLY!
+2026-03-26 13:14:58,150 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:14:58,259 - === STARTING SERVICE CONVERSION: 69c4e3d367e6d8e19c807493 ===
+2026-03-26 13:14:58,259 - Parameters - apRoundOff: 0.00, invoiceNo: 8989, invoiceDate: 2026-03-26
+2026-03-26 13:14:58,825 - 🔍 Checking service conversion status...
+2026-03-26 13:14:59,049 - Conversion status: CONVERTED_ACTIVE
+2026-03-26 13:14:59,049 - 🔍 Validating service...
+2026-03-26 13:14:59,125 - ✅ Service validated: SR0010, Vendor: SRI THIRUMALAI STORE
+2026-03-26 13:14:59,125 - 🚫 BLOCKED: Service already converted (ACTIVE)
+2026-03-26 13:14:59,641 - ✅ Retrieved 1/1 service orders with status=Approved (sorted by serviceId DESC - highest number first)
+2026-03-26 13:15:03,641 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:03,971 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:04,052 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:04,144 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:04,454 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:04,960 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:15:05,062 - Raw total matching GRNs: 0
+2026-03-26 13:15:05,171 - Fetched 0 raw GRNs from cursor
+2026-03-26 13:15:05,171 - No GRNs found matching the criteria
+2026-03-26 13:15:05,237 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:05,581 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:05,650 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:05,990 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:15:06,041 - Raw total matching GRNs: 0
+2026-03-26 13:15:06,143 - Fetched 0 raw GRNs from cursor
+2026-03-26 13:15:06,144 - No GRNs found matching the criteria
+2026-03-26 13:15:24,353 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:24,455 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:24,531 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:25,001 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:25,069 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:25,854 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:25,949 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:33,749 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:34,044 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:34,145 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:34,243 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:34,764 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:15:34,862 - Raw total matching GRNs: 0
+2026-03-26 13:15:34,955 - Fetched 0 raw GRNs from cursor
+2026-03-26 13:15:34,955 - No GRNs found matching the criteria
+2026-03-26 13:15:35,139 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:35,540 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:35,643 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:35,846 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:36,342 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:15:36,446 - Raw total matching GRNs: 0
+2026-03-26 13:15:36,538 - Fetched 0 raw GRNs from cursor
+2026-03-26 13:15:36,538 - No GRNs found matching the criteria
+2026-03-26 13:15:45,570 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:45,636 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:45,944 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:46,244 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:46,542 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:47,153 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:54,365 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:54,636 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:54,941 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:55,038 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:55,158 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:56,063 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:58,043 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:15:58,563 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:10,342 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:12,959 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:16,850 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:17,156 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:17,245 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:17,355 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:17,669 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:17,940 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:16:18,042 - Raw total matching GRNs: 1
+2026-03-26 13:16:18,131 - Fetched 1 raw GRNs from cursor
+2026-03-26 13:16:18,336 - GRN 69c4e44367e6d8e19c807496: vendorName raw='HEMAVATHY  EGG SHOP', stripped='HEMAVATHY  EGG SHOP', filter='None'
+2026-03-26 13:16:18,336 - Matched GRN 69c4e44367e6d8e19c807496: vendorName='HEMAVATHY  EGG SHOP'
+2026-03-26 13:16:18,351 - Final filtered GRNs: 1 (skipped: 0 total fetched: 1)
+2026-03-26 13:16:18,649 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:18,751 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:19,103 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:19,410 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:16:19,448 - Raw total matching GRNs: 1
+2026-03-26 13:16:19,531 - Fetched 1 raw GRNs from cursor
+2026-03-26 13:16:19,735 - GRN 69c4e44367e6d8e19c807496: vendorName raw='HEMAVATHY  EGG SHOP', stripped='HEMAVATHY  EGG SHOP', filter='None'
+2026-03-26 13:16:19,735 - Matched GRN 69c4e44367e6d8e19c807496: vendorName='HEMAVATHY  EGG SHOP'
+2026-03-26 13:16:19,735 - Final filtered GRNs: 1 (skipped: 0 total fetched: 1)
+2026-03-26 13:16:29,563 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:29,632 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:29,956 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:30,259 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:30,638 - Executing query: {'status': {'$in': ['Fully Returned', 'Partially Returned', 'APInvoiceConverted']}}, sort by grnReturnedDate, skip: 0, limit: 50
+2026-03-26 13:16:30,725 - No GRNs found matching the criteria
+2026-03-26 13:16:30,842 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:30,942 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:31,442 - Executing query: {'status': {'$in': ['Fully Returned', 'Partially Returned', 'APInvoiceConverted']}}, sort by grnReturnedDate, skip: 0, limit: 50
+2026-03-26 13:16:31,544 - No GRNs found matching the criteria
+2026-03-26 13:16:32,359 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:32,627 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:32,742 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:32,839 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:33,125 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:33,441 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:16:33,540 - Raw total matching GRNs: 1
+2026-03-26 13:16:33,642 - Fetched 1 raw GRNs from cursor
+2026-03-26 13:16:33,845 - GRN 69c4e44367e6d8e19c807496: vendorName raw='HEMAVATHY  EGG SHOP', stripped='HEMAVATHY  EGG SHOP', filter='None'
+2026-03-26 13:16:33,845 - Matched GRN 69c4e44367e6d8e19c807496: vendorName='HEMAVATHY  EGG SHOP'
+2026-03-26 13:16:33,845 - Final filtered GRNs: 1 (skipped: 0 total fetched: 1)
+2026-03-26 13:16:34,155 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:34,462 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:34,557 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:34,873 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:16:34,939 - Raw total matching GRNs: 1
+2026-03-26 13:16:35,024 - Fetched 1 raw GRNs from cursor
+2026-03-26 13:16:35,241 - GRN 69c4e44367e6d8e19c807496: vendorName raw='HEMAVATHY  EGG SHOP', stripped='HEMAVATHY  EGG SHOP', filter='None'
+2026-03-26 13:16:35,241 - Matched GRN 69c4e44367e6d8e19c807496: vendorName='HEMAVATHY  EGG SHOP'
+2026-03-26 13:16:35,241 - Final filtered GRNs: 1 (skipped: 0 total fetched: 1)
+2026-03-26 13:16:36,836 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:16:37,245 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:17:00,882 - Tenant context set: 698d68b26e0e40f613847b0c -> purchasetest
+2026-03-26 13:17:01,116 - ✅ Tenant 698d68b26e0e40f613847b0c async DB: purchasetest
+2026-03-26 13:17:22,692 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:17:23,038 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:18:03,782 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:18:04,164 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:18:12,477 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:18:12,869 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:18:18,538 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:18:18,842 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:18:22,285 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:18:22,553 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:18:56,941 - Tenant context set: 698d68b26e0e40f613847b0c -> purchasetest
+2026-03-26 13:18:57,637 - Tenant context set: 698d68b26e0e40f613847b0c -> purchasetest
+2026-03-26 13:19:03,654 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:19:04,171 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:19:11,159 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:02,641 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:02,948 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:16,562 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:16,840 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:16,941 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:17,024 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:17,424 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:17,940 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:20:18,040 - Raw total matching GRNs: 1
+2026-03-26 13:20:18,156 - Fetched 1 raw GRNs from cursor
+2026-03-26 13:20:18,340 - GRN 69c4e44367e6d8e19c807496: vendorName raw='HEMAVATHY  EGG SHOP', stripped='HEMAVATHY  EGG SHOP', filter='None'
+2026-03-26 13:20:18,340 - Matched GRN 69c4e44367e6d8e19c807496: vendorName='HEMAVATHY  EGG SHOP'
+2026-03-26 13:20:18,340 - Final filtered GRNs: 1 (skipped: 0 total fetched: 1)
+2026-03-26 13:20:18,443 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:18,731 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:18,868 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:19,145 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 13:20:19,238 - Raw total matching GRNs: 1
+2026-03-26 13:20:19,340 - Fetched 1 raw GRNs from cursor
+2026-03-26 13:20:19,540 - GRN 69c4e44367e6d8e19c807496: vendorName raw='HEMAVATHY  EGG SHOP', stripped='HEMAVATHY  EGG SHOP', filter='None'
+2026-03-26 13:20:19,540 - Matched GRN 69c4e44367e6d8e19c807496: vendorName='HEMAVATHY  EGG SHOP'
+2026-03-26 13:20:19,540 - Final filtered GRNs: 1 (skipped: 0 total fetched: 1)
+2026-03-26 13:20:20,151 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:20,560 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:28,446 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:28,557 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:28,650 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:29,163 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:29,777 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:30,048 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:40,857 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:40,938 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:41,036 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:41,156 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:41,248 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:41,348 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:41,860 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:42,935 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:43,036 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:43,131 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:43,243 - Search results: total=8, items=8, locationId=None
+2026-03-26 13:20:43,332 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:43,438 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:43,538 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:44,531 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:20:44,534 - Search results: total=8, items=8, locationId=None
+2026-03-26 13:20:44,932 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:21:02,853 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:21:24,766 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:21:25,034 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:21:42,430 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:21:42,838 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:22:41,566 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:22:42,333 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:22:45,559 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:27,941 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:28,042 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:28,357 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:28,973 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:29,232 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:29,335 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:31,963 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:32,048 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:32,151 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:32,253 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:32,349 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:32,458 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:32,935 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:33,233 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:33,329 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:33,438 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:34,348 - Search results: total=8, items=8, locationId=None
+2026-03-26 13:23:34,434 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:34,530 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:34,745 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:35,137 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:35,735 - Search results: total=8, items=8, locationId=None
+2026-03-26 13:23:35,944 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:41,467 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:41,734 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:44,843 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:23:45,156 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:24:31,440 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:24:31,743 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:25:57,727 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:25:58,274 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:06,825 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:07,541 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:29,030 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:30,573 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:30,864 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:30,934 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:31,044 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:31,145 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:31,262 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:31,555 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:32,881 - Search results: total=8, items=8, locationId=None
+2026-03-26 13:26:32,938 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:33,030 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:33,252 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:33,534 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:33,628 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:33,731 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:33,944 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:34,637 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:35,364 - Search results: total=8, items=8, locationId=None
+2026-03-26 13:26:36,061 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:26:36,130 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:27:17,875 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:27:19,015 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:27:19,317 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:27:19,433 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:27:19,752 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:27:20,328 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:27:20,628 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:39,657 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:39,761 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:39,830 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:39,930 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:40,024 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:40,229 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:40,332 - Fetching all storage locations
+2026-03-26 13:28:40,635 - Retrieved 1 storage locations
+2026-03-26 13:28:40,731 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:40,830 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:41,654 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:41,730 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:41,832 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:41,928 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:42,129 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:42,244 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:42,432 - Fetching all storage locations
+2026-03-26 13:28:42,638 - Retrieved 1 storage locations
+2026-03-26 13:28:42,728 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:43,138 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:58,335 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:58,630 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:58,913 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:59,360 - ✅ Retrieved 3/3 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:28:59,429 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:28:59,858 - ✅ Retrieved 3/3 service orders with status=Pending (sorted by serviceId DESC - highest number first)
+2026-03-26 13:29:07,926 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:29:28,722 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:29:29,070 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:29:37,043 - Tenant context set: 698d68b26e0e40f613847b0c -> purchasetest
+2026-03-26 13:31:08,543 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:31:08,658 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:31:09,162 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 13:31:09,247 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:20:53,180 - ✅ Successfully imported: purchaseOrder.po_to_grn
+2026-03-26 15:20:53,180 - ✅ Router found in: purchaseOrder.po_to_grn
+2026-03-26 15:20:53,183 - ✅ Included YEN ERP: purchaseOrder.po_to_grn
+2026-03-26 15:20:53,184 - 🟡 Attempting to import: purchaseOrder.grnConverted
+2026-03-26 15:20:53,205 - ✅ Successfully imported: purchaseOrder.grnConverted
+2026-03-26 15:20:53,205 - ✅ Router found in: purchaseOrder.grnConverted
+2026-03-26 15:20:53,215 - ✅ Included YEN ERP: purchaseOrder.grnConverted
+2026-03-26 15:20:53,215 - 🟡 Attempting to import: purchaseOrder.poedit
+2026-03-26 15:20:53,218 - ✅ Successfully imported: purchaseOrder.poedit
+2026-03-26 15:20:53,218 - ✅ Router found in: purchaseOrder.poedit
+2026-03-26 15:20:53,220 - ✅ Included YEN ERP: purchaseOrder.poedit
+2026-03-26 15:20:53,220 - 🟡 Attempting to import: purchaseOrder.freightfunction
+2026-03-26 15:20:53,234 - ✅ Successfully imported: purchaseOrder.freightfunction
+2026-03-26 15:20:53,234 - ✅ Router found in: purchaseOrder.freightfunction
+2026-03-26 15:20:53,237 - ✅ Included YEN ERP: purchaseOrder.freightfunction
+2026-03-26 15:20:53,237 - 🟡 Attempting to import: purchaseOrder.pending
+2026-03-26 15:20:53,272 - ✅ Successfully imported: purchaseOrder.pending
+2026-03-26 15:20:53,272 - ✅ Router found in: purchaseOrder.pending
+2026-03-26 15:20:53,284 - ✅ Included YEN ERP: purchaseOrder.pending
+2026-03-26 15:20:53,284 - 🟡 Attempting to import: grn.routes
+2026-03-26 15:20:53,284 - ✅ Successfully imported: grn.routes
+2026-03-26 15:20:53,284 - ✅ Router found in: grn.routes
+2026-03-26 15:20:53,433 - ✅ Included YEN ERP: grn.routes
+2026-03-26 15:20:53,433 - 🟡 Attempting to import: grn.return
+2026-03-26 15:20:53,457 - ✅ Successfully imported: grn.return
+2026-03-26 15:20:53,457 - ✅ Router found in: grn.return
+2026-03-26 15:20:53,464 - ✅ Included YEN ERP: grn.return
+2026-03-26 15:20:53,464 - 🟡 Attempting to import: grn.grn_to_ap
+2026-03-26 15:20:53,572 - ✅ Successfully imported: grn.grn_to_ap
+2026-03-26 15:20:53,572 - ✅ Router found in: grn.grn_to_ap
+2026-03-26 15:20:53,577 - ✅ Included YEN ERP: grn.grn_to_ap
+2026-03-26 15:20:53,578 - 🟡 Attempting to import: grn.debitnote
+2026-03-26 15:20:53,881 - ✅ Successfully imported: grn.debitnote
+2026-03-26 15:20:53,881 - ✅ Router found in: grn.debitnote
+2026-03-26 15:20:53,911 - ✅ Included YEN ERP: grn.debitnote
+2026-03-26 15:20:53,911 - 🟡 Attempting to import: grn.grn_to_ap_outgoing
+2026-03-26 15:20:54,070 - ✅ Successfully imported: grn.grn_to_ap_outgoing
+2026-03-26 15:20:54,070 - ✅ Router found in: grn.grn_to_ap_outgoing
+2026-03-26 15:20:54,073 - ✅ Included YEN ERP: grn.grn_to_ap_outgoing
+2026-03-26 15:20:54,073 - 🟡 Attempting to import: grn.grn_to_po
+2026-03-26 15:20:54,077 - ✅ Successfully imported: grn.grn_to_po
+2026-03-26 15:20:54,077 - ✅ Router found in: grn.grn_to_po
+2026-03-26 15:20:54,078 - ✅ Included YEN ERP: grn.grn_to_po
+2026-03-26 15:20:54,078 - 🟡 Attempting to import: apinvoice.routes
+2026-03-26 15:20:54,078 - ✅ Successfully imported: apinvoice.routes
+2026-03-26 15:20:54,078 - ✅ Router found in: apinvoice.routes
+2026-03-26 15:20:54,120 - ✅ Included YEN ERP: apinvoice.routes
+2026-03-26 15:20:54,120 - 🟡 Attempting to import: apinvoice.ap_to_outgoing
+2026-03-26 15:20:54,123 - ✅ Successfully imported: apinvoice.ap_to_outgoing
+2026-03-26 15:20:54,123 - ✅ Router found in: apinvoice.ap_to_outgoing
+2026-03-26 15:20:54,126 - ✅ Included YEN ERP: apinvoice.ap_to_outgoing
+2026-03-26 15:20:54,126 - 🟡 Attempting to import: apinvoice.apReturned
+2026-03-26 15:20:54,131 - ✅ Successfully imported: apinvoice.apReturned
+2026-03-26 15:20:54,131 - ✅ Router found in: apinvoice.apReturned
+2026-03-26 15:20:54,133 - ✅ Included YEN ERP: apinvoice.apReturned
+2026-03-26 15:20:54,133 - 🟡 Attempting to import: outgoingPayment.routes
+2026-03-26 15:20:54,133 - ✅ Successfully imported: outgoingPayment.routes
+2026-03-26 15:20:54,133 - ✅ Router found in: outgoingPayment.routes
+2026-03-26 15:20:54,185 - ✅ Included YEN ERP: outgoingPayment.routes
+2026-03-26 15:20:54,185 - 🟡 Attempting to import: outgoingPayment.bulk_payment
+2026-03-26 15:20:54,201 - ✅ Successfully imported: outgoingPayment.bulk_payment
+2026-03-26 15:20:54,202 - ✅ Router found in: outgoingPayment.bulk_payment
+2026-03-26 15:20:54,205 - ✅ Included YEN ERP: outgoingPayment.bulk_payment
+2026-03-26 15:20:54,205 - 🟡 Attempting to import: outgoingPayment.vendor_ledger
+2026-03-26 15:20:54,212 - ✅ Successfully imported: outgoingPayment.vendor_ledger
+2026-03-26 15:20:54,212 - ✅ Router found in: outgoingPayment.vendor_ledger
+2026-03-26 15:20:54,218 - ✅ Included YEN ERP: outgoingPayment.vendor_ledger
+2026-03-26 15:20:54,218 - 🟡 Attempting to import: outgoingPayment.single_payment
+2026-03-26 15:20:54,230 - ✅ Successfully imported: outgoingPayment.single_payment
+2026-03-26 15:20:54,230 - ✅ Router found in: outgoingPayment.single_payment
+2026-03-26 15:20:54,232 - ✅ Included YEN ERP: outgoingPayment.single_payment
+2026-03-26 15:20:54,232 - 🟡 Attempting to import: outgoingPayment.payment_history
+2026-03-26 15:20:54,254 - ✅ Successfully imported: outgoingPayment.payment_history
+2026-03-26 15:20:54,255 - ✅ Router found in: outgoingPayment.payment_history
+2026-03-26 15:20:54,260 - ✅ Included YEN ERP: outgoingPayment.payment_history
+2026-03-26 15:20:54,260 - 🟡 Attempting to import: outgoingPayment.advance_routes
+2026-03-26 15:20:54,299 - ✅ Successfully imported: outgoingPayment.advance_routes
+2026-03-26 15:20:54,299 - ✅ Router found in: outgoingPayment.advance_routes
+2026-03-26 15:20:54,318 - ✅ Included YEN ERP: outgoingPayment.advance_routes
+2026-03-26 15:20:54,318 - 🟡 Attempting to import: Business.routes
+2026-03-26 15:20:54,335 - ✅ Successfully imported: Business.routes
+2026-03-26 15:20:54,335 - ✅ Router found in: Business.routes
+2026-03-26 15:20:54,344 - ✅ Included YEN ERP: Business.routes
+2026-03-26 15:20:54,344 - 🟡 Attempting to import: Personal.routes
+2026-03-26 15:20:54,356 - ✅ Successfully imported: Personal.routes
+2026-03-26 15:20:54,356 - ✅ Router found in: Personal.routes
+2026-03-26 15:20:54,361 - ✅ Included YEN ERP: Personal.routes
+2026-03-26 15:20:54,361 - 🟡 Attempting to import: shippingaddress.routes
+2026-03-26 15:20:54,374 - ✅ Successfully imported: shippingaddress.routes
+2026-03-26 15:20:54,374 - ✅ Router found in: shippingaddress.routes
+2026-03-26 15:20:54,379 - ✅ Included YEN ERP: shippingaddress.routes
+2026-03-26 15:20:54,379 - 🟡 Attempting to import: ItemGroup.routes
+2026-03-26 15:20:54,399 - ✅ Successfully imported: ItemGroup.routes
+2026-03-26 15:20:54,399 - ✅ Router found in: ItemGroup.routes
+2026-03-26 15:20:54,412 - ✅ Included YEN ERP: ItemGroup.routes
+2026-03-26 15:20:54,412 - 🟡 Attempting to import: FreightMaster.routes
+2026-03-26 15:20:54,433 - ✅ Successfully imported: FreightMaster.routes
+2026-03-26 15:20:54,433 - ✅ Router found in: FreightMaster.routes
+2026-03-26 15:20:54,449 - ✅ Included YEN ERP: FreightMaster.routes
+2026-03-26 15:20:54,449 - 🟡 Attempting to import: purchaseOrder.poimport
+2026-03-26 15:20:54,460 - ✅ Successfully imported: purchaseOrder.poimport
+2026-03-26 15:20:54,461 - ✅ Router found in: purchaseOrder.poimport
+2026-03-26 15:20:54,468 - ✅ Included YEN ERP: purchaseOrder.poimport
+2026-03-26 15:20:54,468 - 🟡 Attempting to import: ServiceOrder.routes
+2026-03-26 15:20:54,678 - ✅ Successfully imported: ServiceOrder.routes
+2026-03-26 15:20:54,678 - ✅ Router found in: ServiceOrder.routes
+2026-03-26 15:20:54,708 - ✅ Included YEN ERP: ServiceOrder.routes
+2026-03-26 15:20:54,709 - 🟡 Attempting to import: Service.serviceSummary
+2026-03-26 15:20:54,713 - ✅ Successfully imported: Service.serviceSummary
+2026-03-26 15:20:54,714 - ✅ Router found in: Service.serviceSummary
+2026-03-26 15:20:54,717 - ✅ Included YEN ERP: Service.serviceSummary
+2026-03-26 15:20:54,717 - 🟡 Attempting to import: ServiceOrder.servicelist
+2026-03-26 15:20:54,729 - ✅ Successfully imported: ServiceOrder.servicelist
+2026-03-26 15:20:54,729 - ✅ Router found in: ServiceOrder.servicelist
+2026-03-26 15:20:54,740 - ✅ Included YEN ERP: ServiceOrder.servicelist
+2026-03-26 15:20:54,740 - 🟡 Attempting to import: ServiceOrder.filterpatch
+2026-03-26 15:20:54,746 - ✅ Successfully imported: ServiceOrder.filterpatch
+2026-03-26 15:20:54,746 - ✅ Router found in: ServiceOrder.filterpatch
+2026-03-26 15:20:54,754 - ✅ Included YEN ERP: ServiceOrder.filterpatch
+2026-03-26 15:20:54,754 - 🟡 Attempting to import: ServiceOrder.service_ap_outgoing
+2026-03-26 15:20:54,764 - ✅ Successfully imported: ServiceOrder.service_ap_outgoing
+2026-03-26 15:20:54,764 - ✅ Router found in: ServiceOrder.service_ap_outgoing
+2026-03-26 15:20:54,776 - ✅ Included YEN ERP: ServiceOrder.service_ap_outgoing
+2026-03-26 15:20:54,776 - 🟡 Attempting to import: purchaseOrderReport.routes
+2026-03-26 15:20:54,838 - ✅ Successfully imported: purchaseOrderReport.routes
+2026-03-26 15:20:54,838 - ✅ Router found in: purchaseOrderReport.routes
+2026-03-26 15:20:54,864 - ✅ Included YEN ERP: purchaseOrderReport.routes
+2026-03-26 15:20:54,864 - 🟡 Attempting to import: itemDateReport.routes
+2026-03-26 15:20:54,915 - ❌ Failed to import itemDateReport.routes: APIRouter.get() got an unexpected keyword argument 'user'
+2026-03-26 15:20:54,915 - 🟡 Attempting to import: grnagainstReport.routes
+2026-03-26 15:20:54,957 - ✅ Successfully imported: grnagainstReport.routes
+2026-03-26 15:20:54,957 - ✅ Router found in: grnagainstReport.routes
+2026-03-26 15:20:54,968 - ✅ Included YEN ERP: grnagainstReport.routes
+2026-03-26 15:20:54,968 - 🟡 Attempting to import: ApInvoiceReport.routes
+2026-03-26 15:20:54,983 - ✅ Successfully imported: ApInvoiceReport.routes
+2026-03-26 15:20:54,983 - ✅ Router found in: ApInvoiceReport.routes
+2026-03-26 15:20:54,996 - ✅ Included YEN ERP: ApInvoiceReport.routes
+2026-03-26 15:20:54,996 - 🟡 Attempting to import: OutgoingPaymentReport.routes
+2026-03-26 15:20:55,022 - ✅ Successfully imported: OutgoingPaymentReport.routes
+2026-03-26 15:20:55,022 - ✅ Router found in: OutgoingPaymentReport.routes
+2026-03-26 15:20:55,039 - ✅ Included YEN ERP: OutgoingPaymentReport.routes
+2026-03-26 15:20:55,039 - 🟡 Attempting to import: rawmaterialReport.routes
+2026-03-26 15:20:55,067 - ✅ Successfully imported: rawmaterialReport.routes
+2026-03-26 15:20:55,068 - ✅ Router found in: rawmaterialReport.routes
+2026-03-26 15:20:55,082 - ✅ Included YEN ERP: rawmaterialReport.routes
+2026-03-26 15:20:55,083 - 🟡 Attempting to import: DebitnoteReport.routes
+2026-03-26 15:20:55,116 - ✅ Successfully imported: DebitnoteReport.routes
+2026-03-26 15:20:55,116 - ✅ Router found in: DebitnoteReport.routes
+2026-03-26 15:20:55,134 - ✅ Included YEN ERP: DebitnoteReport.routes
+2026-03-26 15:20:55,134 - 🟡 Attempting to import: ServiceReport.routes
+2026-03-26 15:20:55,164 - ✅ Successfully imported: ServiceReport.routes
+2026-03-26 15:20:55,164 - ✅ Router found in: ServiceReport.routes
+2026-03-26 15:20:55,172 - ✅ Included YEN ERP: ServiceReport.routes
+2026-03-26 15:20:55,172 - 🟡 Attempting to import: PettyCashExpanseReport.routes
+2026-03-26 15:20:55,191 - ✅ Successfully imported: PettyCashExpanseReport.routes
+2026-03-26 15:20:55,191 - ✅ Router found in: PettyCashExpanseReport.routes
+2026-03-26 15:20:55,200 - ✅ Included YEN ERP: PettyCashExpanseReport.routes
+2026-03-26 15:20:55,200 - 🟡 Attempting to import: ProductionEntrysReport.routes
+2026-03-26 15:20:55,223 - ✅ Successfully imported: ProductionEntrysReport.routes
+2026-03-26 15:20:55,223 - ✅ Router found in: ProductionEntrysReport.routes
+2026-03-26 15:20:55,233 - ✅ Included YEN ERP: ProductionEntrysReport.routes
+2026-03-26 15:20:55,233 - 🟡 Attempting to import: DispatchReport.routes
+2026-03-26 15:20:55,278 - ✅ Successfully imported: DispatchReport.routes
+2026-03-26 15:20:55,278 - ✅ Router found in: DispatchReport.routes
+2026-03-26 15:20:55,306 - ✅ Included YEN ERP: DispatchReport.routes
+2026-03-26 15:20:55,306 - 🟡 Attempting to import: SalesorderReport.routes
+2026-03-26 15:20:55,335 - ✅ Successfully imported: SalesorderReport.routes
+2026-03-26 15:20:55,336 - ✅ Router found in: SalesorderReport.routes
+2026-03-26 15:20:55,351 - ✅ Included YEN ERP: SalesorderReport.routes
+2026-03-26 15:20:55,351 - 🟡 Attempting to import: allrestaurants.routes
+2026-03-26 15:20:55,416 - ✅ Successfully imported: allrestaurants.routes
+2026-03-26 15:20:55,416 - ✅ Router found in: allrestaurants.routes
+2026-03-26 15:20:55,438 - ✅ Included YEN ERP: allrestaurants.routes
+2026-03-26 15:20:55,438 - 🟡 Attempting to import: ItemOrderReport.routes
+2026-03-26 15:20:55,461 - ✅ Successfully imported: ItemOrderReport.routes
+2026-03-26 15:20:55,461 - ✅ Router found in: ItemOrderReport.routes
+2026-03-26 15:20:55,471 - ✅ Included YEN ERP: ItemOrderReport.routes
+2026-03-26 15:20:55,472 - 🟡 Attempting to import: ItemwiseSalesReport.routes
+2026-03-26 15:20:55,486 - ✅ Successfully imported: ItemwiseSalesReport.routes
+2026-03-26 15:20:55,486 - ✅ Router found in: ItemwiseSalesReport.routes
+2026-03-26 15:20:55,496 - ✅ Included YEN ERP: ItemwiseSalesReport.routes
+2026-03-26 15:20:55,496 - 🟡 Attempting to import: itemTransferReport.routes
+2026-03-26 15:20:55,524 - ✅ Successfully imported: itemTransferReport.routes
+2026-03-26 15:20:55,524 - ✅ Router found in: itemTransferReport.routes
+2026-03-26 15:20:55,535 - ✅ Included YEN ERP: itemTransferReport.routes
+2026-03-26 15:20:55,535 - 🟡 Attempting to import: CancelOrderReport.routes
+2026-03-26 15:20:55,559 - ✅ Successfully imported: CancelOrderReport.routes
+2026-03-26 15:20:55,559 - ✅ Router found in: CancelOrderReport.routes
+2026-03-26 15:20:55,570 - ✅ Included YEN ERP: CancelOrderReport.routes
+2026-03-26 15:20:55,570 - 🟡 Attempting to import: DayEndReport.routes
+2026-03-26 15:20:55,598 - ✅ Successfully imported: DayEndReport.routes
+2026-03-26 15:20:55,598 - ✅ Router found in: DayEndReport.routes
+2026-03-26 15:20:55,614 - ✅ Included YEN ERP: DayEndReport.routes
+2026-03-26 15:20:55,615 - 🟡 Attempting to import: WastageReceiveReport.routes
+2026-03-26 15:20:55,647 - ✅ Successfully imported: WastageReceiveReport.routes
+2026-03-26 15:20:55,647 - ✅ Router found in: WastageReceiveReport.routes
+2026-03-26 15:20:55,662 - ✅ Included YEN ERP: WastageReceiveReport.routes
+2026-03-26 15:20:55,662 - 🟡 Attempting to import: WastageEntryReport.routes
+2026-03-26 15:20:55,695 - ✅ Successfully imported: WastageEntryReport.routes
+2026-03-26 15:20:55,695 - ✅ Router found in: WastageEntryReport.routes
+2026-03-26 15:20:55,711 - ✅ Included YEN ERP: WastageEntryReport.routes
+2026-03-26 15:20:55,711 - 🟡 Attempting to import: birthdaycakeReport.routes
+2026-03-26 15:20:55,744 - ✅ Successfully imported: birthdaycakeReport.routes
+2026-03-26 15:20:55,744 - ✅ Router found in: birthdaycakeReport.routes
+2026-03-26 15:20:55,753 - ✅ Included YEN ERP: birthdaycakeReport.routes
+2026-03-26 15:20:55,787 - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-26 15:20:55,788 - Added job "lifespan.<locals>.run_daily_all_snapshots" to job store "default"
+2026-03-26 15:20:55,789 - Scheduler started
+2026-03-26 15:20:55,789 - Creating database indexes...
+2026-03-26 15:21:04,009 - Scheduler has been shut down
+2026-03-26 15:21:14,181 - ✅ Successfully imported: purchaseOrder.po_to_grn
+2026-03-26 15:21:14,181 - ✅ Router found in: purchaseOrder.po_to_grn
+2026-03-26 15:21:14,184 - ✅ Included YEN ERP: purchaseOrder.po_to_grn
+2026-03-26 15:21:14,184 - 🟡 Attempting to import: purchaseOrder.grnConverted
+2026-03-26 15:21:14,202 - ✅ Successfully imported: purchaseOrder.grnConverted
+2026-03-26 15:21:14,203 - ✅ Router found in: purchaseOrder.grnConverted
+2026-03-26 15:21:14,208 - ✅ Included YEN ERP: purchaseOrder.grnConverted
+2026-03-26 15:21:14,208 - 🟡 Attempting to import: purchaseOrder.poedit
+2026-03-26 15:21:14,212 - ✅ Successfully imported: purchaseOrder.poedit
+2026-03-26 15:21:14,212 - ✅ Router found in: purchaseOrder.poedit
+2026-03-26 15:21:14,214 - ✅ Included YEN ERP: purchaseOrder.poedit
+2026-03-26 15:21:14,214 - 🟡 Attempting to import: purchaseOrder.freightfunction
+2026-03-26 15:21:14,225 - ✅ Successfully imported: purchaseOrder.freightfunction
+2026-03-26 15:21:14,225 - ✅ Router found in: purchaseOrder.freightfunction
+2026-03-26 15:21:14,230 - ✅ Included YEN ERP: purchaseOrder.freightfunction
+2026-03-26 15:21:14,230 - 🟡 Attempting to import: purchaseOrder.pending
+2026-03-26 15:21:14,269 - ✅ Successfully imported: purchaseOrder.pending
+2026-03-26 15:21:14,269 - ✅ Router found in: purchaseOrder.pending
+2026-03-26 15:21:14,276 - ✅ Included YEN ERP: purchaseOrder.pending
+2026-03-26 15:21:14,276 - 🟡 Attempting to import: grn.routes
+2026-03-26 15:21:14,276 - ✅ Successfully imported: grn.routes
+2026-03-26 15:21:14,276 - ✅ Router found in: grn.routes
+2026-03-26 15:21:14,425 - ✅ Included YEN ERP: grn.routes
+2026-03-26 15:21:14,425 - 🟡 Attempting to import: grn.return
+2026-03-26 15:21:14,443 - ✅ Successfully imported: grn.return
+2026-03-26 15:21:14,443 - ✅ Router found in: grn.return
+2026-03-26 15:21:14,451 - ✅ Included YEN ERP: grn.return
+2026-03-26 15:21:14,451 - 🟡 Attempting to import: grn.grn_to_ap
+2026-03-26 15:21:14,574 - ✅ Successfully imported: grn.grn_to_ap
+2026-03-26 15:21:14,574 - ✅ Router found in: grn.grn_to_ap
+2026-03-26 15:21:14,577 - ✅ Included YEN ERP: grn.grn_to_ap
+2026-03-26 15:21:14,577 - 🟡 Attempting to import: grn.debitnote
+2026-03-26 15:21:14,811 - ✅ Successfully imported: grn.debitnote
+2026-03-26 15:21:14,811 - ✅ Router found in: grn.debitnote
+2026-03-26 15:21:14,837 - ✅ Included YEN ERP: grn.debitnote
+2026-03-26 15:21:14,837 - 🟡 Attempting to import: grn.grn_to_ap_outgoing
+2026-03-26 15:21:14,995 - ✅ Successfully imported: grn.grn_to_ap_outgoing
+2026-03-26 15:21:14,995 - ✅ Router found in: grn.grn_to_ap_outgoing
+2026-03-26 15:21:14,998 - ✅ Included YEN ERP: grn.grn_to_ap_outgoing
+2026-03-26 15:21:14,998 - 🟡 Attempting to import: grn.grn_to_po
+2026-03-26 15:21:15,002 - ✅ Successfully imported: grn.grn_to_po
+2026-03-26 15:21:15,002 - ✅ Router found in: grn.grn_to_po
+2026-03-26 15:21:15,003 - ✅ Included YEN ERP: grn.grn_to_po
+2026-03-26 15:21:15,003 - 🟡 Attempting to import: apinvoice.routes
+2026-03-26 15:21:15,003 - ✅ Successfully imported: apinvoice.routes
+2026-03-26 15:21:15,003 - ✅ Router found in: apinvoice.routes
+2026-03-26 15:21:15,044 - ✅ Included YEN ERP: apinvoice.routes
+2026-03-26 15:21:15,044 - 🟡 Attempting to import: apinvoice.ap_to_outgoing
+2026-03-26 15:21:15,047 - ✅ Successfully imported: apinvoice.ap_to_outgoing
+2026-03-26 15:21:15,047 - ✅ Router found in: apinvoice.ap_to_outgoing
+2026-03-26 15:21:15,050 - ✅ Included YEN ERP: apinvoice.ap_to_outgoing
+2026-03-26 15:21:15,050 - 🟡 Attempting to import: apinvoice.apReturned
+2026-03-26 15:21:15,053 - ✅ Successfully imported: apinvoice.apReturned
+2026-03-26 15:21:15,053 - ✅ Router found in: apinvoice.apReturned
+2026-03-26 15:21:15,055 - ✅ Included YEN ERP: apinvoice.apReturned
+2026-03-26 15:21:15,056 - 🟡 Attempting to import: outgoingPayment.routes
+2026-03-26 15:21:15,056 - ✅ Successfully imported: outgoingPayment.routes
+2026-03-26 15:21:15,056 - ✅ Router found in: outgoingPayment.routes
+2026-03-26 15:21:15,096 - ✅ Included YEN ERP: outgoingPayment.routes
+2026-03-26 15:21:15,096 - 🟡 Attempting to import: outgoingPayment.bulk_payment
+2026-03-26 15:21:15,111 - ✅ Successfully imported: outgoingPayment.bulk_payment
+2026-03-26 15:21:15,111 - ✅ Router found in: outgoingPayment.bulk_payment
+2026-03-26 15:21:15,115 - ✅ Included YEN ERP: outgoingPayment.bulk_payment
+2026-03-26 15:21:15,115 - 🟡 Attempting to import: outgoingPayment.vendor_ledger
+2026-03-26 15:21:15,120 - ✅ Successfully imported: outgoingPayment.vendor_ledger
+2026-03-26 15:21:15,120 - ✅ Router found in: outgoingPayment.vendor_ledger
+2026-03-26 15:21:15,125 - ✅ Included YEN ERP: outgoingPayment.vendor_ledger
+2026-03-26 15:21:15,125 - 🟡 Attempting to import: outgoingPayment.single_payment
+2026-03-26 15:21:15,136 - ✅ Successfully imported: outgoingPayment.single_payment
+2026-03-26 15:21:15,136 - ✅ Router found in: outgoingPayment.single_payment
+2026-03-26 15:21:15,138 - ✅ Included YEN ERP: outgoingPayment.single_payment
+2026-03-26 15:21:15,138 - 🟡 Attempting to import: outgoingPayment.payment_history
+2026-03-26 15:21:15,157 - ✅ Successfully imported: outgoingPayment.payment_history
+2026-03-26 15:21:15,157 - ✅ Router found in: outgoingPayment.payment_history
+2026-03-26 15:21:15,166 - ✅ Included YEN ERP: outgoingPayment.payment_history
+2026-03-26 15:21:15,167 - 🟡 Attempting to import: outgoingPayment.advance_routes
+2026-03-26 15:21:15,211 - ✅ Successfully imported: outgoingPayment.advance_routes
+2026-03-26 15:21:15,211 - ✅ Router found in: outgoingPayment.advance_routes
+2026-03-26 15:21:15,240 - ✅ Included YEN ERP: outgoingPayment.advance_routes
+2026-03-26 15:21:15,241 - 🟡 Attempting to import: Business.routes
+2026-03-26 15:21:15,260 - ✅ Successfully imported: Business.routes
+2026-03-26 15:21:15,260 - ✅ Router found in: Business.routes
+2026-03-26 15:21:15,270 - ✅ Included YEN ERP: Business.routes
+2026-03-26 15:21:15,270 - 🟡 Attempting to import: Personal.routes
+2026-03-26 15:21:15,282 - ✅ Successfully imported: Personal.routes
+2026-03-26 15:21:15,282 - ✅ Router found in: Personal.routes
+2026-03-26 15:21:15,288 - ✅ Included YEN ERP: Personal.routes
+2026-03-26 15:21:15,288 - 🟡 Attempting to import: shippingaddress.routes
+2026-03-26 15:21:15,302 - ✅ Successfully imported: shippingaddress.routes
+2026-03-26 15:21:15,302 - ✅ Router found in: shippingaddress.routes
+2026-03-26 15:21:15,308 - ✅ Included YEN ERP: shippingaddress.routes
+2026-03-26 15:21:15,309 - 🟡 Attempting to import: ItemGroup.routes
+2026-03-26 15:21:15,326 - ✅ Successfully imported: ItemGroup.routes
+2026-03-26 15:21:15,326 - ✅ Router found in: ItemGroup.routes
+2026-03-26 15:21:15,339 - ✅ Included YEN ERP: ItemGroup.routes
+2026-03-26 15:21:15,339 - 🟡 Attempting to import: FreightMaster.routes
+2026-03-26 15:21:15,361 - ✅ Successfully imported: FreightMaster.routes
+2026-03-26 15:21:15,361 - ✅ Router found in: FreightMaster.routes
+2026-03-26 15:21:15,378 - ✅ Included YEN ERP: FreightMaster.routes
+2026-03-26 15:21:15,378 - 🟡 Attempting to import: purchaseOrder.poimport
+2026-03-26 15:21:15,392 - ✅ Successfully imported: purchaseOrder.poimport
+2026-03-26 15:21:15,392 - ✅ Router found in: purchaseOrder.poimport
+2026-03-26 15:21:15,401 - ✅ Included YEN ERP: purchaseOrder.poimport
+2026-03-26 15:21:15,401 - 🟡 Attempting to import: ServiceOrder.routes
+2026-03-26 15:21:15,610 - ✅ Successfully imported: ServiceOrder.routes
+2026-03-26 15:21:15,610 - ✅ Router found in: ServiceOrder.routes
+2026-03-26 15:21:15,640 - ✅ Included YEN ERP: ServiceOrder.routes
+2026-03-26 15:21:15,640 - 🟡 Attempting to import: Service.serviceSummary
+2026-03-26 15:21:15,644 - ✅ Successfully imported: Service.serviceSummary
+2026-03-26 15:21:15,644 - ✅ Router found in: Service.serviceSummary
+2026-03-26 15:21:15,647 - ✅ Included YEN ERP: Service.serviceSummary
+2026-03-26 15:21:15,648 - 🟡 Attempting to import: ServiceOrder.servicelist
+2026-03-26 15:21:15,660 - ✅ Successfully imported: ServiceOrder.servicelist
+2026-03-26 15:21:15,660 - ✅ Router found in: ServiceOrder.servicelist
+2026-03-26 15:21:15,671 - ✅ Included YEN ERP: ServiceOrder.servicelist
+2026-03-26 15:21:15,671 - 🟡 Attempting to import: ServiceOrder.filterpatch
+2026-03-26 15:21:15,677 - ✅ Successfully imported: ServiceOrder.filterpatch
+2026-03-26 15:21:15,677 - ✅ Router found in: ServiceOrder.filterpatch
+2026-03-26 15:21:15,682 - ✅ Included YEN ERP: ServiceOrder.filterpatch
+2026-03-26 15:21:15,682 - 🟡 Attempting to import: ServiceOrder.service_ap_outgoing
+2026-03-26 15:21:15,691 - ✅ Successfully imported: ServiceOrder.service_ap_outgoing
+2026-03-26 15:21:15,691 - ✅ Router found in: ServiceOrder.service_ap_outgoing
+2026-03-26 15:21:15,698 - ✅ Included YEN ERP: ServiceOrder.service_ap_outgoing
+2026-03-26 15:21:15,698 - 🟡 Attempting to import: purchaseOrderReport.routes
+2026-03-26 15:21:15,730 - ✅ Successfully imported: purchaseOrderReport.routes
+2026-03-26 15:21:15,730 - ✅ Router found in: purchaseOrderReport.routes
+2026-03-26 15:21:15,746 - ✅ Included YEN ERP: purchaseOrderReport.routes
+2026-03-26 15:21:15,747 - 🟡 Attempting to import: itemDateReport.routes
+2026-03-26 15:21:15,787 - ❌ Failed to import itemDateReport.routes: APIRouter.get() got an unexpected keyword argument 'user'
+2026-03-26 15:21:15,787 - 🟡 Attempting to import: grnagainstReport.routes
+2026-03-26 15:21:15,817 - ✅ Successfully imported: grnagainstReport.routes
+2026-03-26 15:21:15,817 - ✅ Router found in: grnagainstReport.routes
+2026-03-26 15:21:15,826 - ✅ Included YEN ERP: grnagainstReport.routes
+2026-03-26 15:21:15,826 - 🟡 Attempting to import: ApInvoiceReport.routes
+2026-03-26 15:21:15,835 - ✅ Successfully imported: ApInvoiceReport.routes
+2026-03-26 15:21:15,835 - ✅ Router found in: ApInvoiceReport.routes
+2026-03-26 15:21:15,842 - ✅ Included YEN ERP: ApInvoiceReport.routes
+2026-03-26 15:21:15,843 - 🟡 Attempting to import: OutgoingPaymentReport.routes
+2026-03-26 15:21:15,860 - ✅ Successfully imported: OutgoingPaymentReport.routes
+2026-03-26 15:21:15,860 - ✅ Router found in: OutgoingPaymentReport.routes
+2026-03-26 15:21:15,872 - ✅ Included YEN ERP: OutgoingPaymentReport.routes
+2026-03-26 15:21:15,872 - 🟡 Attempting to import: rawmaterialReport.routes
+2026-03-26 15:21:15,890 - ✅ Successfully imported: rawmaterialReport.routes
+2026-03-26 15:21:15,890 - ✅ Router found in: rawmaterialReport.routes
+2026-03-26 15:21:15,897 - ✅ Included YEN ERP: rawmaterialReport.routes
+2026-03-26 15:21:15,897 - 🟡 Attempting to import: DebitnoteReport.routes
+2026-03-26 15:21:15,921 - ✅ Successfully imported: DebitnoteReport.routes
+2026-03-26 15:21:15,921 - ✅ Router found in: DebitnoteReport.routes
+2026-03-26 15:21:15,937 - ✅ Included YEN ERP: DebitnoteReport.routes
+2026-03-26 15:21:15,938 - 🟡 Attempting to import: ServiceReport.routes
+2026-03-26 15:21:15,961 - ✅ Successfully imported: ServiceReport.routes
+2026-03-26 15:21:15,961 - ✅ Router found in: ServiceReport.routes
+2026-03-26 15:21:15,970 - ✅ Included YEN ERP: ServiceReport.routes
+2026-03-26 15:21:15,970 - 🟡 Attempting to import: PettyCashExpanseReport.routes
+2026-03-26 15:21:15,993 - ✅ Successfully imported: PettyCashExpanseReport.routes
+2026-03-26 15:21:15,993 - ✅ Router found in: PettyCashExpanseReport.routes
+2026-03-26 15:21:16,005 - ✅ Included YEN ERP: PettyCashExpanseReport.routes
+2026-03-26 15:21:16,005 - 🟡 Attempting to import: ProductionEntrysReport.routes
+2026-03-26 15:21:16,030 - ✅ Successfully imported: ProductionEntrysReport.routes
+2026-03-26 15:21:16,030 - ✅ Router found in: ProductionEntrysReport.routes
+2026-03-26 15:21:16,041 - ✅ Included YEN ERP: ProductionEntrysReport.routes
+2026-03-26 15:21:16,041 - 🟡 Attempting to import: DispatchReport.routes
+2026-03-26 15:21:16,101 - ✅ Successfully imported: DispatchReport.routes
+2026-03-26 15:21:16,102 - ✅ Router found in: DispatchReport.routes
+2026-03-26 15:21:16,130 - ✅ Included YEN ERP: DispatchReport.routes
+2026-03-26 15:21:16,131 - 🟡 Attempting to import: SalesorderReport.routes
+2026-03-26 15:21:16,158 - ✅ Successfully imported: SalesorderReport.routes
+2026-03-26 15:21:16,158 - ✅ Router found in: SalesorderReport.routes
+2026-03-26 15:21:16,167 - ✅ Included YEN ERP: SalesorderReport.routes
+2026-03-26 15:21:16,167 - 🟡 Attempting to import: allrestaurants.routes
+2026-03-26 15:21:16,206 - ✅ Successfully imported: allrestaurants.routes
+2026-03-26 15:21:16,206 - ✅ Router found in: allrestaurants.routes
+2026-03-26 15:21:16,221 - ✅ Included YEN ERP: allrestaurants.routes
+2026-03-26 15:21:16,221 - 🟡 Attempting to import: ItemOrderReport.routes
+2026-03-26 15:21:16,240 - ✅ Successfully imported: ItemOrderReport.routes
+2026-03-26 15:21:16,240 - ✅ Router found in: ItemOrderReport.routes
+2026-03-26 15:21:16,250 - ✅ Included YEN ERP: ItemOrderReport.routes
+2026-03-26 15:21:16,250 - 🟡 Attempting to import: ItemwiseSalesReport.routes
+2026-03-26 15:21:16,266 - ✅ Successfully imported: ItemwiseSalesReport.routes
+2026-03-26 15:21:16,266 - ✅ Router found in: ItemwiseSalesReport.routes
+2026-03-26 15:21:16,278 - ✅ Included YEN ERP: ItemwiseSalesReport.routes
+2026-03-26 15:21:16,278 - 🟡 Attempting to import: itemTransferReport.routes
+2026-03-26 15:21:16,304 - ✅ Successfully imported: itemTransferReport.routes
+2026-03-26 15:21:16,304 - ✅ Router found in: itemTransferReport.routes
+2026-03-26 15:21:16,323 - ✅ Included YEN ERP: itemTransferReport.routes
+2026-03-26 15:21:16,323 - 🟡 Attempting to import: CancelOrderReport.routes
+2026-03-26 15:21:16,353 - ✅ Successfully imported: CancelOrderReport.routes
+2026-03-26 15:21:16,353 - ✅ Router found in: CancelOrderReport.routes
+2026-03-26 15:21:16,365 - ✅ Included YEN ERP: CancelOrderReport.routes
+2026-03-26 15:21:16,365 - 🟡 Attempting to import: DayEndReport.routes
+2026-03-26 15:21:16,400 - ✅ Successfully imported: DayEndReport.routes
+2026-03-26 15:21:16,400 - ✅ Router found in: DayEndReport.routes
+2026-03-26 15:21:16,416 - ✅ Included YEN ERP: DayEndReport.routes
+2026-03-26 15:21:16,416 - 🟡 Attempting to import: WastageReceiveReport.routes
+2026-03-26 15:21:16,439 - ✅ Successfully imported: WastageReceiveReport.routes
+2026-03-26 15:21:16,439 - ✅ Router found in: WastageReceiveReport.routes
+2026-03-26 15:21:16,451 - ✅ Included YEN ERP: WastageReceiveReport.routes
+2026-03-26 15:21:16,451 - 🟡 Attempting to import: WastageEntryReport.routes
+2026-03-26 15:21:16,473 - ✅ Successfully imported: WastageEntryReport.routes
+2026-03-26 15:21:16,473 - ✅ Router found in: WastageEntryReport.routes
+2026-03-26 15:21:16,482 - ✅ Included YEN ERP: WastageEntryReport.routes
+2026-03-26 15:21:16,482 - 🟡 Attempting to import: birthdaycakeReport.routes
+2026-03-26 15:21:16,513 - ✅ Successfully imported: birthdaycakeReport.routes
+2026-03-26 15:21:16,513 - ✅ Router found in: birthdaycakeReport.routes
+2026-03-26 15:21:16,577 - ✅ Included YEN ERP: birthdaycakeReport.routes
+2026-03-26 15:21:16,695 - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-26 15:21:16,696 - Added job "lifespan.<locals>.run_daily_all_snapshots" to job store "default"
+2026-03-26 15:21:16,696 - Scheduler started
+2026-03-26 15:21:16,697 - Creating database indexes...
+2026-03-26 15:32:17,208 - ✅ Main sync connection created
+2026-03-26 15:32:17,720 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:18,020 - ✅ Tenant 69a7f2078098476ab963ec8a sync DB: test_tenant_TNT016
+2026-03-26 15:32:18,619 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:18,721 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:19,336 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:19,642 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:20,428 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:20,725 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:20,826 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:21,128 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:30,235 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:31,214 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:31,520 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:31,624 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:32,048 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:32,555 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:33,159 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:33,580 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:32:33,824 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:01,951 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:02,034 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:02,344 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:02,413 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:02,549 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:02,631 - ✅ Tenant 69a7f2078098476ab963ec8a async DB: test_tenant_TNT016
+2026-03-26 15:33:02,719 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:02,950 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:03,631 - ✅ Inventory connection created
+2026-03-26 15:33:04,537 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:04,619 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:04,625 - Search results: total=8, items=8, locationId=None
+2026-03-26 15:33:04,833 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:04,956 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:05,121 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:05,519 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:05,724 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:05,823 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:06,548 - Search results: total=8, items=8, locationId=None
+2026-03-26 15:33:06,814 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:08,828 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:09,316 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:17,553 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:33:17,823 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:44,283 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:44,556 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:44,640 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:44,744 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:44,948 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:45,051 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:45,223 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:46,415 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:46,626 - Search results: total=8, items=8, locationId=None
+2026-03-26 15:34:46,721 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:46,834 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:46,927 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:47,023 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:47,235 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:47,815 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:48,020 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:48,372 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:48,438 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:34:49,147 - Search results: total=8, items=8, locationId=None
+2026-03-26 15:34:49,352 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:42,129 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:42,412 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:42,514 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:42,617 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:42,735 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:42,813 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:43,025 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:44,136 - Search results: total=8, items=8, locationId=None
+2026-03-26 15:35:44,237 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:44,340 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:44,717 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:44,817 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:44,910 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:45,015 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:45,113 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:46,505 - Search results: total=8, items=8, locationId=None
+2026-03-26 15:35:46,629 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:46,941 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:47,014 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:35:47,523 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:37:45,624 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:37:45,912 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:37:49,014 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:37:49,828 - Search results: total=4, items=4, locationId=WH001
+2026-03-26 15:37:51,427 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:37:52,232 - Search results: total=1, items=1, locationId=WH001
+2026-03-26 15:37:58,841 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:37:59,522 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:38:14,616 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:38:15,214 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:38:52,355 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:38:54,409 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:38:54,513 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:38:59,824 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:38:59,910 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:01,562 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:01,614 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:02,031 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:16,948 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:18,603 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:19,814 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:20,213 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:20,629 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:20,711 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:21,018 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:21,633 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:21,939 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:22,144 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:39:22,912 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:40:23,698 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:40:34,026 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:08,124 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:09,048 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:41,245 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:41,306 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:41,538 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:41,818 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:42,431 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:42,739 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:44,908 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:45,308 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:41:54,456 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:42:45,117 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:42:45,510 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:42:59,634 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:56:57,902 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:56:58,293 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:56:58,394 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:56:58,710 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:56:59,625 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:56:59,893 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:56:59,993 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:57:00,342 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:57:00,990 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:57:04,294 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:57:05,215 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 15:57:11,403 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:03:30,211 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:03:31,403 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:03:31,710 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:03:31,987 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:03:32,086 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:03:32,430 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:03:33,087 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:03:33,390 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:03:33,505 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:04:02,949 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:04:03,390 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:04:09,701 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:05:38,590 - Scheduler has been shut down
+2026-03-26 16:06:08,311 - ✅ Successfully imported: purchaseOrder.po_to_grn
+2026-03-26 16:06:08,321 - ✅ Router found in: purchaseOrder.po_to_grn
+2026-03-26 16:06:08,324 - ✅ Included YEN ERP: purchaseOrder.po_to_grn
+2026-03-26 16:06:08,324 - 🟡 Attempting to import: purchaseOrder.grnConverted
+2026-03-26 16:06:08,343 - ✅ Successfully imported: purchaseOrder.grnConverted
+2026-03-26 16:06:08,343 - ✅ Router found in: purchaseOrder.grnConverted
+2026-03-26 16:06:08,343 - ✅ Included YEN ERP: purchaseOrder.grnConverted
+2026-03-26 16:06:08,343 - 🟡 Attempting to import: purchaseOrder.poedit
+2026-03-26 16:06:08,359 - ✅ Successfully imported: purchaseOrder.poedit
+2026-03-26 16:06:08,359 - ✅ Router found in: purchaseOrder.poedit
+2026-03-26 16:06:08,359 - ✅ Included YEN ERP: purchaseOrder.poedit
+2026-03-26 16:06:08,359 - 🟡 Attempting to import: purchaseOrder.freightfunction
+2026-03-26 16:06:08,375 - ✅ Successfully imported: purchaseOrder.freightfunction
+2026-03-26 16:06:08,375 - ✅ Router found in: purchaseOrder.freightfunction
+2026-03-26 16:06:08,376 - ✅ Included YEN ERP: purchaseOrder.freightfunction
+2026-03-26 16:06:08,376 - 🟡 Attempting to import: purchaseOrder.pending
+2026-03-26 16:06:08,410 - ✅ Successfully imported: purchaseOrder.pending
+2026-03-26 16:06:08,410 - ✅ Router found in: purchaseOrder.pending
+2026-03-26 16:06:08,426 - ✅ Included YEN ERP: purchaseOrder.pending
+2026-03-26 16:06:08,426 - 🟡 Attempting to import: grn.routes
+2026-03-26 16:06:08,427 - ✅ Successfully imported: grn.routes
+2026-03-26 16:06:08,427 - ✅ Router found in: grn.routes
+2026-03-26 16:06:08,621 - ✅ Included YEN ERP: grn.routes
+2026-03-26 16:06:08,621 - 🟡 Attempting to import: grn.return
+2026-03-26 16:06:08,644 - ✅ Successfully imported: grn.return
+2026-03-26 16:06:08,644 - ✅ Router found in: grn.return
+2026-03-26 16:06:08,661 - ✅ Included YEN ERP: grn.return
+2026-03-26 16:06:08,661 - 🟡 Attempting to import: grn.grn_to_ap
+2026-03-26 16:06:08,792 - ✅ Successfully imported: grn.grn_to_ap
+2026-03-26 16:06:08,792 - ✅ Router found in: grn.grn_to_ap
+2026-03-26 16:06:08,807 - ✅ Included YEN ERP: grn.grn_to_ap
+2026-03-26 16:06:08,807 - 🟡 Attempting to import: grn.debitnote
+2026-03-26 16:06:09,163 - ✅ Successfully imported: grn.debitnote
+2026-03-26 16:06:09,163 - ✅ Router found in: grn.debitnote
+2026-03-26 16:06:09,179 - ✅ Included YEN ERP: grn.debitnote
+2026-03-26 16:06:09,179 - 🟡 Attempting to import: grn.grn_to_ap_outgoing
+2026-03-26 16:06:09,320 - ✅ Successfully imported: grn.grn_to_ap_outgoing
+2026-03-26 16:06:09,320 - ✅ Router found in: grn.grn_to_ap_outgoing
+2026-03-26 16:06:09,336 - ✅ Included YEN ERP: grn.grn_to_ap_outgoing
+2026-03-26 16:06:09,336 - 🟡 Attempting to import: grn.grn_to_po
+2026-03-26 16:06:09,336 - ✅ Successfully imported: grn.grn_to_po
+2026-03-26 16:06:09,336 - ✅ Router found in: grn.grn_to_po
+2026-03-26 16:06:09,336 - ✅ Included YEN ERP: grn.grn_to_po
+2026-03-26 16:06:09,336 - 🟡 Attempting to import: apinvoice.routes
+2026-03-26 16:06:09,336 - ✅ Successfully imported: apinvoice.routes
+2026-03-26 16:06:09,336 - ✅ Router found in: apinvoice.routes
+2026-03-26 16:06:09,380 - ✅ Included YEN ERP: apinvoice.routes
+2026-03-26 16:06:09,380 - 🟡 Attempting to import: apinvoice.ap_to_outgoing
+2026-03-26 16:06:09,380 - ✅ Successfully imported: apinvoice.ap_to_outgoing
+2026-03-26 16:06:09,380 - ✅ Router found in: apinvoice.ap_to_outgoing
+2026-03-26 16:06:09,396 - ✅ Included YEN ERP: apinvoice.ap_to_outgoing
+2026-03-26 16:06:09,396 - 🟡 Attempting to import: apinvoice.apReturned
+2026-03-26 16:06:09,396 - ✅ Successfully imported: apinvoice.apReturned
+2026-03-26 16:06:09,396 - ✅ Router found in: apinvoice.apReturned
+2026-03-26 16:06:09,396 - ✅ Included YEN ERP: apinvoice.apReturned
+2026-03-26 16:06:09,396 - 🟡 Attempting to import: outgoingPayment.routes
+2026-03-26 16:06:09,396 - ✅ Successfully imported: outgoingPayment.routes
+2026-03-26 16:06:09,396 - ✅ Router found in: outgoingPayment.routes
+2026-03-26 16:06:09,447 - ✅ Included YEN ERP: outgoingPayment.routes
+2026-03-26 16:06:09,447 - 🟡 Attempting to import: outgoingPayment.bulk_payment
+2026-03-26 16:06:09,466 - ✅ Successfully imported: outgoingPayment.bulk_payment
+2026-03-26 16:06:09,466 - ✅ Router found in: outgoingPayment.bulk_payment
+2026-03-26 16:06:09,466 - ✅ Included YEN ERP: outgoingPayment.bulk_payment
+2026-03-26 16:06:09,466 - 🟡 Attempting to import: outgoingPayment.vendor_ledger
+2026-03-26 16:06:09,466 - ✅ Successfully imported: outgoingPayment.vendor_ledger
+2026-03-26 16:06:09,466 - ✅ Router found in: outgoingPayment.vendor_ledger
+2026-03-26 16:06:09,481 - ✅ Included YEN ERP: outgoingPayment.vendor_ledger
+2026-03-26 16:06:09,481 - 🟡 Attempting to import: outgoingPayment.single_payment
+2026-03-26 16:06:09,481 - ✅ Successfully imported: outgoingPayment.single_payment
+2026-03-26 16:06:09,481 - ✅ Router found in: outgoingPayment.single_payment
+2026-03-26 16:06:09,481 - ✅ Included YEN ERP: outgoingPayment.single_payment
+2026-03-26 16:06:09,481 - 🟡 Attempting to import: outgoingPayment.payment_history
+2026-03-26 16:06:09,516 - ✅ Successfully imported: outgoingPayment.payment_history
+2026-03-26 16:06:09,516 - ✅ Router found in: outgoingPayment.payment_history
+2026-03-26 16:06:09,516 - ✅ Included YEN ERP: outgoingPayment.payment_history
+2026-03-26 16:06:09,516 - 🟡 Attempting to import: outgoingPayment.advance_routes
+2026-03-26 16:06:09,567 - ✅ Successfully imported: outgoingPayment.advance_routes
+2026-03-26 16:06:09,567 - ✅ Router found in: outgoingPayment.advance_routes
+2026-03-26 16:06:09,582 - ✅ Included YEN ERP: outgoingPayment.advance_routes
+2026-03-26 16:06:09,582 - 🟡 Attempting to import: Business.routes
+2026-03-26 16:06:09,598 - ✅ Successfully imported: Business.routes
+2026-03-26 16:06:09,598 - ✅ Router found in: Business.routes
+2026-03-26 16:06:09,621 - ✅ Included YEN ERP: Business.routes
+2026-03-26 16:06:09,621 - 🟡 Attempting to import: Personal.routes
+2026-03-26 16:06:09,635 - ✅ Successfully imported: Personal.routes
+2026-03-26 16:06:09,635 - ✅ Router found in: Personal.routes
+2026-03-26 16:06:09,635 - ✅ Included YEN ERP: Personal.routes
+2026-03-26 16:06:09,635 - 🟡 Attempting to import: shippingaddress.routes
+2026-03-26 16:06:09,651 - ✅ Successfully imported: shippingaddress.routes
+2026-03-26 16:06:09,651 - ✅ Router found in: shippingaddress.routes
+2026-03-26 16:06:09,651 - ✅ Included YEN ERP: shippingaddress.routes
+2026-03-26 16:06:09,651 - 🟡 Attempting to import: ItemGroup.routes
+2026-03-26 16:06:09,683 - ✅ Successfully imported: ItemGroup.routes
+2026-03-26 16:06:09,683 - ✅ Router found in: ItemGroup.routes
+2026-03-26 16:06:09,699 - ✅ Included YEN ERP: ItemGroup.routes
+2026-03-26 16:06:09,699 - 🟡 Attempting to import: FreightMaster.routes
+2026-03-26 16:06:09,720 - ✅ Successfully imported: FreightMaster.routes
+2026-03-26 16:06:09,720 - ✅ Router found in: FreightMaster.routes
+2026-03-26 16:06:09,735 - ✅ Included YEN ERP: FreightMaster.routes
+2026-03-26 16:06:09,735 - 🟡 Attempting to import: purchaseOrder.poimport
+2026-03-26 16:06:09,751 - ✅ Successfully imported: purchaseOrder.poimport
+2026-03-26 16:06:09,751 - ✅ Router found in: purchaseOrder.poimport
+2026-03-26 16:06:09,751 - ✅ Included YEN ERP: purchaseOrder.poimport
+2026-03-26 16:06:09,751 - 🟡 Attempting to import: ServiceOrder.routes
+2026-03-26 16:06:09,953 - ✅ Successfully imported: ServiceOrder.routes
+2026-03-26 16:06:09,953 - ✅ Router found in: ServiceOrder.routes
+2026-03-26 16:06:10,002 - ✅ Included YEN ERP: ServiceOrder.routes
+2026-03-26 16:06:10,002 - 🟡 Attempting to import: Service.serviceSummary
+2026-03-26 16:06:10,002 - ✅ Successfully imported: Service.serviceSummary
+2026-03-26 16:06:10,002 - ✅ Router found in: Service.serviceSummary
+2026-03-26 16:06:10,018 - ✅ Included YEN ERP: Service.serviceSummary
+2026-03-26 16:06:10,018 - 🟡 Attempting to import: ServiceOrder.servicelist
+2026-03-26 16:06:10,021 - ✅ Successfully imported: ServiceOrder.servicelist
+2026-03-26 16:06:10,021 - ✅ Router found in: ServiceOrder.servicelist
+2026-03-26 16:06:10,037 - ✅ Included YEN ERP: ServiceOrder.servicelist
+2026-03-26 16:06:10,037 - 🟡 Attempting to import: ServiceOrder.filterpatch
+2026-03-26 16:06:10,052 - ✅ Successfully imported: ServiceOrder.filterpatch
+2026-03-26 16:06:10,052 - ✅ Router found in: ServiceOrder.filterpatch
+2026-03-26 16:06:10,052 - ✅ Included YEN ERP: ServiceOrder.filterpatch
+2026-03-26 16:06:10,052 - 🟡 Attempting to import: ServiceOrder.service_ap_outgoing
+2026-03-26 16:06:10,052 - ✅ Successfully imported: ServiceOrder.service_ap_outgoing
+2026-03-26 16:06:10,068 - ✅ Router found in: ServiceOrder.service_ap_outgoing
+2026-03-26 16:06:10,072 - ✅ Included YEN ERP: ServiceOrder.service_ap_outgoing
+2026-03-26 16:06:10,072 - 🟡 Attempting to import: purchaseOrderReport.routes
+2026-03-26 16:06:10,109 - ✅ Successfully imported: purchaseOrderReport.routes
+2026-03-26 16:06:10,109 - ✅ Router found in: purchaseOrderReport.routes
+2026-03-26 16:06:10,122 - ✅ Included YEN ERP: purchaseOrderReport.routes
+2026-03-26 16:06:10,124 - 🟡 Attempting to import: itemDateReport.routes
+2026-03-26 16:06:10,158 - ❌ Failed to import itemDateReport.routes: APIRouter.get() got an unexpected keyword argument 'user'
+2026-03-26 16:06:10,158 - 🟡 Attempting to import: grnagainstReport.routes
+2026-03-26 16:06:10,172 - ✅ Successfully imported: grnagainstReport.routes
+2026-03-26 16:06:10,172 - ✅ Router found in: grnagainstReport.routes
+2026-03-26 16:06:10,188 - ✅ Included YEN ERP: grnagainstReport.routes
+2026-03-26 16:06:10,188 - 🟡 Attempting to import: ApInvoiceReport.routes
+2026-03-26 16:06:10,203 - ✅ Successfully imported: ApInvoiceReport.routes
+2026-03-26 16:06:10,203 - ✅ Router found in: ApInvoiceReport.routes
+2026-03-26 16:06:10,203 - ✅ Included YEN ERP: ApInvoiceReport.routes
+2026-03-26 16:06:10,203 - 🟡 Attempting to import: OutgoingPaymentReport.routes
+2026-03-26 16:06:10,223 - ✅ Successfully imported: OutgoingPaymentReport.routes
+2026-03-26 16:06:10,223 - ✅ Router found in: OutgoingPaymentReport.routes
+2026-03-26 16:06:10,238 - ✅ Included YEN ERP: OutgoingPaymentReport.routes
+2026-03-26 16:06:10,238 - 🟡 Attempting to import: rawmaterialReport.routes
+2026-03-26 16:06:10,254 - ✅ Successfully imported: rawmaterialReport.routes
+2026-03-26 16:06:10,254 - ✅ Router found in: rawmaterialReport.routes
+2026-03-26 16:06:10,273 - ✅ Included YEN ERP: rawmaterialReport.routes
+2026-03-26 16:06:10,273 - 🟡 Attempting to import: DebitnoteReport.routes
+2026-03-26 16:06:10,304 - ✅ Successfully imported: DebitnoteReport.routes
+2026-03-26 16:06:10,304 - ✅ Router found in: DebitnoteReport.routes
+2026-03-26 16:06:10,320 - ✅ Included YEN ERP: DebitnoteReport.routes
+2026-03-26 16:06:10,320 - 🟡 Attempting to import: ServiceReport.routes
+2026-03-26 16:06:10,339 - ✅ Successfully imported: ServiceReport.routes
+2026-03-26 16:06:10,339 - ✅ Router found in: ServiceReport.routes
+2026-03-26 16:06:10,355 - ✅ Included YEN ERP: ServiceReport.routes
+2026-03-26 16:06:10,355 - 🟡 Attempting to import: PettyCashExpanseReport.routes
+2026-03-26 16:06:10,374 - ✅ Successfully imported: PettyCashExpanseReport.routes
+2026-03-26 16:06:10,374 - ✅ Router found in: PettyCashExpanseReport.routes
+2026-03-26 16:06:10,374 - ✅ Included YEN ERP: PettyCashExpanseReport.routes
+2026-03-26 16:06:10,374 - 🟡 Attempting to import: ProductionEntrysReport.routes
+2026-03-26 16:06:10,405 - ✅ Successfully imported: ProductionEntrysReport.routes
+2026-03-26 16:06:10,405 - ✅ Router found in: ProductionEntrysReport.routes
+2026-03-26 16:06:10,420 - ✅ Included YEN ERP: ProductionEntrysReport.routes
+2026-03-26 16:06:10,420 - 🟡 Attempting to import: DispatchReport.routes
+2026-03-26 16:06:10,471 - ✅ Successfully imported: DispatchReport.routes
+2026-03-26 16:06:10,471 - ✅ Router found in: DispatchReport.routes
+2026-03-26 16:06:10,490 - ✅ Included YEN ERP: DispatchReport.routes
+2026-03-26 16:06:10,490 - 🟡 Attempting to import: SalesorderReport.routes
+2026-03-26 16:06:10,525 - ✅ Successfully imported: SalesorderReport.routes
+2026-03-26 16:06:10,525 - ✅ Router found in: SalesorderReport.routes
+2026-03-26 16:06:10,541 - ✅ Included YEN ERP: SalesorderReport.routes
+2026-03-26 16:06:10,541 - 🟡 Attempting to import: allrestaurants.routes
+2026-03-26 16:06:10,575 - ✅ Successfully imported: allrestaurants.routes
+2026-03-26 16:06:10,575 - ✅ Router found in: allrestaurants.routes
+2026-03-26 16:06:10,591 - ✅ Included YEN ERP: allrestaurants.routes
+2026-03-26 16:06:10,591 - 🟡 Attempting to import: ItemOrderReport.routes
+2026-03-26 16:06:10,607 - ✅ Successfully imported: ItemOrderReport.routes
+2026-03-26 16:06:10,607 - ✅ Router found in: ItemOrderReport.routes
+2026-03-26 16:06:10,626 - ✅ Included YEN ERP: ItemOrderReport.routes
+2026-03-26 16:06:10,626 - 🟡 Attempting to import: ItemwiseSalesReport.routes
+2026-03-26 16:06:10,642 - ✅ Successfully imported: ItemwiseSalesReport.routes
+2026-03-26 16:06:10,642 - ✅ Router found in: ItemwiseSalesReport.routes
+2026-03-26 16:06:10,642 - ✅ Included YEN ERP: ItemwiseSalesReport.routes
+2026-03-26 16:06:10,642 - 🟡 Attempting to import: itemTransferReport.routes
+2026-03-26 16:06:10,676 - ✅ Successfully imported: itemTransferReport.routes
+2026-03-26 16:06:10,676 - ✅ Router found in: itemTransferReport.routes
+2026-03-26 16:06:10,692 - ✅ Included YEN ERP: itemTransferReport.routes
+2026-03-26 16:06:10,692 - 🟡 Attempting to import: CancelOrderReport.routes
+2026-03-26 16:06:10,707 - ✅ Successfully imported: CancelOrderReport.routes
+2026-03-26 16:06:10,707 - ✅ Router found in: CancelOrderReport.routes
+2026-03-26 16:06:10,726 - ✅ Included YEN ERP: CancelOrderReport.routes
+2026-03-26 16:06:10,726 - 🟡 Attempting to import: DayEndReport.routes
+2026-03-26 16:06:10,742 - ✅ Successfully imported: DayEndReport.routes
+2026-03-26 16:06:10,758 - ✅ Router found in: DayEndReport.routes
+2026-03-26 16:06:10,773 - ✅ Included YEN ERP: DayEndReport.routes
+2026-03-26 16:06:10,773 - 🟡 Attempting to import: WastageReceiveReport.routes
+2026-03-26 16:06:10,799 - ✅ Successfully imported: WastageReceiveReport.routes
+2026-03-26 16:06:10,799 - ✅ Router found in: WastageReceiveReport.routes
+2026-03-26 16:06:10,805 - ✅ Included YEN ERP: WastageReceiveReport.routes
+2026-03-26 16:06:10,805 - 🟡 Attempting to import: WastageEntryReport.routes
+2026-03-26 16:06:10,833 - ✅ Successfully imported: WastageEntryReport.routes
+2026-03-26 16:06:10,834 - ✅ Router found in: WastageEntryReport.routes
+2026-03-26 16:06:10,846 - ✅ Included YEN ERP: WastageEntryReport.routes
+2026-03-26 16:06:10,846 - 🟡 Attempting to import: birthdaycakeReport.routes
+2026-03-26 16:06:10,869 - ✅ Successfully imported: birthdaycakeReport.routes
+2026-03-26 16:06:10,869 - ✅ Router found in: birthdaycakeReport.routes
+2026-03-26 16:06:10,878 - ✅ Included YEN ERP: birthdaycakeReport.routes
+2026-03-26 16:06:10,955 - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-26 16:06:10,955 - Added job "lifespan.<locals>.run_daily_all_snapshots" to job store "default"
+2026-03-26 16:06:10,955 - Scheduler started
+2026-03-26 16:06:10,955 - Creating database indexes...
+2026-03-26 16:06:10,988 - ✅ Main sync connection created
+2026-03-26 16:06:11,520 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:11,585 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:11,686 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:11,803 - ✅ Tenant 69a7f2078098476ab963ec8a sync DB: test_tenant_TNT016
+2026-03-26 16:06:12,797 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:13,232 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:14,530 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:15,170 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:15,750 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:16,308 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:30,001 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:32,488 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:32,813 - ✅ Tenant 69a7f2078098476ab963ec8a async DB: test_tenant_TNT016
+2026-03-26 16:06:33,584 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:06:39,707 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:07:31,893 - Scheduler has been shut down
+2026-03-26 16:07:50,976 - ✅ Successfully imported: purchaseOrder.po_to_grn
+2026-03-26 16:07:50,976 - ✅ Router found in: purchaseOrder.po_to_grn
+2026-03-26 16:07:50,981 - ✅ Included YEN ERP: purchaseOrder.po_to_grn
+2026-03-26 16:07:50,982 - 🟡 Attempting to import: purchaseOrder.grnConverted
+2026-03-26 16:07:51,019 - ✅ Successfully imported: purchaseOrder.grnConverted
+2026-03-26 16:07:51,019 - ✅ Router found in: purchaseOrder.grnConverted
+2026-03-26 16:07:51,038 - ✅ Included YEN ERP: purchaseOrder.grnConverted
+2026-03-26 16:07:51,038 - 🟡 Attempting to import: purchaseOrder.poedit
+2026-03-26 16:07:51,044 - ✅ Successfully imported: purchaseOrder.poedit
+2026-03-26 16:07:51,044 - ✅ Router found in: purchaseOrder.poedit
+2026-03-26 16:07:51,049 - ✅ Included YEN ERP: purchaseOrder.poedit
+2026-03-26 16:07:51,049 - 🟡 Attempting to import: purchaseOrder.freightfunction
+2026-03-26 16:07:51,067 - ✅ Successfully imported: purchaseOrder.freightfunction
+2026-03-26 16:07:51,067 - ✅ Router found in: purchaseOrder.freightfunction
+2026-03-26 16:07:51,067 - ✅ Included YEN ERP: purchaseOrder.freightfunction
+2026-03-26 16:07:51,067 - 🟡 Attempting to import: purchaseOrder.pending
+2026-03-26 16:07:51,160 - ✅ Successfully imported: purchaseOrder.pending
+2026-03-26 16:07:51,160 - ✅ Router found in: purchaseOrder.pending
+2026-03-26 16:07:51,186 - ✅ Included YEN ERP: purchaseOrder.pending
+2026-03-26 16:07:51,186 - 🟡 Attempting to import: grn.routes
+2026-03-26 16:07:51,187 - ✅ Successfully imported: grn.routes
+2026-03-26 16:07:51,187 - ✅ Router found in: grn.routes
+2026-03-26 16:07:51,899 - ✅ Included YEN ERP: grn.routes
+2026-03-26 16:07:51,899 - 🟡 Attempting to import: grn.return
+2026-03-26 16:07:51,962 - ✅ Successfully imported: grn.return
+2026-03-26 16:07:51,962 - ✅ Router found in: grn.return
+2026-03-26 16:07:51,985 - ✅ Included YEN ERP: grn.return
+2026-03-26 16:07:51,985 - 🟡 Attempting to import: grn.grn_to_ap
+2026-03-26 16:07:52,319 - ✅ Successfully imported: grn.grn_to_ap
+2026-03-26 16:07:52,319 - ✅ Router found in: grn.grn_to_ap
+2026-03-26 16:07:52,346 - ✅ Included YEN ERP: grn.grn_to_ap
+2026-03-26 16:07:52,347 - 🟡 Attempting to import: grn.debitnote
+2026-03-26 16:07:52,953 - ✅ Successfully imported: grn.debitnote
+2026-03-26 16:07:52,953 - ✅ Router found in: grn.debitnote
+2026-03-26 16:07:53,028 - ✅ Included YEN ERP: grn.debitnote
+2026-03-26 16:07:53,028 - 🟡 Attempting to import: grn.grn_to_ap_outgoing
+2026-03-26 16:07:53,494 - ✅ Successfully imported: grn.grn_to_ap_outgoing
+2026-03-26 16:07:53,494 - ✅ Router found in: grn.grn_to_ap_outgoing
+2026-03-26 16:07:53,499 - ✅ Included YEN ERP: grn.grn_to_ap_outgoing
+2026-03-26 16:07:53,499 - 🟡 Attempting to import: grn.grn_to_po
+2026-03-26 16:07:53,499 - ✅ Successfully imported: grn.grn_to_po
+2026-03-26 16:07:53,499 - ✅ Router found in: grn.grn_to_po
+2026-03-26 16:07:53,499 - ✅ Included YEN ERP: grn.grn_to_po
+2026-03-26 16:07:53,499 - 🟡 Attempting to import: apinvoice.routes
+2026-03-26 16:07:53,499 - ✅ Successfully imported: apinvoice.routes
+2026-03-26 16:07:53,499 - ✅ Router found in: apinvoice.routes
+2026-03-26 16:07:53,699 - ✅ Included YEN ERP: apinvoice.routes
+2026-03-26 16:07:53,699 - 🟡 Attempting to import: apinvoice.ap_to_outgoing
+2026-03-26 16:07:53,717 - ✅ Successfully imported: apinvoice.ap_to_outgoing
+2026-03-26 16:07:53,717 - ✅ Router found in: apinvoice.ap_to_outgoing
+2026-03-26 16:07:53,735 - ✅ Included YEN ERP: apinvoice.ap_to_outgoing
+2026-03-26 16:07:53,735 - 🟡 Attempting to import: apinvoice.apReturned
+2026-03-26 16:07:53,745 - ✅ Successfully imported: apinvoice.apReturned
+2026-03-26 16:07:53,745 - ✅ Router found in: apinvoice.apReturned
+2026-03-26 16:07:53,750 - ✅ Included YEN ERP: apinvoice.apReturned
+2026-03-26 16:07:53,750 - 🟡 Attempting to import: outgoingPayment.routes
+2026-03-26 16:07:53,750 - ✅ Successfully imported: outgoingPayment.routes
+2026-03-26 16:07:53,750 - ✅ Router found in: outgoingPayment.routes
+2026-03-26 16:07:53,954 - ✅ Included YEN ERP: outgoingPayment.routes
+2026-03-26 16:07:53,954 - 🟡 Attempting to import: outgoingPayment.bulk_payment
+2026-03-26 16:07:54,027 - ✅ Successfully imported: outgoingPayment.bulk_payment
+2026-03-26 16:07:54,027 - ✅ Router found in: outgoingPayment.bulk_payment
+2026-03-26 16:07:54,032 - ✅ Included YEN ERP: outgoingPayment.bulk_payment
+2026-03-26 16:07:54,032 - 🟡 Attempting to import: outgoingPayment.vendor_ledger
+2026-03-26 16:07:54,032 - ✅ Successfully imported: outgoingPayment.vendor_ledger
+2026-03-26 16:07:54,032 - ✅ Router found in: outgoingPayment.vendor_ledger
+2026-03-26 16:07:54,052 - ✅ Included YEN ERP: outgoingPayment.vendor_ledger
+2026-03-26 16:07:54,052 - 🟡 Attempting to import: outgoingPayment.single_payment
+2026-03-26 16:07:54,079 - ✅ Successfully imported: outgoingPayment.single_payment
+2026-03-26 16:07:54,079 - ✅ Router found in: outgoingPayment.single_payment
+2026-03-26 16:07:54,083 - ✅ Included YEN ERP: outgoingPayment.single_payment
+2026-03-26 16:07:54,083 - 🟡 Attempting to import: outgoingPayment.payment_history
+2026-03-26 16:07:54,143 - ✅ Successfully imported: outgoingPayment.payment_history
+2026-03-26 16:07:54,143 - ✅ Router found in: outgoingPayment.payment_history
+2026-03-26 16:07:54,207 - ✅ Included YEN ERP: outgoingPayment.payment_history
+2026-03-26 16:07:54,207 - 🟡 Attempting to import: outgoingPayment.advance_routes
+2026-03-26 16:07:54,432 - ✅ Successfully imported: outgoingPayment.advance_routes
+2026-03-26 16:07:54,432 - ✅ Router found in: outgoingPayment.advance_routes
+2026-03-26 16:07:54,498 - ✅ Included YEN ERP: outgoingPayment.advance_routes
+2026-03-26 16:07:54,498 - 🟡 Attempting to import: Business.routes
+2026-03-26 16:07:54,556 - ✅ Successfully imported: Business.routes
+2026-03-26 16:07:54,556 - ✅ Router found in: Business.routes
+2026-03-26 16:07:54,565 - ✅ Included YEN ERP: Business.routes
+2026-03-26 16:07:54,565 - 🟡 Attempting to import: Personal.routes
+2026-03-26 16:07:54,613 - ✅ Successfully imported: Personal.routes
+2026-03-26 16:07:54,613 - ✅ Router found in: Personal.routes
+2026-03-26 16:07:54,628 - ✅ Included YEN ERP: Personal.routes
+2026-03-26 16:07:54,628 - 🟡 Attempting to import: shippingaddress.routes
+2026-03-26 16:07:54,673 - ✅ Successfully imported: shippingaddress.routes
+2026-03-26 16:07:54,673 - ✅ Router found in: shippingaddress.routes
+2026-03-26 16:07:54,686 - ✅ Included YEN ERP: shippingaddress.routes
+2026-03-26 16:07:54,686 - 🟡 Attempting to import: ItemGroup.routes
+2026-03-26 16:07:54,780 - ✅ Successfully imported: ItemGroup.routes
+2026-03-26 16:07:54,780 - ✅ Router found in: ItemGroup.routes
+2026-03-26 16:07:54,831 - ✅ Included YEN ERP: ItemGroup.routes
+2026-03-26 16:07:54,831 - 🟡 Attempting to import: FreightMaster.routes
+2026-03-26 16:07:54,884 - ✅ Successfully imported: FreightMaster.routes
+2026-03-26 16:07:54,884 - ✅ Router found in: FreightMaster.routes
+2026-03-26 16:07:54,917 - ✅ Included YEN ERP: FreightMaster.routes
+2026-03-26 16:07:54,917 - 🟡 Attempting to import: purchaseOrder.poimport
+2026-03-26 16:07:54,957 - ✅ Successfully imported: purchaseOrder.poimport
+2026-03-26 16:07:54,957 - ✅ Router found in: purchaseOrder.poimport
+2026-03-26 16:07:54,965 - ✅ Included YEN ERP: purchaseOrder.poimport
+2026-03-26 16:07:54,965 - 🟡 Attempting to import: ServiceOrder.routes
+2026-03-26 16:07:55,359 - ✅ Successfully imported: ServiceOrder.routes
+2026-03-26 16:07:55,359 - ✅ Router found in: ServiceOrder.routes
+2026-03-26 16:07:55,507 - ✅ Included YEN ERP: ServiceOrder.routes
+2026-03-26 16:07:55,508 - 🟡 Attempting to import: Service.serviceSummary
+2026-03-26 16:07:55,610 - ✅ Successfully imported: Service.serviceSummary
+2026-03-26 16:07:55,610 - ✅ Router found in: Service.serviceSummary
+2026-03-26 16:07:55,622 - ✅ Included YEN ERP: Service.serviceSummary
+2026-03-26 16:07:55,622 - 🟡 Attempting to import: ServiceOrder.servicelist
+2026-03-26 16:07:55,700 - ✅ Successfully imported: ServiceOrder.servicelist
+2026-03-26 16:07:55,701 - ✅ Router found in: ServiceOrder.servicelist
+2026-03-26 16:07:55,737 - ✅ Included YEN ERP: ServiceOrder.servicelist
+2026-03-26 16:07:55,737 - 🟡 Attempting to import: ServiceOrder.filterpatch
+2026-03-26 16:07:55,756 - ✅ Successfully imported: ServiceOrder.filterpatch
+2026-03-26 16:07:55,756 - ✅ Router found in: ServiceOrder.filterpatch
+2026-03-26 16:07:55,764 - ✅ Included YEN ERP: ServiceOrder.filterpatch
+2026-03-26 16:07:55,764 - 🟡 Attempting to import: ServiceOrder.service_ap_outgoing
+2026-03-26 16:07:55,817 - ✅ Successfully imported: ServiceOrder.service_ap_outgoing
+2026-03-26 16:07:55,818 - ✅ Router found in: ServiceOrder.service_ap_outgoing
+2026-03-26 16:07:55,829 - ✅ Included YEN ERP: ServiceOrder.service_ap_outgoing
+2026-03-26 16:07:55,829 - 🟡 Attempting to import: purchaseOrderReport.routes
+2026-03-26 16:07:56,007 - ✅ Successfully imported: purchaseOrderReport.routes
+2026-03-26 16:07:56,007 - ✅ Router found in: purchaseOrderReport.routes
+2026-03-26 16:07:56,049 - ✅ Included YEN ERP: purchaseOrderReport.routes
+2026-03-26 16:07:56,049 - 🟡 Attempting to import: itemDateReport.routes
+2026-03-26 16:07:56,143 - ❌ Failed to import itemDateReport.routes: APIRouter.get() got an unexpected keyword argument 'user'
+2026-03-26 16:07:56,143 - 🟡 Attempting to import: grnagainstReport.routes
+2026-03-26 16:07:56,274 - ✅ Successfully imported: grnagainstReport.routes
+2026-03-26 16:07:56,275 - ✅ Router found in: grnagainstReport.routes
+2026-03-26 16:07:56,316 - ✅ Included YEN ERP: grnagainstReport.routes
+2026-03-26 16:07:56,316 - 🟡 Attempting to import: ApInvoiceReport.routes
+2026-03-26 16:07:56,354 - ✅ Successfully imported: ApInvoiceReport.routes
+2026-03-26 16:07:56,354 - ✅ Router found in: ApInvoiceReport.routes
+2026-03-26 16:07:56,384 - ✅ Included YEN ERP: ApInvoiceReport.routes
+2026-03-26 16:07:56,384 - 🟡 Attempting to import: OutgoingPaymentReport.routes
+2026-03-26 16:07:56,430 - ✅ Successfully imported: OutgoingPaymentReport.routes
+2026-03-26 16:07:56,430 - ✅ Router found in: OutgoingPaymentReport.routes
+2026-03-26 16:07:56,485 - ✅ Included YEN ERP: OutgoingPaymentReport.routes
+2026-03-26 16:07:56,486 - 🟡 Attempting to import: rawmaterialReport.routes
+2026-03-26 16:07:56,559 - ✅ Successfully imported: rawmaterialReport.routes
+2026-03-26 16:07:56,559 - ✅ Router found in: rawmaterialReport.routes
+2026-03-26 16:07:56,606 - ✅ Included YEN ERP: rawmaterialReport.routes
+2026-03-26 16:07:56,606 - 🟡 Attempting to import: DebitnoteReport.routes
+2026-03-26 16:07:56,698 - ✅ Successfully imported: DebitnoteReport.routes
+2026-03-26 16:07:56,698 - ✅ Router found in: DebitnoteReport.routes
+2026-03-26 16:07:56,754 - ✅ Included YEN ERP: DebitnoteReport.routes
+2026-03-26 16:07:56,754 - 🟡 Attempting to import: ServiceReport.routes
+2026-03-26 16:07:56,845 - ✅ Successfully imported: ServiceReport.routes
+2026-03-26 16:07:56,845 - ✅ Router found in: ServiceReport.routes
+2026-03-26 16:07:56,887 - ✅ Included YEN ERP: ServiceReport.routes
+2026-03-26 16:07:56,887 - 🟡 Attempting to import: PettyCashExpanseReport.routes
+2026-03-26 16:07:56,939 - ✅ Successfully imported: PettyCashExpanseReport.routes
+2026-03-26 16:07:56,940 - ✅ Router found in: PettyCashExpanseReport.routes
+2026-03-26 16:07:56,964 - ✅ Included YEN ERP: PettyCashExpanseReport.routes
+2026-03-26 16:07:56,964 - 🟡 Attempting to import: ProductionEntrysReport.routes
+2026-03-26 16:07:57,020 - ✅ Successfully imported: ProductionEntrysReport.routes
+2026-03-26 16:07:57,020 - ✅ Router found in: ProductionEntrysReport.routes
+2026-03-26 16:07:57,030 - ✅ Included YEN ERP: ProductionEntrysReport.routes
+2026-03-26 16:07:57,030 - 🟡 Attempting to import: DispatchReport.routes
+2026-03-26 16:07:57,139 - ✅ Successfully imported: DispatchReport.routes
+2026-03-26 16:07:57,139 - ✅ Router found in: DispatchReport.routes
+2026-03-26 16:07:57,209 - ✅ Included YEN ERP: DispatchReport.routes
+2026-03-26 16:07:57,210 - 🟡 Attempting to import: SalesorderReport.routes
+2026-03-26 16:07:57,273 - ✅ Successfully imported: SalesorderReport.routes
+2026-03-26 16:07:57,273 - ✅ Router found in: SalesorderReport.routes
+2026-03-26 16:07:57,295 - ✅ Included YEN ERP: SalesorderReport.routes
+2026-03-26 16:07:57,295 - 🟡 Attempting to import: allrestaurants.routes
+2026-03-26 16:07:57,381 - ✅ Successfully imported: allrestaurants.routes
+2026-03-26 16:07:57,381 - ✅ Router found in: allrestaurants.routes
+2026-03-26 16:07:57,414 - ✅ Included YEN ERP: allrestaurants.routes
+2026-03-26 16:07:57,414 - 🟡 Attempting to import: ItemOrderReport.routes
+2026-03-26 16:07:57,563 - ✅ Successfully imported: ItemOrderReport.routes
+2026-03-26 16:07:57,563 - ✅ Router found in: ItemOrderReport.routes
+2026-03-26 16:07:57,648 - ✅ Included YEN ERP: ItemOrderReport.routes
+2026-03-26 16:07:57,648 - 🟡 Attempting to import: ItemwiseSalesReport.routes
+2026-03-26 16:07:57,734 - ✅ Successfully imported: ItemwiseSalesReport.routes
+2026-03-26 16:07:57,735 - ✅ Router found in: ItemwiseSalesReport.routes
+2026-03-26 16:07:57,751 - ✅ Included YEN ERP: ItemwiseSalesReport.routes
+2026-03-26 16:07:57,751 - 🟡 Attempting to import: itemTransferReport.routes
+2026-03-26 16:07:57,820 - ✅ Successfully imported: itemTransferReport.routes
+2026-03-26 16:07:57,820 - ✅ Router found in: itemTransferReport.routes
+2026-03-26 16:07:57,892 - ✅ Included YEN ERP: itemTransferReport.routes
+2026-03-26 16:07:57,893 - 🟡 Attempting to import: CancelOrderReport.routes
+2026-03-26 16:07:57,955 - ✅ Successfully imported: CancelOrderReport.routes
+2026-03-26 16:07:57,956 - ✅ Router found in: CancelOrderReport.routes
+2026-03-26 16:07:57,977 - ✅ Included YEN ERP: CancelOrderReport.routes
+2026-03-26 16:07:57,977 - 🟡 Attempting to import: DayEndReport.routes
+2026-03-26 16:07:58,048 - ✅ Successfully imported: DayEndReport.routes
+2026-03-26 16:07:58,048 - ✅ Router found in: DayEndReport.routes
+2026-03-26 16:07:58,145 - ✅ Included YEN ERP: DayEndReport.routes
+2026-03-26 16:07:58,149 - 🟡 Attempting to import: WastageReceiveReport.routes
+2026-03-26 16:07:58,291 - ✅ Successfully imported: WastageReceiveReport.routes
+2026-03-26 16:07:58,291 - ✅ Router found in: WastageReceiveReport.routes
+2026-03-26 16:07:58,320 - ✅ Included YEN ERP: WastageReceiveReport.routes
+2026-03-26 16:07:58,320 - 🟡 Attempting to import: WastageEntryReport.routes
+2026-03-26 16:07:58,416 - ✅ Successfully imported: WastageEntryReport.routes
+2026-03-26 16:07:58,416 - ✅ Router found in: WastageEntryReport.routes
+2026-03-26 16:07:58,478 - ✅ Included YEN ERP: WastageEntryReport.routes
+2026-03-26 16:07:58,479 - 🟡 Attempting to import: birthdaycakeReport.routes
+2026-03-26 16:07:58,559 - ✅ Successfully imported: birthdaycakeReport.routes
+2026-03-26 16:07:58,560 - ✅ Router found in: birthdaycakeReport.routes
+2026-03-26 16:07:58,581 - ✅ Included YEN ERP: birthdaycakeReport.routes
+2026-03-26 16:07:58,703 - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-26 16:07:58,708 - Added job "lifespan.<locals>.run_daily_all_snapshots" to job store "default"
+2026-03-26 16:07:58,708 - Scheduler started
+2026-03-26 16:07:58,709 - Creating database indexes...
+2026-03-26 16:08:46,875 - ✅ Main sync connection created
+2026-03-26 16:08:47,480 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:08:47,589 - ✅ Tenant 69a7f2078098476ab963ec8a sync DB: test_tenant_TNT016
+2026-03-26 16:08:48,490 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:03,581 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:03,896 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:03,996 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:04,308 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:04,580 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:05,187 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:16,424 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:16,697 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:16,795 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:17,108 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:17,372 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:17,979 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:20,095 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:20,400 - ✅ Tenant 69a7f2078098476ab963ec8a async DB: test_tenant_TNT016
+2026-03-26 16:09:21,203 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:09:27,311 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:10:52,137 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:10:52,595 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:10:52,873 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:10:53,272 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:10:53,389 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:10:53,671 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:10:54,088 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:10:54,994 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:10:55,304 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:12:34,432 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:12:34,987 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:12:42,326 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:17:18,863 - Scheduler has been shut down
+2026-03-26 16:17:36,233 - ✅ Successfully imported: purchaseOrder.po_to_grn
+2026-03-26 16:17:36,233 - ✅ Router found in: purchaseOrder.po_to_grn
+2026-03-26 16:17:36,237 - ✅ Included YEN ERP: purchaseOrder.po_to_grn
+2026-03-26 16:17:36,237 - 🟡 Attempting to import: purchaseOrder.grnConverted
+2026-03-26 16:17:36,256 - ✅ Successfully imported: purchaseOrder.grnConverted
+2026-03-26 16:17:36,256 - ✅ Router found in: purchaseOrder.grnConverted
+2026-03-26 16:17:36,261 - ✅ Included YEN ERP: purchaseOrder.grnConverted
+2026-03-26 16:17:36,262 - 🟡 Attempting to import: purchaseOrder.poedit
+2026-03-26 16:17:36,266 - ✅ Successfully imported: purchaseOrder.poedit
+2026-03-26 16:17:36,266 - ✅ Router found in: purchaseOrder.poedit
+2026-03-26 16:17:36,268 - ✅ Included YEN ERP: purchaseOrder.poedit
+2026-03-26 16:17:36,269 - 🟡 Attempting to import: purchaseOrder.freightfunction
+2026-03-26 16:17:36,279 - ✅ Successfully imported: purchaseOrder.freightfunction
+2026-03-26 16:17:36,279 - ✅ Router found in: purchaseOrder.freightfunction
+2026-03-26 16:17:36,282 - ✅ Included YEN ERP: purchaseOrder.freightfunction
+2026-03-26 16:17:36,282 - 🟡 Attempting to import: purchaseOrder.pending
+2026-03-26 16:17:36,310 - ✅ Successfully imported: purchaseOrder.pending
+2026-03-26 16:17:36,310 - ✅ Router found in: purchaseOrder.pending
+2026-03-26 16:17:36,316 - ✅ Included YEN ERP: purchaseOrder.pending
+2026-03-26 16:17:36,316 - 🟡 Attempting to import: grn.routes
+2026-03-26 16:17:36,316 - ✅ Successfully imported: grn.routes
+2026-03-26 16:17:36,316 - ✅ Router found in: grn.routes
+2026-03-26 16:17:36,454 - ✅ Included YEN ERP: grn.routes
+2026-03-26 16:17:36,454 - 🟡 Attempting to import: grn.return
+2026-03-26 16:17:36,476 - ✅ Successfully imported: grn.return
+2026-03-26 16:17:36,476 - ✅ Router found in: grn.return
+2026-03-26 16:17:36,485 - ✅ Included YEN ERP: grn.return
+2026-03-26 16:17:36,485 - 🟡 Attempting to import: grn.grn_to_ap
+2026-03-26 16:17:36,591 - ✅ Successfully imported: grn.grn_to_ap
+2026-03-26 16:17:36,591 - ✅ Router found in: grn.grn_to_ap
+2026-03-26 16:17:36,594 - ✅ Included YEN ERP: grn.grn_to_ap
+2026-03-26 16:17:36,594 - 🟡 Attempting to import: grn.debitnote
+2026-03-26 16:17:36,979 - ✅ Successfully imported: grn.debitnote
+2026-03-26 16:17:36,980 - ✅ Router found in: grn.debitnote
+2026-03-26 16:17:37,019 - ✅ Included YEN ERP: grn.debitnote
+2026-03-26 16:17:37,019 - 🟡 Attempting to import: grn.grn_to_ap_outgoing
+2026-03-26 16:17:37,187 - ✅ Successfully imported: grn.grn_to_ap_outgoing
+2026-03-26 16:17:37,187 - ✅ Router found in: grn.grn_to_ap_outgoing
+2026-03-26 16:17:37,192 - ✅ Included YEN ERP: grn.grn_to_ap_outgoing
+2026-03-26 16:17:37,192 - 🟡 Attempting to import: grn.grn_to_po
+2026-03-26 16:17:37,200 - ✅ Successfully imported: grn.grn_to_po
+2026-03-26 16:17:37,200 - ✅ Router found in: grn.grn_to_po
+2026-03-26 16:17:37,201 - ✅ Included YEN ERP: grn.grn_to_po
+2026-03-26 16:17:37,201 - 🟡 Attempting to import: apinvoice.routes
+2026-03-26 16:17:37,201 - ✅ Successfully imported: apinvoice.routes
+2026-03-26 16:17:37,201 - ✅ Router found in: apinvoice.routes
+2026-03-26 16:17:37,264 - ✅ Included YEN ERP: apinvoice.routes
+2026-03-26 16:17:37,264 - 🟡 Attempting to import: apinvoice.ap_to_outgoing
+2026-03-26 16:17:37,268 - ✅ Successfully imported: apinvoice.ap_to_outgoing
+2026-03-26 16:17:37,268 - ✅ Router found in: apinvoice.ap_to_outgoing
+2026-03-26 16:17:37,270 - ✅ Included YEN ERP: apinvoice.ap_to_outgoing
+2026-03-26 16:17:37,270 - 🟡 Attempting to import: apinvoice.apReturned
+2026-03-26 16:17:37,273 - ✅ Successfully imported: apinvoice.apReturned
+2026-03-26 16:17:37,274 - ✅ Router found in: apinvoice.apReturned
+2026-03-26 16:17:37,275 - ✅ Included YEN ERP: apinvoice.apReturned
+2026-03-26 16:17:37,275 - 🟡 Attempting to import: outgoingPayment.routes
+2026-03-26 16:17:37,275 - ✅ Successfully imported: outgoingPayment.routes
+2026-03-26 16:17:37,275 - ✅ Router found in: outgoingPayment.routes
+2026-03-26 16:17:37,323 - ✅ Included YEN ERP: outgoingPayment.routes
+2026-03-26 16:17:37,324 - 🟡 Attempting to import: outgoingPayment.bulk_payment
+2026-03-26 16:17:37,342 - ✅ Successfully imported: outgoingPayment.bulk_payment
+2026-03-26 16:17:37,342 - ✅ Router found in: outgoingPayment.bulk_payment
+2026-03-26 16:17:37,346 - ✅ Included YEN ERP: outgoingPayment.bulk_payment
+2026-03-26 16:17:37,346 - 🟡 Attempting to import: outgoingPayment.vendor_ledger
+2026-03-26 16:17:37,352 - ✅ Successfully imported: outgoingPayment.vendor_ledger
+2026-03-26 16:17:37,352 - ✅ Router found in: outgoingPayment.vendor_ledger
+2026-03-26 16:17:37,355 - ✅ Included YEN ERP: outgoingPayment.vendor_ledger
+2026-03-26 16:17:37,356 - 🟡 Attempting to import: outgoingPayment.single_payment
+2026-03-26 16:17:37,366 - ✅ Successfully imported: outgoingPayment.single_payment
+2026-03-26 16:17:37,366 - ✅ Router found in: outgoingPayment.single_payment
+2026-03-26 16:17:37,369 - ✅ Included YEN ERP: outgoingPayment.single_payment
+2026-03-26 16:17:37,369 - 🟡 Attempting to import: outgoingPayment.payment_history
+2026-03-26 16:17:37,394 - ✅ Successfully imported: outgoingPayment.payment_history
+2026-03-26 16:17:37,394 - ✅ Router found in: outgoingPayment.payment_history
+2026-03-26 16:17:37,399 - ✅ Included YEN ERP: outgoingPayment.payment_history
+2026-03-26 16:17:37,399 - 🟡 Attempting to import: outgoingPayment.advance_routes
+2026-03-26 16:17:37,438 - ✅ Successfully imported: outgoingPayment.advance_routes
+2026-03-26 16:17:37,438 - ✅ Router found in: outgoingPayment.advance_routes
+2026-03-26 16:17:37,458 - ✅ Included YEN ERP: outgoingPayment.advance_routes
+2026-03-26 16:17:37,458 - 🟡 Attempting to import: Business.routes
+2026-03-26 16:17:37,480 - ✅ Successfully imported: Business.routes
+2026-03-26 16:17:37,481 - ✅ Router found in: Business.routes
+2026-03-26 16:17:37,489 - ✅ Included YEN ERP: Business.routes
+2026-03-26 16:17:37,489 - 🟡 Attempting to import: Personal.routes
+2026-03-26 16:17:37,504 - ✅ Successfully imported: Personal.routes
+2026-03-26 16:17:37,504 - ✅ Router found in: Personal.routes
+2026-03-26 16:17:37,512 - ✅ Included YEN ERP: Personal.routes
+2026-03-26 16:17:37,512 - 🟡 Attempting to import: shippingaddress.routes
+2026-03-26 16:17:37,525 - ✅ Successfully imported: shippingaddress.routes
+2026-03-26 16:17:37,526 - ✅ Router found in: shippingaddress.routes
+2026-03-26 16:17:37,533 - ✅ Included YEN ERP: shippingaddress.routes
+2026-03-26 16:17:37,534 - 🟡 Attempting to import: ItemGroup.routes
+2026-03-26 16:17:37,585 - ✅ Successfully imported: ItemGroup.routes
+2026-03-26 16:17:37,585 - ✅ Router found in: ItemGroup.routes
+2026-03-26 16:17:37,602 - ✅ Included YEN ERP: ItemGroup.routes
+2026-03-26 16:17:37,602 - 🟡 Attempting to import: FreightMaster.routes
+2026-03-26 16:17:37,626 - ✅ Successfully imported: FreightMaster.routes
+2026-03-26 16:17:37,626 - ✅ Router found in: FreightMaster.routes
+2026-03-26 16:17:37,639 - ✅ Included YEN ERP: FreightMaster.routes
+2026-03-26 16:17:37,640 - 🟡 Attempting to import: purchaseOrder.poimport
+2026-03-26 16:17:37,653 - ✅ Successfully imported: purchaseOrder.poimport
+2026-03-26 16:17:37,653 - ✅ Router found in: purchaseOrder.poimport
+2026-03-26 16:17:37,713 - ✅ Included YEN ERP: purchaseOrder.poimport
+2026-03-26 16:17:37,714 - 🟡 Attempting to import: ServiceOrder.routes
+2026-03-26 16:17:38,069 - ✅ Successfully imported: ServiceOrder.routes
+2026-03-26 16:17:38,069 - ✅ Router found in: ServiceOrder.routes
+2026-03-26 16:17:38,108 - ✅ Included YEN ERP: ServiceOrder.routes
+2026-03-26 16:17:38,108 - 🟡 Attempting to import: Service.serviceSummary
+2026-03-26 16:17:38,114 - ✅ Successfully imported: Service.serviceSummary
+2026-03-26 16:17:38,114 - ✅ Router found in: Service.serviceSummary
+2026-03-26 16:17:38,117 - ✅ Included YEN ERP: Service.serviceSummary
+2026-03-26 16:17:38,117 - 🟡 Attempting to import: ServiceOrder.servicelist
+2026-03-26 16:17:38,131 - ✅ Successfully imported: ServiceOrder.servicelist
+2026-03-26 16:17:38,131 - ✅ Router found in: ServiceOrder.servicelist
+2026-03-26 16:17:38,147 - ✅ Included YEN ERP: ServiceOrder.servicelist
+2026-03-26 16:17:38,147 - 🟡 Attempting to import: ServiceOrder.filterpatch
+2026-03-26 16:17:38,157 - ✅ Successfully imported: ServiceOrder.filterpatch
+2026-03-26 16:17:38,157 - ✅ Router found in: ServiceOrder.filterpatch
+2026-03-26 16:17:38,170 - ✅ Included YEN ERP: ServiceOrder.filterpatch
+2026-03-26 16:17:38,170 - 🟡 Attempting to import: ServiceOrder.service_ap_outgoing
+2026-03-26 16:17:38,194 - ✅ Successfully imported: ServiceOrder.service_ap_outgoing
+2026-03-26 16:17:38,194 - ✅ Router found in: ServiceOrder.service_ap_outgoing
+2026-03-26 16:17:38,212 - ✅ Included YEN ERP: ServiceOrder.service_ap_outgoing
+2026-03-26 16:17:38,212 - 🟡 Attempting to import: purchaseOrderReport.routes
+2026-03-26 16:17:38,397 - ✅ Successfully imported: purchaseOrderReport.routes
+2026-03-26 16:17:38,397 - ✅ Router found in: purchaseOrderReport.routes
+2026-03-26 16:17:38,415 - ✅ Included YEN ERP: purchaseOrderReport.routes
+2026-03-26 16:17:38,415 - 🟡 Attempting to import: itemDateReport.routes
+2026-03-26 16:17:38,570 - ❌ Failed to import itemDateReport.routes: APIRouter.get() got an unexpected keyword argument 'user'
+2026-03-26 16:17:38,570 - 🟡 Attempting to import: grnagainstReport.routes
+2026-03-26 16:17:38,620 - ✅ Successfully imported: grnagainstReport.routes
+2026-03-26 16:17:38,620 - ✅ Router found in: grnagainstReport.routes
+2026-03-26 16:17:38,633 - ✅ Included YEN ERP: grnagainstReport.routes
+2026-03-26 16:17:38,633 - 🟡 Attempting to import: ApInvoiceReport.routes
+2026-03-26 16:17:38,645 - ✅ Successfully imported: ApInvoiceReport.routes
+2026-03-26 16:17:38,645 - ✅ Router found in: ApInvoiceReport.routes
+2026-03-26 16:17:38,653 - ✅ Included YEN ERP: ApInvoiceReport.routes
+2026-03-26 16:17:38,653 - 🟡 Attempting to import: OutgoingPaymentReport.routes
+2026-03-26 16:17:38,670 - ✅ Successfully imported: OutgoingPaymentReport.routes
+2026-03-26 16:17:38,670 - ✅ Router found in: OutgoingPaymentReport.routes
+2026-03-26 16:17:38,684 - ✅ Included YEN ERP: OutgoingPaymentReport.routes
+2026-03-26 16:17:38,684 - 🟡 Attempting to import: rawmaterialReport.routes
+2026-03-26 16:17:38,705 - ✅ Successfully imported: rawmaterialReport.routes
+2026-03-26 16:17:38,705 - ✅ Router found in: rawmaterialReport.routes
+2026-03-26 16:17:38,712 - ✅ Included YEN ERP: rawmaterialReport.routes
+2026-03-26 16:17:38,713 - 🟡 Attempting to import: DebitnoteReport.routes
+2026-03-26 16:17:38,739 - ✅ Successfully imported: DebitnoteReport.routes
+2026-03-26 16:17:38,739 - ✅ Router found in: DebitnoteReport.routes
+2026-03-26 16:17:38,760 - ✅ Included YEN ERP: DebitnoteReport.routes
+2026-03-26 16:17:38,760 - 🟡 Attempting to import: ServiceReport.routes
+2026-03-26 16:17:38,800 - ✅ Successfully imported: ServiceReport.routes
+2026-03-26 16:17:38,800 - ✅ Router found in: ServiceReport.routes
+2026-03-26 16:17:38,809 - ✅ Included YEN ERP: ServiceReport.routes
+2026-03-26 16:17:38,809 - 🟡 Attempting to import: PettyCashExpanseReport.routes
+2026-03-26 16:17:38,836 - ✅ Successfully imported: PettyCashExpanseReport.routes
+2026-03-26 16:17:38,836 - ✅ Router found in: PettyCashExpanseReport.routes
+2026-03-26 16:17:38,849 - ✅ Included YEN ERP: PettyCashExpanseReport.routes
+2026-03-26 16:17:38,849 - 🟡 Attempting to import: ProductionEntrysReport.routes
+2026-03-26 16:17:38,885 - ✅ Successfully imported: ProductionEntrysReport.routes
+2026-03-26 16:17:38,885 - ✅ Router found in: ProductionEntrysReport.routes
+2026-03-26 16:17:38,900 - ✅ Included YEN ERP: ProductionEntrysReport.routes
+2026-03-26 16:17:38,901 - 🟡 Attempting to import: DispatchReport.routes
+2026-03-26 16:17:38,968 - ✅ Successfully imported: DispatchReport.routes
+2026-03-26 16:17:38,968 - ✅ Router found in: DispatchReport.routes
+2026-03-26 16:17:38,994 - ✅ Included YEN ERP: DispatchReport.routes
+2026-03-26 16:17:38,994 - 🟡 Attempting to import: SalesorderReport.routes
+2026-03-26 16:17:39,026 - ✅ Successfully imported: SalesorderReport.routes
+2026-03-26 16:17:39,026 - ✅ Router found in: SalesorderReport.routes
+2026-03-26 16:17:39,037 - ✅ Included YEN ERP: SalesorderReport.routes
+2026-03-26 16:17:39,037 - 🟡 Attempting to import: allrestaurants.routes
+2026-03-26 16:17:39,076 - ✅ Successfully imported: allrestaurants.routes
+2026-03-26 16:17:39,077 - ✅ Router found in: allrestaurants.routes
+2026-03-26 16:17:39,092 - ✅ Included YEN ERP: allrestaurants.routes
+2026-03-26 16:17:39,092 - 🟡 Attempting to import: ItemOrderReport.routes
+2026-03-26 16:17:39,111 - ✅ Successfully imported: ItemOrderReport.routes
+2026-03-26 16:17:39,111 - ✅ Router found in: ItemOrderReport.routes
+2026-03-26 16:17:39,122 - ✅ Included YEN ERP: ItemOrderReport.routes
+2026-03-26 16:17:39,122 - 🟡 Attempting to import: ItemwiseSalesReport.routes
+2026-03-26 16:17:39,138 - ✅ Successfully imported: ItemwiseSalesReport.routes
+2026-03-26 16:17:39,138 - ✅ Router found in: ItemwiseSalesReport.routes
+2026-03-26 16:17:39,148 - ✅ Included YEN ERP: ItemwiseSalesReport.routes
+2026-03-26 16:17:39,148 - 🟡 Attempting to import: itemTransferReport.routes
+2026-03-26 16:17:39,173 - ✅ Successfully imported: itemTransferReport.routes
+2026-03-26 16:17:39,173 - ✅ Router found in: itemTransferReport.routes
+2026-03-26 16:17:39,187 - ✅ Included YEN ERP: itemTransferReport.routes
+2026-03-26 16:17:39,187 - 🟡 Attempting to import: CancelOrderReport.routes
+2026-03-26 16:17:39,221 - ✅ Successfully imported: CancelOrderReport.routes
+2026-03-26 16:17:39,222 - ✅ Router found in: CancelOrderReport.routes
+2026-03-26 16:17:39,236 - ✅ Included YEN ERP: CancelOrderReport.routes
+2026-03-26 16:17:39,236 - 🟡 Attempting to import: DayEndReport.routes
+2026-03-26 16:17:39,274 - ✅ Successfully imported: DayEndReport.routes
+2026-03-26 16:17:39,274 - ✅ Router found in: DayEndReport.routes
+2026-03-26 16:17:39,294 - ✅ Included YEN ERP: DayEndReport.routes
+2026-03-26 16:17:39,294 - 🟡 Attempting to import: WastageReceiveReport.routes
+2026-03-26 16:17:39,331 - ✅ Successfully imported: WastageReceiveReport.routes
+2026-03-26 16:17:39,331 - ✅ Router found in: WastageReceiveReport.routes
+2026-03-26 16:17:39,344 - ✅ Included YEN ERP: WastageReceiveReport.routes
+2026-03-26 16:17:39,344 - 🟡 Attempting to import: WastageEntryReport.routes
+2026-03-26 16:17:39,372 - ✅ Successfully imported: WastageEntryReport.routes
+2026-03-26 16:17:39,372 - ✅ Router found in: WastageEntryReport.routes
+2026-03-26 16:17:39,384 - ✅ Included YEN ERP: WastageEntryReport.routes
+2026-03-26 16:17:39,384 - 🟡 Attempting to import: birthdaycakeReport.routes
+2026-03-26 16:17:39,411 - ✅ Successfully imported: birthdaycakeReport.routes
+2026-03-26 16:17:39,411 - ✅ Router found in: birthdaycakeReport.routes
+2026-03-26 16:17:39,421 - ✅ Included YEN ERP: birthdaycakeReport.routes
+2026-03-26 16:17:39,480 - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-26 16:17:39,482 - Added job "lifespan.<locals>.run_daily_all_snapshots" to job store "default"
+2026-03-26 16:17:39,482 - Scheduler started
+2026-03-26 16:17:39,483 - Creating database indexes...
+2026-03-26 16:17:53,341 - ✅ Main sync connection created
+2026-03-26 16:17:53,878 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:17:54,119 - ✅ Tenant 69a7f2078098476ab963ec8a sync DB: test_tenant_TNT016
+2026-03-26 16:17:54,779 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:17:54,876 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:17:55,285 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:17:55,575 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:17:55,891 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:17:56,479 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:17:56,591 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:17:56,889 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:05,797 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:06,105 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:06,412 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:06,480 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:06,778 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:07,478 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:20,491 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:20,581 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:20,679 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:20,981 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:21,093 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:21,179 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:21,291 - ✅ Tenant 69a7f2078098476ab963ec8a async DB: test_tenant_TNT016
+2026-03-26 16:18:21,476 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:22,117 - ✅ Inventory connection created
+2026-03-26 16:18:22,903 - Search results: total=8, items=8, locationId=None
+2026-03-26 16:18:23,000 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:23,102 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:23,205 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:23,307 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:23,510 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:23,571 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:24,994 - Search results: total=8, items=8, locationId=None
+2026-03-26 16:18:25,091 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:25,195 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:25,474 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:27,608 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:28,121 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:32,080 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:32,883 - Search results: total=4, items=4, locationId=LOC013
+2026-03-26 16:18:34,581 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:35,392 - Search results: total=1, items=1, locationId=LOC013
+2026-03-26 16:18:39,488 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:40,306 - Search results: total=4, items=4, locationId=LOC013
+2026-03-26 16:18:41,790 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:42,687 - Search results: total=1, items=1, locationId=LOC013
+2026-03-26 16:18:46,492 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:47,082 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:50,587 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:51,920 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:53,210 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:53,582 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:53,679 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:53,974 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:54,282 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:54,881 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:55,187 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:55,376 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:56,180 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:57,373 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:18:58,270 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:00,377 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:00,684 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:00,780 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:01,093 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:01,707 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:01,981 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:03,312 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:03,705 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:12,205 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:15,021 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:33,776 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:33,880 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:34,187 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:19:34,783 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:25,831 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:26,316 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:26,400 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:26,488 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:26,903 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:27,317 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 16:20:27,417 - Raw total matching GRNs: 3
+2026-03-26 16:20:27,578 - Fetched 3 raw GRNs from cursor
+2026-03-26 16:20:27,783 - GRN 69c50f2917673005a7424a43: vendorName raw='ARR AGENCIES', stripped='ARR AGENCIES', filter='None'
+2026-03-26 16:20:27,783 - Matched GRN 69c50f2917673005a7424a43: vendorName='ARR AGENCIES'
+2026-03-26 16:20:27,791 - GRN 69c50d6699afbf6b7f287a91: vendorName raw='SRI THIRUMALAI STORE', stripped='SRI THIRUMALAI STORE', filter='None'
+2026-03-26 16:20:27,791 - Matched GRN 69c50d6699afbf6b7f287a91: vendorName='SRI THIRUMALAI STORE'
+2026-03-26 16:20:27,792 - GRN 69c4e44367e6d8e19c807496: vendorName raw='HEMAVATHY  EGG SHOP', stripped='HEMAVATHY  EGG SHOP', filter='None'
+2026-03-26 16:20:27,792 - Matched GRN 69c4e44367e6d8e19c807496: vendorName='HEMAVATHY  EGG SHOP'
+2026-03-26 16:20:27,793 - Final filtered GRNs: 3 (skipped: 0 total fetched: 3)
+2026-03-26 16:20:27,888 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:27,971 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:28,270 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:28,705 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 16:20:28,787 - Raw total matching GRNs: 3
+2026-03-26 16:20:28,884 - Fetched 3 raw GRNs from cursor
+2026-03-26 16:20:29,055 - GRN 69c50f2917673005a7424a43: vendorName raw='ARR AGENCIES', stripped='ARR AGENCIES', filter='None'
+2026-03-26 16:20:29,056 - Matched GRN 69c50f2917673005a7424a43: vendorName='ARR AGENCIES'
+2026-03-26 16:20:29,056 - GRN 69c50d6699afbf6b7f287a91: vendorName raw='SRI THIRUMALAI STORE', stripped='SRI THIRUMALAI STORE', filter='None'
+2026-03-26 16:20:29,056 - Matched GRN 69c50d6699afbf6b7f287a91: vendorName='SRI THIRUMALAI STORE'
+2026-03-26 16:20:29,057 - GRN 69c4e44367e6d8e19c807496: vendorName raw='HEMAVATHY  EGG SHOP', stripped='HEMAVATHY  EGG SHOP', filter='None'
+2026-03-26 16:20:29,057 - Matched GRN 69c4e44367e6d8e19c807496: vendorName='HEMAVATHY  EGG SHOP'
+2026-03-26 16:20:29,057 - Final filtered GRNs: 3 (skipped: 0 total fetched: 3)
+2026-03-26 16:20:40,379 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:40,660 - === STARTING CONVERSION FOR GRN: 69c50f2917673005a7424a43 ===
+2026-03-26 16:20:40,662 - AP Round Off: 0.00
+2026-03-26 16:20:41,377 - Conversion Check - AP exists: False, Outgoing exists: False
+2026-03-26 16:20:41,379 - Processing item_id: 69c50f1317673005a7424a41
+2026-03-26 16:20:41,379 - Validating item 69c50f1317673005a7424a41: unit_price=203.39, received_quantity=50.00, total_price_before_discount=10169.5000
+2026-03-26 16:20:41,382 - Financials for item 69c50f1317673005a7424a41: {'totalPrice': Decimal('10169.50'), 'befTaxDiscountAmount': Decimal('0.00'), 'afTaxDiscountAmount': Decimal('0.00'), 'taxAmount': Decimal('508.48'), 'sgst': Decimal('254.24'), 'cgst': Decimal('254.24'), 'igst': Decimal('0.00'), 'finalPrice': Decimal('10677.98')}
+2026-03-26 16:20:41,590 - GRN updated: 2 documents
+2026-03-26 16:20:41,906 - Generated AP ID: AP0005
+2026-03-26 16:20:41,974 - Generated unique AP ID: AP0005 (attempt 1)
+2026-03-26 16:20:41,975 - CREATING NEW AP with randomId: AP0005
+2026-03-26 16:20:42,179 - VERIFIED AP - ID: 69c50f8117673005a7424a45, RandomId: AP0005
+2026-03-26 16:20:42,182 - Processing Outgoing for AP: 69c50f8117673005a7424a45, randomId: AP0005
+2026-03-26 16:20:42,588 - Generated unique Outgoing ID: OT0005 (attempt 1)
+2026-03-26 16:20:42,588 - CREATING NEW OUTGOING for AP: 69c50f8117673005a7424a45 with randomId: OT0005
+2026-03-26 16:20:42,793 - Updating vendor payable for: ARR AGENCIES
+2026-03-26 16:20:42,991 - Updated vendor payableAmount: 68178.00 (AP amount: 10678.00)
+2026-03-26 16:20:43,084 - FINAL VERIFICATION - Outgoing 69c50f8217673005a7424a46 linked to AP: 69c50f8117673005a7424a45
+2026-03-26 16:20:43,084 - === CONVERSION COMPLETED SUCCESSFULLY ===
+2026-03-26 16:20:43,400 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:43,748 - Full MongoDB query: {'status': {'$in': ['Active', 'active', 'Partially Returned', 'PartiallyReturned']}}
+2026-03-26 16:20:43,801 - Raw total matching GRNs: 2
+2026-03-26 16:20:43,904 - Fetched 2 raw GRNs from cursor
+2026-03-26 16:20:44,023 - GRN 69c50d6699afbf6b7f287a91: vendorName raw='SRI THIRUMALAI STORE', stripped='SRI THIRUMALAI STORE', filter='None'
+2026-03-26 16:20:44,023 - Matched GRN 69c50d6699afbf6b7f287a91: vendorName='SRI THIRUMALAI STORE'
+2026-03-26 16:20:44,024 - GRN 69c4e44367e6d8e19c807496: vendorName raw='HEMAVATHY  EGG SHOP', stripped='HEMAVATHY  EGG SHOP', filter='None'
+2026-03-26 16:20:44,024 - Matched GRN 69c4e44367e6d8e19c807496: vendorName='HEMAVATHY  EGG SHOP'
+2026-03-26 16:20:44,025 - Final filtered GRNs: 2 (skipped: 0 total fetched: 2)
+2026-03-26 16:20:50,387 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:50,671 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:50,981 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:51,070 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:51,386 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:51,685 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:20:52,086 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:21:25,888 - Tenant context set: 698d68b26e0e40f613847b0c -> purchasetest
+2026-03-26 16:21:26,025 - ✅ Tenant 698d68b26e0e40f613847b0c sync DB: purchasetest
+2026-03-26 16:21:50,274 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:26,617 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:26,781 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:26,875 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:27,019 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:27,072 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:27,190 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:27,676 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:28,042 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:29,001 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:22:29,001 - Parameters received:
+2026-03-26 16:22:29,001 -   sortBy: createdDate
+2026-03-26 16:22:29,002 -   sortOrder: descending
+2026-03-26 16:22:29,002 -   skip: 0, limit: 50
+2026-03-26 16:22:29,078 - TOTAL DOCUMENTS MATCHING QUERY: 3
+2026-03-26 16:22:29,185 - TOTAL PAYABLE AMOUNT: 34222.0
+2026-03-26 16:22:29,188 - SORTING: by createdDate in descending direction (-1)
+2026-03-26 16:22:29,295 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 3
+2026-03-26 16:22:29,295 - PROCESSED OUTGOINGS: 3
+2026-03-26 16:22:29,295 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:22:29,388 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:29,488 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:29,592 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:29,680 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:30,295 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:22:30,296 - Parameters received:
+2026-03-26 16:22:30,296 -   sortBy: createdDate
+2026-03-26 16:22:30,296 -   sortOrder: descending
+2026-03-26 16:22:30,296 -   skip: 0, limit: 50
+2026-03-26 16:22:30,366 - TOTAL DOCUMENTS MATCHING QUERY: 3
+2026-03-26 16:22:30,501 - TOTAL PAYABLE AMOUNT: 34222.0
+2026-03-26 16:22:30,501 - SORTING: by createdDate in descending direction (-1)
+2026-03-26 16:22:30,602 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 3
+2026-03-26 16:22:30,603 - PROCESSED OUTGOINGS: 3
+2026-03-26 16:22:30,603 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:22:34,394 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:34,486 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:34,769 - No active debits found for vendor: ARR AGENCIES
+2026-03-26 16:22:35,075 - Fetching advance payments for vendor_name: ARR AGENCIES
+2026-03-26 16:22:35,280 - No advance payments found for vendor_name: ARR AGENCIES
+2026-03-26 16:22:46,809 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:47,102 - Starting update_outgoing_payment for outgoing_id: 69c50f8217673005a7424a46
+2026-03-26 16:22:47,603 - Fetching outgoing with _id: 69c50f8217673005a7424a46
+2026-03-26 16:22:48,114 - Generated payment ID for single payment: PV0013
+2026-03-26 16:22:48,114 - Found AP invoice ID: 69c50f8117673005a7424a45 for outgoing 69c50f8217673005a7424a46
+2026-03-26 16:22:48,176 - AP invoice found: AP0005, current status: Outgoing Posted
+2026-03-26 16:22:48,178 - Using provided payment date: 2026-03-26 06:30:00+00:00 -> IST: 2026-03-26 12:00:00+05:30
+2026-03-26 16:22:48,178 - Current values - totalPayable: 10678.0, paidAmount: 0, debitAmount: 0.0, advanceAmount: 0.0
+2026-03-26 16:22:48,178 - Cash/Bank payment amount: 678.0
+2026-03-26 16:22:48,178 - Remaining after cash payment: 10000.0
+2026-03-26 16:22:48,178 - Total debit amount applied: 0
+2026-03-26 16:22:48,178 - Remaining after cash + debit: 10000.0
+2026-03-26 16:22:48,179 - Final calculation:
+2026-03-26 16:22:48,179 -   Current total payable: 10678.0
+2026-03-26 16:22:48,179 -   Reduction - Cash: 678.0, Debit: 0, Advance: 0
+2026-03-26 16:22:48,179 -   New total payable: 10000.0
+2026-03-26 16:22:48,179 -   New paid amount: 678.0 (cash only)
+2026-03-26 16:22:48,179 -   New advance amount: 0.0
+2026-03-26 16:22:48,179 -   New debit amount: 0.0
+2026-03-26 16:22:48,181 - New status: Partially Paid
+2026-03-26 16:22:48,320 - Processing AP invoice updates for 69c50f8117673005a7424a45 to match outgoing status: Partially Paid
+2026-03-26 16:22:48,494 - Updated AP invoice 69c50f8117673005a7424a45 status to match outgoing: Partially Paid
+2026-03-26 16:22:48,800 - Updated AP invoice 69c50f8117673005a7424a45: status=Partially Paid, paid=678.0/10678.0 (6.35%)
+2026-03-26 16:22:48,800 - Successfully synchronized AP invoice 69c50f8117673005a7424a45 status with outgoing: Partially Paid
+2026-03-26 16:22:48,992 - Updated vendor ARR AGENCIES payable from 68178.0 to 67500.0
+2026-03-26 16:22:49,069 - Payment processed successfully for outgoing 69c50f8217673005a7424a46
+2026-03-26 16:22:49,375 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:49,675 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:22:49,675 - Parameters received:
+2026-03-26 16:22:49,675 -   sortBy: invoiceDate
+2026-03-26 16:22:49,676 -   sortOrder: ascending
+2026-03-26 16:22:49,676 -   skip: 0, limit: 50
+2026-03-26 16:22:49,787 - TOTAL DOCUMENTS MATCHING QUERY: 3
+2026-03-26 16:22:49,889 - TOTAL PAYABLE AMOUNT: 33544.0
+2026-03-26 16:22:49,889 - SORTING: by invoiceDate in ascending direction (1)
+2026-03-26 16:22:50,085 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 3
+2026-03-26 16:22:50,086 - PROCESSED OUTGOINGS: 3
+2026-03-26 16:22:50,086 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:22:59,000 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:59,079 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:22:59,182 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:23:00,708 - Indexes created/verified for advance payments collection
+2026-03-26 16:23:00,708 - Fetching advance payments, vendorId: None, vendorName: None, status: None
+2026-03-26 16:23:00,913 - No advance payments found
+2026-03-26 16:23:01,220 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:23:01,279 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:23:01,486 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:23:02,467 - Indexes created/verified for advance payments collection
+2026-03-26 16:23:02,467 - Fetching advance payments, vendorId: None, vendorName: None, status: None
+2026-03-26 16:23:02,675 - No advance payments found
+2026-03-26 16:32:03,676 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:32:03,759 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:32:09,456 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:32:09,706 - Generating ledger for vendor: ARR AGENCIES
+2026-03-26 16:32:10,489 - Final calculated opening balance: 0.0
+2026-03-26 16:32:10,489 - Using opening balance: 0.0 (calculated: 0.0)
+2026-03-26 16:32:10,772 - Starting balance calculation with: 0.0
+2026-03-26 16:32:10,772 - Running balance at period start: 0.0
+2026-03-26 16:32:10,772 - Added opening balance: 0.0
+2026-03-26 16:32:10,772 - Transaction: invoice_created 10678.0 | Balance: 0.0 -> 10678.0
+2026-03-26 16:32:10,772 - Transaction: invoice_payment 678.0 | Balance: 10678.0 -> 10000.0
+2026-03-26 16:32:10,772 - Ledger generated for ARR AGENCIES: Opening Balance=0.0, Final Balance=10000.0
+2026-03-26 16:38:34,559 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:38:34,653 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:38:34,749 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:38:34,900 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:38:35,753 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:38:35,753 - Parameters received:
+2026-03-26 16:38:35,753 -   sortBy: invoiceDate
+2026-03-26 16:38:35,753 -   sortOrder: ascending
+2026-03-26 16:38:35,753 -   skip: 0, limit: 50
+2026-03-26 16:38:35,858 - TOTAL DOCUMENTS MATCHING QUERY: 3
+2026-03-26 16:38:35,959 - TOTAL PAYABLE AMOUNT: 33544.0
+2026-03-26 16:38:35,959 - SORTING: by invoiceDate in ascending direction (1)
+2026-03-26 16:38:36,061 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 3
+2026-03-26 16:38:36,061 - PROCESSED OUTGOINGS: 3
+2026-03-26 16:38:36,061 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:38:36,174 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:38:36,247 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:38:36,348 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:38:36,449 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:38:37,246 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:38:37,246 - Parameters received:
+2026-03-26 16:38:37,246 -   sortBy: invoiceDate
+2026-03-26 16:38:37,246 -   sortOrder: ascending
+2026-03-26 16:38:37,246 -   skip: 0, limit: 50
+2026-03-26 16:38:37,355 - TOTAL DOCUMENTS MATCHING QUERY: 3
+2026-03-26 16:38:37,458 - TOTAL PAYABLE AMOUNT: 33544.0
+2026-03-26 16:38:37,458 - SORTING: by invoiceDate in ascending direction (1)
+2026-03-26 16:38:37,551 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 3
+2026-03-26 16:38:37,551 - PROCESSED OUTGOINGS: 3
+2026-03-26 16:38:37,551 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:38:43,449 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:38:47,457 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:38:52,461 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:39:06,871 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:39:08,627 - API datetime fetched: 2026-03-26T16:39:00+05:30
+2026-03-26 16:39:08,958 - AMOUNT_DEBIT_NOTE_CREATED|note_id=NOTE6|type=outgoing_payment|location=None
+2026-03-26 16:39:09,153 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:39:09,459 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:39:09,459 - Parameters received:
+2026-03-26 16:39:09,459 -   sortBy: invoiceDate
+2026-03-26 16:39:09,459 -   sortOrder: ascending
+2026-03-26 16:39:09,459 -   skip: 0, limit: 50
+2026-03-26 16:39:09,554 - TOTAL DOCUMENTS MATCHING QUERY: 3
+2026-03-26 16:39:09,655 - TOTAL PAYABLE AMOUNT: 33544.0
+2026-03-26 16:39:09,655 - SORTING: by invoiceDate in ascending direction (1)
+2026-03-26 16:39:09,761 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 3
+2026-03-26 16:39:09,762 - PROCESSED OUTGOINGS: 3
+2026-03-26 16:39:09,763 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:39:16,261 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:15,159 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:15,586 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:29,448 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:29,549 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:29,655 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:29,761 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:30,054 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:30,359 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:40:30,359 - Parameters received:
+2026-03-26 16:40:30,360 -   sortBy: invoiceDate
+2026-03-26 16:40:30,360 -   sortOrder: ascending
+2026-03-26 16:40:30,361 -   skip: 0, limit: 50
+2026-03-26 16:40:30,459 - TOTAL DOCUMENTS MATCHING QUERY: 1
+2026-03-26 16:40:30,554 - TOTAL PAYABLE AMOUNT: 10000.0
+2026-03-26 16:40:30,554 - SORTING: by invoiceDate in ascending direction (1)
+2026-03-26 16:40:30,642 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 1
+2026-03-26 16:40:30,642 - PROCESSED OUTGOINGS: 1
+2026-03-26 16:40:30,642 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:40:31,158 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:31,263 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:31,360 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:40:31,560 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:40:31,560 - Parameters received:
+2026-03-26 16:40:31,560 -   sortBy: invoiceDate
+2026-03-26 16:40:31,560 -   sortOrder: ascending
+2026-03-26 16:40:31,561 -   skip: 0, limit: 50
+2026-03-26 16:40:31,643 - TOTAL DOCUMENTS MATCHING QUERY: 1
+2026-03-26 16:40:31,764 - TOTAL PAYABLE AMOUNT: 10000.0
+2026-03-26 16:40:31,764 - SORTING: by invoiceDate in ascending direction (1)
+2026-03-26 16:40:31,848 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 1
+2026-03-26 16:40:31,860 - PROCESSED OUTGOINGS: 1
+2026-03-26 16:40:31,860 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:41:43,940 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:41:44,055 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:41:44,354 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:41:44,453 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:41:44,652 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:41:45,153 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:41:45,153 - Parameters received:
+2026-03-26 16:41:45,153 -   sortBy: invoiceDate
+2026-03-26 16:41:45,153 -   sortOrder: ascending
+2026-03-26 16:41:45,153 -   skip: 0, limit: 50
+2026-03-26 16:41:45,269 - TOTAL DOCUMENTS MATCHING QUERY: 1
+2026-03-26 16:41:45,363 - TOTAL PAYABLE AMOUNT: 10000.0
+2026-03-26 16:41:45,363 - SORTING: by invoiceDate in ascending direction (1)
+2026-03-26 16:41:45,453 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 1
+2026-03-26 16:41:45,468 - PROCESSED OUTGOINGS: 1
+2026-03-26 16:41:45,468 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:41:45,783 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:41:45,869 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:41:45,964 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:41:46,588 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:41:46,588 - Parameters received:
+2026-03-26 16:41:46,588 -   sortBy: invoiceDate
+2026-03-26 16:41:46,588 -   sortOrder: ascending
+2026-03-26 16:41:46,588 -   skip: 0, limit: 50
+2026-03-26 16:41:46,656 - TOTAL DOCUMENTS MATCHING QUERY: 1
+2026-03-26 16:41:46,791 - TOTAL PAYABLE AMOUNT: 10000.0
+2026-03-26 16:41:46,791 - SORTING: by invoiceDate in ascending direction (1)
+2026-03-26 16:41:46,857 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 1
+2026-03-26 16:41:46,857 - PROCESSED OUTGOINGS: 1
+2026-03-26 16:41:46,857 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:42:05,886 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:05,963 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:06,080 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:07,379 - Indexes created/verified for advance payments collection
+2026-03-26 16:42:07,379 - Fetching advance payments, vendorId: None, vendorName: None, status: None
+2026-03-26 16:42:07,578 - No advance payments found
+2026-03-26 16:42:07,647 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:07,775 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:07,849 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:08,841 - Indexes created/verified for advance payments collection
+2026-03-26 16:42:08,841 - Fetching advance payments, vendorId: None, vendorName: None, status: None
+2026-03-26 16:42:09,054 - No advance payments found
+2026-03-26 16:42:16,871 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:16,963 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:17,062 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:17,354 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:17,663 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:17,757 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:18,046 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:42:18,046 - Parameters received:
+2026-03-26 16:42:18,046 -   sortBy: createdDate
+2026-03-26 16:42:18,046 -   sortOrder: descending
+2026-03-26 16:42:18,046 -   skip: 0, limit: 50
+2026-03-26 16:42:18,147 - TOTAL DOCUMENTS MATCHING QUERY: 3
+2026-03-26 16:42:18,253 - TOTAL PAYABLE AMOUNT: 33544.0
+2026-03-26 16:42:18,254 - SORTING: by createdDate in descending direction (-1)
+2026-03-26 16:42:18,348 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 3
+2026-03-26 16:42:18,348 - PROCESSED OUTGOINGS: 3
+2026-03-26 16:42:18,348 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:42:18,457 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:18,559 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:19,359 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:19,458 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:19,976 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:20,069 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:20,169 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:20,272 - === STARTING OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:42:20,272 - Parameters received:
+2026-03-26 16:42:20,272 -   sortBy: createdDate
+2026-03-26 16:42:20,272 -   sortOrder: descending
+2026-03-26 16:42:20,272 -   skip: 0, limit: 50
+2026-03-26 16:42:20,373 - TOTAL DOCUMENTS MATCHING QUERY: 3
+2026-03-26 16:42:20,509 - TOTAL PAYABLE AMOUNT: 33544.0
+2026-03-26 16:42:20,509 - SORTING: by createdDate in descending direction (-1)
+2026-03-26 16:42:20,592 - DOCUMENTS RETURNED AFTER SKIP/LIMIT: 3
+2026-03-26 16:42:20,595 - PROCESSED OUTGOINGS: 3
+2026-03-26 16:42:20,596 - === END OUTGOING PAYMENTS QUERY ===
+2026-03-26 16:42:30,951 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:44,371 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016
+2026-03-26 16:42:45,063 - Tenant context set: 69a7f2078098476ab963ec8a -> test_tenant_TNT016

@@ -147,6 +147,7 @@ async def create_purchaseitem(
 async def search_items_with_stock(
     request: Request,
     itemName: Optional[str] = None,
+    locationId: Optional[str] = None,  # Add locationId parameter
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     user = Depends(validate_token),
@@ -174,10 +175,17 @@ async def search_items_with_stock(
         purchase_items = list(cursor)
         random_ids = [str(item.get("randomId")) for item in purchase_items if item.get("randomId")]
         
-        # Fetch inventory stock for all randomIds in one query
+        # Fetch inventory stock for all randomIds - FILTER BY LOCATION IF PROVIDED
         inventory_map = {}
         if random_ids:
-            inventory_cursor = inventory_collection.find({"randomId": {"$in": random_ids}})
+            # Build inventory query
+            inventory_query = {"randomId": {"$in": random_ids}}
+            
+            # If locationId is provided, filter by that location
+            if locationId:
+                inventory_query["locationId"] = locationId
+                
+            inventory_cursor = inventory_collection.find(inventory_query)
             for inv in inventory_cursor:
                 inventory_map[inv.get("randomId")] = {
                     "systemStock": inv.get("systemStock", 0),
@@ -200,13 +208,15 @@ async def search_items_with_stock(
                 item_data["purchaseitemId"] = str(item_data.pop("_id"))
                 random_id = item_data.get("randomId")
                 
-                # Add stock information from inventory map
+                # Add stock information from inventory map (already filtered by location)
                 if random_id and random_id in inventory_map:
                     item_data["availableStock"] = inventory_map[random_id]["systemStock"]
                     item_data["locationId"] = inventory_map[random_id]["locationId"]
                 else:
+                    # If no inventory record found for this location, stock is 0
                     item_data["availableStock"] = 0
-                    item_data["locationId"] = None
+                    # Still return the locationId that was requested (if any)
+                    item_data["locationId"] = locationId if locationId else None
                 
                 # Handle missing or null fields with defaults
                 if item_data.get("itemCode") is None:
@@ -220,6 +230,11 @@ async def search_items_with_stock(
                 
                 if item_data.get("purchasetaxName") is None:
                     item_data["purchasetaxName"] = 0
+                elif isinstance(item_data["purchasetaxName"], str):
+                    try:
+                        item_data["purchasetaxName"] = float(item_data["purchasetaxName"])
+                    except (ValueError, TypeError):
+                        item_data["purchasetaxName"] = 0
                 
                 # Handle itemType fields
                 if "itemTypeId" not in item_data or item_data["itemTypeId"] is None:
@@ -239,6 +254,18 @@ async def search_items_with_stock(
                     elif isinstance(item_data["hsnCode"], (int, float)):
                         item_data["hsnCode"] = str(item_data["hsnCode"])
                 
+                # Handle uom field
+                if "uom" not in item_data or item_data["uom"] is None:
+                    item_data["uom"] = ""
+                
+                # Handle purchasecategoryName
+                if "purchasecategoryName" not in item_data or item_data["purchasecategoryName"] is None:
+                    item_data["purchasecategoryName"] = ""
+                
+                # Handle purchasesubcategoryName
+                if "purchasesubcategoryName" not in item_data or item_data["purchasesubcategoryName"] is None:
+                    item_data["purchasesubcategoryName"] = ""
+                
                 # Validate purchasePrice
                 if item_data.get("purchasePrice") is None:
                     item_data["purchasePrice"] = 0.0
@@ -247,6 +274,14 @@ async def search_items_with_stock(
                         item_data["purchasePrice"] = float(item_data["purchasePrice"])
                     except (ValueError, TypeError):
                         item_data["purchasePrice"] = 0.0
+                
+                # Ensure numeric fields are properly typed
+                if "cgst" in item_data and item_data["cgst"] is None:
+                    item_data["cgst"] = 0.0
+                if "sgst" in item_data and item_data["sgst"] is None:
+                    item_data["sgst"] = 0.0
+                if "igst" in item_data and item_data["igst"] is None:
+                    item_data["igst"] = 0.0
                 
                 # Validate with model
                 validated_item = PurchaseItemWithStockResponse(**item_data)
@@ -264,6 +299,9 @@ async def search_items_with_stock(
         if validation_errors > 0 or skipped_items > 0:
             logging.warning(f"Search completed with {validation_errors} validation errors and {skipped_items} skipped items")
         
+        # Log summary for debugging
+        logging.info(f"Search results: total={total}, items={len(formatted_items)}, locationId={locationId}")
+        
         return {
             "total": total,
             "items": formatted_items
@@ -271,8 +309,7 @@ async def search_items_with_stock(
         
     except Exception as e:
         logging.error(f"Error occurred while fetching purchase items with stock: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-    
+        raise HTTPException(status_code=500, detail="Internal Server Error")    
 @router.get("/", response_model=Dict)
 async def get_all_items(
     request: Request,

@@ -17,6 +17,7 @@ class PurchaseItem(BaseModel):
     purchasetaxName: Optional[int] = None
     reorderLevel: Optional[int] =None
     itemType: Optional[str] = None
+    itemTypeId:Optional[str] = None
     hsnCode: Optional[str] = None
     shelfLife: Optional[str] = None
     vendorTag: Optional[List[str]] = None
@@ -44,7 +45,8 @@ class PurchaseItemPost(BaseModel):
     purchasePrice: Optional[float] = None
     purchasetaxName: Optional[int] = None
     measurementType:Optional[str] =None
-    reorderLevel: Optional[int] =None   
+    reorderLevel: Optional[int] =None 
+    itemTypeId:Optional[str] = None  
     itemType: Optional[str] = None
     hsnCode: Optional[str] = None
     shelfLife: Optional[str] = None

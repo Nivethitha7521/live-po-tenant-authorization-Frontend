@@ -15,20 +15,19 @@ from pydantic import BaseModel, ValidationError
 import pytz
 from middlewares.permission_middleware import check_permission
 from dependencies.auth import validate_token
-from utils.financial_year import get_business_alias, get_financial_year, get_legacy_counter_value, get_next_counter_value
+
+from utils.financial_year import get_business_alias, get_financial_year, get_legacy_counter_value, get_next_counter_value, reset_counter
 
 # from Business.utils import get_businessdetails_collection
 # from Vendor.utils import get_vendor_collection
 
 from .models import PurchaseInvoice, PurchaseOrderPostExtended, PurchaseOrderState, PurchaseOrderPost,Item, PurchaseRandomId
-from utils.database import get_inventory_collection, get_purchaseorder_collection
+from utils.database import get_businessdetails_collection, get_image_collection, get_inventory_collection, get_purchaseorder_collection, get_vendor_collection
 import boto3
 from botocore.exceptions import ClientError
 import os
 from datetime import datetime
 # import uuid
-# # Import your PDF generator
-# from .approvewhatsapp import generate_purchase_order_pdf
 
 router = APIRouter()
 
@@ -122,78 +121,31 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Expected format is dd-MM-yyyy.")
     return None
-# # ==================== FINANCIAL YEAR FUNCTIONS ====================
-
-# def get_financial_year(date=None):
-#     """
-#     Get financial year string based on date.
-#     Financial year: April to March
-#     Format: YY-YY (e.g., 26-27, 27-28)
-#     """
-#     if date is None:
-#         date = datetime.now()
-    
-#     year = date.year
-#     month = date.month
-    
-#     if month >= 4:
-#         start_year = year % 100
-#         end_year = (year + 1) % 100
-#     else:
-#         start_year = (year - 1) % 100
-#         end_year = year % 100
-    
-#     return f"{start_year:02d}-{end_year:02d}"
-
-# async def get_business_alias(tenant_id: str) -> str:
-#     """
-#     Fetch business alias from database
-#     Returns "BM" as default if not found
-#     """
-#     try:
-#         from utils.database import get_businessdetails_collection
-#         business_collection = get_businessdetails_collection(tenant_id)
-#         business = business_collection.find_one({})
-        
-#         if business and business.get("aliasName"):
-#             return business["aliasName"].strip().upper()
-#         else:
-#             return "BM"
-#     except Exception as e:
-#         print(f"Error fetching business alias: {e}")
-#         return "BM"
-
-# def get_next_counter_value(tenant_id: str, financial_year: str = None):
-#     """
-#     Get next counter value - Auto resets every financial year
-#     """
-#     counter_collection = get_purchaseorder_collection(tenant_id).database["counters"]
-    
-#     if financial_year is None:
-#         financial_year = get_financial_year()
-    
-#     # Use financial year in counter ID
-#     counter_id = f"purchaseorderId_{financial_year}"
-    
-#     counter = counter_collection.find_one_and_update(
-#         {"_id": counter_id},
-#         {"$inc": {"sequence_value": 1}},
-#         upsert=True,
-#         return_document=True
-#     )
-#     return counter["sequence_value"]
+# services/purchase_order_service.py
 async def generate_random_id(tenant_id: str):
     """
     Generate random ID with TRANSITION LOGIC
+    - Resets counter to 0 when no documents exist in the collection
     """
     current_date = datetime.now()
     TRANSITION_DATE = datetime(2026, 4, 1)
     
-    counter_collection = get_purchaseorder_collection(tenant_id).database["counters"]
+    # Get collections
+    purchaseorder_collection = get_purchaseorder_collection(tenant_id)
+    counter_collection = purchaseorder_collection.database["counters"]
+    
+    # Check if there are any documents in the purchase order collection
+    document_count = purchaseorder_collection.count_documents({})
     
     # ===== BEFORE APRIL 1, 2026 =====
     if current_date < TRANSITION_DATE:
         # ✅ USE COMMON FUNCTION for legacy counter
+        # Counter ID: "purchaseorderId" - persists even if orders deleted
+        
+        # If no documents exist, reset the counter to 0
+        if document_count == 0:
+            reset_counter(counter_collection, "purchaseorderId", 0)
+        
         counter_value = get_legacy_counter_value(counter_collection, "purchaseorderId")
         random_id = f"PO{counter_value:04d}"
         return random_id
@@ -203,8 +155,21 @@ async def generate_random_id(tenant_id: str):
         financial_year = get_financial_year(current_date)
         business_alias = await get_business_alias(tenant_id)
         
-        # ✅ USE COMMON FUNCTION for FY counter
+        # Counter ID includes year: "purchaseorderId_26-27"
+        # Each financial year has its own independent sequence
         counter_id = f"purchaseorderId_{financial_year}"
+        
+        # Check if there are any documents for this specific financial year
+        # You might need to query documents that have randomId containing this financial year
+        year_pattern = f"{business_alias}/{financial_year}"
+        year_document_count = purchaseorder_collection.count_documents({
+            "randomId": {"$regex": f"^{year_pattern}"}
+        })
+        
+        # If no documents exist for this financial year, reset the counter
+        if year_document_count == 0:
+            reset_counter(counter_collection, counter_id, 0)
+        
         counter_value = get_next_counter_value(counter_collection, counter_id)
         
         random_id = f"{business_alias}/{financial_year}/PO{counter_value:04d}"
@@ -234,7 +199,7 @@ async def create_purchaseorder(
     
     # Convert the input purchase order to a dictionary
     new_purchaseorder_data = purchaseorder.dict()
-    new_purchaseorder_data["approvalHistory"] = [] 
+    
     # IMPORTANT: Ensure orderDate is preserved as UTC midnight
     if 'orderDate' in new_purchaseorder_data and new_purchaseorder_data['orderDate']:
         # If orderDate is a datetime string, ensure it's stored as UTC midnight
@@ -1472,3 +1437,100 @@ async def live_check(tenant_id: str):
         "april_1_2026": f"{business_alias}/26-27/PO0001 ⭐",
         "guarantee": "This WILL auto-change on April 1, 2026 at 00:00 AM server time!"
     }
+@router.get("/download-pdf/{purchaseorder_id}")
+async def download_purchase_order_pdf(
+    request: Request,
+    purchaseorder_id: str,
+    user = Depends(validate_token),
+    permissions: dict = Depends(check_permission("yenerp", "purchaseorders_pending", "read"))
+):
+    """
+    Generate and download PDF for a purchase order
+    """
+    try:
+        tenant_id = request.state.tenant_id
+        
+        # Get collections with tenant isolation
+        purchaseorder_collection = get_purchaseorder_collection(tenant_id)
+        vendor_collection = get_vendor_collection(tenant_id)
+        business_collection = get_businessdetails_collection(tenant_id)
+        image_collection = get_image_collection(tenant_id)
+        
+        # Fetch purchase order
+        try:
+            purchaseorder = purchaseorder_collection.find_one({"_id": ObjectId(purchaseorder_id)})
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid PO ID format: {purchaseorder_id}")
+            
+        if not purchaseorder:
+            raise HTTPException(status_code=404, detail="PurchaseOrder not found")
+        
+        # Convert ObjectId to string for the response
+        purchaseorder["_id"] = str(purchaseorder["_id"])
+        purchaseorder["purchaseOrderId"] = purchaseorder["_id"]
+        
+        # Clean nested ObjectIds in items
+        if "items" in purchaseorder and purchaseorder["items"]:
+            for item in purchaseorder["items"]:
+                if "itemId" in item and isinstance(item["itemId"], ObjectId):
+                    item["itemId"] = str(item["itemId"])
+        
+        # Fetch vendor details
+        vendor_name = purchaseorder.get("vendorName")
+        vendor = {}
+        if vendor_name:
+            vendor = vendor_collection.find_one({
+                "vendorName": {"$regex": f"^{re.escape(vendor_name)}$", "$options": "i"}
+            })
+            if vendor:
+                vendor["_id"] = str(vendor["_id"])
+        
+        # Fetch business details
+        business = business_collection.find_one({}) or {}
+        if business and "_id" in business:
+            business["_id"] = str(business["_id"])
+        
+        # Fetch PO images
+        po_images = []
+        try:
+            img_doc = image_collection.find_one({"purchase_id": purchaseorder_id}) or \
+                      image_collection.find_one({"_id": purchaseorder_id})
+            if img_doc and img_doc.get("photos"):
+                for photo in img_doc.get("photos", []):
+                    if photo.get("ftp_path"):
+                        po_images.append(photo["ftp_path"])
+        except Exception as e:
+            print(f"Warning: Failed to load PO images: {e}")
+        
+        # Generate PDF using your existing function
+        # Make sure generate_purchase_order_pdf is properly imported
+        from purchaseOrder.approvewhatsapp import generate_purchase_order_pdf
+        
+        pdf_bytes = generate_purchase_order_pdf(purchaseorder, vendor, business, po_images)
+        
+        # Generate filename
+        vendor_name_clean = re.sub(r'[^\w\s-]', '', str(purchaseorder.get('vendorName')))
+        vendor_name_clean = re.sub(r'[-\s]+', '_', vendor_name_clean)
+        random_id = purchaseorder.get('randomId', purchaseorder_id)
+        filename = f"{vendor_name_clean}_{random_id}.pdf"
+        
+        # Return PDF as downloadable file
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Length": str(len(pdf_bytes))
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except ImportError as e:
+        print(f"Import error: {e}")
+        raise HTTPException(status_code=500, detail=f"PDF generation module not available: {str(e)}")
+    except Exception as e:
+        print(f"Error generating PDF: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")

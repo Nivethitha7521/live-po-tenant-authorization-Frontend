@@ -5,15 +5,15 @@ from typing import Any, Dict, List, Literal, Optional
 from dependencies.auth import validate_token
 from middlewares.permission_middleware import check_permission
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException,Request,Depends
+from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, Field
 from pymongo import ReturnDocument, UpdateOne
 import pytz
 from grn.models import Grn, ReturnGRNRequest, ReturnReason
 from grn.routes import get_current_date_and_time
-from utils.database import get_apinvoice_collection,get_vendor_collection,get_purchaseitem_collection,get_inventory_collection,get_outgoingpayment_collection,get_debit_collection, get_grn_collection, get_return_reasons_collection
+from utils.database import get_apinvoice_collection, get_vendor_collection, get_inventory_collection, get_outgoingpayment_collection, get_debit_collection, get_grn_collection, get_return_reasons_collection
 
-from .utils import calculate_item_financialsReturn, generate_note_random_id, get_current_ist_datetime,  is_valid_object_id
+from .utils import calculate_item_financialsReturn, generate_note_random_id, get_current_ist_datetime, is_valid_object_id
 
 router = APIRouter()
 
@@ -60,101 +60,204 @@ def get_localized_datetime():
     localized_now = datetime.now(ist)
     return localized_now
 
-def update_stock_for_return(item_updates: List[Dict],tenant_id: str,location_id: str = "WH001", return_date: datetime = None):
+def update_inventory_only_for_return(item_updates: List[Dict], tenant_id: str, location_id: str = None, return_date: datetime = None) -> Dict:
     """
-    Update stock quantities for returned items in both:
-    - purchaseitem collection (total stock)
-    - inventory collection (location-based stock)
+    UPDATE ONLY INVENTORY COLLECTION FOR RETURNS - NO ITEM MASTER UPDATE
+    Update stock quantities in inventory collection (location-based stock) for returns.
+    
+    For returns, we SUBTRACT the quantities from inventory (stock decreases).
+    
+    Returns detailed item-level stock changes.
     """
     try:
         if not return_date:
             return_date = datetime.now(pytz.timezone('Asia/Kolkata'))
         
-        purchaseitem_updates = 0
         inventory_updates = 0
+        inventory_creates = 0
         inventory_not_found = 0
         inventory_errors = 0
+        stock_validation_failures = 0
+        
+        detailed_results = []
+        
+        logging.info("=" * 100)
+        logging.info(f"INVENTORY ONLY UPDATE FOR RETURN - SUBTRACTING STOCK")
+        logging.info(f"Timestamp: {return_date}")
+        logging.info(f"Total items to process: {len(item_updates)}")
+        logging.info("=" * 100)
         
         for idx, update_info in enumerate(item_updates, 1):
             random_id = update_info.get('randomId') or update_info.get('item_rand')
             item_name = update_info.get('itemName', 'Unknown')
             quantity_to_return = update_info.get('quantityToReduce', update_info.get('returnedQuantity', 0))
             
+            # ===== CRITICAL: Get location from item or use provided location_id =====
+            # Priority: 1. location_id from function param, 2. locationId from item, 3. "WH001" as fallback
+            item_location_id = location_id or update_info.get('locationId') or "WH001"
+            
             if not random_id or quantity_to_return <= 0:
                 continue
-                
-            # For return, quantity is negative
-            quantity_delta = -quantity_to_return
             
-            # ========== STEP 1: UPDATE PURCHASEITEM COLLECTION ==========
-            purchase_item = get_purchaseitem_collection(tenant_id).find_one({"randomId": random_id})
-            if purchase_item:
-                current_stock = purchase_item.get('stockQuantity', 0)
-                new_stock = current_stock + quantity_delta
+            logging.info(f"\n--- Processing Return Item {idx}/{len(item_updates)} ---")
+            logging.info(f"Item RandomId: {random_id}")
+            logging.info(f"Item Name: {item_name}")
+            logging.info(f"Location: {item_location_id}")
+            logging.info(f"Quantity to Return (Subtract): {quantity_to_return}")
+            
+            # Initialize result for this item
+            item_result = {
+                "randomId": random_id,
+                "itemName": item_name,
+                "stockChange": 0,  # Item Master stock change - set to 0 (NO UPDATE)
+                "newStock": 0,      # Item Master new total stock - set to 0 (NO UPDATE)
+                "locationStockChange": 0,  # Location-specific stock change
+                "newLocationStock": 0,      # Location-specific new stock
+                "locationId": item_location_id,
+                "status": "success",
+                "reason": None
+            }
+            
+            try:
+                # ========== STEP 1: SKIP PURCHASEITEM UPDATE (NO ITEM MASTER UPDATE) ==========
+                logging.info(f"⏭️ SKIPPING PURCHASEITEM UPDATE - No item master stock change for return")
                 
-                if new_stock < 0:
-                    new_stock = max(0, new_stock)
-                
-                purchaseitem_result = get_purchaseitem_collection(tenant_id).update_one(
-                    {"randomId": random_id},
-                    {"$set": {
-                        "stockQuantity": new_stock,
-                        "lastUpdatedDate": return_date
-                    }}
-                )
-                
-                if purchaseitem_result.modified_count > 0:
-                    purchaseitem_updates += 1
-                
-                # ========== STEP 2: UPDATE INVENTORY COLLECTION ==========
+                # ========== STEP 2: UPDATE ONLY INVENTORY COLLECTION (LOCATION-BASED) ==========
                 try:
                     inventory_collection = get_inventory_collection()
                     
+                    # Find inventory by BOTH randomId AND locationId
                     inventory_item = inventory_collection.find_one({
                         "randomId": random_id,
-                        "locationId": location_id
+                        "locationId": item_location_id
                     })
                     
                     if inventory_item:
+                        # EXISTING LOCATION - UPDATE systemStock ONLY
                         current_system_stock = inventory_item.get('systemStock', 0)
-                        new_system_stock = current_system_stock + quantity_delta
                         
+                        # ===== STOCK VALIDATION FOR RETURN =====
+                        if current_system_stock < quantity_to_return:
+                            # Not enough stock at this location!
+                            error_msg = f"Insufficient stock at location {item_location_id} for return: Available {current_system_stock:.2f}, Need to return {quantity_to_return:.2f}"
+                            logging.error(f"❌ {error_msg}")
+                            
+                            item_result["status"] = "failed"
+                            item_result["reason"] = error_msg
+                            detailed_results.append(item_result)
+                            stock_validation_failures += 1
+                            inventory_errors += 1
+                            continue  # Skip this item, don't update
+                        
+                        # Calculate new stock (subtract for return)
+                        new_system_stock = current_system_stock - quantity_to_return
+                        
+                        logging.info(f"Location Stock Calculation: {current_system_stock:.2f} - {quantity_to_return:.2f} = {new_system_stock:.2f}")
+                        
+                        # Ensure stock doesn't go negative (safety check)
                         if new_system_stock < 0:
-                            new_system_stock = max(0, new_system_stock)
+                            actual_location_change = -current_system_stock
+                            new_system_stock = 0
+                            logging.warning(f"⚠️ Location stock would become negative. Capping at 0. Actual removed: {current_system_stock:.2f}")
+                            item_result["reason"] = f"Location stock capped at 0 (attempted to return {quantity_to_return:.2f}, only {current_system_stock:.2f} available)"
+                        else:
+                            actual_location_change = -quantity_to_return
+                        
+                        # UPDATE ONLY systemStock - NO OTHER FIELDS CHANGED
+                        inventory_update_data = {
+                            "systemStock": new_system_stock,
+                        }
+                        
                         
                         inventory_result = inventory_collection.update_one(
                             {
                                 "randomId": random_id,
-                                "locationId": location_id
+                                "locationId": item_location_id
                             },
-                            {"$set": {"systemStock": new_system_stock}}
+                            {"$set": inventory_update_data}
                         )
                         
                         if inventory_result.modified_count > 0:
                             inventory_updates += 1
                         
+                        actual_location_change = new_system_stock - current_system_stock
+                        item_result["locationStockChange"] = actual_location_change
+                        item_result["newLocationStock"] = new_system_stock
+                        
+                        logging.info(f"✅ INVENTORY UPDATED for Return at Location {item_location_id}: {current_system_stock:.2f} -> {new_system_stock:.2f} (Change: {actual_location_change:+.2f})")
+                        
                     else:
+                        # For return, if location record doesn't exist, we can't subtract from it
                         inventory_not_found += 1
+                        item_result["status"] = "failed"
+                        item_result["reason"] = f"No inventory record found for location {item_location_id} to return from"
+                        logging.warning(f"⚠️ No existing inventory record for location {item_location_id} to return from. Cannot subtract stock.")
                     
-                except Exception:
+                except Exception as inv_error:
                     inventory_errors += 1
-                    
-            else:
-                inventory_errors += 1
+                    item_result["status"] = "failed"
+                    item_result["reason"] = f"Inventory update failed: {str(inv_error)}"
+                    logging.error(f"❌ Inventory update failed: {str(inv_error)}")
+            
+            except Exception as item_error:
+                item_result["status"] = "failed"
+                item_result["reason"] = str(item_error)
+                logging.error(f"❌ Error processing item {random_id}: {str(item_error)}")
+            
+            detailed_results.append(item_result)
         
-        return {
-            "success": True,
-            "purchaseitem_updates": purchaseitem_updates,
+        # Calculate summary
+        successful_items = sum(1 for r in detailed_results if r["status"] == "success")
+        failed_items = sum(1 for r in detailed_results if r["status"] == "failed")
+        
+        summary = {
+            "success": failed_items == 0,
+            "totalProcessed": len(detailed_results),
+            "successful": successful_items,
+            "failed": failed_items,
+            "items": detailed_results,
+            "timestamp": return_date.isoformat(),
+            "purchaseitem_updates": 0,  # Always 0 - we don't update item master
             "inventory_updates": inventory_updates,
+            "inventory_creates": inventory_creates,
             "inventory_not_found": inventory_not_found,
-            "inventory_errors": inventory_errors
+            "stock_validation_failures": stock_validation_failures,
+            "errors": inventory_errors
         }
         
+        # Log final summary
+        summary_lines = []
+        summary_lines.append("=" * 100)
+        summary_lines.append("📊 INVENTORY ONLY RETURN UPDATE COMPLETE SUMMARY")
+        summary_lines.append("=" * 100)
+        summary_lines.append(f"Operation Type: RETURN (SUBTRACT)")
+        summary_lines.append(f"Total Items Processed: {len(detailed_results)}")
+        summary_lines.append(f"Successful: {successful_items}")
+        summary_lines.append(f"Failed: {failed_items}")
+        summary_lines.append("")
+        summary_lines.append("📍 INVENTORY UPDATES (Location-Based ONLY - NO ITEM MASTER):")
+        summary_lines.append(f"   - Location Updates: {inventory_updates}")
+        summary_lines.append(f"   - Location Creates: {inventory_creates}")
+        summary_lines.append(f"   - Location Not Found: {inventory_not_found}")
+        summary_lines.append(f"   - Stock Validation Failures: {stock_validation_failures}")
+        summary_lines.append(f"   - Errors: {inventory_errors}")
+        summary_lines.append("=" * 100)
+        
+        logging.info("\n".join(summary_lines))
+        
+        # Log to inventory logger
+        inventory_logger.info(f"INVENTORY_ONLY_RETURN|items={len(detailed_results)}|updates={inventory_updates}|not_found={inventory_not_found}|validation_failures={stock_validation_failures}|location={location_id}")
+        
+        return summary
+        
     except Exception as e:
-        error_logger.error(f"Error updating stock for return: {str(e)}")
+        error_msg = f"❌ Error updating inventory for return: {str(e)}"
+        logging.error(error_msg)
+        logging.exception("Full traceback:")
+        error_logger.error(error_msg)
         raise
 
-async def check_debit_note_availability(document_type: str, document_id: str, requested_amount: float,tenant_id: str) -> Dict[str, Any]:
+async def check_debit_note_availability(document_type: str, document_id: str, requested_amount: float, tenant_id: str) -> Dict[str, Any]:
     """
     Check if a debit note can be created for the document.
     """
@@ -241,7 +344,7 @@ async def update_source_document_for_debit_note(
     document_id: str,
     total_amount: float,
     update_datetime: datetime,
-    tenant_id:str
+    tenant_id: str
 ):
     """
     Updates source document to mark that it has debit notes.
@@ -301,7 +404,7 @@ async def update_source_document_for_debit_note(
 
 
 @router.get("/getgrn/return-reasons", response_model=List[ReturnReason])
-async def get_return_reasons(request: Request,user = Depends(validate_token),
+async def get_return_reasons(request: Request, user = Depends(validate_token),
     permissions: dict = Depends(check_permission("yenerp","grns","read"))):
     tenant_id = request.state.tenant_id
     try:
@@ -328,10 +431,10 @@ async def add_return_reason(request: Request, reason: ReturnReason):
         raise HTTPException(status_code=500, detail=f"Failed to add return reason")
 
 @router.patch("/{grn_id}/return", response_model=Grn)
-async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGRNRequest):
+async def process_grn_return(httprequest: Request, grn_id: str, request: ReturnGRNRequest):
     tenant_id = httprequest.state.tenant_id
     grn_collection = get_grn_collection(tenant_id)
-    purchase_item_collection = get_purchaseitem_collection(tenant_id)
+    # REMOVED: purchase_item_collection - we don't need it anymore
     debit_credit_note_collection = get_debit_collection(tenant_id)
     vendor_collection = get_vendor_collection(tenant_id)
     outgoing_collection = get_outgoingpayment_collection(tenant_id)
@@ -352,6 +455,22 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
     if not grn:
         error_logger.error(f"GRN not found for ID: {grn_id}")
         raise HTTPException(status_code=404, detail="GRN not found")
+
+    # ===== CRITICAL: Get location from GRN =====
+    # Check both possible field names that might store the location
+    grn_location_id = grn.get('locationId')  # Try locationId first
+    if not grn_location_id:
+        # If locationId not found, try receivingLocation (which might be name)
+        grn_location_name = grn.get('receivingLocation')
+        # Default to WH001 if no location found, but log it
+        grn_location_id = "WH001"
+        logging.warning(f"⚠️ No locationId found in GRN {grn_id}, using default: {grn_location_id}")
+        logging.warning(f"   receivingLocation field contains: {grn_location_name}")
+    else:
+        grn_location_name = grn.get('receivingLocation', 'Unknown Location')
+    
+    logging.info(f"📍 GRN RETURN LOCATION DETECTED: ID={grn_location_id}, Name={grn_location_name}")
+    return_logger.info(f"RETURN_LOCATION|grn_id={grn_id}|location={grn_location_id}|name={grn_location_name}")
 
     # Sanitize grnDate
     if not isinstance(grn.get("grnDate"), datetime):
@@ -389,11 +508,10 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
     total_returned_amount = 0
     total_returned_tax = 0
     total_returned_discount = 0
-    stock_updates = {}
     
     # Store items for new debit note creation and stock updates
     current_return_items = []
-    stock_update_list = []  # For inventory update
+    stock_update_list = []  # For inventory update (NO purchaseitem updates)
 
     if request.scenario == "full":
         for item in item_details:
@@ -412,28 +530,13 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
 
             item_name = item.get("itemName")
             
-            # Track for stock updates
-            stock_updates[item_id] = stock_updates.get(item_id, {"itemName": item_name, "quantityToReduce": 0, "randomId": item.get("item_rand")})
-            stock_updates[item_id]["quantityToReduce"] = round(stock_updates[item_id]["quantityToReduce"] + remaining, 2)
-            
-            # Get current stock before update for tracking
-            purchase_item = purchase_item_collection.find_one({
-                "$or": [
-                    {"purchaseitemId": item_id},
-                    {"_id": ObjectId(item_id) if is_valid_object_id(item_id) else None},
-                    {"itemName": item_name}
-                ]
-            })
-            
-            before_stock = purchase_item.get("stockQuantity", 0) if purchase_item else 0
-            
-            # Add to stock update list for inventory
+            # Add to stock update list for inventory ONLY - WITH LOCATION
             stock_update_list.append({
                 "randomId": item.get("item_rand"),
                 "itemName": item_name,
                 "quantityToReduce": remaining,
                 "itemId": item_id,
-                "beforeStock": before_stock
+                "locationId": grn_location_id  # ADD LOCATION HERE
             })
 
             returned_financials = calculate_item_financialsReturn(item.copy(), remaining)
@@ -482,7 +585,8 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
                 "finalPrice": returned_financials["finalPrice"],
                 "sgst": returned_financials["sgst"],
                 "cgst": returned_financials["cgst"],
-                "reason": request.comments or "Full GRN return"
+                "reason": request.comments or "Full GRN return",
+                "locationId": grn_location_id  # ADD LOCATION HERE
             })
 
             updated_item["returnHistory"] = updated_item.get("returnHistory", []) + [{
@@ -493,7 +597,8 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
                 "totalUnits": remaining,
                 "reason": request.comments or "Full GRN return",
                 "timestamp": current_date_and_time['utc_datetime'],
-                "status": updated_item["status"]
+                "status": updated_item["status"],
+                "locationId": grn_location_id  # ADD LOCATION HERE
             }]
 
             updated_items.append(updated_item)
@@ -527,28 +632,13 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
 
             item_name = item.get("itemName")
             
-            # Track for stock updates
-            stock_updates[item_id] = stock_updates.get(item_id, {"itemName": item_name, "quantityToReduce": 0, "randomId": item.get("item_rand")})
-            stock_updates[item_id]["quantityToReduce"] = round(stock_updates[item_id]["quantityToReduce"] + units_to_return, 2)
-            
-            # Get current stock before update for tracking
-            purchase_item = purchase_item_collection.find_one({
-                "$or": [
-                    {"purchaseitemId": item_id},
-                    {"_id": ObjectId(item_id) if is_valid_object_id(item_id) else None},
-                    {"itemName": item_name}
-                ]
-            })
-            
-            before_stock = purchase_item.get("stockQuantity", 0) if purchase_item else 0
-            
-            # Add to stock update list for inventory
+            # Add to stock update list for inventory ONLY - WITH LOCATION
             stock_update_list.append({
                 "randomId": item.get("item_rand"),
                 "itemName": item_name,
                 "quantityToReduce": units_to_return,
                 "itemId": item_id,
-                "beforeStock": before_stock
+                "locationId": grn_location_id  # ADD LOCATION HERE
             })
 
             returned_financials = calculate_item_financialsReturn(item.copy(), units_to_return)
@@ -597,7 +687,8 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
                 "finalPrice": returned_financials["finalPrice"],
                 "sgst": returned_financials["sgst"],
                 "cgst": returned_financials["cgst"],
-                "reason": return_item.get("returnReason") or request.comments or "Partial GRN return"
+                "reason": return_item.get("returnReason") or request.comments or "Partial GRN return",
+                "locationId": grn_location_id  # ADD LOCATION HERE
             })
 
             updated_item["returnHistory"] = updated_item.get("returnHistory", []) + [{
@@ -608,7 +699,8 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
                 "totalUnits": units_to_return,
                 "reason": return_item.get("returnReason") or request.comments or "Partial GRN return",
                 "timestamp": current_date_and_time['utc_datetime'],
-                "status": return_status
+                "status": return_status,
+                "locationId": grn_location_id  # ADD LOCATION HERE
             }]
 
             updated_items.append(updated_item)
@@ -678,7 +770,8 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
                 "noteType": "debit",
                 "status": "Active",
                 "returnDate": returned_date_ist.isoformat(),
-                "randomId": await generate_note_random_id(tenant_id)
+                "randomId": await generate_note_random_id(tenant_id),
+                "locationId": grn_location_id  # ADD LOCATION HERE
             }
 
             insert_result = debit_credit_note_collection.insert_one(note_data)
@@ -707,6 +800,7 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
                         "totalTax": round(new_total_tax, 2),
                         "totalDiscount": round(new_total_discount, 2),
                         "finalAmount": round(new_final_amount, 2),
+                        "locationId": grn_location_id  # ADD LOCATION HERE
                     }
                 }
             )
@@ -747,78 +841,20 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
                 }
             )
 
-    # ========== UPDATE STOCK IN PURCHASEITEM COLLECTION ==========
-    purchase_item_updates_count = 0
-    detailed_item_updates = []
+    # ========== REMOVED: UPDATE STOCK IN PURCHASEITEM COLLECTION ==========
+    # NO ITEM MASTER UPDATE DURING RETURN
     
-    for item_id, update_info in stock_updates.items():
-        purchase_item = purchase_item_collection.find_one({
-            "$or": [
-                {"purchaseitemId": item_id},
-                {"_id": ObjectId(item_id) if is_valid_object_id(item_id) else None},
-                {"itemName": update_info["itemName"]}
-            ]
-        })
-        
-        if purchase_item:
-            current_stock = purchase_item.get("stockQuantity", 0) or 0
-            new_stock = round(max(0, current_stock - update_info["quantityToReduce"]), 2)
-            
-            purchase_item_collection.update_one(
-                {"_id": purchase_item["_id"]},
-                {"$set": {
-                    "stockQuantity": new_stock,
-                    "lastUpdatedDate": current_date_and_time['utc_datetime']
-                }}
-            )
-            purchase_item_updates_count += 1
-            
-            detailed_item_updates.append({
-                "randomId": update_info.get("randomId"),
-                "itemName": update_info["itemName"],
-                "quantityToReduce": update_info["quantityToReduce"],
-                "beforeStock": current_stock,
-                "afterStock": new_stock,
-                "status": "success",
-                "beforeLocationStock": current_stock,
-                "afterLocationStock": new_stock
-            })
-        else:
-            detailed_item_updates.append({
-                "randomId": update_info.get("randomId"),
-                "itemName": update_info["itemName"],
-                "quantityToReduce": update_info["quantityToReduce"],
-                "beforeStock": None,
-                "afterStock": None,
-                "status": "failed",
-                "reason": "Purchase item not found"
-            })
-
-    # ========== UPDATE INVENTORY COLLECTION FOR RETURN ==========
+    # ========== UPDATE ONLY INVENTORY COLLECTION FOR RETURN ==========
     inventory_update_result = None
     
     if stock_update_list and any_items_returned:
-        for update in stock_update_list:
-            purchase_item = purchase_item_collection.find_one({"randomId": update["randomId"]})
-            if purchase_item:
-                update["beforeStock"] = purchase_item.get("stockQuantity", 0)
-        
-        inventory_update_result = update_stock_for_return(
+        # Pass the GRN location to the inventory-only update function
+        inventory_update_result = update_inventory_only_for_return(
             stock_update_list,
             tenant_id,
-            location_id="WH001",
+            location_id=grn_location_id,  # PASS THE DYNAMIC LOCATION HERE
             return_date=current_date_and_time['utc_datetime']
         )
-        
-        # Update detailed item updates with inventory info
-        for item_update in detailed_item_updates:
-            matching_inventory = next(
-                (inv for inv in stock_update_list if inv.get("randomId") == item_update["randomId"]),
-                None
-            )
-            if matching_inventory:
-                item_update["beforeLocationStock"] = matching_inventory.get("beforeStock", 0)
-                item_update["afterLocationStock"] = max(0, matching_inventory.get("beforeStock", 0) - item_update["quantityToReduce"])
 
     # Update GRN
     update_data = {
@@ -847,35 +883,37 @@ async def process_grn_return(httprequest: Request,grn_id: str, request: ReturnGR
     updated_grn_dict.pop("_id", None)
 
     # ========== ADD STOCK UPDATE RESULT TO RESPONSE ==========
-    stock_update_result = None
-    if any_items_returned and detailed_item_updates:
-        stock_update_result = {
-            "purchaseitem_updates": purchase_item_updates_count,
-            "inventory_updates": inventory_update_result.get("inventory_updates", 0) if inventory_update_result else 0,
-            "inventory_not_found": inventory_update_result.get("inventory_not_found", 0) if inventory_update_result else 0,
-            "inventory_errors": inventory_update_result.get("inventory_errors", 0) if inventory_update_result else 0,
-            "items": detailed_item_updates,
-            "success": True,
-            "message": f"Stock updated for {len(detailed_item_updates)} items"
-        }
-        
-        updated_grn_dict["stockUpdateResult"] = stock_update_result
-        updated_grn_dict["returnStockUpdateResult"] = stock_update_result
+    if any_items_returned and inventory_update_result:
+        updated_grn_dict["stockUpdateResult"] = inventory_update_result
+        updated_grn_dict["returnStockUpdateResult"] = inventory_update_result
     else:
-        stock_update_result = {
+        updated_grn_dict["stockUpdateResult"] = {
+            "success": True,
+            "totalProcessed": 0,
+            "successful": 0,
+            "failed": 0,
+            "items": [],
             "purchaseitem_updates": 0,
             "inventory_updates": 0,
             "inventory_not_found": 0,
-            "inventory_errors": 0,
-            "items": [],
-            "success": True,
-            "message": "No stock updates performed"
+            "errors": 0,
+            "message": "No stock updates performed",
+            "locationUsed": grn_location_id
         }
-        updated_grn_dict["stockUpdateResult"] = stock_update_result
-        updated_grn_dict["returnStockUpdateResult"] = stock_update_result
+        updated_grn_dict["returnStockUpdateResult"] = updated_grn_dict["stockUpdateResult"]
 
-    return_logger.info(f"RETURN_COMPLETE|grn_id={grn_id}|status={new_status}|items={len(current_return_items)}|amount={total_returned_amount}")
-    audit_logger.info(f"GRN_RETURN|grn_id={grn_id}|returned_by={request.returnedBy}")
+    # Add location info to response
+    updated_grn_dict["returnLocation"] = {
+        "id": grn_location_id,
+        "name": grn_location_name
+    }
+    
+    # Add note about item master update
+    updated_grn_dict["itemMasterUpdated"] = False
+    updated_grn_dict["note"] = "Item master (purchaseitem) not updated during return - only inventory stock reduced"
+
+    return_logger.info(f"RETURN_COMPLETE|grn_id={grn_id}|status={new_status}|items={len(current_return_items)}|amount={total_returned_amount}|location={grn_location_id}")
+    audit_logger.info(f"GRN_RETURN|grn_id={grn_id}|returned_by={request.returnedBy}|location={grn_location_id}")
 
     return updated_grn_dict
 
@@ -927,7 +965,7 @@ def calculate_item_financialsReturn(item: Dict, units: float) -> Dict:
     }
 
 @router.post("/returnprocess/AmountDebitNote/create")
-async def create_amount_debit_note(httprequest:Request,request: CreateAmountDebitNoteRequest):
+async def create_amount_debit_note(httprequest: Request, request: CreateAmountDebitNoteRequest):
     tenant_id = httprequest.state.tenant_id
     """
     Create amount-only debit note for GRN, AP Invoice, or Outgoing Payment
@@ -953,7 +991,7 @@ async def create_amount_debit_note(httprequest:Request,request: CreateAmountDebi
                 }
             )
         
-        note_id =await generate_note_random_id(tenant_id)
+        note_id = await generate_note_random_id(tenant_id)
         
         source_doc = None
         document_type = request.documentType
@@ -985,6 +1023,13 @@ async def create_amount_debit_note(httprequest:Request,request: CreateAmountDebi
 
         now_ist = get_current_ist_datetime()
         remaining_payable_amount = availability_check.get("remaining_available", 0)
+        
+        # Get location from source document if it's a GRN
+        source_location_id = None
+        source_location_name = None
+        if document_type == "grn":
+            source_location_id = source_doc.get('locationId')
+            source_location_name = source_doc.get('receivingLocation')
         
         debit_note_doc = {
             "_id": ObjectId(),
@@ -1019,7 +1064,9 @@ async def create_amount_debit_note(httprequest:Request,request: CreateAmountDebi
                 "vendorName": source_doc.get("vendorName"),
                 "originalPayableAmount": availability_check.get("original_payable_amount", 0),
                 "existingDebitNotesCount": availability_check.get("existing_notes_count", 0),
-                "totalExistingDebit": availability_check.get("total_existing_debit", 0)
+                "totalExistingDebit": availability_check.get("total_existing_debit", 0),
+                "locationId": source_location_id,
+                "locationName": source_location_name
             },
             "itemDetails": [{
                 "itemId": document_id,
@@ -1031,13 +1078,15 @@ async def create_amount_debit_note(httprequest:Request,request: CreateAmountDebi
                 "totalPrice": request.totalAmount,
                 "finalPrice": request.totalAmount,
                 "reason": request.reason,
-                "isAmountOnly": True
+                "isAmountOnly": True,
+                "locationId": source_location_id
             }]
         }
 
         if document_type == "grn":
             debit_note_doc["grnId"] = document_id
             debit_note_doc["sourceDocumentType"] = "grn"
+            debit_note_doc["locationId"] = source_location_id
         elif document_type == "ap_invoice":
             debit_note_doc["apInvoiceId"] = document_id
             debit_note_doc["sourceDocumentType"] = "ap_invoice"
@@ -1057,7 +1106,7 @@ async def create_amount_debit_note(httprequest:Request,request: CreateAmountDebi
             tenant_id
         )
 
-        audit_logger.info(f"AMOUNT_DEBIT_NOTE_CREATED|note_id={note_id}|type={document_type}")
+        audit_logger.info(f"AMOUNT_DEBIT_NOTE_CREATED|note_id={note_id}|type={document_type}|location={source_location_id}")
         
         response_data = {
             "success": True,
@@ -1069,7 +1118,9 @@ async def create_amount_debit_note(httprequest:Request,request: CreateAmountDebi
             "reason": request.reason,
             "remainingPayableAmount": remaining_payable_amount,
             "createdAt": now_ist.isoformat(),
-            "noteNumber": note_id
+            "noteNumber": note_id,
+            "locationId": source_location_id,
+            "locationName": source_location_name
         }
   
         return response_data
@@ -1078,6 +1129,7 @@ async def create_amount_debit_note(httprequest:Request,request: CreateAmountDebi
         raise
     except Exception as e:
         error_logger.error(f"Error creating amount debit note: {str(e)}")
+        error_logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error"

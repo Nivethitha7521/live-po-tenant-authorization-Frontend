@@ -307,7 +307,8 @@ class PurchaseOrderPatch(BaseModel):
     items: List[ItemPatch]  # List of item details to be patched
     grnRoundOffAmount: Optional[float] = 0
     freights:List[Freight]
-    
+    locationId: Optional[str] = None
+    locationName: Optional[str] = None
 class PurchaseRandomId(BaseModel):
     purchaseOrderId:str
     randomId:str                  
