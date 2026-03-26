@@ -25,13 +25,13 @@ export const debitNoteConfig: ReportConfig<DebitNoteReport> = {
   title: 'Debit Note Itemwise Report',
   
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'https://yenerp.com/reportsapi/debitnote/item-wise',
+  apiBase: 'http://127.0.0.1:8000/reportsapi/debitnote/item-wise',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'https://yenerp.com/reportsapi/debitnote/date-dropdown',
+  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/debitnote/date-dropdown',
   
   // Reusing the global dropdowns from Production Entry
-  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/purchaseOrders/global-dropdowns',
+  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/purchaseOrders/global-dropdowns',
 
   exportFilename: 'Debit_Note_Report',
   defaultPageSize: 30,

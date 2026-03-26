@@ -52,13 +52,13 @@ export const outgoingConfig: ReportConfig<OutgoingReport> = {
   title: 'Outgoing Payment Report',
 
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'https://yenerp.com/reportsapi/outgoingPayment',
+  apiBase: 'http://127.0.0.1:8000/reportsapi/outgoingPayment',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'https://yenerp.com/reportsapi/outgoingPayment/date-dropdown',
+  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/outgoingPayment/date-dropdown',
 
   // Reusing the global dropdowns from Production Entry
-  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/purchaseOrders/global-dropdowns',
+  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/purchaseOrders/global-dropdowns',
 
   exportFilename: 'Outgoing_Payment_Report',
   defaultPageSize: 30,

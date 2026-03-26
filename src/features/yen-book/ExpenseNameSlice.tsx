@@ -64,7 +64,7 @@ export const fetchNames = createAsyncThunk<ExpenseName[]>(
   "expenseName/fetchNames",
   async () => {
     const response = await axios.get(
-      "https://yenerp.com/masterapi/expensenames/"
+      "http://127.0.0.1:8000/masterapi/expensenames/"
     );
 
     // ✅ FIX HERE
@@ -77,7 +77,7 @@ export const addNames = createAsyncThunk<ExpenseName, ExpenseName>(
   "expenseName/addNames",
   async (category) => {
     const response = await axios.post(
-      "https://yenerp.com/masterapi/expensenames/",
+      "http://127.0.0.1:8000/masterapi/expensenames/",
       category
     );
     return response.data;
@@ -90,7 +90,7 @@ export const updateNames = createAsyncThunk<
   { expenseNameId: string; category: ExpenseName }
 >("expenseName/updateNames", async ({ expenseNameId, category }) => {
   const response = await axios.patch(
-    `https://yenerp.com/masterapi/expensenames/${expenseNameId}`,
+    `http://127.0.0.1:8000/masterapi/expensenames/${expenseNameId}`,
     category
   );
   return response.data;
@@ -101,7 +101,7 @@ export const deactivateNames = createAsyncThunk<ExpenseName, string>(
   "expenseName/deactivateNames",
   async (expenseNameId) => {
     const response = await axios.patch(
-      `https://yenerp.com/masterapi/expensenames/${expenseNameId}`,
+      `http://127.0.0.1:8000/masterapi/expensenames/${expenseNameId}`,
       { status: "deactivated" }
     );
     return response.data;
@@ -113,7 +113,7 @@ export const activateNames = createAsyncThunk<ExpenseName, string>(
   "expenseName/activateNames",
   async (expenseNameId) => {
     const response = await axios.patch(
-      `https://yenerp.com/masterapi/expensenames/${expenseNameId}`,
+      `http://127.0.0.1:8000/masterapi/expensenames/${expenseNameId}`,
       { status: "active" }
     );
     return response.data;
@@ -125,7 +125,7 @@ export const fetchCategories = createAsyncThunk<Category[]>(
   "category/fetchCategories",
   async () => {
     const response = await axios.get(
-      "https://yenerp.com/masterapi/expensecategorys/"
+      "http://127.0.0.1:8000/masterapi/expensecategorys/"
     );
 
     // ✅ FIX HERE

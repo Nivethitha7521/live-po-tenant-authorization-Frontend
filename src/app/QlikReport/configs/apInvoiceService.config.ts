@@ -51,13 +51,13 @@ export const apInvoiceServiceConfig: ReportConfig<ApInvoiceServiceReport> = {
     title: 'AP Invoice Service Report',
 
     // TODO: Update this API base URL to match your actual backend route
-    apiBase: 'https://yenerp.com/reportsapi/Service',
+    apiBase: 'http://127.0.0.1:8000/reportsapi/Service',
 
     // TODO: Update these endpoints to match your actual backend routes
-    dateEndpoint: 'https://yenerp.com/reportsapi/Service/date-dropdown',
+    dateEndpoint: 'http://127.0.0.1:8000/reportsapi/Service/date-dropdown',
 
     // Reusing the global dropdowns from Production Entry
-    globalDropdownEndpoint: 'https://yenerp.com/reportsapi/purchaseOrders/global-dropdowns',
+    globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/purchaseOrders/global-dropdowns',
 
     exportFilename: 'AP_Invoice_Service_Report',
     defaultPageSize: 30,

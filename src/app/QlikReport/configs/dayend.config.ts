@@ -22,13 +22,13 @@ export const dayendConfig: ReportConfig<DayendReport> = {
   title: 'Dayend Report',
 
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'https://yenerp.com/reportsapi/dayend',
+  apiBase: 'http://127.0.0.1:8000/reportsapi/dayend',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'https://yenerp.com/reportsapi/dayend/date-dropdown',
+  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/dayend/date-dropdown',
 
   // Reusing the global dropdowns from Production Entry
-  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Dayend_Report',
   defaultPageSize: 30,

@@ -43,13 +43,13 @@ export const cancelOrderConfig: ReportConfig<CancelOrderReport> = {
   title: 'Cancel Order Report',
   
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'https://yenerp.com/reportsapi/CancelOrder',
+  apiBase: 'http://127.0.0.1:8000/reportsapi/CancelOrder',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'https://yenerp.com/reportsapi/CancelOrder/date-dropdown',
+  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/CancelOrder/date-dropdown',
   
   // Reusing the global dropdowns from Production Entry (or change if Cancel Order has its own)
-  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Cancel_Order_Report',
   defaultPageSize: 30,

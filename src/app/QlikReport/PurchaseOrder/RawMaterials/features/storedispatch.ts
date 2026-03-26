@@ -149,7 +149,7 @@ export const initialState: DispatchState = {
   isFullScreen: false,
 
 };
-const DISPATCH_API_URL = 'https://yenerp.com/fastapi/storedispatches/';
+const DISPATCH_API_URL = 'http://127.0.0.1:8000/fastapi/storedispatches/';
 
 // Async thunk for fetching
 interface FetchDispatchParams {

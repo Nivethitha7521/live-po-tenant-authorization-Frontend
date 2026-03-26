@@ -30,13 +30,13 @@ export const wastageEntryConfig: ReportConfig<WastageEntryReport> = {
   title: 'Wastage Entry Report',
 
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'https://yenerp.com/reportsapi/wastageEntrys',
+  apiBase: 'http://127.0.0.1:8000/reportsapi/wastageEntrys',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'https://yenerp.com/reportsapi/wastageEntrys/date-dropdown',
+  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/wastageEntrys/date-dropdown',
 
   // Reusing the global dropdowns from Production Entry (or change if Wastage has specific dropdowns)
-  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Wastage_Entry_Report',
   defaultPageSize: 30,

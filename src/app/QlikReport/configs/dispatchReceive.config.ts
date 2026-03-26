@@ -34,13 +34,13 @@ export interface DispatchReceiveReport {
 export const dispatchReceiveConfig: ReportConfig<DispatchReceiveReport> = {
     key: 'dispatchReceive', // Unique key for Redux
     title: 'Dispatch Receive Report',
-    apiBase: 'https://yenerp.com/reportsapi/dispatch/locationreceive', // Adjust API base as needed
+    apiBase: 'http://127.0.0.1:8000/reportsapi/dispatch/locationreceive', // Adjust API base as needed
 
     // NOTE: Update these endpoints to match your actual backend routes for Dispatch Receive
-    dateEndpoint: 'https://yenerp.com/reportsapi/dispatch/receive/date-dropdown',
+    dateEndpoint: 'http://127.0.0.1:8000/reportsapi/dispatch/receive/date-dropdown',
 
     // Reusing the global dropdowns from Production Entry (as per previous setup)
-    globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
+    globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
 
     exportFilename: 'Dispatch_Receive_Report',
     defaultPageSize: 30,

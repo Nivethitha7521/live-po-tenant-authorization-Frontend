@@ -34,7 +34,7 @@ export interface FilterConfig {
 export interface ReportConfig<T = Record<string, unknown>> {
   key: string; // unique Redux slice name, e.g. 'productionEntry'
   title: string; // page/header title, e.g. 'Production Entry Report'
-  apiBase: string; // e.g. 'https://yenerp.com/reportsapi/productionEntry'
+  apiBase: string; // e.g. 'http://127.0.0.1:8000/reportsapi/productionEntry'
   columns: ColumnConfig[];
   filters: FilterConfig[];
   defaultPageSize?: number; // defaults to 30

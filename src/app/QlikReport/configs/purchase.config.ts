@@ -52,13 +52,13 @@ export const purchaseConfig: ReportConfig<PurchaseReport> = {
   title: 'Purchase Report',
 
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'https://yenerp.com/reportsapi/purchaseOrders',
+  apiBase: 'http://127.0.0.1:8000/reportsapi/purchaseOrders',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'https://yenerp.com/reportsapi/purchaseOrders/date-dropdown',
+  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/purchaseOrders/date-dropdown',
 
   // Reusing the global dropdowns from Production Entry
-  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/purchaseOrders/global-dropdowns',
+  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/purchaseOrders/global-dropdowns',
 
   exportFilename: 'Purchase_Report',
   defaultPageSize: 30,
