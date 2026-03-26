@@ -62,20 +62,24 @@ def warehouse_return_collection():
 # ---------- PURCHASE COLLECTIONS ----------
 
 
-def purchaseitem_collection():
-    return MongoDB.test_client["nextjstest_db"]["rawMaterials"]
+def purchaseitem_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["rawMaterials"]
 
 
-def grn_collection():
-    return MongoDB.live_client["purchase"]["grn"]
+
+def grn_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["grn"]
 
 
 def storeDispatch_collection():
     return MongoDB.test_client["reactfluttertest"]["storeDispatch"]
 
 
-def purchase_uom_collection():
-    return MongoDB.live_client["purchase"]["purchaseuom"]
+def purchase_uom_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["purchaseuom"]
 
 
 # =====================================================

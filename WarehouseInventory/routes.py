@@ -35,9 +35,10 @@ router = APIRouter()
 # ==================== UOM PRECISION HELPER ====================
 
 
-async def get_uom_precision_map() -> Dict[str, int]:
+async def get_uom_precision_map(tenant_id: str) -> Dict[str, int]:
+    collection = purchase_uom_collection(tenant_id)
 
-    cursor = purchase_uom_collection().find({}, {"uom": 1, "precisionValue": 1})
+    cursor = collection.find({}, {"uom": 1, "precisionValue": 1})
     docs = await cursor.to_list(None)
 
     uom_map = {}
@@ -116,7 +117,7 @@ async def create_inventory_stock(
     permissions: dict = Depends(check_permission("yenerp","warehousephysicalstockmodification","add"))
 ):
     tenant_id = request.state.tenant_id
-    purchase = purchaseitem_collection()
+    purchase = purchaseitem_collection(tenant_id)
     inventory = inventory_stock_collection(tenant_id)
     history = stock_updates_collection(tenant_id)
 
@@ -125,7 +126,7 @@ async def create_inventory_stock(
     if not item:
         raise HTTPException(404, "Item not found in purchase")
 
-    uom_map = await get_uom_precision_map()
+    uom_map = await get_uom_precision_map(tenant_id)
     uom_name = item.get("uom", "")
     precision = uom_map.get(uom_name, 0)
 
@@ -276,12 +277,12 @@ async def search_raw_materials(request:Request,
 ):
     tenant_id = request.state.tenant_id
 
-    purchase = purchaseitem_collection()
+    purchase = purchaseitem_collection(tenant_id)
     inventory = inventory_stock_collection(tenant_id)
 
     try:
         # 1. Fetch UOM Precision Map
-        uom_precision_map = await get_uom_precision_map()
+        uom_precision_map = await get_uom_precision_map(tenant_id)
 
         def to_list(s: Optional[str]) -> List[str]:
             return [v.strip() for v in (s or "").split(",") if v.strip()]
@@ -468,7 +469,7 @@ async def update_inventory_stock(request:Request,
     permissions: dict = Depends(check_permission("yenerp","warehousephysicalstockmodification","edit"))
 ):
     tenant_id = request.state.tenant_id
-    purchase = purchaseitem_collection()
+    purchase = purchaseitem_collection(tenant_id)
     inventory = inventory_stock_collection(tenant_id)
     history = stock_updates_collection(tenant_id)
 
@@ -478,7 +479,7 @@ async def update_inventory_stock(request:Request,
         raise HTTPException(404, "Item not found in purchase")
 
     # 2️⃣ UOM precision
-    uom_map = await get_uom_precision_map()
+    uom_map = await get_uom_precision_map(tenant_id)
     precision = uom_map.get(item.get("uom", ""), 0)
 
     now = ist_now()
@@ -576,10 +577,10 @@ async def update_inventory_stock_bulk(request:Request,
     tenant_id = request.state.tenant_id
     inventory = inventory_stock_collection(tenant_id)
     history = stock_updates_collection(tenant_id)
-    purchase = purchaseitem_collection()
+    purchase = purchaseitem_collection(tenant_id)
 
     # Get UOM Map
-    uom_map = await get_uom_precision_map()
+    uom_map = await get_uom_precision_map(tenant_id)
 
     now = ist_now()
     skipped = updated = created = 0
@@ -692,12 +693,12 @@ async def export_all_items_with_inventory_stock(request:Request,
     permissions: dict = Depends(check_permission("yenerp","warehousephysicalstockmodification","read"))
 ):
     tenant_id = request.state.tenant_id
-    purchase = purchaseitem_collection()
+    purchase = purchaseitem_collection(tenant_id)
     inventory = inventory_stock_collection(tenant_id)
 
     try:
         # Get UOM Map
-        uom_map = await get_uom_precision_map()
+        uom_map = await get_uom_precision_map(tenant_id)
 
         def to_list(s):
             return [v.strip() for v in (s or "").split(",") if v.strip()]
@@ -821,7 +822,7 @@ async def import_inventory_onhand(request:Request,
     permissions: dict = Depends(check_permission("yenerp","warehousephysicalstockmodification","add"))
 ):
     tenant_id = request.state.tenant_id
-    purchase = purchaseitem_collection()
+    purchase = purchaseitem_collection(tenant_id)
     inventory = inventory_stock_collection(tenant_id)
     history = stock_updates_collection(tenant_id)
 
@@ -857,7 +858,7 @@ async def import_inventory_onhand(request:Request,
             {"randomId": 1, "itemType": 1, "status": 1, "uom": 1},
         ).to_list(length=None)
         purchase_map = {p["randomId"]: p for p in purchase_items}
-        uom_map = await get_uom_precision_map()
+        uom_map = await get_uom_precision_map(tenant_id)
 
         # Fetch existing inventory
         inv_docs = await inventory.find(
@@ -1031,7 +1032,7 @@ async def bulk_create_update_stock(request:Request,
     permissions: dict = Depends(check_permission("yenerp","warehousephysicalstockmodification","add"))
 ):
     tenant_id = request.state.tenant_id
-    purchase = purchaseitem_collection()
+    purchase = purchaseitem_collection(tenant_id)
     inventory = inventory_stock_collection(tenant_id)
     history = stock_updates_collection(tenant_id)
 
@@ -1052,7 +1053,7 @@ async def bulk_create_update_stock(request:Request,
     purchase_map = {item["randomId"]: item for item in purchase_items}
 
     # Get UOM Map
-    uom_map = await get_uom_precision_map()
+    uom_map = await get_uom_precision_map(tenant_id)
 
     inv_docs = await inventory.find(
         {

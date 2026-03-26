@@ -96,7 +96,7 @@ async def get_all_items(request:Request,
 
     # Fetch main items using full filter
     purchase_task = fetch_purchase_items(
-        skip, limit, varianceName, category, subcategory, itemName
+        tenant_id,skip, limit, varianceName, category, subcategory, itemName
     )
     purchase_items, total_count, purchase_col = await purchase_task
 
@@ -104,7 +104,7 @@ async def get_all_items(request:Request,
     prev_date_obj = date_obj - timedelta(days=1)
 
     core_tasks = [
-        fetch_grn_data(date_obj, next_day),
+        fetch_grn_data(tenant_id,date_obj, next_day),
         fetch_store_dispatch_data(date_obj),
         fetch_warehouse_return_data(date_obj, locationName),
         fetch_inventory_map_for_day(locationName, date_obj,tenant_id),
@@ -208,7 +208,7 @@ async def get_all_items(request:Request,
             },
         }
 
-    formatted_items = await map_purchase_data(
+    formatted_items = await map_purchase_data(tenant_id,
         purchase_items,
         grn_data,
         store_map,
@@ -259,7 +259,7 @@ async def approve_item(httprequest:Request,
     permissions: dict = Depends(check_permission("yenerp","warehousephysicalstockvariancemodification","approve"))
 ):
     tenant_id = request.state.tenant_id
-    purchase_col = purchaseitem_collection()
+    purchase_col = purchaseitem_collection(tenant_id)
     inventory_col = inventory_stock_collection(tenant_id)
     variance_col = approvedstocks_rm_collection(tenant_id)
 
@@ -311,7 +311,7 @@ async def approve_item(httprequest:Request,
         }
 
     # --- UOM Precision Logic ---
-    uom_map = await get_uom_precision_map()
+    uom_map = await get_uom_precision_map(tenant_id)
     uom_name = purchase_doc.get("uom", "")
     precision = uom_map.get(uom_name, 0)
 
@@ -478,7 +478,7 @@ async def create_daily_rm_snapshot_all_warehouses(request:Request,createdBy: str
     tenant_id = request.state.tenant_id
     inventory_col = closingstocks_rm_collection(tenant_id)
     warehouse_col = warehouse_collection()
-    purchase_items_col = purchaseitem_collection()
+    purchase_items_col = purchaseitem_collection(tenant_id)
     stock_col = inventory_stock_collection(tenant_id)
 
     now = ist_now()
@@ -493,7 +493,7 @@ async def create_daily_rm_snapshot_all_warehouses(request:Request,createdBy: str
         )
 
     # --- UOM Precision Map ---
-    uom_map = await get_uom_precision_map()
+    uom_map = await get_uom_precision_map(tenant_id)
 
     purchase_random_ids = [item["randomId"] for item in purchase_items]
 
@@ -566,12 +566,13 @@ async def create_daily_rm_snapshot_all_warehouses(request:Request,createdBy: str
 
 
 @router.get("/items", response_model=List[ItemResponse])
-async def get_item_names(
+async def get_item_names(request:Request,
     page: int = Query(1, ge=1),
     limit: int = Query(10, le=50),
     search: str | None = None,
 ):
-    collection = purchaseitem_collection()
+    tenant_id = request.state.tenant_id
+    collection = purchaseitem_collection(tenant_id)
 
     query = {}
     if search:
@@ -623,9 +624,9 @@ async def stock_ledger_daily(request:Request,
             raise HTTPException(400, "itemRandomId and locationName are required")
 
         inventory_col = closingstocks_rm_collection(tenant_id)
-        grn_col = grn_collection()
+        grn_col = grn_collection(tenant_id)
         store_col = storeDispatch_collection()
-        item_col = purchaseitem_collection()  #  item master
+        item_col = purchaseitem_collection(tenant_id)  #  item master
 
         random_ids = [r.strip() for r in itemRandomId.split(",")]
         warehouse_id = locationName.strip()
@@ -647,7 +648,7 @@ async def stock_ledger_daily(request:Request,
         }
 
         # Fetch UOM Precision
-        uom_precision_map = await get_uom_precision_map()
+        uom_precision_map = await get_uom_precision_map(tenant_id)
 
         # ---------------------------------------------------
         # OPENING STOCK
@@ -891,9 +892,9 @@ async def stock_ledger_daily_excel(request:Request,
             raise HTTPException(400, "Invalid date range")
 
         inventory_col = closingstocks_rm_collection(tenant_id)
-        grn_col = grn_collection()
+        grn_col = grn_collection(tenant_id)
         store_col = storeDispatch_collection()
-        item_col = purchaseitem_collection()  # item master
+        item_col = purchaseitem_collection(tenant_id)  # item master
 
         random_ids = [r.strip() for r in itemRandomId.split(",")]
         warehouse_name = locationName.strip()
@@ -918,7 +919,7 @@ async def stock_ledger_daily_excel(request:Request,
         }
 
         # Fetch UOM Precision
-        uom_precision_map = await get_uom_precision_map()
+        uom_precision_map = await get_uom_precision_map(tenant_id)
 
         # -----------------------------
         # OPENING STOCK

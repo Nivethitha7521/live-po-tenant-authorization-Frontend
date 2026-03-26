@@ -23,12 +23,12 @@ from WarehouseInventoryVariance.models import PurchaseItem
 # ==================== UOM PRECISION HELPER ====================
 
 
-async def get_uom_precision_map() -> Dict[str, int]:
+async def get_uom_precision_map(tenant_id: str) -> Dict[str, int]:
     """
     Fetches all UOMs and calculates precision integer.
     Example: "0.001" -> 3, "1" -> 0, "0.01" -> 2
     """
-    cursor = purchase_uom_collection().find({}, {"uom": 1, "precisionValue": 1})
+    cursor = purchase_uom_collection(tenant_id).find({}, {"uom": 1, "precisionValue": 1})
     docs = await cursor.to_list(None)
 
     uom_map = {}
@@ -414,7 +414,7 @@ async def fetch_inventory_map_for_day(
 
 
 # ==================== MAP PURCHASE DATA ====================
-async def map_purchase_data(
+async def map_purchase_data(tenant_id: str,
     purchase_items,
     grn_data,
     store_map,
@@ -426,7 +426,7 @@ async def map_purchase_data(
 ):
 
     # Fetch UOM Precision Map
-    uom_precision_map = await get_uom_precision_map()
+    uom_precision_map = await get_uom_precision_map(tenant_id)
 
     grn_map = {
         (g.get("_id") or "")
@@ -559,8 +559,8 @@ async def get_dropdown_values(
 
 
 # helper to fetch inventory by randomId + warehouse + date
-async def fetch_inventory_stock(random_id, warehouse_id, date_obj):
-    col = closingstocks_rm_collection()
+async def fetch_inventory_stock(random_id, warehouse_id, date_obj, tenant_id):
+    col = closingstocks_rm_collection(tenant_id)
 
     start = datetime(date_obj.year, date_obj.month, date_obj.day, tzinfo=timezone.utc)
     end = start + timedelta(days=1)
@@ -584,7 +584,7 @@ async def fetch_inventory_stock(random_id, warehouse_id, date_obj):
 
 
 # ==================== FETCH PURCHASE ITEMS ====================
-async def fetch_purchase_items(
+async def fetch_purchase_items(tenant_id: str,
     skip: int,
     limit: int,
     varianceName: Optional[str],
@@ -592,7 +592,7 @@ async def fetch_purchase_items(
     subcategory: Optional[str],
     itemName: Optional[str],
 ):
-    collection = purchaseitem_collection()
+    collection = purchaseitem_collection(tenant_id)
     filter_dict = build_filter(varianceName, category, subcategory, itemName)
     query = filter_dict if filter_dict else {}
     try:
@@ -612,13 +612,13 @@ async def fetch_purchase_items(
 
 
 # ==================== FETCH GRN DATA ====================
-async def fetch_grn_data(date_obj=None, next_day=None):
+async def fetch_grn_data(tenant_id: str, date_obj=None, next_day=None):
     if date_obj is None:
         date_obj = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     if next_day is None:
         next_day = date_obj + timedelta(days=1)
 
-    grn_col = grn_collection()
+    grn_col = grn_collection(tenant_id)
 
     grn_filter = {"grnDate": {"$gte": date_obj, "$lt": next_day}}
     try:
