@@ -32,3 +32,5 @@
 2026-03-05 17:57:18,021 - PO_ITEM_REVERT|item_id=69a975225cc5ccd68f7a630d|randomId=PI002|qty_removed=95.00|new_total=5.00
 2026-03-05 18:22:37,863 - PO_ITEM_REVERT|item_id=69a97ab8b59f6ba1215a32ea|randomId=PI006|qty_removed=4.00|new_total=1.00
 2026-03-17 18:12:50,925 - PO_ITEM_REVERT|item_id=69b54a283318936bea687cee|randomId=PI001|qty_removed=100.00|new_total=0.00
+2026-03-24 22:41:13,539 - PO_ITEM_REVERT|item_id=69c2c4e0a453355a4a0282fa|randomId=PI004|qty_removed=15.00|new_total=0.00
+2026-03-24 22:51:05,056 - PO_ITEM_REVERT|item_id=69c2c629a453355a4a0282fd|randomId=PI001|qty_removed=14.00|new_total=1.00

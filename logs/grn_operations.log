@@ -44,3 +44,7 @@
 2026-03-05 18:22:38,451 - GRN_REVERT_COMPLETE|grn_id=69a97ba1b59f6ba1215a32ec|po_id=69a97ab8b59f6ba1215a32eb|status=PartiallyReceived|items_reversed=1|inventory_only=true
 2026-03-17 18:12:50,913 - GRN_REVERT_START|grn_id=69b94c10e04f535da4ba266e|po_id=69b54a283318936bea687cef
 2026-03-17 18:12:51,508 - GRN_REVERT_COMPLETE|grn_id=69b94c10e04f535da4ba266e|po_id=69b54a283318936bea687cef|status=Approved|items_reversed=1|inventory_only=true
+2026-03-24 22:41:13,517 - GRN_REVERT_START|grn_id=69c2c50ca453355a4a0282fc|po_id=69c2c4e0a453355a4a0282fb
+2026-03-24 22:41:14,221 - GRN_REVERT_COMPLETE|grn_id=69c2c50ca453355a4a0282fc|po_id=69c2c4e0a453355a4a0282fb|status=Approved|items_reversed=1|inventory_only=true
+2026-03-24 22:51:05,049 - GRN_REVERT_START|grn_id=69c2c746a453355a4a028301|po_id=69c2c629a453355a4a0282fe
+2026-03-24 22:51:05,925 - GRN_REVERT_COMPLETE|grn_id=69c2c746a453355a4a028301|po_id=69c2c629a453355a4a0282fe|status=PartiallyReceived|items_reversed=1|inventory_only=true

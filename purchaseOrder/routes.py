@@ -234,7 +234,7 @@ async def create_purchaseorder(
     
     # Convert the input purchase order to a dictionary
     new_purchaseorder_data = purchaseorder.dict()
-    
+    new_purchaseorder_data["approvalHistory"] = [] 
     # IMPORTANT: Ensure orderDate is preserved as UTC midnight
     if 'orderDate' in new_purchaseorder_data and new_purchaseorder_data['orderDate']:
         # If orderDate is a datetime string, ensure it's stored as UTC midnight
@@ -1174,11 +1174,15 @@ async def get_all_purchaseorders(request:Request,
 #         return False
     
 @router.patch("/approved/{purchaseorder_id}")
-async def approve_purchaseorder(request:Request,purchaseorder_id: str,
+async def approve_purchaseorder(
+    request: Request,
+    purchaseorder_id: str,
     user = Depends(validate_token),
-    permissions: dict = Depends(check_permission("yenerp", "purchaseorders_pending", "approve"))):
+    permissions: dict = Depends(check_permission("yenerp", "purchaseorders_pending", "approve"))
+):
     tenant_id = request.state.tenant_id
     collection = get_purchaseorder_collection(tenant_id)
+
     try:
         po_id = ObjectId(purchaseorder_id)
     except:
@@ -1187,18 +1191,48 @@ async def approve_purchaseorder(request:Request,purchaseorder_id: str,
     existing_po = collection.find_one({"_id": po_id})
     if not existing_po:
         raise HTTPException(status_code=404, detail="PurchaseOrder not found")
+
     username = user.get("username")
     user_id = await get_user_id_by_username(username)
-    updated_fields = {
-        "poStatus": "Approved",
-        "approvedDate": datetime.utcnow(),
-        "poApprovedPerson": user_id 
-        # "approvedBy": current_user_id  # if you have auth
+
+    # 🔥 ADMIN CHECK
+    is_admin = str(user.get("role_name", "")).lower().strip() == "admin"
+
+    # 🔥 NON-ADMIN VALIDATION
+    if not is_admin:
+        approval_history = existing_po.get("approvalHistory", [])
+
+        already_approved = any(
+            h.get("userId") == user_id for h in approval_history
+        )
+
+        if already_approved:
+            raise HTTPException(
+                status_code=403,
+                detail="You already approved this PO once"
+            )
+
+    # ✅ UPDATE
+    update_data = {
+        "$set": {
+            "poStatus": "Approved",
+            "approvedDate": datetime.utcnow(),
+            "poApprovedPerson": user_id
+        }
     }
+
+    # 🔥 ONLY NON-ADMIN ADD HISTORY
+    if not is_admin:
+        update_data["$push"] = {
+            "approvalHistory": {
+                "userId": user_id,
+                "approvedAt": datetime.utcnow()
+            }
+        }
 
     result = collection.update_one(
         {"_id": po_id},
-        {"$set": updated_fields}
+        update_data
     )
 
     if result.modified_count == 0:

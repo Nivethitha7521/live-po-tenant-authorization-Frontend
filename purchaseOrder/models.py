@@ -138,6 +138,7 @@ class PurchaseOrderState(BaseModel):
     poRejectedPersonId: Optional[str] = None
     poRejectedPersonName: Optional[str] = None
     GrnConvertedPerson:Optional[str]=None
+    approvalHistory: Optional[List[dict]] = []
 # Define the PurchaseOrderPost model for creating new purchase orders
 class PurchaseOrderPost(BaseModel):
     vendorName: Optional[str] = None
@@ -193,6 +194,7 @@ class PurchaseOrderPost(BaseModel):
     totalFreightAmount: Optional[float] = 0
     totalFreightTaxAmount: Optional[float] = 0
     freights: Optional[List[Freight]] = None  # Added: List of freights
+    approvalHistory: Optional[List[dict]] = []
 class ItemUpdate(BaseModel):
     itemId: Optional[str] = None  # None for new items
     itemName: Optional[str] = None

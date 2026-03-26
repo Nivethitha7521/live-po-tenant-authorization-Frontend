@@ -604,7 +604,3 @@ async def validate_token_api(token: str):
 @app.get("/")
 def read_root():
     return {"message": "YEN ERP"}
-
-
-
-

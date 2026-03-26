@@ -342,7 +342,25 @@ def get_freight_collection(tenant_id: Optional[str] = None):
         return db['freightMaster']
     _, db = get_tenant_database(tenant_id, use_async=True)
     return db['freightMaster']
+def get_expensecategory_collection():
+    """MASTER DB → expensecategory (async)"""
+    client, _ = get_async_connection()
+    db = client["master"]   # ✅ force master DB
+    return db["expensecategory"]
 
+
+def get_expensename_collection():
+    """MASTER DB → expensename (async)"""
+    client, _ = get_async_connection()
+    db = client["master"]
+    return db["expensename"]
+
+
+def get_expensesubcategory_collection():
+    """MASTER DB → expensesubcategory (async)"""
+    client, _ = get_async_connection()
+    db = client["master"]
+    return db["expensesubcategory"]
 # ============================
 # GLOBAL COLLECTIONS
 # ============================

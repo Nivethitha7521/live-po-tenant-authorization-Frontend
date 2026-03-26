@@ -79,7 +79,7 @@ class PurchaseOrderState(BaseModel):
     totalFreightAmount: Optional[float] = 0
     totalFreightTaxAmount: Optional[float] = 0
     freights: Optional[List[Freight]] = None
-
+    approvalHistory: Optional[List[dict]] = None
 # Response wrapper model (correct structure)
 class PurchaseOrderResponse(BaseModel):
     purchaseOrders: List[PurchaseOrderState]

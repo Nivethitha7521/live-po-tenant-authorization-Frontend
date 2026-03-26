@@ -37,7 +37,7 @@ async def patch_purchaseorder(request:Request,
     # Always add/update lastUpdatedDate
     current_date_and_time = get_current_date_and_time()
     updated_fields['lastUpdatedDate'] = current_date_and_time['datetime']
-
+    
     # Apply update
     result = collection.update_one(
         {"_id": ObjectId(purchaseorder_id)}, 
