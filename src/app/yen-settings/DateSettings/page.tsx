@@ -71,7 +71,7 @@ const DateSettingsPage = () => {
           Access Denied
         </Typography>
         <Typography color="textSecondary">
-          You don&apos;t have permission to access this page
+         You don&apos;t have permission to access this page.
         </Typography>
         <Button sx={{ mt: 2 }} variant="contained" onClick={() => router.push("/")}>
           Go Dashboard

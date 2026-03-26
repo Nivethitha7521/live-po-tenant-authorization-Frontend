@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '@/redux/store';
 import { format } from 'date-fns';
-import { initialState, PhotoResponse, PhotosResponse, Item, PurchaseInvoice, PurchaseOrderData, PurchaseRandomId, UploadResponse, StockUpdateItem} from '@/Models/purchaseModel';
+import { initialState, PhotoResponse,  Item, PurchaseInvoice, PurchaseOrderData, PurchaseRandomId, UploadResponse, StockUpdateItem} from '@/Models/purchaseModel';
 import { GrnData } from '@/Models/grnModel';
 import { OverallDiscountRequest, OverallDiscountResponse } from '@/app/yen-purchase/PurchaseOrder/Models/Itemcalculation';
 import { FreightData } from '@/app/yen-purchase/PurchaseOrder/Component/freightSelectionDialog';
@@ -10,7 +10,7 @@ import purchaseApi from "@/utils/api";
 
 
 const LIMIT = 20;
-const API_BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
+const API_BASE_URL = 'https://yenerp.com/purchasetestapi';
 
 export const fetchPurchaseOrderRandomIds = createAsyncThunk(
   "purchaseOrder/fetchRandomIds",
@@ -59,18 +59,6 @@ function customRoundOff(value: number): number {
     return Math.floor(value); // Round down to the nearest whole number
   }
 }
-// // Custom rounding function to achieve the desired behavior
-// function customRoundOf(value: number): number {
-//   // Multiply by 100 to work with two decimal places
-//   const multipliedValue = value * 100;
-
-//   // If the decimal part is 0.50 or more, round up; otherwise, round down
-//   if (multipliedValue % 1 >= 0.50) {
-//     return Math.ceil(value); // Round up
-//   } else {
-//     return Math.floor(value); // Round down
-//   }
-// }
 
 export const fetchGrnConvertedPurchaseOrders = createAsyncThunk(
   'purchaseOrders/fetchGrnConverted',
@@ -503,7 +491,21 @@ export const fetchPoById = createAsyncThunk(
     }
   },
 );
-// In purchaseListSlice.ts - updateReceivedDamagedQuantities thunk
+
+export const downloadPurchaseOrderPDF = createAsyncThunk(
+  'purchaseOrders/downloadPDF',
+  async (purchaseOrderId: string, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.get(`/purchaseorders/download-pdf/${purchaseOrderId}`);  
+      return {
+        data: response.data,
+        purchaseOrderId
+      };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.detail || 'Failed to download PDF');
+    }
+  }
+);
 export const updateReceivedDamagedQuantities = createAsyncThunk(
   "purchaseOrder/updateReceivedDamagedQuantities",
   async (
@@ -514,7 +516,7 @@ export const updateReceivedDamagedQuantities = createAsyncThunk(
         receivedQuantity: number;
         befTaxDiscount: number;
         afTaxDiscount: number;
-        expiryDate: string | null; // Change to string
+        expiryDate: string | null;
         grnPrice?: number;
       }>;
       invoiceNo: string;
@@ -523,6 +525,8 @@ export const updateReceivedDamagedQuantities = createAsyncThunk(
       discountPrice: number;
       grnRoundOffAmount?: number;
       freights?: any[];
+      locationId?: string;  // ADD THIS
+      locationName?: string;  // ADD THIS
     },
     { rejectWithValue },
   ) => {
@@ -544,13 +548,15 @@ export const updateReceivedDamagedQuantities = createAsyncThunk(
           damagedQuantity: 0,
           befTaxDiscount: item.befTaxDiscount,
           afTaxDiscount: item.afTaxDiscount,
-          expiryDate: item.expiryDate, // Already string
+          expiryDate: item.expiryDate,
           grnPrice: item.grnPrice,
         })),
-        freights: params.freights || [], // Include freights array
+        freights: params.freights || [],
+        locationId: params.locationId,  // ADD THIS
+        locationName: params.locationName,  // ADD THIS
       };
 
-      console.log("Sending request data:", requestData); // Add logging
+      console.log("Sending request data:", requestData);
 
       const response = await purchaseApi.patch(
         `/purchaseorders/receivedupdates/${params.purchaseOrderId}`,

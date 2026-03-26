@@ -32,7 +32,7 @@ import {
   setSelectedHeaders,
   ItemUpdate,
   revertGrnToPO,
-   setShowStockUpdateDialog,
+  setShowStockUpdateDialog,
   setShowReturnStockUpdateDialog,
   clearLastReturnData,
 } from '../../../features/yen-purchase/GRN/grnSlice';
@@ -53,7 +53,7 @@ import moment from 'moment';
 import VendorSearchAutocomplete from '@/components/vendorsearchautocomplete';
 import GrnReturnDialog from '../../../components/yen-purchase/grncomponent/grnReturnDialog';
 import { VendorSearch } from '@/Models/vendor';
-import {  fetchAllDebitNotesComprehensive, fetchAllDebitNotesForDocument as fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
+import { fetchAllDebitNotesComprehensive, fetchAllDebitNotesForDocument as fetchDebitCreditNotesByDocument, selectDebitCreditNote, setDebitCreditDialogOpen, setDebitCreditDocumentId, setDebitCreditDocumentType } from '@/features/yen-purchase/DebitNoteSlice';
 import DebitCreditNoteDialog from '@/components/yen-purchase/DebitNoteDialog';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
@@ -69,6 +69,7 @@ import {
 } from '@/features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import PODialog from '@/components/yen-purchase/OutgoingComponent/PODialog';
 import RevertStockUpdateDialog from './Components/RevertStockUpdate';
+import { UnifiedDatePicker } from '../PurchaseOrder/Component/UnifiedDatePicker';
 
 const customRound = (amount: number) => {
   const roundedAmount = Math.round(amount);
@@ -109,7 +110,7 @@ const headerDisplayNames: { [key: string]: string } = {
 };
 const GrnPage = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { purchaseorders, loading, error, snackbarMessageGRN, snackbarOpenGRN, selectedHeaders,lastRevertStockUpdates,
+  const { purchaseorders, loading, error, snackbarMessageGRN, snackbarOpenGRN, selectedHeaders, lastRevertStockUpdates,
     lastRevertedGrnId,
     showStockUpdateDialog, // ADD THESE THREE LINES
     showReturnStockUpdateDialog,
@@ -124,9 +125,8 @@ const GrnPage = () => {
       nos: number; igst: number; eachQuantity: number; hsnCode: string; quantity: number; receivedQuantity: number, returnedQuantity: number, taxType: 'cgst_sgst' | 'igst'; damagedQuantity: number, expiryDate: Date | string | null; unitPrice: number, discount: number, totalPrice: number, purchasetaxName: number, sgst: number, cgst: number, discountAmount: number; taxAmount: number; finalPrice: number, befTaxDiscount: number; afTaxDiscount: number; befTaxDiscountAmount: number; afTaxDiscountAmount: number; purchasecategoryName: string; purchasesubcategoryName: any; returnReason?: string; // Add return reason
     }
   }>({});
-    const { selectedPo, poDialogOpen } = useSelector(selectPurchaseListState);
+  const { selectedPo, poDialogOpen } = useSelector(selectPurchaseListState);
 
-  const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogSaveOpen, setDialogSaveOpen] = useState(false);
   const [apInvoiceDate, setApInvoiceDate] = useState<Date | null>(new Date());
@@ -137,6 +137,7 @@ const GrnPage = () => {
   const [enteredDiscount, setEnteredDiscount] = useState<number>(0); // Current user input
   const [totalReceivedAmount, setTotalReceivedAmount] = useState<number>(0);
   const [totalDiscount, setTotalDiscount] = useState<number>(0);
+  const [isSavingInvoice, setIsSavingInvoice] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [anchorElDownload, setAnchorElDownload] = useState<null | HTMLElement>(null); // Allow anchorEl to be null or an HTMLElement
   const openHeaderSelect = Boolean(anchorEl);
@@ -149,6 +150,7 @@ const GrnPage = () => {
   const [filteredGrn, setFilteredGrn] = useState<GrnData[]>([]); // Explicit type declaration
   const [invoiceNo, setInvoiceNo] = useState('');
   const [invoiceDate, setInvoiceDate] = useState<Date | null>(null);
+  const [isTouched, setIsTouched] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -197,7 +199,7 @@ const GrnPage = () => {
       }
     }) : [];
   }, [grns, sortOrder]);
-const grnsPermission = useSelector(
+  const grnsPermission = useSelector(
     (state: RootState) => state.auth.permissions?.yenerp?.grns,
   );
 
@@ -263,7 +265,7 @@ const grnsPermission = useSelector(
       stockUpdatesKeys: lastReturnStockUpdates ? Object.keys(lastReturnStockUpdates) : []
     });
   }, [showReturnStockUpdateDialog, lastReturnStockUpdates, lastReturnedGrnId]);
-   useEffect(() => {
+  useEffect(() => {
     if (!canRead) return; // 🔥 IMPORTANT LINE (STEP 3)
 
     if (shouldFetch && !loading) {
@@ -293,102 +295,102 @@ const grnsPermission = useSelector(
       dispatch(setPagination({ page: newPage, size: pageSize }));
     dispatch(fetchGrns({ page: newPage, size: pageSize, status, vendorName: selectedVendorName || '' }));
   };
-const handleApRoundOffInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
-  // Update the input string
-  setApRoundOffInput(value);
-  // If empty, clear errors and reset value
-  if (value === '') {
-    setApRoundOff(0);
-    setApRoundOffError('');
-    return;
-  }
-  // Allow single minus, decimal, or minus with decimal
-  if (value === '-' || value === '.' || value === '-.') {
-    setApRoundOff(0);
-    setApRoundOffError('');
-    return;
-  }
-  // Remove spaces from input for validation
-  const cleanValue = value.replace(/\s/g, '');
-  // Allow decimal numbers with up to 2 decimal places
-  const decimalRegex = /^-?\d*\.?\d{0,2}$/;
-  // Check for proper format
-  if (decimalRegex.test(cleanValue)) {
-    const parsedValue = parseFloat(cleanValue);
-    // Check if it's a valid number
-    if (isNaN(parsedValue)) {
-      setApRoundOffError("Please enter a valid number");
+  const handleApRoundOffInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Update the input string
+    setApRoundOffInput(value);
+    // If empty, clear errors and reset value
+    if (value === '') {
       setApRoundOff(0);
+      setApRoundOffError('');
       return;
     }
-    // STRICT LIMITS: Only allow between -2 and +2
-    if (parsedValue > 2) {
-      setApRoundOffError("Maximum allowed is +2.00");
-      setApRoundOff(2);
-      setApRoundOffInput('2.00');
-    } else if (parsedValue < -2) {
-      setApRoundOffError("Minimum allowed is -2.00");
-      setApRoundOff(-2);
-      setApRoundOffInput('-2.00');
+    // Allow single minus, decimal, or minus with decimal
+    if (value === '-' || value === '.' || value === '-.') {
+      setApRoundOff(0);
+      setApRoundOffError('');
+      return;
+    }
+    // Remove spaces from input for validation
+    const cleanValue = value.replace(/\s/g, '');
+    // Allow decimal numbers with up to 2 decimal places
+    const decimalRegex = /^-?\d*\.?\d{0,2}$/;
+    // Check for proper format
+    if (decimalRegex.test(cleanValue)) {
+      const parsedValue = parseFloat(cleanValue);
+      // Check if it's a valid number
+      if (isNaN(parsedValue)) {
+        setApRoundOffError("Please enter a valid number");
+        setApRoundOff(0);
+        return;
+      }
+      // STRICT LIMITS: Only allow between -2 and +2
+      if (parsedValue > 2) {
+        setApRoundOffError("Maximum allowed is +2.00");
+        setApRoundOff(2);
+        setApRoundOffInput('2.00');
+      } else if (parsedValue < -2) {
+        setApRoundOffError("Minimum allowed is -2.00");
+        setApRoundOff(-2);
+        setApRoundOffInput('-2.00');
+      } else {
+        setApRoundOffError("");
+        setApRoundOff(parsedValue);
+      }
+      // Keep the input as typed (no auto-appending)
+      setApRoundOffInput(value);
+    } else {
+      setApRoundOffError("Enter numbers only between -2.00 and +2.00");
+      setApRoundOff(0);
+    }
+  }; // FIXED: handleApRoundOffBlur - properly handle and format on blur
+  const handleApRoundOffBlur = () => {
+    // If input is empty or just special characters, set to 0
+    if (apRoundOffInput === '' || apRoundOffInput === '-' || apRoundOffInput === '.' || apRoundOffInput === '-.') {
+      setApRoundOffInput('0');
+      setApRoundOff(0);
+      setApRoundOffError('');
+      return;
+    }
+    const parsedValue = parseFloat(apRoundOffInput);
+    // If not a valid number, reset
+    if (isNaN(parsedValue)) {
+      setApRoundOffInput('0');
+      setApRoundOff(0);
+      setApRoundOffError('Invalid number');
+      return;
+    }
+    // Validate within range
+    let currentValue = parsedValue;
+    if (currentValue > 2) {
+      currentValue = 2;
+      setApRoundOffError("Capped at +2.00");
+    } else if (currentValue < -2) {
+      currentValue = -2;
+      setApRoundOffError("Capped at -2.00");
     } else {
       setApRoundOffError("");
-      setApRoundOff(parsedValue);
     }
-    // Keep the input as typed (no auto-appending)
-    setApRoundOffInput(value);
-  } else {
-    setApRoundOffError("Enter numbers only between -2.00 and +2.00");
-    setApRoundOff(0);
-  }
-}; // FIXED: handleApRoundOffBlur - properly handle and format on blur
-const handleApRoundOffBlur = () => {
-  // If input is empty or just special characters, set to 0
-  if (apRoundOffInput === '' || apRoundOffInput === '-' || apRoundOffInput === '.' || apRoundOffInput === '-.') {
-    setApRoundOffInput('0');
-    setApRoundOff(0);
-    setApRoundOffError('');
-    return;
-  }
-  const parsedValue = parseFloat(apRoundOffInput);
-  // If not a valid number, reset
-  if (isNaN(parsedValue)) {
-    setApRoundOffInput('0');
-    setApRoundOff(0);
-    setApRoundOffError('Invalid number');
-    return;
-  }
-  // Validate within range
-  let currentValue = parsedValue;
-  if (currentValue > 2) {
-    currentValue = 2;
-    setApRoundOffError("Capped at +2.00");
-  } else if (currentValue < -2) {
-    currentValue = -2;
-    setApRoundOffError("Capped at -2.00");
-  } else {
-    setApRoundOffError("");
-  }
-  // Calculate the total with freight (if freight is applied in GRN)
-  const totalReceivedAmount = selectedGrn?.grnAmount || 0;
-  const totalFreight = selectedGrn?.totalFreightAmount || 0;
-  const totalFreightTax = selectedGrn?.totalFreightTaxAmount || 0;
-  // Total before AP round off (GRN amount + freight + freight tax)
-  const totalBeforeRoundOff = totalReceivedAmount + totalFreight + totalFreightTax;
-  // Calculate final total with AP round off
-  const finalTotal = totalBeforeRoundOff + currentValue;
-  // Check if final total would be negative
-  if (finalTotal < 0) {
-    setApRoundOffError(`Cannot make total negative. Maximum allowed: -${Math.min(totalBeforeRoundOff, 2).toFixed(2)}`);
-    const maxNegativeAllowed = -Math.min(totalBeforeRoundOff, 2);
-    setApRoundOffInput(maxNegativeAllowed.toString());
-    setApRoundOff(maxNegativeAllowed);
-    return;
-  }
-  // Keep the input as typed (no formatting to 2 decimals)
-  setApRoundOffInput(apRoundOffInput);
-  setApRoundOff(currentValue);
-};
+    // Calculate the total with freight (if freight is applied in GRN)
+    const totalReceivedAmount = selectedGrn?.grnAmount || 0;
+    const totalFreight = selectedGrn?.totalFreightAmount || 0;
+    const totalFreightTax = selectedGrn?.totalFreightTaxAmount || 0;
+    // Total before AP round off (GRN amount + freight + freight tax)
+    const totalBeforeRoundOff = totalReceivedAmount + totalFreight + totalFreightTax;
+    // Calculate final total with AP round off
+    const finalTotal = totalBeforeRoundOff + currentValue;
+    // Check if final total would be negative
+    if (finalTotal < 0) {
+      setApRoundOffError(`Cannot make total negative. Maximum allowed: -${Math.min(totalBeforeRoundOff, 2).toFixed(2)}`);
+      const maxNegativeAllowed = -Math.min(totalBeforeRoundOff, 2);
+      setApRoundOffInput(maxNegativeAllowed.toString());
+      setApRoundOff(maxNegativeAllowed);
+      return;
+    }
+    // Keep the input as typed (no formatting to 2 decimals)
+    setApRoundOffInput(apRoundOffInput);
+    setApRoundOff(currentValue);
+  };
   const handleNextPage = () => {
     if (currentPage * pageSize) {
       handlePageChange(currentPage + 1);
@@ -411,7 +413,7 @@ const handleApRoundOffBlur = () => {
     });
     return statusMap;
   }, [grns, debitCreditNotes]);
- const handleViewCreditNotes = (grnId: string) => {
+  const handleViewCreditNotes = (grnId: string) => {
     dispatch(setDebitCreditDocumentId(grnId));
     dispatch(setDebitCreditDocumentType('grn'));
     dispatch(setDebitCreditDialogOpen(true));
@@ -469,14 +471,14 @@ const handleApRoundOffBlur = () => {
     }
   };
   const handleReturnComplete = () => {
-  setReturnDialogOpen(false);
-  setSelectedGrnItems([]);
-  dispatch(setSelectedGrnId(null));
-  dispatch(fetchGrns({ page: currentPage, size: pageSize }));
-  
-  // The GrnReturnDialog should dispatch setShowReturnStockUpdateDialog(true)
-  // with the return stock update data
-}; 
+    setReturnDialogOpen(false);
+    setSelectedGrnItems([]);
+    dispatch(setSelectedGrnId(null));
+    dispatch(fetchGrns({ page: currentPage, size: pageSize }));
+
+    // The GrnReturnDialog should dispatch setShowReturnStockUpdateDialog(true)
+    // with the return stock update data
+  };
   const handleReturnCancel = () => {
     setReturnDialogOpen(false); // Close dialog without clearing selectedGrnId
   };
@@ -490,50 +492,60 @@ const handleApRoundOffBlur = () => {
     };
   };
   const apAmounts = calculateAPAmounts();
-  const handleSaveInvoice = () => {
+  // Update the handleSaveInvoice function
+  const handleSaveInvoice = async () => {
     if (!invoiceNo || !invoiceDate || !selectedGrnId) {
       console.error('Invoice No, Invoice Date, or GRN ID is missing');
-      return; // Prevent saving if required fields are empty
+      return;
     }
+
     const grnId = selectedGrnId;
     if (grnId === null) {
       console.error('GRN ID cannot be null');
       return;
     }
-    // Prepare the payload for the API request
-    const updatedInvoiceDetails = {
-      grnId: grnId, // Ensure grnId is always a string
-      invoiceNo,
-      invoiceDate: invoiceDate.toISOString(), // Ensure invoiceDate is a string
-    };
-    // Dispatch the thunk to update the invoice details
-    dispatch(updateInvoiceDetails(updatedInvoiceDetails))
-      .unwrap() // unwrap the result to directly get the response data or error
-      .then(() => {
-        console.log('Invoice updated successfully');
-        // Fetch the most recent GRNs after successful update
-        dispatch(fetchGrns({ page: newPage, size: pageSize, status }))
-          .then(() => {
-            console.log('Recent GRNs fetched successfully');
-            setInvoiceOpen(false); // Close the dialog after saving
-          })
-          .catch((fetchError) => {
-            console.error('Error fetching recent GRNs:', fetchError);
-          });
-      })
-      .catch((error) => {
-        console.error('Error updating invoice:', error);
-      });
-  };
-  const handleEnteredDiscountChange = (newDiscount: number) => {
-    setEnteredDiscount(newDiscount);
-    const newTotalDiscount = (selectedGrn?.discountPrice || 0) + newDiscount;
-    setDiscountPrice(newTotalDiscount);
-    const newTotalDiscountAmount = (selectedGrn?.totalDiscount || 0) + newDiscount;
-    setTotalDiscount(newTotalDiscountAmount);
-    // Calculate the adjusted total received amount
-    const updatedTotalReceivedAmount = (selectedGrn?.grnAmount || 0) - newTotalDiscount;
-    setTotalReceivedAmount(updatedTotalReceivedAmount);
+
+    // Disable the Save button by setting loading state
+    setIsSavingInvoice(true);
+
+    try {
+      // Prepare the payload for the API request
+      const updatedInvoiceDetails = {
+        grnId: grnId,
+        invoiceNo,
+        invoiceDate: invoiceDate.toISOString(),
+      };
+
+      // Dispatch the thunk to update the invoice details
+      await dispatch(updateInvoiceDetails(updatedInvoiceDetails)).unwrap();
+
+      console.log('Invoice updated successfully');
+
+      // Fetch the most recent GRNs after successful update
+      await dispatch(fetchGrns({ page: newPage, size: pageSize, status }));
+
+      console.log('Recent GRNs fetched successfully');
+
+      // Show success message
+      setSnackbarMessage('Invoice details updated successfully');
+      setSnackbarOpen(true);
+
+      // Close the dialog
+      setInvoiceOpen(false);
+
+      // Reset form fields
+      setInvoiceNo('');
+      setInvoiceDate(null);
+      setIsTouched(false);
+
+    } catch (error) {
+      console.error('Error updating invoice:', error);
+      setSnackbarMessage('Failed to update invoice details');
+      setSnackbarOpen(true);
+    } finally {
+      // Re-enable the Save button
+      setIsSavingInvoice(false);
+    }
   };
   const handleHeaderSelectChange = (header: string) => {
     // Toggle header selection and dispatch to Redux
@@ -557,6 +569,14 @@ const handleApRoundOffBlur = () => {
   const handleCloseAnchor = () => {
     setAnchorElDownload(null); // Close the dropdown menu
   };
+  const handleInvoiceDialogClose = () => {
+    setInvoiceOpen(false);
+    setIsSavingInvoice(false);
+    setInvoiceNo('');
+    setInvoiceDate(null);
+    setIsTouched(false);
+  };
+
   const handleVendorwiseClick = () => {
     setDialogDownloadOpen(true); // Perform vendorwise action
     handleCloseAnchor(); // Close the dropdown after the action
@@ -569,257 +589,257 @@ const handleApRoundOffBlur = () => {
     setSelectedVendor(vendor);
     setSelectedVendorName(vendor ? vendor.vendorName : '');
   };
-   const handleDownload = async (grnId: string) => {
-  const grncheck = grns.find((grn) => grn.grnId === grnId);
-  if (!grncheck) {
-    console.error('GRN not found!');
-    return;
-  }
-  const business = businesses.length > 0 ? businesses[0] : null;
-  if (!business) {
-    console.error('Business info not found!');
-    return;
-  }
-  const doc = new jsPDF();
-  let yOffset = 10;
-  // Header Section
-  if (business.imageUrl) {
-    doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
-  }
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 128);
-  doc.text('Goods Receipt Note', 90, yOffset + 5);
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0);
-  doc.text(business.companyName || '', 90, yOffset + 10);
-  doc.setFontSize(8);
-  doc.setTextColor(0, 0, 0);
-  doc.text(business.address1 || '', 90, yOffset + 15);
-  doc.text(`Tel.No: ${business.phoneNo || ''}`, 90, yOffset + 20);
-  doc.text(`E-Mail: ${business.emailId || ''}`, 90, yOffset + 25);
-  doc.text(`GSTIN: ${business.gstIn || ''}`, 90, yOffset + 30);
-  yOffset += 40;
-  // Calculate Due Date
-  const invoiceDate = grncheck.invoiceDate ? new Date(grncheck.invoiceDate) : new Date('2025-06-30'); // Fallback to 30/06/2025
-  const paymentTermsDays = grncheck.paymentTerms ? parseInt(grncheck.paymentTerms, 10) : 15; // Fallback to 15 days
-  const dueDate = addDays(invoiceDate, paymentTermsDays); // Add payment terms days to created date
-  // Table header with the three sections
-  const tableHeader = [['Vendor Details', 'Shipping Address', 'GRN Details']];
-  // Vendor Details rows with correct line breaks
-  const vendorDetailsRows = [
-    [
-      `${grncheck.vendorName || ' '}\n` +
-      `GSTIN: ${grncheck.gstNumber || ''}\n` +
-      `Address: ${grncheck.address || ''}\n` +
-      `City: ${grncheck.city || ''}\n` +
-      `State: ${grncheck.state || ''}\n` +
-      `Country: ${grncheck.country || ''}\n` +
-      `Email: ${grncheck.contactpersonEmail || ''}`,
-      `Shipping Address: ${grncheck.shippingAddress || ''}`,
-      `PO No: ${grncheck.poRandomID || ''}\n` +
-      `GRN No: ${grncheck.randomId || ''}\n` +
-      `GRN Date: ${grncheck.createdDate ? format(new Date(grncheck.createdDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-      `Payment Terms: ${grncheck.paymentTerms || ''}\n` +
-      `Due Date: ${dueDate ? format(new Date(dueDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-      `Currency: INR`,
-    ],
-  ];
-  // Vendor Details Table
-  doc.autoTable({
-    head: tableHeader,
-    body: vendorDetailsRows,
-    startY: yOffset,
-    theme: 'grid',
-    styles: {
-      fontSize: 9,
-      cellPadding: 4,
-      halign: 'left',
-      valign: 'top',
-      overflow: 'linebreak',
-    },
-    columnStyles: {
-      0: { cellWidth: 60.6, valign: 'top' },
-      1: { cellWidth: 60.6, valign: 'top' },
-      2: { cellWidth: 60.6, valign: 'top' },
-    },
-    headStyles: {
-      fillColor: [0, 0, 128],
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      lineWidth: 0,
-    },
-    bodyStyles: {
-      lineWidth: 0.1,
-      lineColor: [0, 0, 0],
-      minCellHeight: 15,
-    },
-    tableLineColor: [0, 0, 0],
-    tableLineWidth: 0.1,
-  });
-  yOffset = doc.autoTable.previous.finalY ;
-  // Items Table Section
-  const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count', 'Qty', 'Po Qty', 'Unit Price', 'Received Qty', 'Tax', 'Amount'];
-  const tableRows = grncheck.itemDetails.map((item, index) => {
-    const unitPrice = item.unitPrice || 0;
-    const quantity = item.receivedQuantity || item.totalQuantity || 0;
-    const totalAmount = unitPrice * quantity;
-    return [
-      `${index + 1}`,
-      item.itemName || 'Item Description',
-      item.hsnCode || '',
-      item.nos || '',
-      item.eachQuantity || '',
-      `${item.quantity || 0} ${item.uom || 'Kgs'}`,
-      `${unitPrice.toFixed(2)}`,
-      `${quantity} ${item.uom || 'Kgs'}`,
-      `${item.purchasetaxName || 0}%`,
-      `${totalAmount.toFixed(2)}`,
-    ];
-  });
-  // Items Table
-  doc.autoTable({
-    head: [itemHeader],
-    body: tableRows,
-    startY: yOffset,
-    theme: 'grid',
-    styles: {
-      fontSize: 8,
-      halign: 'center',
-      cellPadding: 2,
-    },
-    headStyles: {
-      fillColor: [0, 0, 128],
-      textColor: [255, 255, 255],
-      lineWidth: { top: 0, right: 0.1, bottom: 0.1, left: 0.1 },
-      lineColor: [0, 0, 0],
-    },
-    bodyStyles: {
-      lineColor: [0, 0, 0],
-      lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
-    },
-    columnStyles: {
-      0: { halign: 'center' },
-      1: { halign: 'left' },
-      2: { halign: 'left' },
-      3: { halign: 'right' },
-      4: { halign: 'right' },
-      5: { halign: 'right' },
-      6: { halign: 'right' },
-      7: { halign: 'right' },
-      8: { halign: 'right' },
-      9: { halign: 'right' },
-    },
-  });
-  yOffset = doc.autoTable.previous.finalY ;
-  // Calculate individual tax amounts - FIXED VERSION
-  const taxRates = {
-    CGST: new Map<number, number>(),
-    SGST: new Map<number, number>(),
-    IGST: new Map<number, number>(),
-  };
-  
-  grncheck.itemDetails.forEach(item => {
-    // FIX: Use receivedQuantity instead of totalQuantity
-    const quantity = item.receivedQuantity || item.totalQuantity || 0;
-    const taxableAmount = (item.unitPrice || 0) * quantity;
-    const taxRate = item.purchasetaxName || 0;
-    const taxType = item.taxType || '';
-    
-    if (taxRate > 0) {
-      if (taxType === 'cgst_sgst') {
-        const halfRate = taxRate / 2;
-        const halfTaxAmount = (taxRate / 100) * taxableAmount / 2;
-        
-        taxRates.CGST.set(halfRate, (taxRates.CGST.get(halfRate) || 0) + halfTaxAmount);
-        taxRates.SGST.set(halfRate, (taxRates.SGST.get(halfRate) || 0) + halfTaxAmount);
-      } else if (taxType === 'igst') {
-        const taxAmount = (taxRate / 100) * taxableAmount;
-        taxRates.IGST.set(taxRate, (taxRates.IGST.get(taxRate) || 0) + taxAmount);
-      }
+  const handleDownload = async (grnId: string) => {
+    const grncheck = grns.find((grn) => grn.grnId === grnId);
+    if (!grncheck) {
+      console.error('GRN not found!');
+      return;
     }
-  });
-  
-  // Calculate total without tax - FIXED
-  const totalWithoutTax = grncheck.itemDetails.reduce((sum, item) => {
-    const quantity = item.receivedQuantity || item.totalQuantity || 0;
-    return sum + ((item.unitPrice || 0) * quantity);
-  }, 0);
-  
-  // Tax summary - FIXED to show all taxes
-  const taxSummary: [string, string][] = [
-    [`Total Amount`, totalWithoutTax.toFixed(2) || '0'],
-    [`Total Discount`, grncheck.totalDiscount?.toFixed(2) || '0'],
-  ];
-  
-  // Show CGST and SGST separately with proper rates
-  taxRates.CGST.forEach((amount, rate) => {
-    if (amount > 0) {
-      taxSummary.push([`CGST @${rate.toFixed(2)}%`, amount.toFixed(2)]);
+    const business = businesses.length > 0 ? businesses[0] : null;
+    if (!business) {
+      console.error('Business info not found!');
+      return;
     }
-  });
-  
-  taxRates.SGST.forEach((amount, rate) => {
-    if (amount > 0) {
-      taxSummary.push([`SGST @${rate.toFixed(2)}%`, amount.toFixed(2)]);
+    const doc = new jsPDF();
+    let yOffset = 10;
+    // Header Section
+    if (business.imageUrl) {
+      doc.addImage(business.imageUrl, 'JPEG', 35, yOffset, 25, 25);
     }
-  });
-  
-  taxRates.IGST.forEach((amount, rate) => {
-    if (amount > 0) {
-      taxSummary.push([`IGST @${rate.toFixed(2)}%`, amount.toFixed(2)]);
-    }
-  });
-  
-  // Add grnRoundOffAmount above Total Including Tax
-  if (grncheck.grnRoundOffAmount !== undefined && grncheck.grnRoundOffAmount !== 0) {
-    taxSummary.push([`Round Off Amount`, grncheck.grnRoundOffAmount.toFixed(2)]);
-  }
-  
-  taxSummary.push([`Total [Including Tax]`, grncheck.grnAmount?.toFixed(2) || '0']);
-  
-  // Tax Summary Table
-  doc.autoTable({
-    body: taxSummary,
-    startY: yOffset,
-    theme: 'grid',
-    styles: {
-      fontSize: 8,
-      halign: 'right',
-      cellPadding: 2,
-      lineColor: [0, 0, 0],
-      lineWidth: 0.1,
-    },
-    margin: { bottom: 15 },
-  });
-  
-  // Declarations and Authorized Signatory
-  yOffset = doc.autoTable.previous.finalY + 5;
-  doc.setFontSize(10);
-  doc.text("Declaration:", 10, yOffset + 35);
-  doc.text("We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.", 10, yOffset + 40);
-  doc.text("Authorized Signatory:", 120, yOffset + 48);
-  doc.text("_____________________", 120, yOffset + 60);
-  
-  // Add page numbers and computer generated note to all pages
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 128);
+    doc.text('Goods Receipt Note', 90, yOffset + 5);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(business.companyName || '', 90, yOffset + 10);
     doc.setFontSize(8);
-    const pageWidth = doc.internal.pageSize.width;
-    const pageCenterX = pageWidth / 2;
-    const bottomY = doc.internal.pageSize.height - 10;
-    const computerGeneratedY = bottomY - 5;
-    // Add "This is computer generated" centered above page number
-    doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
-    // Add page number centered below
-    doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
-  }
-  
-  // Save the PDF
-  doc.save(`${grncheck.vendorName} ${grncheck.randomId}.pdf`);
-};
+    doc.setTextColor(0, 0, 0);
+    doc.text(business.address1 || '', 90, yOffset + 15);
+    doc.text(`Tel.No: ${business.phoneNo || ''}`, 90, yOffset + 20);
+    doc.text(`E-Mail: ${business.emailId || ''}`, 90, yOffset + 25);
+    doc.text(`GSTIN: ${business.gstIn || ''}`, 90, yOffset + 30);
+    yOffset += 40;
+    // Calculate Due Date
+    const invoiceDate = grncheck.invoiceDate ? new Date(grncheck.invoiceDate) : new Date('2025-06-30'); // Fallback to 30/06/2025
+    const paymentTermsDays = grncheck.paymentTerms ? parseInt(grncheck.paymentTerms, 10) : 15; // Fallback to 15 days
+    const dueDate = addDays(invoiceDate, paymentTermsDays); // Add payment terms days to created date
+    // Table header with the three sections
+    const tableHeader = [['Vendor Details', 'Shipping Address', 'GRN Details']];
+    // Vendor Details rows with correct line breaks
+    const vendorDetailsRows = [
+      [
+        `${grncheck.vendorName || ' '}\n` +
+        `GSTIN: ${grncheck.gstNumber || ''}\n` +
+        `Address: ${grncheck.address || ''}\n` +
+        `City: ${grncheck.city || ''}\n` +
+        `State: ${grncheck.state || ''}\n` +
+        `Country: ${grncheck.country || ''}\n` +
+        `Email: ${grncheck.contactpersonEmail || ''}`,
+        `Shipping Address: ${grncheck.shippingAddress || ''}`,
+        `PO No: ${grncheck.poRandomID || ''}\n` +
+        `GRN No: ${grncheck.randomId || ''}\n` +
+        `GRN Date: ${grncheck.createdDate ? format(new Date(grncheck.createdDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+        `Payment Terms: ${grncheck.paymentTerms || ''}\n` +
+        `Due Date: ${dueDate ? format(new Date(dueDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
+        `Currency: INR`,
+      ],
+    ];
+    // Vendor Details Table
+    doc.autoTable({
+      head: tableHeader,
+      body: vendorDetailsRows,
+      startY: yOffset,
+      theme: 'grid',
+      styles: {
+        fontSize: 9,
+        cellPadding: 4,
+        halign: 'left',
+        valign: 'top',
+        overflow: 'linebreak',
+      },
+      columnStyles: {
+        0: { cellWidth: 60.6, valign: 'top' },
+        1: { cellWidth: 60.6, valign: 'top' },
+        2: { cellWidth: 60.6, valign: 'top' },
+      },
+      headStyles: {
+        fillColor: [0, 0, 128],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        lineWidth: 0,
+      },
+      bodyStyles: {
+        lineWidth: 0.1,
+        lineColor: [0, 0, 0],
+        minCellHeight: 15,
+      },
+      tableLineColor: [0, 0, 0],
+      tableLineWidth: 0.1,
+    });
+    yOffset = doc.autoTable.previous.finalY;
+    // Items Table Section
+    const itemHeader = ['SI No', 'Description', 'HsnCode', 'Pkt Count', 'Qty', 'Po Qty', 'Unit Price', 'Received Qty', 'Tax', 'Amount'];
+    const tableRows = grncheck.itemDetails.map((item, index) => {
+      const unitPrice = item.unitPrice || 0;
+      const quantity = item.receivedQuantity || item.totalQuantity || 0;
+      const totalAmount = unitPrice * quantity;
+      return [
+        `${index + 1}`,
+        item.itemName || 'Item Description',
+        item.hsnCode || '',
+        item.nos || '',
+        item.eachQuantity || '',
+        `${item.quantity || 0} ${item.uom || 'Kgs'}`,
+        `${unitPrice.toFixed(2)}`,
+        `${quantity} ${item.uom || 'Kgs'}`,
+        `${item.purchasetaxName || 0}%`,
+        `${totalAmount.toFixed(2)}`,
+      ];
+    });
+    // Items Table
+    doc.autoTable({
+      head: [itemHeader],
+      body: tableRows,
+      startY: yOffset,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        halign: 'center',
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [0, 0, 128],
+        textColor: [255, 255, 255],
+        lineWidth: { top: 0, right: 0.1, bottom: 0.1, left: 0.1 },
+        lineColor: [0, 0, 0],
+      },
+      bodyStyles: {
+        lineColor: [0, 0, 0],
+        lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
+      },
+      columnStyles: {
+        0: { halign: 'center' },
+        1: { halign: 'left' },
+        2: { halign: 'left' },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+        8: { halign: 'right' },
+        9: { halign: 'right' },
+      },
+    });
+    yOffset = doc.autoTable.previous.finalY;
+    // Calculate individual tax amounts - FIXED VERSION
+    const taxRates = {
+      CGST: new Map<number, number>(),
+      SGST: new Map<number, number>(),
+      IGST: new Map<number, number>(),
+    };
+
+    grncheck.itemDetails.forEach(item => {
+      // FIX: Use receivedQuantity instead of totalQuantity
+      const quantity = item.receivedQuantity || item.totalQuantity || 0;
+      const taxableAmount = (item.unitPrice || 0) * quantity;
+      const taxRate = item.purchasetaxName || 0;
+      const taxType = item.taxType || '';
+
+      if (taxRate > 0) {
+        if (taxType === 'cgst_sgst') {
+          const halfRate = taxRate / 2;
+          const halfTaxAmount = (taxRate / 100) * taxableAmount / 2;
+
+          taxRates.CGST.set(halfRate, (taxRates.CGST.get(halfRate) || 0) + halfTaxAmount);
+          taxRates.SGST.set(halfRate, (taxRates.SGST.get(halfRate) || 0) + halfTaxAmount);
+        } else if (taxType === 'igst') {
+          const taxAmount = (taxRate / 100) * taxableAmount;
+          taxRates.IGST.set(taxRate, (taxRates.IGST.get(taxRate) || 0) + taxAmount);
+        }
+      }
+    });
+
+    // Calculate total without tax - FIXED
+    const totalWithoutTax = grncheck.itemDetails.reduce((sum, item) => {
+      const quantity = item.receivedQuantity || item.totalQuantity || 0;
+      return sum + ((item.unitPrice || 0) * quantity);
+    }, 0);
+
+    // Tax summary - FIXED to show all taxes
+    const taxSummary: [string, string][] = [
+      [`Total Amount`, totalWithoutTax.toFixed(2) || '0'],
+      [`Total Discount`, grncheck.totalDiscount?.toFixed(2) || '0'],
+    ];
+
+    // Show CGST and SGST separately with proper rates
+    taxRates.CGST.forEach((amount, rate) => {
+      if (amount > 0) {
+        taxSummary.push([`CGST @${rate.toFixed(2)}%`, amount.toFixed(2)]);
+      }
+    });
+
+    taxRates.SGST.forEach((amount, rate) => {
+      if (amount > 0) {
+        taxSummary.push([`SGST @${rate.toFixed(2)}%`, amount.toFixed(2)]);
+      }
+    });
+
+    taxRates.IGST.forEach((amount, rate) => {
+      if (amount > 0) {
+        taxSummary.push([`IGST @${rate.toFixed(2)}%`, amount.toFixed(2)]);
+      }
+    });
+
+    // Add grnRoundOffAmount above Total Including Tax
+    if (grncheck.grnRoundOffAmount !== undefined && grncheck.grnRoundOffAmount !== 0) {
+      taxSummary.push([`Round Off Amount`, grncheck.grnRoundOffAmount.toFixed(2)]);
+    }
+
+    taxSummary.push([`Total [Including Tax]`, grncheck.grnAmount?.toFixed(2) || '0']);
+
+    // Tax Summary Table
+    doc.autoTable({
+      body: taxSummary,
+      startY: yOffset,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        halign: 'right',
+        cellPadding: 2,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+      },
+      margin: { bottom: 15 },
+    });
+
+    // Declarations and Authorized Signatory
+    yOffset = doc.autoTable.previous.finalY + 5;
+    doc.setFontSize(10);
+    doc.text("Declaration:", 10, yOffset + 35);
+    doc.text("We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.", 10, yOffset + 40);
+    doc.text("Authorized Signatory:", 120, yOffset + 48);
+    doc.text("_____________________", 120, yOffset + 60);
+
+    // Add page numbers and computer generated note to all pages
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      const pageWidth = doc.internal.pageSize.width;
+      const pageCenterX = pageWidth / 2;
+      const bottomY = doc.internal.pageSize.height - 10;
+      const computerGeneratedY = bottomY - 5;
+      // Add "This is computer generated" centered above page number
+      doc.text("This is computer generated", pageCenterX, computerGeneratedY, { align: 'center' });
+      // Add page number centered below
+      doc.text(`Page ${i} of ${totalPages}`, pageCenterX, bottomY, { align: 'center' });
+    }
+
+    // Save the PDF
+    doc.save(`${grncheck.vendorName} ${grncheck.randomId}.pdf`);
+  };
   const handleDialogClose = () => {
     setDialogueViewOpen(false);
     dispatch(setSelectedGrnId(null));
@@ -859,120 +879,120 @@ const handleApRoundOffBlur = () => {
     });
   };
   const handleSaveAll = async () => {
-  if (!selectedGrnId) {
-    setErrorMessage('No GRN selected to save.');
-    setLoading(false);
-    return;
-  }
-  // Validate AP Round Off before saving
-  if (apRoundOffError) {
-    setSnackbarMessage('Please fix AP Round Off errors before saving.');
-    setSnackbarOpen(true);
-    return;
-  }
-  // Additional validation
-  if (apRoundOff < -2 || apRoundOff > 2) {
-    setSnackbarMessage('AP Round Off must be between -2.00 and +2.00');
-    setSnackbarOpen(true);
-    return;
-  }
-  const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
-    itemId,
-    befTaxDiscount: itemData.befTaxDiscount,
-    afTaxDiscount: itemData.afTaxDiscount,
-    expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
-  }));
-  const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
-  const outgoingDateValue = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
-  // Use the parsed number directly without toFixed (passes exact value as typed, parsed to float)
-  const payload = {
-    grnId: selectedGrnId,
-    apRoundOff: apRoundOff, // Exact parsed value (e.g., 0.3 if typed 0.3)
-    itemUpdates,
-    apInvoiceDate: apInvoiceDateValue,
-    outgoingDate: outgoingDateValue,
+    if (!selectedGrnId) {
+      setErrorMessage('No GRN selected to save.');
+      setLoading(false);
+      return;
+    }
+    // Validate AP Round Off before saving
+    if (apRoundOffError) {
+      setSnackbarMessage('Please fix AP Round Off errors before saving.');
+      setSnackbarOpen(true);
+      return;
+    }
+    // Additional validation
+    if (apRoundOff < -2 || apRoundOff > 2) {
+      setSnackbarMessage('AP Round Off must be between -2.00 and +2.00');
+      setSnackbarOpen(true);
+      return;
+    }
+    const itemUpdates: ItemUpdate[] = Object.entries(editedItems).map(([itemId, itemData]) => ({
+      itemId,
+      befTaxDiscount: itemData.befTaxDiscount,
+      afTaxDiscount: itemData.afTaxDiscount,
+      expiryDate: itemData.expiryDate ? new Date(itemData.expiryDate) : null,
+    }));
+    const apInvoiceDateValue = apInvoiceDate ? apInvoiceDate.toISOString() : new Date().toISOString();
+    const outgoingDateValue = outgoingDate ? outgoingDate.toISOString() : new Date().toISOString();
+    // Use the parsed number directly without toFixed (passes exact value as typed, parsed to float)
+    const payload = {
+      grnId: selectedGrnId,
+      apRoundOff: apRoundOff, // Exact parsed value (e.g., 0.3 if typed 0.3)
+      itemUpdates,
+      apInvoiceDate: apInvoiceDateValue,
+      outgoingDate: outgoingDateValue,
+    };
+    console.log('Payload for save (AP Round Off):', payload.apRoundOff);
+    try {
+      setLoading(true);
+      const resultAction = await dispatch(updateItemDetails(payload));
+      if (updateItemDetails.fulfilled.match(resultAction)) {
+        setErrorMessage(null);
+        setDialogueViewOpen(false);
+        setIsConvertedToAP(true);
+        setSnackbarMessage('GRN successfully converted to AP and Outgoing.');
+        setSnackbarOpen(true);
+        dispatch(
+          fetchGrns({
+            page: newPage,
+            size: pageSize,
+          })
+        );
+        // Reset AP round off input after successful save
+        setApRoundOffInput('');
+        setApRoundOff(0);
+      } else {
+        const errorMessage = resultAction.payload || 'Please try again.';
+        setErrorMessage('Error converting GRN: ' + errorMessage);
+        setSnackbarMessage('Failed to convert GRN: ' + errorMessage);
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      setErrorMessage('Error converting GRN. Please try again.');
+      setSnackbarMessage('Failed to convert GRN. Please try again.');
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
   };
-  console.log('Payload for save (AP Round Off):', payload.apRoundOff);
-  try {
-    setLoading(true);
-    const resultAction = await dispatch(updateItemDetails(payload));
-    if (updateItemDetails.fulfilled.match(resultAction)) {
-      setErrorMessage(null);
+  const handleRevertToPO = async (grnId: string) => {
+    if (!grnId) {
+      setSnackbarMessage('No GRN selected for reversion.');
+      setSnackbarOpen(true);
+      return;
+    }
+    try {
+      const result = await dispatch(revertGrnToPO(grnId)).unwrap();
+      let message = `GRN successfully reverted to PO`;
+
+      console.log('Revert result with stock updates:', result);
+
+      if (result.stockUpdates) {
+        message += ` (Inventory updated: ${result.stockUpdates.inventory_updates} locations)`;
+      }
+
+      setSnackbarMessage(message);
+      setSnackbarOpen(true);
+
+      // Refresh the GRN list
+      dispatch(fetchGrns({ page: currentPage, size: pageSize }));
+
+      // Close the main view dialog
+      dispatch(setSelectedGrnId(null));
       setDialogueViewOpen(false);
-      setIsConvertedToAP(true);
-      setSnackbarMessage('GRN successfully converted to AP and Outgoing.');
-      setSnackbarOpen(true);
-      dispatch(
-        fetchGrns({
-          page: newPage,
-          size: pageSize,
-        })
-      );
-      // Reset AP round off input after successful save
-      setApRoundOffInput('');
-      setApRoundOff(0);
-    } else {
-      const errorMessage = resultAction.payload || 'Please try again.';
-      setErrorMessage('Error converting GRN: ' + errorMessage);
-      setSnackbarMessage('Failed to convert GRN: ' + errorMessage);
+
+      // Show the REVERT stock update dialog with the stock updates from backend
+      dispatch(setShowStockUpdateDialog(true));
+
+      console.log('Reversion successful with stock updates:', result.stockUpdates);
+    } catch (error: any) {
+      console.error('Reversion failed:', error);
+      setSnackbarMessage(error || 'Failed to revert GRN to PO');
       setSnackbarOpen(true);
     }
-  } catch (error) {
-    setErrorMessage('Error converting GRN. Please try again.');
-    setSnackbarMessage('Failed to convert GRN. Please try again.');
-    setSnackbarOpen(true);
-  } finally {
-    setLoading(false);
-  }
-};
-const handleRevertToPO = async (grnId: string) => {
-  if (!grnId) {
-    setSnackbarMessage('No GRN selected for reversion.');
-    setSnackbarOpen(true);
-    return;
-  }
-  try {
-    const result = await dispatch(revertGrnToPO(grnId)).unwrap();
-    let message = `GRN successfully reverted to PO`;
-    
-    console.log('Revert result with stock updates:', result);
-    
-    if (result.stockUpdates) {
-      message += ` (Inventory updated: ${result.stockUpdates.inventory_updates} locations)`;
-    }
-    
-    setSnackbarMessage(message);
-    setSnackbarOpen(true);
-    
-    // Refresh the GRN list
-    dispatch(fetchGrns({ page: currentPage, size: pageSize }));
-    
-    // Close the main view dialog
-    dispatch(setSelectedGrnId(null));
-    setDialogueViewOpen(false);
-    
-    // Show the REVERT stock update dialog with the stock updates from backend
-    dispatch(setShowStockUpdateDialog(true));
-    
-    console.log('Reversion successful with stock updates:', result.stockUpdates);
-  } catch (error: any) {
-    console.error('Reversion failed:', error);
-    setSnackbarMessage(error || 'Failed to revert GRN to PO');
-    setSnackbarOpen(true);
-  }
-};
+  };
 
-const handleCloseStockDialog = () => {
-  dispatch(setShowStockUpdateDialog(false));
-  // Clear the revert stock updates after closing
-  // dispatch(clearLastRevertData()); // Add this action if you have it
-};
+  const handleCloseStockDialog = () => {
+    dispatch(setShowStockUpdateDialog(false));
+    // Clear the revert stock updates after closing
+    // dispatch(clearLastRevertData()); // Add this action if you have it
+  };
 
-// Handler for RETURN GRN dialog close
-const handleCloseReturnStockDialog = () => {
-  dispatch(setShowReturnStockUpdateDialog(false));
-  dispatch(clearLastReturnData()); // This clears the return stock updates
-};
+  // Handler for RETURN GRN dialog close
+  const handleCloseReturnStockDialog = () => {
+    dispatch(setShowReturnStockUpdateDialog(false));
+    dispatch(clearLastReturnData()); // This clears the return stock updates
+  };
   // New: Handler for button click - opens dialog
   const handleOpenConfirmDialog = () => {
     if (!selectedGrnId) {
@@ -1449,92 +1469,92 @@ const handleCloseReturnStockDialog = () => {
       console.error('Failed to fetch PO details:', error);
     }
   };
- const calculateTaxDetails = () => {
-  // Initialize taxDetails object with separate tracking for different rates
-  let taxDetails: {
-    [rate: string]: {
-      sgstAmount: number;
-      cgstAmount: number;
-      igstAmount: number;
-      sgstRate?: number;
-      cgstRate?: number;
-      igstRate?: number;
+  const calculateTaxDetails = () => {
+    // Initialize taxDetails object with separate tracking for different rates
+    let taxDetails: {
+      [rate: string]: {
+        sgstAmount: number;
+        cgstAmount: number;
+        igstAmount: number;
+        sgstRate?: number;
+        cgstRate?: number;
+        igstRate?: number;
+      }
+    } = {};
+
+    // Add null check for selectedGrn
+    if (!selectedGrn) {
+      return taxDetails;
     }
-  } = {};
 
-  // Add null check for selectedGrn
-  if (!selectedGrn) {
+    // Calculate item taxes
+    if (selectedGrn.itemDetails && selectedGrn.itemDetails.length > 0) {
+      selectedGrn.itemDetails.forEach(item => {
+        // FIX: Use receivedQuantity instead of totalQuantity
+        const quantity = item.receivedQuantity || item.totalQuantity || 0;
+        const taxableAmount = (item.unitPrice || 0) * quantity;
+        const taxRate = item.purchasetaxName || 0;
+        const taxType = item.taxType || '';
+
+        if (taxRate > 0) {
+          const rateKey = taxRate.toString();
+
+          if (!taxDetails[rateKey]) {
+            taxDetails[rateKey] = { sgstAmount: 0, cgstAmount: 0, igstAmount: 0 };
+          }
+
+          const taxAmount = (taxRate / 100) * taxableAmount;
+
+          if (taxType === 'cgst_sgst') {
+            // For CGST/SGST, we split the tax amount
+            const halfTaxRate = taxRate / 2;
+            const halfTaxAmount = taxAmount / 2;
+
+            taxDetails[rateKey].sgstRate = halfTaxRate;
+            taxDetails[rateKey].cgstRate = halfTaxRate;
+            taxDetails[rateKey].sgstAmount += halfTaxAmount;
+            taxDetails[rateKey].cgstAmount += halfTaxAmount;
+          } else if (taxType === 'igst') {
+            taxDetails[rateKey].igstRate = taxRate;
+            taxDetails[rateKey].igstAmount += taxAmount;
+          }
+        }
+      });
+    }
+
+    // Calculate freight taxes
+    if (selectedGrn.freights && selectedGrn.freights.length > 0) {
+      selectedGrn.freights.forEach((freight) => {
+        const freightAmount = freight.amt || 0;
+        const freightTaxAmount = freight.tAmt || 0;
+
+        if (freightTaxAmount > 0) {
+          // Calculate tax percentage from amount and tax amount
+          const freightTaxPercentage = freightAmount > 0 ? (freightTaxAmount / freightAmount) * 100 : 0;
+          const rateKey = freightTaxPercentage.toString();
+
+          if (!taxDetails[rateKey]) {
+            taxDetails[rateKey] = { sgstAmount: 0, cgstAmount: 0, igstAmount: 0 };
+          }
+
+          if (freight.taxType === 'cgst_sgst') {
+            const halfTaxRate = freightTaxPercentage / 2;
+            const halfTaxAmount = freightTaxAmount / 2;
+
+            taxDetails[rateKey].sgstRate = halfTaxRate;
+            taxDetails[rateKey].cgstRate = halfTaxRate;
+            taxDetails[rateKey].sgstAmount += halfTaxAmount;
+            taxDetails[rateKey].cgstAmount += halfTaxAmount;
+          } else if (freight.taxType === 'igst') {
+            taxDetails[rateKey].igstRate = freightTaxPercentage;
+            taxDetails[rateKey].igstAmount += freightTaxAmount;
+          }
+        }
+      });
+    }
+
     return taxDetails;
-  }
-
-  // Calculate item taxes
-  if (selectedGrn.itemDetails && selectedGrn.itemDetails.length > 0) {
-    selectedGrn.itemDetails.forEach(item => {
-      // FIX: Use receivedQuantity instead of totalQuantity
-      const quantity = item.receivedQuantity || item.totalQuantity || 0;
-      const taxableAmount = (item.unitPrice || 0) * quantity;
-      const taxRate = item.purchasetaxName || 0;
-      const taxType = item.taxType || '';
-
-      if (taxRate > 0) {
-        const rateKey = taxRate.toString();
-
-        if (!taxDetails[rateKey]) {
-          taxDetails[rateKey] = { sgstAmount: 0, cgstAmount: 0, igstAmount: 0 };
-        }
-
-        const taxAmount = (taxRate / 100) * taxableAmount;
-
-        if (taxType === 'cgst_sgst') {
-          // For CGST/SGST, we split the tax amount
-          const halfTaxRate = taxRate / 2;
-          const halfTaxAmount = taxAmount / 2;
-
-          taxDetails[rateKey].sgstRate = halfTaxRate;
-          taxDetails[rateKey].cgstRate = halfTaxRate;
-          taxDetails[rateKey].sgstAmount += halfTaxAmount;
-          taxDetails[rateKey].cgstAmount += halfTaxAmount;
-        } else if (taxType === 'igst') {
-          taxDetails[rateKey].igstRate = taxRate;
-          taxDetails[rateKey].igstAmount += taxAmount;
-        }
-      }
-    });
-  }
-
-  // Calculate freight taxes
-  if (selectedGrn.freights && selectedGrn.freights.length > 0) {
-    selectedGrn.freights.forEach((freight) => {
-      const freightAmount = freight.amt || 0;
-      const freightTaxAmount = freight.tAmt || 0;
-
-      if (freightTaxAmount > 0) {
-        // Calculate tax percentage from amount and tax amount
-        const freightTaxPercentage = freightAmount > 0 ? (freightTaxAmount / freightAmount) * 100 : 0;
-        const rateKey = freightTaxPercentage.toString();
-
-        if (!taxDetails[rateKey]) {
-          taxDetails[rateKey] = { sgstAmount: 0, cgstAmount: 0, igstAmount: 0 };
-        }
-
-        if (freight.taxType === 'cgst_sgst') {
-          const halfTaxRate = freightTaxPercentage / 2;
-          const halfTaxAmount = freightTaxAmount / 2;
-
-          taxDetails[rateKey].sgstRate = halfTaxRate;
-          taxDetails[rateKey].cgstRate = halfTaxRate;
-          taxDetails[rateKey].sgstAmount += halfTaxAmount;
-          taxDetails[rateKey].cgstAmount += halfTaxAmount;
-        } else if (freight.taxType === 'igst') {
-          taxDetails[rateKey].igstRate = freightTaxPercentage;
-          taxDetails[rateKey].igstAmount += freightTaxAmount;
-        }
-      }
-    });
-  }
-
-  return taxDetails;
-};
+  };
 
   // Use tax details in the component with safe access
   const finalTotalAmount = calculateFinalTotalAmount();
@@ -1551,8 +1571,8 @@ const handleCloseReturnStockDialog = () => {
   const safeSelectedGrnId = selectedGrnId || 'default-id';
   const filteredItems = selectedGrn?.itemDetails;
   if (isHidden) {
-  return <Typography>You do not have permission to access GRN</Typography>;
-}
+    return <Typography>You do not have permission to access GRN</Typography>;
+  }
 
   if (loading) {
     return (
@@ -1643,29 +1663,29 @@ const handleCloseReturnStockDialog = () => {
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={1} ml={1}>
             {/* Buttons */}
             <Box display="flex" alignItems="center">
-               {canRead && (
-              <Link href={"/yen-purchase/GrnPage"}>
-                <Button
-                  variant="contained"
-                  sx={{
-                    backgroundColor: 'white', // White background
-                    color: 'black', // Black text
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.8)', // Slightly darker on hover
-                    },
-                    mr: 1,
-                  }}
-                >
-                  GRN List
-                </Button>
-              </Link>
-               )}
+              {canRead && (
+                <Link href={"/yen-purchase/GrnPage"}>
+                  <Button
+                    variant="contained"
+                    sx={{
+                      backgroundColor: 'white', // White background
+                      color: 'black', // Black text
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)', // Slightly darker on hover
+                      },
+                      mr: 1,
+                    }}
+                  >
+                    GRN List
+                  </Button>
+                </Link>
+              )}
               {canReturnRead && (
-              <Link href={"/yen-purchase/GrnPage/GrnReturn"}>
-                <Button variant="contained" color="primary" sx={{ mr: 2 }}>
-                  Return GRN
-                </Button>
-              </Link>
+                <Link href={"/yen-purchase/GrnPage/GrnReturn"}>
+                  <Button variant="contained" color="primary" sx={{ mr: 2 }}>
+                    Return GRN
+                  </Button>
+                </Link>
               )}
             </Box>
             {/*
@@ -1845,7 +1865,7 @@ const handleCloseReturnStockDialog = () => {
                     <TableRow key={grn.grnId}>
                       <TableCell className='table-number-right'>{index + 1}</TableCell>
                       <TableCell>{grn.randomId}</TableCell>
-                          <TableCell>
+                      <TableCell>
                         {grn.purchaseOrderId ? (
                           <span
                             style={{
@@ -1870,17 +1890,17 @@ const handleCloseReturnStockDialog = () => {
                       <TableCell>
                         <Box display="flex" alignItems="center">
                           {/* View Button with Eye Icon */}
-                         <Tooltip title="View Detail">
-                              <span>
-                                <IconButton
-                                  color="primary"
-                                  onClick={() => handleGrnSelect(grn.grnId)}
-                                  disabled={!canRead}
-                                >
-                                  <VisibilityIcon />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
+                          <Tooltip title="View Detail">
+                            <span>
+                              <IconButton
+                                color="primary"
+                                onClick={() => handleGrnSelect(grn.grnId)}
+                                disabled={!canRead}
+                              >
+                                <VisibilityIcon />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                           {/* Debit/Credit Note Button */}
                           <Tooltip title={tooltipTitle}>
                             <span>
@@ -1892,17 +1912,17 @@ const handleCloseReturnStockDialog = () => {
                               </IconButton>
                             </span>
                           </Tooltip>
-                           <Tooltip title="Return GRN">
-                              <span>
-                                <IconButton
-                                  color="primary"
-                                  onClick={() => handleReturnClick(grn.grnId)}
-                                  disabled={!canEdit}
-                                >
-                                  <ExitToAppIcon />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
+                          <Tooltip title="Return GRN">
+                            <span>
+                              <IconButton
+                                color="primary"
+                                onClick={() => handleReturnClick(grn.grnId)}
+                                disabled={!canEdit}
+                              >
+                                <ExitToAppIcon />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                           {/* Download PDF Button */}
                           <Tooltip title="Download PDF">
                             <IconButton color="primary" onClick={() => handleDownload(grn.grnId)}>
@@ -1910,17 +1930,17 @@ const handleCloseReturnStockDialog = () => {
                             </IconButton>
                           </Tooltip>
                           {/* Edit Invoice Button */}
-                            <Tooltip title="Edit">
-                              <span>
-                                <IconButton
-                                  color="primary"
-                                  onClick={() => handleEditInvoice(grn.grnId)}
-                                  disabled={!canEdit}
-                                >
-                                  <EditIcon />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
+                          <Tooltip title="Edit">
+                            <span>
+                              <IconButton
+                                color="primary"
+                                onClick={() => handleEditInvoice(grn.grnId)}
+                                disabled={!canEdit}
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -2245,7 +2265,7 @@ const handleCloseReturnStockDialog = () => {
                           {((selectedGrn?.grnAmount || 0) + apRoundOff).toFixed(2)}
                         </TableCell>
                       </TableRow>
-                         {/* Tax Breakdown Section - Sorted by rate */}
+                      {/* Tax Breakdown Section - Sorted by rate */}
                       {Object.entries(taxDetails)
                         .sort(([rateA], [rateB]) => parseFloat(rateA) - parseFloat(rateB))
                         .map(([rate, { sgstAmount, cgstAmount, igstAmount, sgstRate, cgstRate, igstRate }]) => {
@@ -2349,38 +2369,60 @@ const handleCloseReturnStockDialog = () => {
             <Button onClick={handleDialogClose}>Close</Button>
           </DialogActions>
         </Dialog>
-        <Dialog open={invoiceOpen} onClose={() => setInvoiceOpen(false)}>
+        <Dialog open={invoiceOpen} onClose={handleInvoiceDialogClose}>
           <DialogTitle>Edit Invoice Details</DialogTitle>
           <DialogContent>
-            <TextField
-              label="Invoice No"
-              type="text"
-              sx={{ marginTop: '10px' }}
-              value={invoiceNo}
-              onChange={(e) => setInvoiceNo(e.target.value)}
-              fullWidth
-            />
-            <TextField
-  label="Invoice Date"
-  type="date"
-  value={invoiceDate ? invoiceDate.toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA')}
-  onChange={(e) => {
-    const selectedDate = e.target.value;
-    setInvoiceDate(selectedDate ? new Date(selectedDate) : null);
-  }}
-  inputProps={{
-    max: new Date().toLocaleDateString('en-CA') // Disable future dates
-  }}
-  fullWidth
-  sx={{ marginTop: 2 }}
-  // Don't add disabled prop here - let user select past dates
-/>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <TextField
+                  label="Invoice No"
+                  type="text"
+                  value={invoiceNo}
+                  onChange={(e) => setInvoiceNo(e.target.value)}
+                  fullWidth
+                  disabled={isSavingInvoice}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <UnifiedDatePicker
+                  value={invoiceDate}
+                  onChange={(date) => {
+                    setInvoiceDate(date);
+                    setIsTouched(true);
+                  }}
+                  onValidationChange={(isValid) => {
+                    // Optional: handle validation state
+                  }}
+                  dateType="invoice"
+                  label="Invoice Date"
+                  required={true}
+                  orderDate={selectedGrn?.grnDate ? new Date(selectedGrn.grnDate) : null}
+                  skipInitialValidation={true}
+                  disabled={isSavingInvoice}
+                />
+              </Grid>
+            </Grid>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setInvoiceOpen(false)} variant='contained' color="primary">Cancel</Button>
-            <Button onClick={handleSaveInvoice} variant='contained' color="primary">Save</Button>
+            <Button
+              onClick={handleInvoiceDialogClose}
+              variant='contained'
+              color="primary"
+              disabled={isSavingInvoice}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveInvoice}
+              variant='contained'
+              color="primary"
+              disabled={isSavingInvoice}
+            >
+              {isSavingInvoice ? <CircularProgress size={24} /> : 'Save'}
+            </Button>
           </DialogActions>
         </Dialog>
+
         <Dialog open={dialogSaveOpen} onClose={handleCancel}>
           <DialogTitle>Confirm Submission</DialogTitle>
           <DialogContent>
@@ -2473,7 +2515,7 @@ const handleCloseReturnStockDialog = () => {
           autoHideDuration={3000}
           onClose={() => dispatch(clearSnackbarMessage())}
         />
-     {returnDialogOpen && (
+        {returnDialogOpen && (
           <GrnReturnDialog
             dialogItems={selectedGrnItems}
             selectedGrnId={selectedGrnId}
@@ -2496,12 +2538,12 @@ const handleCloseReturnStockDialog = () => {
           confirmText="Revert to PO" // Custom text
           cancelText="Cancel"
         />
- <RevertStockUpdateDialog
-  open={showStockUpdateDialog || false}
-  stockUpdates={lastRevertStockUpdates}
-  grnId={lastRevertedGrnId}
-  onClose={handleCloseStockDialog}
-/>
+        <RevertStockUpdateDialog
+          open={showStockUpdateDialog || false}
+          stockUpdates={lastRevertStockUpdates}
+          grnId={lastRevertedGrnId}
+          onClose={handleCloseStockDialog}
+        />
 
         {/* Make sure this is at the end of your JSX, before the closing Box */}
         <ReturnStockUpdateDialog

@@ -123,6 +123,7 @@ export interface PurchaseOrderData {
   roundOffValue: number;
   overallDiscountValue: number;
   locationName: string;
+  locationId:string;
   totalFreightAmount: number;
   totalFreightTaxAmount: number;
   approvalHistory?: ApprovalHistory[];
@@ -503,3 +504,5 @@ export interface CalculateOverallDiscountPayload {
   applyOverallDiscount: boolean;
 
 }
+// In your purchaseModel.ts, add this export
+export type NewItem = Item; // Since NewItem is essentially the same as Item

@@ -140,7 +140,7 @@ const hasReportsAccess = hasPurchaseReportAccess || hasPosReportAccess;
     let throttleTimer: ReturnType<typeof setTimeout> | null = null;
     const sendPing = async () => {
       try {
-        await fetch("http://127.0.0.1:8000/purchasetestapi/ping", {
+        await fetch("https://yenerp.com/purchasetestapi/ping", {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });

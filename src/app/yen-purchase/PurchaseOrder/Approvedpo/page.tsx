@@ -60,7 +60,8 @@ import {
   setPagination,
   fetchInvoiceNumbers,
   fetchAllImages,
-  calculateOverallDiscount, closeStockUpdateDialog, // New thunk import
+  calculateOverallDiscount, closeStockUpdateDialog,
+  downloadPurchaseOrderPDF, // New thunk import
 } from "../../../../features/yen-purchase/PurchaseOrder/purchaseListSlice";
 import { AppDispatch } from "@/redux/store";
 import YenPurchasePage from "../../page";
@@ -84,7 +85,9 @@ import { ExportProps, ItemWithCalculations, OverallDiscountResponse, OverallDisc
 import ItemSearchAutocomplete from "../Component/ItemSearch";
 import FreightSelectionDialog, { FreightData } from "../Component/freightSelectionDialog";
 import StockUpdateDialog from "../Component/StockUpdateDialog";
-
+import LocationAutocomplete from "@/components/yen-purchase/pocreationcomponent/locationautocomplete";
+import { Location } from "@/Models/storagelocation";
+import { UnifiedDatePicker } from "../Component/UnifiedDatePicker";
 // Add this import at the top with your other imports:
 const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
   if (!dateStr) return null;
@@ -268,6 +271,9 @@ interface OrderDetailsDialogProps {
   freights?: FreightData[];
   onEditFreights?: (freights: FreightData[]) => void;
   canEditApproved: boolean;
+  receivingLocation: Location | null;
+  setReceivingLocation: React.Dispatch<React.SetStateAction<Location | null>>;
+  poLocationId?: string; // Add this to pass PO's location ID
 
 }
 const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
@@ -315,10 +321,15 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   applyingDiscount,
   freights = [],
   onEditFreights,
+  receivingLocation,  // This comes from parent
+  setReceivingLocation,  // This comes from parent
+  poLocationId,  // This comes from parent
+
 }) => {
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [openFreightDialog, setOpenFreightDialog] = useState(false);
+
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
@@ -559,60 +570,24 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                       : ''
                 }
               />
-            <TextField
-  label="Invoice Date"
-  type="date"
-  value={invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : getCurrentDate()}
-  onChange={(e) => {
-    const value = e.target.value;
-    if (!value) {
-      setInvoiceDate(new Date());
-      return;
-    }
+              {/* Replace the old invoice date TextField with this */}
+              <UnifiedDatePicker
+                value={invoiceDate}
+                onChange={(date) => {
+                  setInvoiceDate(date);
+                  setIsTouched(true);
+                }}
+                onValidationChange={(isValid) => {
+                  // Optional: handle validation state
+                }}
+                dateType="invoice"
+                label="Invoice Date"
+                required={true}
+                orderDate={selectedOrder?.orderDate}
+                disabled={!selectedOrder?.orderDate}
+                skipInitialValidation={true}
+              />
 
-    const candidateDate = new Date(value);
-
-    // Parse the minimum allowed date (PO date)
-    const minDateStr = getOrderDateMin();
-    const minDate = parseLocalDate(minDateStr);
-
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
-
-    // Only accept if valid and within range
-    if (
-      isValid(candidateDate) &&
-      (!minDate || candidateDate >= minDate) &&
-      candidateDate <= today
-    ) {
-      setInvoiceDate(candidateDate);
-    }
-    // Else: silently ignore invalid input (or show error)
-  }}
-  disabled={!selectedOrder?.orderDate}
-  inputProps={{
-    min: getOrderDateMin(),
-    max: getCurrentDate(),
-  }}
-  InputLabelProps={{ shrink: true }}
-  // Add error state
-  error={Boolean(
-    invoiceDate &&
-    (
-      (parseLocalDate(getOrderDateMin()) && invoiceDate < parseLocalDate(getOrderDateMin())!) ||
-      invoiceDate > new Date()
-    )
-  )}
-  helperText={
-    invoiceDate ? (
-      parseLocalDate(getOrderDateMin()) && invoiceDate < parseLocalDate(getOrderDateMin())!
-        ? "Invoice date cannot be before PO date"
-        : invoiceDate > new Date()
-          ? "Invoice date cannot be in the future"
-          : ""
-    ) : ""
-  }
-/>
               <TextField
                 label="GRN Date"
                 type="date"
@@ -624,6 +599,16 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                   max: getCurrentDate(),
                 }}
                 InputLabelProps={{ shrink: true }}
+              />
+              <LocationAutocomplete
+                value={receivingLocation}
+                onChange={(location) => setReceivingLocation(location)}
+                label="Receiving Location"
+                locationId={poLocationId}  // Pass as locationId prop
+                locationName={selectedOrder?.locationName}  // Also pass the name
+                required
+                error={!receivingLocation && isTouched}
+                helperText={!receivingLocation && isTouched ? "Receiving location is required" : ""}
               />
             </Box>
           </Box>
@@ -910,7 +895,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                     : "Cannot convert to GRN: Round off amount makes total negative."
               }
             >
-              <span> {/* FIXED: Explicit span wrapper to prevent Tooltip error on disabled button */}
+              <span>
                 <Button
                   variant="contained"
                   color="success"
@@ -923,6 +908,7 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
                     !invoiceNumber ||
                     finalTotalAmount < 0
                   }
+                  sx={{ ml: 1 }}
                 >
                   Convert to GRN
                 </Button>
@@ -959,10 +945,10 @@ const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({
   );
 };
 const ApprovedPurchase: React.FC = () => {
-  
-    const { hasPermission, permissions } = usePermissions();
-    const router = useRouter();
-    const hidePending =
+
+  const { hasPermission, permissions } = usePermissions();
+  const router = useRouter();
+  const hidePending =
     permissions?.yenerp?.purchaseorders_pending?.hide === true;
   const hideApproved =
     permissions?.yenerp?.purchaseorders_approved?.hide === true;
@@ -989,11 +975,11 @@ const ApprovedPurchase: React.FC = () => {
   const hasApprovedAccess = !hideApproved && canViewApproved;
 
   const isGrnConvertedVisible =
-  permissions?.yenerp?.purchaseorders_grn_converted &&
-  !(
-    permissions?.yenerp?.purchaseorders_grn_converted?.hide === true ||
-    permissions?.yenerp?.purchaseorders_grn_converted?.hide === 1
-  );
+    permissions?.yenerp?.purchaseorders_grn_converted &&
+    !(
+      permissions?.yenerp?.purchaseorders_grn_converted?.hide === true ||
+      permissions?.yenerp?.purchaseorders_grn_converted?.hide === 1
+    );
   const dispatch = useDispatch<AppDispatch>();
   const { purchaseList, purchaseinvoice, error, snackbarOpen, snackbarMessage, searchQueryItem, randomIdSearch } = useSelector(selectPurchaseListState);
   const { businesses } = useSelector(selectBusinesses);
@@ -1045,6 +1031,8 @@ const ApprovedPurchase: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<PurchaseItemSearch | null>(null);
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
   const [freights, setFreights] = useState<FreightData[]>([]);
+  // Add this with your other useState declarations
+  const [receivingLocation, setReceivingLocation] = useState<Location | null>(null);
   const handleCloseDialogs = useCallback(() => {
     setOpenDialog(false);
     setOpenEditDialog(false);
@@ -1273,53 +1261,53 @@ const ApprovedPurchase: React.FC = () => {
       console.log('- first item:', stockUpdateResult.items?.[0]);
     }
   }, [showStockUpdateDialog, stockUpdateResult]);
- const validateExpiryDates = useCallback((): boolean => {
-  let hasErrors = false;
-  const newErrors: Record<number, Record<string, string>> = {};
+  const validateExpiryDates = useCallback((): boolean => {
+    let hasErrors = false;
+    const newErrors: Record<number, Record<string, string>> = {};
 
-  updatedItems.forEach((item, index) => {
-    // Safely convert receivedQuantity to number
-    const receivedQuantity = typeof item.receivedQuantity === 'string' 
-      ? parseFloat(item.receivedQuantity) || 0 
-      : item.receivedQuantity || 0;
-    
-    const pendingTotalQuantity = item.pendingTotalQuantity || 0;
+    updatedItems.forEach((item, index) => {
+      // Safely convert receivedQuantity to number
+      const receivedQuantity = typeof item.receivedQuantity === 'string'
+        ? parseFloat(item.receivedQuantity) || 0
+        : item.receivedQuantity || 0;
 
-    // Only require expiry date if:
-    // 1. Item has pending quantity (can be received)
-    // 2. AND received quantity > 0 (being received in this GRN)
-    if (pendingTotalQuantity > 0 && receivedQuantity > 0 && !item.expiryDate) {
-      hasErrors = true;
-      newErrors[index] = {
-        ...newErrors[index],
-        expiryDate: 'Expiry date is required for items being received'
-      };
-    }
-  });
+      const pendingTotalQuantity = item.pendingTotalQuantity || 0;
 
-  if (hasErrors) {
-    setErrors(prev => ({
-      ...prev,
-      ...newErrors
-    }));
-
-    // Mark all fields as touched to show errors
-    const touchedFields: Record<number, Record<string, boolean>> = {};
-    Object.keys(newErrors).forEach(key => {
-      const index = parseInt(key);
-      touchedFields[index] = {
-        ...touched[index],
-        expiryDate: true
-      };
+      // Only require expiry date if:
+      // 1. Item has pending quantity (can be received)
+      // 2. AND received quantity > 0 (being received in this GRN)
+      if (pendingTotalQuantity > 0 && receivedQuantity > 0 && !item.expiryDate) {
+        hasErrors = true;
+        newErrors[index] = {
+          ...newErrors[index],
+          expiryDate: 'Expiry date is required for items being received'
+        };
+      }
     });
-    setTouched(prev => ({
-      ...prev,
-      ...touchedFields
-    }));
-  }
 
-  return !hasErrors;
-}, [updatedItems, touched]);
+    if (hasErrors) {
+      setErrors(prev => ({
+        ...prev,
+        ...newErrors
+      }));
+
+      // Mark all fields as touched to show errors
+      const touchedFields: Record<number, Record<string, boolean>> = {};
+      Object.keys(newErrors).forEach(key => {
+        const index = parseInt(key);
+        touchedFields[index] = {
+          ...touched[index],
+          expiryDate: true
+        };
+      });
+      setTouched(prev => ({
+        ...prev,
+        ...touchedFields
+      }));
+    }
+
+    return !hasErrors;
+  }, [updatedItems, touched]);
   const handleQuantityChange = useCallback(
     (itemId: string, field: "receivedQuantity", value: string | number) => {
       console.log("Quantity Change:", { itemId, field, value });
@@ -1469,208 +1457,217 @@ const ApprovedPurchase: React.FC = () => {
     [updatedItems]
   );
   // Update handleSaveChanges to include the validation
-const handleSaveChanges = useCallback(async () => {
-  console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate, roundOffAmount, freights });
-  
-  if (!selectedOrder?.purchaseOrderId) {
-    setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
-    setSnackbarInvoiceOpen(true);
-    return;
-  }
+  const handleSaveChanges = useCallback(async () => {
+    console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate, roundOffAmount, freights });
 
-  if (!invoiceNumber.trim()) {
-    setSnackbarInvoiceMessage("Invoice number is required.");
-    setSnackbarInvoiceOpen(true);
-    setIsTouched(true);
-    return;
-  }
-
-  const finalInvoiceDate = invoiceDate || new Date();
-  if (!finalInvoiceDate) {
-    setSnackbarInvoiceMessage("Invoice date is required.");
-    setSnackbarInvoiceOpen(true);
-    return;
-  }
-
-  if (isInvoiceDuplicate) {
-    setSnackbarInvoiceMessage("Duplicate invoice number detected. Please enter a unique invoice number.");
-    setSnackbarInvoiceOpen(true);
-    return;
-  }
-
-  // Validate round off doesn't make total negative
-  const finalTotal = totalOrderAmount + roundOffAmount;
-  if (finalTotal < 0) {
-    setSnackbarInvoiceMessage(`Round off amount cannot make total negative. Current total: ${totalOrderAmount.toFixed(2)}`);
-    setSnackbarInvoiceOpen(true);
-    return;
-  }
-
-  // NEW: Validate expiry dates for items with received quantity > 0
-if (!validateExpiryDates()) {
-  // Create a more descriptive error message
-  const itemsNeedingExpiry = updatedItems.filter(item => {
-    const receivedQty = typeof item.receivedQuantity === 'string' 
-      ? parseFloat(item.receivedQuantity) || 0 
-      : item.receivedQuantity || 0;
-    const pendingQty = item.pendingTotalQuantity || 0;
-    return pendingQty > 0 && receivedQty > 0 && !item.expiryDate;
-  });
-  
-  if (itemsNeedingExpiry.length > 0) {
-    const itemNames = itemsNeedingExpiry.map(item => item.itemName).join(', ');
-    setSnackbarInvoiceMessage(`Please provide expiry dates for: ${itemNames}`);
-  } else {
-    setSnackbarInvoiceMessage("Please provide expiry dates for all items with received quantity greater than 0.");
-  }
-  setSnackbarInvoiceOpen(true);
-  return;
-}
-
-  const hasErrors = Object.values(errors).some((errorObj) =>
-    Object.values(errorObj).some((error) => error)
-  );
-  
-  if (hasErrors) {
-    setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
-    setSnackbarInvoiceOpen(true);
-    return;
-  }
-
-  // Rest of the handleSaveChanges code remains the same...
-  const validItems = updatedItems.filter((item) => {
-    const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
-    const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-    const receivedQuantity = Number(item.receivedQuantity) || 0;
-    const befTaxDiscount = Number(item.befTaxDiscount) || 0;
-    const afTaxDiscount = Number(item.afTaxDiscount) || 0;
-    const grnPrice = item.grnPrice !== undefined ? item.grnPrice : undefined;
-
-    if (befTaxDiscount < 0 || befTaxDiscount > 100) {
-      setSnackbarInvoiceMessage(`Before-tax discount for item "${item.itemName}" must be between 0 and 100%.`);
+    if (!selectedOrder?.purchaseOrderId) {
+      setSnackbarInvoiceMessage("Please select a valid order with a purchase order ID.");
       setSnackbarInvoiceOpen(true);
-      return false;
+      return;
     }
 
-    if (afTaxDiscount < 0) {
-      setSnackbarInvoiceMessage(`After-tax discount for item "${item.itemName}" cannot be negative.`);
+    if (!invoiceNumber.trim()) {
+      setSnackbarInvoiceMessage("Invoice number is required.");
       setSnackbarInvoiceOpen(true);
-      return false;
+      setIsTouched(true);
+      return;
     }
 
-    if (grnPrice !== undefined && (grnPrice < 0)) {
-      setSnackbarInvoiceMessage(`GRN price for item "${item.itemName}" cannot be negative.`);
+    const finalInvoiceDate = invoiceDate || new Date();
+    if (!finalInvoiceDate) {
+      setSnackbarInvoiceMessage("Invoice date is required.");
       setSnackbarInvoiceOpen(true);
-      return false;
+      return;
     }
 
-    return receivedQuantity > 0 && pendingTotalQuantity > 0;
-  });
-
-  if (validItems.length === 0) {
-    const hasPendingItems = updatedItems.some((item) => {
-      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
-      return (originalItem?.pendingTotalQuantity || 0) > 0;
-    });
-
-    if (!hasPendingItems) {
-      setSnackbarInvoiceMessage("All items in this purchase order have already been fully received.");
+    if (isInvoiceDuplicate) {
+      setSnackbarInvoiceMessage("Duplicate invoice number detected. Please enter a unique invoice number.");
       setSnackbarInvoiceOpen(true);
-    } else {
-      setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0.");
+      return;
+    }
+
+    // Validate round off doesn't make total negative
+    const finalTotal = totalOrderAmount + roundOffAmount;
+    if (finalTotal < 0) {
+      setSnackbarInvoiceMessage(`Round off amount cannot make total negative. Current total: ${totalOrderAmount.toFixed(2)}`);
       setSnackbarInvoiceOpen(true);
+      return;
     }
-    return;
-  }
 
-  const hasExcessQuantity = validItems.some((item) => {
-    const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
-    const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
-    const receivedQuantity = Number(item.receivedQuantity);
+    // NEW: Validate expiry dates for items with received quantity > 0
+    if (!validateExpiryDates()) {
+      // Create a more descriptive error message
+      const itemsNeedingExpiry = updatedItems.filter(item => {
+        const receivedQty = typeof item.receivedQuantity === 'string'
+          ? parseFloat(item.receivedQuantity) || 0
+          : item.receivedQuantity || 0;
+        const pendingQty = item.pendingTotalQuantity || 0;
+        return pendingQty > 0 && receivedQty > 0 && !item.expiryDate;
+      });
 
-    if (receivedQuantity > backendPendingTotalQuantity) {
-      setExcessDialogMessage(
-        `Received quantity for item "${item.itemName}" (${receivedQuantity}) exceeds the pending total quantity (${backendPendingTotalQuantity}).`
-      );
-      setExcessDialogOpen(true);
-      return true;
-    }
-    return false;
-  });
-
-  if (hasExcessQuantity) return;
-
-  const items = validItems.map((item) => {
-    const receivedQuantity = Number(item.receivedQuantity);
-    const befTaxDiscount = Math.max(0, Math.min(100, Number(item.befTaxDiscount) || 0));
-    const afTaxDiscount = Math.max(0, Number(item.afTaxDiscount) || 0);
-    const grnPrice = item.grnPrice !== undefined ? item.grnPrice : undefined;
-
-    return {
-      itemId: item.itemId,
-      receivedQuantity: receivedQuantity,
-      grnPrice: grnPrice,
-      befTaxDiscount: befTaxDiscount,
-      afTaxDiscount: afTaxDiscount,
-      expiryDate: item.expiryDate
-  ? item.expiryDate.toISOString()
-  : null,   
- };
-  });
-
-  console.log("Items being sent to backend:", items);
-  console.log("Freights being sent to backend:", freights);
-  console.log("Round off amount:", roundOffAmount);
-
-  try {
-    setIsProcessing(true);
-    const updateResult = await dispatch(
-      updateReceivedDamagedQuantities({
-        purchaseOrderId: selectedOrder.purchaseOrderId,
-        items,
-        invoiceNo: invoiceNumber.trim(),
-        invoiceDate: finalInvoiceDate,
-        grnDate: grnDate || new Date(),
-        discountPrice: 0,
-        grnRoundOffAmount: roundOffAmount,
-        freights,
-      })
-    ).unwrap();
-
-    console.log("Update Result:", updateResult);
-    setRoundOffAmount(0);
-
-    const updatedOrderItems = selectedOrder.items.map((originalItem) => {
-      const updatedItem = items.find((item) => item.itemId === originalItem.itemId);
-      if (updatedItem) {
-        const newPendingTotalQuantity = Math.max(
-          0,
-          (originalItem.pendingTotalQuantity || 0) - updatedItem.receivedQuantity
-        );
-        const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
-        const newPendingQuantity = newPendingTotalQuantity;
-        const grnPrice = updatedItem.grnPrice !== undefined ? updatedItem.grnPrice : originalItem.newPrice;
-
-        return {
-          ...originalItem,
-          pendingTotalQuantity: newPendingTotalQuantity,
-          pendingCount: newPendingCount,
-          pendingQuantity: newPendingQuantity,
-          status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
-          receivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
-          totalReceivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
-          grnPrice: grnPrice,
-          befTaxDiscount: updatedItem.befTaxDiscount,
-          afTaxDiscount: updatedItem.afTaxDiscount,
-          expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
-        };
+      if (itemsNeedingExpiry.length > 0) {
+        const itemNames = itemsNeedingExpiry.map(item => item.itemName).join(', ');
+        setSnackbarInvoiceMessage(`Please provide expiry dates for: ${itemNames}`);
+      } else {
+        setSnackbarInvoiceMessage("Please provide expiry dates for all items with received quantity greater than 0.");
       }
-      return originalItem;
+      setSnackbarInvoiceOpen(true);
+      return;
+    }
+
+    const hasErrors = Object.values(errors).some((errorObj) =>
+      Object.values(errorObj).some((error) => error)
+    );
+
+    if (hasErrors) {
+      setSnackbarInvoiceMessage("Please fix all validation errors before saving.");
+      setSnackbarInvoiceOpen(true);
+      return;
+    }
+
+    // Rest of the handleSaveChanges code remains the same...
+    const validItems = updatedItems.filter((item) => {
+      const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+      const pendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+      const receivedQuantity = Number(item.receivedQuantity) || 0;
+      const befTaxDiscount = Number(item.befTaxDiscount) || 0;
+      const afTaxDiscount = Number(item.afTaxDiscount) || 0;
+      const grnPrice = item.grnPrice !== undefined ? item.grnPrice : undefined;
+
+      if (befTaxDiscount < 0 || befTaxDiscount > 100) {
+        setSnackbarInvoiceMessage(`Before-tax discount for item "${item.itemName}" must be between 0 and 100%.`);
+        setSnackbarInvoiceOpen(true);
+        return false;
+      }
+
+      if (afTaxDiscount < 0) {
+        setSnackbarInvoiceMessage(`After-tax discount for item "${item.itemName}" cannot be negative.`);
+        setSnackbarInvoiceOpen(true);
+        return false;
+      }
+
+      if (grnPrice !== undefined && (grnPrice < 0)) {
+        setSnackbarInvoiceMessage(`GRN price for item "${item.itemName}" cannot be negative.`);
+        setSnackbarInvoiceOpen(true);
+        return false;
+      }
+
+      return receivedQuantity > 0 && pendingTotalQuantity > 0;
     });
 
-    setSelectedOrder((prev) =>
-      prev
-        ? {
+    if (validItems.length === 0) {
+      const hasPendingItems = updatedItems.some((item) => {
+        const originalItem = selectedOrder.items.find((orig) => orig.itemId === item.itemId);
+        return (originalItem?.pendingTotalQuantity || 0) > 0;
+      });
+
+      if (!hasPendingItems) {
+        setSnackbarInvoiceMessage("All items in this purchase order have already been fully received.");
+        setSnackbarInvoiceOpen(true);
+      } else {
+        setSnackbarInvoiceMessage("At least one item must have a valid received quantity greater than 0.");
+        setSnackbarInvoiceOpen(true);
+      }
+      return;
+    }
+
+    const hasExcessQuantity = validItems.some((item) => {
+      const originalItem = selectedOrder.items.find((original) => original.itemId === item.itemId);
+      const backendPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+      const receivedQuantity = Number(item.receivedQuantity);
+
+      if (receivedQuantity > backendPendingTotalQuantity) {
+        setExcessDialogMessage(
+          `Received quantity for item "${item.itemName}" (${receivedQuantity}) exceeds the pending total quantity (${backendPendingTotalQuantity}).`
+        );
+        setExcessDialogOpen(true);
+        return true;
+      }
+      return false;
+    });
+    // Validate location is selected
+    if (!receivingLocation) {
+      setSnackbarInvoiceMessage("Please select a receiving location.");
+      setSnackbarInvoiceOpen(true);
+      setIsTouched(true);
+      return;
+    }
+
+    if (hasExcessQuantity) return;
+
+    const items = validItems.map((item) => {
+      const receivedQuantity = Number(item.receivedQuantity);
+      const befTaxDiscount = Math.max(0, Math.min(100, Number(item.befTaxDiscount) || 0));
+      const afTaxDiscount = Math.max(0, Number(item.afTaxDiscount) || 0);
+      const grnPrice = item.grnPrice !== undefined ? item.grnPrice : undefined;
+
+      return {
+        itemId: item.itemId,
+        receivedQuantity: receivedQuantity,
+        grnPrice: grnPrice,
+        befTaxDiscount: befTaxDiscount,
+        afTaxDiscount: afTaxDiscount,
+        expiryDate: item.expiryDate
+          ? item.expiryDate.toISOString()
+          : null,
+      };
+    });
+
+    console.log("Items being sent to backend:", items);
+    console.log("Freights being sent to backend:", freights);
+    console.log("Round off amount:", roundOffAmount);
+
+    try {
+      setIsProcessing(true);
+      const updateResult = await dispatch(
+        updateReceivedDamagedQuantities({
+          purchaseOrderId: selectedOrder.purchaseOrderId,
+          items,
+          invoiceNo: invoiceNumber.trim(),
+          invoiceDate: finalInvoiceDate,
+          grnDate: grnDate || new Date(),
+          discountPrice: 0,
+          grnRoundOffAmount: roundOffAmount,
+          freights,
+          locationId: receivingLocation.locationId,  // Send location ID
+          locationName: receivingLocation.branchName,  // Send location name
+        })
+      ).unwrap();
+
+      console.log("Update Result:", updateResult);
+      setRoundOffAmount(0);
+
+      const updatedOrderItems = selectedOrder.items.map((originalItem) => {
+        const updatedItem = items.find((item) => item.itemId === originalItem.itemId);
+        if (updatedItem) {
+          const newPendingTotalQuantity = Math.max(
+            0,
+            (originalItem.pendingTotalQuantity || 0) - updatedItem.receivedQuantity
+          );
+          const newPendingCount = newPendingTotalQuantity > 0 ? originalItem.pendingCount || 1 : 0;
+          const newPendingQuantity = newPendingTotalQuantity;
+          const grnPrice = updatedItem.grnPrice !== undefined ? updatedItem.grnPrice : originalItem.newPrice;
+
+          return {
+            ...originalItem,
+            pendingTotalQuantity: newPendingTotalQuantity,
+            pendingCount: newPendingCount,
+            pendingQuantity: newPendingQuantity,
+            status: newPendingTotalQuantity === 0 ? "Received" : originalItem.status || "Pending",
+            receivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+            totalReceivedQuantity: Number(originalItem.receivedQuantity || 0) + updatedItem.receivedQuantity,
+            grnPrice: grnPrice,
+            befTaxDiscount: updatedItem.befTaxDiscount,
+            afTaxDiscount: updatedItem.afTaxDiscount,
+            expiryDate: updatedItem.expiryDate ? new Date(updatedItem.expiryDate) : null,
+          };
+        }
+        return originalItem;
+      });
+
+      setSelectedOrder((prev) =>
+        prev
+          ? {
             ...prev,
             items: updatedOrderItems,
             pendingOrderAmount: updateResult.pendingOrderAmount || 0,
@@ -1679,69 +1676,11 @@ if (!validateExpiryDates()) {
             invoiceDate: updateResult.invoiceDate ? parseLocalDate(updateResult.invoiceDate) : null,
             freights: updateResult.freights || prev.freights,
           }
-        : null
-    );
+          : null
+      );
 
-    setUpdatedItems(
-      updatedOrderItems.map((item) => ({
-        ...item,
-        receivedQuantity: item.pendingTotalQuantity || 0,
-        grnPrice: undefined,
-        befTaxDiscount: item.befTaxDiscount || 0,
-        afTaxDiscount: item.afTaxDiscount || 0,
-        expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime())
-          ? new Date(item.expiryDate)
-          : null,
-      }))
-    );
-
-    setTouched(
-      updatedOrderItems.reduce(
-        (acc, _, index) => ({
-          ...acc,
-          [index]: { receivedQuantity: false, grnPrice: false, befTaxDiscount: false, afTaxDiscount: false },
-        }),
-        {}
-      )
-    );
-
-    setErrors(
-      updatedOrderItems.reduce(
-        (acc, _, index) => ({
-          ...acc,
-          [index]: { receivedQuantity: "", grnPrice: "", befTaxDiscount: "", afTaxDiscount: "" },
-        }),
-        {}
-      )
-    );
-
-    await dispatch(
-      fetchPurchaseOrders({
-        page: currentPage,
-        size: pageSize,
-        dateField: "approvedDate",
-      })
-    ).unwrap();
-
-    setSnackbarInvoiceMessage('Changes saved successfully!');
-    setSnackbarInvoiceOpen(true);
-    handleCloseDialogs();
-  } catch (error: any) {
-    console.error("Save Error:", error);
-    let errorMessage = "Failed to save changes. ";
-    if (error.message) {
-      errorMessage += error.message;
-    } else if (typeof error === 'string') {
-      errorMessage += error;
-    } else {
-      errorMessage += "Please check your inputs and try again.";
-    }
-    setSnackbarInvoiceMessage(errorMessage);
-    setSnackbarInvoiceOpen(true);
-
-    if (selectedOrder) {
       setUpdatedItems(
-        selectedOrder.items.map((item) => ({
+        updatedOrderItems.map((item) => ({
           ...item,
           receivedQuantity: item.pendingTotalQuantity || 0,
           grnPrice: undefined,
@@ -1752,8 +1691,9 @@ if (!validateExpiryDates()) {
             : null,
         }))
       );
+
       setTouched(
-        selectedOrder.items.reduce(
+        updatedOrderItems.reduce(
           (acc, _, index) => ({
             ...acc,
             [index]: { receivedQuantity: false, grnPrice: false, befTaxDiscount: false, afTaxDiscount: false },
@@ -1761,8 +1701,9 @@ if (!validateExpiryDates()) {
           {}
         )
       );
+
       setErrors(
-        selectedOrder.items.reduce(
+        updatedOrderItems.reduce(
           (acc, _, index) => ({
             ...acc,
             [index]: { receivedQuantity: "", grnPrice: "", befTaxDiscount: "", afTaxDiscount: "" },
@@ -1770,32 +1711,89 @@ if (!validateExpiryDates()) {
           {}
         )
       );
+
+      await dispatch(
+        fetchPurchaseOrders({
+          page: currentPage,
+          size: pageSize,
+          dateField: "approvedDate",
+        })
+      ).unwrap();
+
+      setSnackbarInvoiceMessage('Changes saved successfully!');
+      setSnackbarInvoiceOpen(true);
+      handleCloseDialogs();
+    } catch (error: any) {
+      console.error("Save Error:", error);
+      let errorMessage = "Failed to save changes. ";
+      if (error.message) {
+        errorMessage += error.message;
+      } else if (typeof error === 'string') {
+        errorMessage += error;
+      } else {
+        errorMessage += "Please check your inputs and try again.";
+      }
+      setSnackbarInvoiceMessage(errorMessage);
+      setSnackbarInvoiceOpen(true);
+
+      if (selectedOrder) {
+        setUpdatedItems(
+          selectedOrder.items.map((item) => ({
+            ...item,
+            receivedQuantity: item.pendingTotalQuantity || 0,
+            grnPrice: undefined,
+            befTaxDiscount: item.befTaxDiscount || 0,
+            afTaxDiscount: item.afTaxDiscount || 0,
+            expiryDate: item.expiryDate && !isNaN(new Date(item.expiryDate).getTime())
+              ? new Date(item.expiryDate)
+              : null,
+          }))
+        );
+        setTouched(
+          selectedOrder.items.reduce(
+            (acc, _, index) => ({
+              ...acc,
+              [index]: { receivedQuantity: false, grnPrice: false, befTaxDiscount: false, afTaxDiscount: false },
+            }),
+            {}
+          )
+        );
+        setErrors(
+          selectedOrder.items.reduce(
+            (acc, _, index) => ({
+              ...acc,
+              [index]: { receivedQuantity: "", grnPrice: "", befTaxDiscount: "", afTaxDiscount: "" },
+            }),
+            {}
+          )
+        );
+      }
+    } finally {
+      setIsProcessing(false);
     }
-  } finally {
-    setIsProcessing(false);
-  }
-}, [
-  selectedOrder,
-  invoiceNumber,
-  isInvoiceDuplicate,
-  updatedItems,
-  invoiceDate,
-  grnDate,
-  roundOffAmount,
-  totalOrderAmount,
-  errors,
-  dispatch,
-  currentPage,
-  pageSize,
-  handleCloseDialogs,
-  setExcessDialogMessage,
-  setExcessDialogOpen,
-  setSnackbarInvoiceMessage,
-  setSnackbarInvoiceOpen,
-  setIsTouched,
-  freights,
-  validateExpiryDates, // Add this dependency
-]);
+  }, [
+    selectedOrder,
+    invoiceNumber,
+    isInvoiceDuplicate,
+    updatedItems,
+    invoiceDate,
+    grnDate,
+    roundOffAmount,
+    totalOrderAmount,
+    errors,
+    dispatch,
+    currentPage,
+    pageSize,
+    handleCloseDialogs,
+    receivingLocation,  // Add this dependency
+    setExcessDialogMessage,
+    setExcessDialogOpen,
+    setSnackbarInvoiceMessage,
+    setSnackbarInvoiceOpen,
+    setIsTouched,
+    freights,
+    validateExpiryDates, // Add this dependency
+  ]);
   // FIXED: Added null-check for order.items to prevent runtime error in some()
   const filteredOrders = useMemo(() =>
     purchaseList.filter((order) =>
@@ -1804,6 +1802,8 @@ if (!validateExpiryDates()) {
       (order.items && order.items.some(item => (item.pendingTotalQuantity || 0) > 0))
     ), [purchaseList]);
   // FULL: Updated handleViewDetailsClick function
+  // In ApprovedPurchase component, update the handleViewDetailsClick function:
+
   const handleViewDetailsClick = (orderId: string) => {
     const rawOrder = purchaseList.find((order) => order.purchaseOrderId === orderId);
     if (rawOrder) {
@@ -1811,6 +1811,22 @@ if (!validateExpiryDates()) {
         ...item,
         expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
       })) as ItemWithCalculations[];
+
+      // FIX: Create a proper Location object from the PO's location data
+      if (rawOrder.locationId && rawOrder.locationName) {
+        // Create a proper Location object with all required fields
+        const poLocation: Location = {
+          locationId: rawOrder.locationId,
+          branchName: rawOrder.locationName,
+          status: "active", // or whatever default status makes sense
+          // Add any other required fields from your Location model with default values
+        };
+        setReceivingLocation(poLocation);
+      } else {
+        // Reset if no location in PO
+        setReceivingLocation(null);
+      }
+
       // Load existing cumulative freights for editing in dialog
       const orderFreights: FreightData[] = rawOrder.freights?.map((freight: any) => ({
         id: freight.id || freight.freightId || '',
@@ -1825,7 +1841,8 @@ if (!validateExpiryDates()) {
         taxType: freight.taxType || 'cgst_sgst',
         taxPercentage: freight.taxPercentage || 0,
       })) || [];
-      setFreights(orderFreights); // Set full cumulative for editable preview in dialog
+      setFreights(orderFreights);
+
       const transformedOrder: PurchaseOrderWithItems = {
         ...rawOrder,
         orderDate: rawOrder.orderDate ? new Date(rawOrder.orderDate) : null,
@@ -1835,9 +1852,11 @@ if (!validateExpiryDates()) {
         items: transformedItems,
       };
       setSelectedOrder(transformedOrder);
+
       const currentDate = new Date();
       setInvoiceDate(currentDate);
       setGrnDate(currentDate);
+
       const initializedItems = transformedItems.map((item: ItemWithCalculations) => {
         const pendingTotalQuantity = item.pendingTotalQuantity || 0;
         const pendingCount = item.pendingCount || 1;
@@ -1861,6 +1880,7 @@ if (!validateExpiryDates()) {
         };
       });
       setUpdatedItems(initializedItems);
+
       const initialTouched = initializedItems.reduce(
         (acc, _, index) => ({
           ...acc,
@@ -1874,6 +1894,7 @@ if (!validateExpiryDates()) {
         }),
         {}
       );
+
       const initialErrorsObj = initializedItems.reduce(
         (acc, _, index) => ({
           ...acc,
@@ -1881,10 +1902,12 @@ if (!validateExpiryDates()) {
         }),
         {}
       );
+
       const initialErrors = {
         ...initialErrorsObj,
         roundOff: ""
       };
+
       setTouched(initialTouched);
       setErrors(initialErrors);
       setRoundOffAmount(0);
@@ -1900,406 +1923,43 @@ if (!validateExpiryDates()) {
     }
   };
   // ... rest of the code remains the same for handleDownload, handleExportAllVendorsPDF, handleExportAllVendorsCSV, etc.
-    const handleDownload = useCallback(
+  const handleDownload = useCallback(
     async (poid: string) => {
-      const purchaseOrder = purchaseList.find((order) => order.purchaseOrderId === poid);
-      if (!purchaseOrder) {
-        console.error('Purchase Order not found for ID:', poid);
-        return;
-      }
-      const business = businesses[0];
-      if (!business) {
-        console.error('Business information not found!');
-        return;
-      }
+      try {
+        setLoading(true);
 
-      const doc = new jsPDF();
-      let yOffset = 50;
-      let totalPages = 1;
-      const headerHeight = 50;
-
-      // Helper function to draw the header (logo, title, business details)
-      const drawHeader = (currentDoc: jsPDF) => {
-        let headerYOffset = 10;
-        if (business.imageUrl) {
-          currentDoc.addImage(business.imageUrl, 'JPEG', 35, headerYOffset, 25, 25);
+        const purchaseOrder = purchaseList.find((order) => order.purchaseOrderId === poid);
+        if (!purchaseOrder) {
+          setSnackbarInvoiceMessage('Purchase Order not found');
+          setSnackbarInvoiceOpen(true);
+          return;
         }
-        currentDoc.setFontSize(14);
-        currentDoc.setFont('helvetica', 'bold');
-        currentDoc.setTextColor(0, 0, 128);
-        const title = 'Purchase Order';
-        currentDoc.text(title, 90, headerYOffset + 5);
-        currentDoc.setFontSize(12);
-        currentDoc.setTextColor(0, 0, 0);
-        currentDoc.text(business.companyName, 90, headerYOffset + 10);
-        currentDoc.setFontSize(8);
-        currentDoc.text(business.address1, 90, headerYOffset + 15);
-        currentDoc.text(`Tel.No: ${business.phoneNo}`, 90, headerYOffset + 20);
-        currentDoc.text(`E-Mail: ${business.emailId}`, 90, headerYOffset + 25);
-        currentDoc.text(`GSTIN: ${business.gstIn}`, 90, headerYOffset + 30);
-      };
 
-      // Helper function to add page numbers
-      function addPageNumbers() {
-        for (let i = 1; i <= doc.getNumberOfPages(); i++) {
-          doc.setPage(i);
-          doc.setFontSize(8);
-          doc.setTextColor(0, 0, 0);
-          doc.text(`Page ${i} of ${doc.getNumberOfPages()}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-        }
+        const result = await dispatch(downloadPurchaseOrderPDF(poid)).unwrap();
+
+        // Create download link
+        const url = window.URL.createObjectURL(new Blob([result.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `PO_${purchaseOrder.randomId || poid}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+
+        setSnackbarInvoiceMessage('PDF downloaded successfully');
+        setSnackbarInvoiceOpen(true);
+
+      } catch (error: any) {
+        setSnackbarInvoiceMessage(error.message || 'Failed to download PDF');
+        setSnackbarInvoiceOpen(true);
+      } finally {
+        setLoading(false);
       }
-
-      // Helper function to check if yOffset exceeds page height
-      function checkPageOverflow(currentYOffset: number, additionalHeight: number): number {
-        if (currentYOffset + additionalHeight > doc.internal.pageSize.height - 20) {
-          doc.addPage();
-          totalPages++;
-          return headerHeight;
-        }
-        return currentYOffset;
-      }
-
-      // Vendor Details Table
-      const columnWidth = 60.6;
-      const tableHeader = [['Vendor Details', 'Shipping Address', 'PO Details']];
-      const vendorDetailsRows = [
-        [
-          `${purchaseOrder.vendorName || ' '}\n` +
-          `GSTIN: ${purchaseOrder.gstNumber || ''}\n` +
-          `Address: ${purchaseOrder.address || ''}\n` +
-          `City: ${purchaseOrder.city || ''}\n` +
-          `State: ${purchaseOrder.state || ''}\n` +
-          `Country: ${purchaseOrder.country || ''}\n` +
-          `Email: ${purchaseOrder.contactpersonEmail || ''}\n` +
-          `Phone: ${purchaseOrder.vendorContact || ''}`,
-          `Shipping Address: ${purchaseOrder.shippingAddress || ''}`,
-          `PO No: ${purchaseOrder.randomId || ''}\n` +
-          `PO Date: ${purchaseOrder.orderDate ? format(new Date(purchaseOrder.orderDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-          `Due Date: ${purchaseOrder.expectedDeliveryDate ? format(new Date(purchaseOrder.expectedDeliveryDate), 'dd-MM-yyyy') : 'Not Provided'}\n` +
-          `Payment Terms: ${purchaseOrder.paymentTerms || ''}\n` +
-          `Status: ${purchaseOrder.poStatus || ''}\n` +
-          `Currency: INR`,
-        ],
-      ];
-
-      doc.autoTable({
-        head: tableHeader,
-        body: vendorDetailsRows,
-        startY: yOffset,
-        theme: 'grid',
-        margin: { top: headerHeight, bottom: 15 },
-        styles: {
-          fontSize: 9,
-          cellPadding: 4,
-          halign: 'left',
-          valign: 'top',
-          overflow: 'linebreak',
-          lineWidth: 0.1,
-          lineColor: [0, 0, 0],
-        },
-        columnStyles: {
-          0: { cellWidth: columnWidth, valign: 'top' },
-          1: { cellWidth: columnWidth, valign: 'top' },
-          2: { cellWidth: columnWidth, valign: 'top' },
-        },
-        headStyles: {
-          fillColor: [0, 0, 128],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          lineWidth: 0,
-        },
-        bodyStyles: {
-          lineColor: [0, 0, 0],
-          minCellHeight: 25,
-        },
-        didDrawPage: () => {
-          totalPages = doc.getNumberOfPages();
-        },
-      });
-
-      yOffset = doc.autoTable.previous.finalY;
-
-      // Items Table
-      const itemHeader = ['S No', 'Description', 'HsnCode', 'No of Packing', 'Qty', 'Po Qty', 'Unit Price', 'Tax', 'Amount'];
-      const tableRows = purchaseOrder.items
-        .filter((item) => item.status !== 'Received')
-        .map((item, index) => {
-          const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
-          const quantity = item.pendingTotalQuantity || 0;
-          const totalAmount = unitPrice * quantity;
-          return [
-            `${index + 1}`,
-            item.itemName || 'Item Description',
-            item.hsnCode || '',
-            item.pendingCount || '',
-            `${(item.pendingQuantity || 0).toFixed(2)} ${item.uom}`, // FIXED: Added .toFixed(2)
-            `${quantity} ${item.uom}`,
-            unitPrice.toFixed(2),
-            `${item.taxPercentage || 0}%`,
-            totalAmount.toFixed(2),
-          ];
-        });
-
-      doc.autoTable({
-        head: [itemHeader],
-        body: tableRows,
-        startY: yOffset,
-        theme: 'grid',
-        margin: { top: headerHeight, bottom: 15 },
-        styles: {
-          fontSize: 8,
-          halign: 'center',
-          cellPadding: 2,
-          lineWidth: 0.1,
-          lineColor: [0, 0, 0],
-        },
-        headStyles: {
-          fillColor: [0, 0, 128],
-          textColor: [255, 255, 255],
-          lineWidth: 0.1,
-          lineColor: [0, 0, 0],
-        },
-        bodyStyles: {
-          lineColor: [0, 0, 0],
-          lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
-        },
-        columnStyles: {
-          0: { halign: 'center' },
-          1: { halign: 'left' },
-          2: { halign: 'left' },
-          3: { halign: 'right' },
-          4: { halign: 'right' },
-          5: { halign: 'right' },
-          6: { halign: 'right' },
-          7: { halign: 'right' },
-          8: { halign: 'right' },
-        },
-        didDrawPage: () => {
-          totalPages = doc.getNumberOfPages();
-        },
-      });
-
-      yOffset = doc.autoTable.previous.finalY;
-
-      // Calculate taxes for items
-      const taxRates = {
-        CGST: new Map<number, number>(),
-        SGST: new Map<number, number>(),
-        IGST: new Map<number, number>(),
-      };
-
-      purchaseOrder.items.forEach((item) => {
-        const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
-        const taxableAmount = unitPrice * (item.pendingTotalQuantity || 0);
-
-        if (item.taxType === 'cgst_sgst') {
-          const cgstRate = (item.taxPercentage || 0) / 2;
-          const sgstRate = (item.taxPercentage || 0) / 2;
-          const cgstAmount = (cgstRate / 100) * taxableAmount;
-          const sgstAmount = (sgstRate / 100) * taxableAmount;
-          taxRates.CGST.set(cgstRate, (taxRates.CGST.get(cgstRate) || 0) + cgstAmount);
-          taxRates.SGST.set(sgstRate, (taxRates.SGST.get(sgstRate) || 0) + sgstAmount);
-        } else if (item.taxType === 'igst') {
-          const igstAmount = ((item.taxPercentage || 0) / 100) * taxableAmount;
-          taxRates.IGST.set(item.taxPercentage || 0, (taxRates.IGST.get(item.taxPercentage || 0) || 0) + igstAmount);
-        }
-      });
-      const freightTaxRates = {
-        CGST: new Map<number, number>(),
-        SGST: new Map<number, number>(),
-        IGST: new Map<number, number>(),
-      };
-
-      // Calculate freight taxes if freight charges exist
-      if (purchaseOrder.freights && purchaseOrder.freights.length > 0) {
-        purchaseOrder.freights.forEach((freight) => {
-          const freightAmount = freight.amt || 0; // Changed from freight.freightAmount
-          const freightTaxAmount = freight.tAmt || 0; // Changed from freight.freightTaxPercentage
-
-          // Calculate tax percentage from amount and tax amount
-          // taxPercentage = (taxAmount / amount) * 100
-          const freightTaxPercentage = freightAmount > 0 ? (freightTaxAmount / freightAmount) * 100 : 0;
-
-          if (freight.taxType === 'cgst_sgst') {
-            const cgstRate = freightTaxPercentage / 2;
-            const sgstRate = freightTaxPercentage / 2;
-            const cgstAmount = (cgstRate / 100) * freightAmount;
-            const sgstAmount = (sgstRate / 100) * freightAmount;
-            freightTaxRates.CGST.set(cgstRate, (freightTaxRates.CGST.get(cgstRate) || 0) + cgstAmount);
-            freightTaxRates.SGST.set(sgstRate, (freightTaxRates.SGST.get(sgstRate) || 0) + sgstAmount);
-          } else if (freight.taxType === 'igst') {
-            const igstAmount = freightTaxAmount; // Directly use the tax amount
-            freightTaxRates.IGST.set(freightTaxPercentage, (freightTaxRates.IGST.get(freightTaxPercentage) || 0) + igstAmount);
-          }
-        });
-      }
-
-      // Calculate total without tax
-      const totalWithoutTax = purchaseOrder.items.reduce((sum, item) => {
-        const unitPrice = item.grnPrice !== undefined ? item.grnPrice : (item.newPrice || 0);
-        return sum + ((item.pendingTotalQuantity || 0) * unitPrice);
-      }, 0);
-
-      // Build tax summary
-      const taxSummary: [string, string][] = [
-        [`Total Amount`, totalWithoutTax.toFixed(2)],
-        [`Total Discount`, (purchaseOrder.totalDiscount || 0).toFixed(2)],
-      ];
-
-      // Add item taxes
-      taxRates.CGST.forEach((amount, rate) => taxSummary.push([`CGST @${rate}%`, amount.toFixed(2)]));
-      taxRates.SGST.forEach((amount, rate) => taxSummary.push([`SGST @${rate}%`, amount.toFixed(2)]));
-      taxRates.IGST.forEach((amount, rate) => taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]));
-
-      // Calculate subtotal (items total with tax)
-      const itemsTotalWithTax = totalWithoutTax +
-        Array.from(taxRates.CGST.values()).reduce((sum, amount) => sum + amount, 0) +
-        Array.from(taxRates.SGST.values()).reduce((sum, amount) => sum + amount, 0) +
-        Array.from(taxRates.IGST.values()).reduce((sum, amount) => sum + amount, 0);
-
-      // Add freight charges
-      const totalFreightAmount = purchaseOrder.totalFreightAmount || 0;
-      if (totalFreightAmount > 0) {
-        taxSummary.push([`Freight Charges`, totalFreightAmount.toFixed(2)]);
-      }
-
-      // Add freight taxes
-      freightTaxRates.CGST.forEach((amount, rate) => taxSummary.push([`Freight CGST @${rate}%`, amount.toFixed(2)]));
-      freightTaxRates.SGST.forEach((amount, rate) => taxSummary.push([`Freight SGST @${rate}%`, amount.toFixed(2)]));
-      freightTaxRates.IGST.forEach((amount, rate) => taxSummary.push([`Freight IGST @${rate}%`, amount.toFixed(2)]));
-
-      // Calculate total with tax including freight
-      const totalFreightTaxAmount = purchaseOrder.totalFreightTaxAmount || 0;
-      const subtotalWithFreight = itemsTotalWithTax + totalFreightAmount + totalFreightTaxAmount;
-
-      const roundOffAmount = purchaseOrder.roundOffValue || 0;
-      const grandTotal = subtotalWithFreight + roundOffAmount;
-      const roundedGrandTotal = Math.round(grandTotal);
-      const finalRoundOff = roundedGrandTotal - grandTotal;
-
-      // Add round off and grand total
-      taxSummary.push([`Round Off Amount`, purchaseOrder.roundOffValue.toFixed(2)]);
-
-      // If there's an additional round-off due to rounding to whole number
-      if (Math.abs(finalRoundOff) > 0.01) {
-        taxSummary.push([`Final Round Off`, finalRoundOff.toFixed(2)]);
-      }
-
-      taxSummary.push([
-        `Amount In Words: ${toWords(roundedGrandTotal)} only`,
-        `Grand Total [Including Tax]: ${roundedGrandTotal.toFixed(2)}`
-      ]);
-
-      doc.autoTable({
-        body: taxSummary,
-        startY: yOffset,
-        theme: 'grid',
-        margin: { top: headerHeight, bottom: 15 },
-        styles: {
-          fontSize: 8,
-          halign: 'right',
-          cellPadding: 2,
-          lineColor: [0, 0, 0],
-          lineWidth: 0.1,
-          fontStyle: 'bold'
-        },
-        didDrawPage: () => {
-          totalPages = doc.getNumberOfPages();
-        },
-      });
-
-      yOffset = doc.autoTable.previous.finalY + 10;
-
-      // Terms and Conditions
-      yOffset = checkPageOverflow(yOffset, 15);
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0);
-      doc.text('Terms & Conditions', 10, yOffset);
-      yOffset += 5;
-
-      const staticTerms = [
-        '1. Please quote our Purchase Order No. in your Delivery Note.',
-        '2. Defective and excess quantity will not be accepted.',
-        '3. Subject to Ramanathapuram Jurisdiction Only',
-      ];
-
-      const maxWidth = 90;
-      const lineHeight = 5;
-
-      staticTerms.forEach((term) => {
-        const lines = doc.splitTextToSize(term, maxWidth);
-        lines.forEach((line: string) => {
-          yOffset = checkPageOverflow(yOffset, lineHeight);
-          doc.setFont('helvetica', 'normal');
-          doc.text(line, 10, yOffset);
-          yOffset += lineHeight;
-        });
-      });
-
-      const customTerms = Array.isArray(purchaseOrder.termsandConditions)
-        ? purchaseOrder.termsandConditions.filter((term) => typeof term === 'string' && term.trim().length > 0)
-        : [];
-
-      if (customTerms.length > 0) {
-        yOffset = checkPageOverflow(yOffset, 2);
-        yOffset += 2;
-        customTerms.forEach((term, index) => {
-          const termNumber = staticTerms.length + index + 1;
-          const customTermWithNumber = `${termNumber}. ${term.trim()}`;
-          const termsLines = doc.splitTextToSize(customTermWithNumber, maxWidth);
-          termsLines.forEach((line: string) => {
-            yOffset = checkPageOverflow(yOffset, lineHeight);
-            doc.setFont('helvetica', 'normal');
-            doc.text(line, 10, yOffset);
-            yOffset += lineHeight;
-          });
-        });
-      }
-
-      // Declaration and Signature
-      const declarationText = 'We declare that this invoice shows the actual price of the described items and that all particulars are true and correct.';
-      const declarationLines = doc.splitTextToSize(declarationText, 180);
-      const totalDeclarationHeight = (declarationLines.length * lineHeight) + 15;
-
-      yOffset = checkPageOverflow(yOffset, totalDeclarationHeight);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Declaration:', 10, yOffset);
-      yOffset += 5;
-
-      declarationLines.forEach((line: string) => {
-        doc.setFont('helvetica', 'normal');
-        doc.text(line, 10, yOffset);
-        yOffset += lineHeight;
-      });
-
-      yOffset += 10;
-      doc.setFont('helvetica', 'bold');
-      doc.text('Authorized Signatory', 130, yOffset);
-
-      // Draw headers on ALL pages
-      for (let i = 1; i <= doc.getNumberOfPages(); i++) {
-        doc.setPage(i);
-        drawHeader(doc);
-      }
-
-      // Add "This is computer generated" note
-      const computerGeneratedText = "This is computer generated";
-      for (let i = 1; i <= doc.getNumberOfPages(); i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setFont('helvetica');
-        doc.setTextColor(0, 0, 0);
-        doc.text(computerGeneratedText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 20, { align: 'center' });
-      }
-
-      // Add page numbers
-      addPageNumbers();
-
-      doc.save(`${purchaseOrder.vendorName} ${purchaseOrder.randomId}.pdf`);
     },
-    [purchaseList, businesses]
+    [dispatch, purchaseList, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen]
   );
+
   const handleExportAllVendorsPDF = useCallback(
     ({ filteredOrders, businesses, setSnackbarInvoiceMessage, setSnackbarInvoiceOpen }: ExportProps) => {
       const doc = new jsPDF();
@@ -2823,7 +2483,7 @@ if (!validateExpiryDates()) {
     );
   }
   if (error) return <Typography>Error: {error}</Typography>;
-    if (!hasApprovedAccess) {
+  if (!hasApprovedAccess) {
     return (
       <Box sx={{ p: 4, textAlign: "center" }}>
         <Typography variant="h5" color="error" sx={{ mb: 2 }}>
@@ -2839,7 +2499,7 @@ if (!validateExpiryDates()) {
           Required: <b>purchaseorders_approved.read</b>
         </Typography>
 
-         <Button
+        <Button
           variant="contained"
           sx={{ mt: 3 }}
           onClick={() => router.push("/yen-purchase/PurchaseOrder")}
@@ -2853,15 +2513,15 @@ if (!validateExpiryDates()) {
     <Box sx={{ pl: 0, py: 1 }}>
       <YenPurchasePage />
       <Box sx={{ display: "flex", flexDirection: "column", px: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 1,mt:1 }}>
-            {!hidePending && (
-          <Link href={"/yen-purchase/PurchaseOrder"}>
-           <Button variant="contained" color="primary">
+        <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 1, mt: 1 }}>
+          {!hidePending && (
+            <Link href={"/yen-purchase/PurchaseOrder"}>
+              <Button variant="contained" color="primary">
                 Pending
               </Button>
             </Link>
-            )}
-  
+          )}
+
           <Link href={"/yen-purchase/PurchaseOrder/Approvedpo"}>
             <Button
               variant="contained"
@@ -2874,23 +2534,23 @@ if (!validateExpiryDates()) {
               Approved
             </Button>
           </Link>
-           
+
           {!hideRejected && canViewRejected && (
             <Link href={"/yen-purchase/PurchaseOrder/RejectedPo"}>
               <Button variant="contained" color="primary">
                 Rejected
               </Button>
-          </Link>
+            </Link>
           )}
           {isGrnConvertedVisible && (
-  <Link href={"/yen-purchase/PurchaseOrder/GRNConvertedPO"}>
-  <Button
+            <Link href={"/yen-purchase/PurchaseOrder/GRNConvertedPO"}>
+              <Button
                 variant="contained"
-               color="primary"
+                color="primary"
               >
-               GRN Converted
+                GRN Converted
               </Button>
-  </Link>
+            </Link>
           )}
         </Box>
         {/* Filter and search UI - keep as is */}
@@ -2991,28 +2651,28 @@ if (!validateExpiryDates()) {
                     <TableCell className='table-number-right'>{(order.pendingOrderAmount || 0).toFixed(2)}</TableCell>
                     <TableCell>{order.poStatus}</TableCell>
                     <TableCell>
-                     <Tooltip title="View Details">
-                      <IconButton
-                        onClick={() =>
-                          handleViewDetailsClick(order.purchaseOrderId)
-                        }
-                        disabled={!canViewApproved}
-                        sx={{
-                          color: canViewApproved ? "primary.main" : "gray",
-                          opacity: canViewApproved ? 1 : 0.4,
-                        }}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Download">
-                      <IconButton
-                        color="primary"
-                        onClick={() => handleDownload(order.purchaseOrderId)}
-                      >
-                        <PictureAsPdfIcon />
-                      </IconButton>
-                    </Tooltip>
+                      <Tooltip title="View Details">
+                        <IconButton
+                          onClick={() =>
+                            handleViewDetailsClick(order.purchaseOrderId)
+                          }
+                          disabled={!canViewApproved}
+                          sx={{
+                            color: canViewApproved ? "primary.main" : "gray",
+                            opacity: canViewApproved ? 1 : 0.4,
+                          }}
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Download">
+                        <IconButton
+                          color="primary"
+                          onClick={() => handleDownload(order.purchaseOrderId)}
+                        >
+                          <PictureAsPdfIcon />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))
@@ -3075,6 +2735,9 @@ if (!validateExpiryDates()) {
           applyingDiscount={applyingDiscount}
           freights={freights}
           onEditFreights={handleEditFreights}
+          receivingLocation={receivingLocation}  // Add this
+          setReceivingLocation={setReceivingLocation}  // Add this
+          poLocationId={selectedOrder?.locationId}  // Add this to pass PO's location ID
         />
         <Dialog open={openEditDialog} onClose={handleCloseDialogs}>
           <DialogTitle>Confirm Submission</DialogTitle>
@@ -3218,7 +2881,7 @@ if (!validateExpiryDates()) {
           onClose={() => setSnackbarInvoiceOpen(false)}
           message={snackbarInvoiceMessage}
         />
-         <StockUpdateDialog
+        <StockUpdateDialog
           open={showStockUpdateDialog}
           onClose={() => {
             console.log('Closing Stock Update Dialog');
@@ -3226,6 +2889,7 @@ if (!validateExpiryDates()) {
           }}
           result={stockUpdateResult}
         />
+
       </Box>
     </Box>
   );

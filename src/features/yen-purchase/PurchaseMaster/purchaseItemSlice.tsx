@@ -23,7 +23,7 @@ import { fetchCategories } from './PurchaseCategorySlice';
 
 
 
-const EXPORT_CSV_URL = 'http://127.0.0.1:8000/purchasetestapi/rawMaterials/export_csv';
+const EXPORT_CSV_URL = 'https://yenerp.com/purchasetestapi/rawMaterials/export_csv';
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
 // ---------- EXPORT (OLD) ----------
@@ -88,7 +88,7 @@ export const fetchPurchaseItems = createAsyncThunk(
     try {
       console.log('📡 Fetching purchase items with params:', params);
       
-      const response = await purchaseApi.get('http://127.0.0.1:8000/purchasetestapi/rawMaterials/', { 
+      const response = await purchaseApi.get('https://yenerp.com/purchasetestapi/rawMaterials/', { 
         params,
         
 
@@ -131,7 +131,7 @@ export const fetchUom = createAsyncThunk('uom/fetch', async () => {
   try {
     const username = localStorage.getItem('username') || 'default_user';
     
-    const response = await purchaseApi.get<UOM[]>('http://127.0.0.1:8000/purchasetestapi/purchaseuoms/', {
+    const response = await purchaseApi.get<UOM[]>('https://yenerp.com/purchasetestapi/purchaseuoms/', {
     
 
     });
@@ -154,7 +154,7 @@ export const fetchPurchaseItemtype = createAsyncThunk('itemtype/fetch', async ()
     // Get the username from your auth state or localStorage
     const username = localStorage.getItem('username') || 'default_user'; // Adjust based on your auth
     
-    const response = await purchaseApi.get<PurchaseItemType[]>('http://127.0.0.1:8000/purchasetestapi/itemtypes/', {
+    const response = await purchaseApi.get<PurchaseItemType[]>('https://yenerp.com/purchasetestapi/itemtypes/', {
     
 
     });
@@ -181,7 +181,7 @@ export const fetchPurchaseTaxes = createAsyncThunk('purchaseTaxes/fetch', async 
   try {
     const username = localStorage.getItem('username') || 'default_user';
     
-    const response = await purchaseApi.get('http://127.0.0.1:8000/purchasetestapi/purchasetaxes/', {
+    const response = await purchaseApi.get('https://yenerp.com/purchasetestapi/purchasetaxes/', {
      
 
     });
@@ -205,7 +205,7 @@ export const fetchStorageLocationItems = createAsyncThunk('storageLocations/fetc
   try {
     const username = localStorage.getItem('username') || 'default_user';
     
-    const response = await purchaseApi.get<StorageLocationItem[]>('http://127.0.0.1:8000/purchasetestapi/storagelocations/', {
+    const response = await purchaseApi.get<StorageLocationItem[]>('https://yenerp.com/purchasetestapi/storagelocations/', {
       
 
     });
@@ -225,7 +225,7 @@ export const fetchPurchaseGroupItems = createAsyncThunk('groupItems/fetch', asyn
   try {
     const username = localStorage.getItem('username') || 'default_user'; // Adjust based on your auth
     
-    const response = await purchaseApi.get('http://127.0.0.1:8000/purchasetestapi/itemgroups/', {
+    const response = await purchaseApi.get('https://yenerp.com/purchasetestapi/itemgroups/', {
      
 
     });
@@ -248,7 +248,7 @@ export const fetchPurchaseGroupItems = createAsyncThunk('groupItems/fetch', asyn
 
 // ---------- VENDORS ----------
 export const fetchAllVendors = createAsyncThunk('vendors/fetch', async () => {
-  const response = await purchaseApi.get<Vendor[]>('http://127.0.0.1:8000/purchasetestapi/vendors/',);
+  const response = await purchaseApi.get<Vendor[]>('https://yenerp.com/purchasetestapi/vendors/',);
   const vendorData = response.data.map((item) => ({
     vendorId: item.vendorId,
     vendorName: item.vendorName,
@@ -270,7 +270,7 @@ export const addPurchaseItem = createAsyncThunk(
       console.log('Sending purchase item data:', purchaseToAdd);
 
       const response = await purchaseApi.post<PurchaseItem>(
-        'http://127.0.0.1:8000/purchasetestapi/rawMaterials/',
+        'https://yenerp.com/purchasetestapi/rawMaterials/',
         purchaseToAdd,
        
       );
@@ -318,7 +318,7 @@ export const POsearchPurchaseItems = createAsyncThunk<
   }
 
   const response = await purchaseApi.get<PurchaseItemSearch[]>(
-    `http://127.0.0.1:8000/purchasetestapi/rawMaterials/exact-name/`,
+    `https://yenerp.com/purchasetestapi/rawMaterials/exact-name/`,
     {
       params: {
         item_name: searchQuery,
@@ -350,28 +350,60 @@ export const invalidatePOCache = createAsyncThunk('purchaseItems/invalidateCache
   console.log('Purchase items cache invalidated');
 });
 
+// In purchaseItemSlice.ts, ensure the thunk is properly typed
 export const searchPurchaseItems = createAsyncThunk<
-  PurchaseItemSearchAdd[],
-  { searchQuery: string; skip: number; limit: number; forceRefresh?: boolean }
->('purchaseOrder/searchPurchaseItems', async ({ searchQuery, skip, limit, forceRefresh = false }) => {
+  PurchaseItemSearchAdd[],  // Return type
+  { 
+    searchQuery: string; 
+    skip: number; 
+    limit: number; 
+    forceRefresh?: boolean;
+    locationId?: string | null;
+  }
+>('purchaseOrder/searchPurchaseItems', async ({ 
+  searchQuery, 
+  skip, 
+  limit, 
+  forceRefresh = false,
+  locationId = null
+}) => {
   try {
-    console.log('🔍 searchPurchaseItems: Fetching fresh data with stock from API');
+    console.log('🔍 searchPurchaseItems: Fetching fresh data with stock from API', { 
+      searchQuery, 
+      skip, 
+      limit, 
+      locationId 
+    });
     
-    // Always fetch fresh data, never use cache
+    // Build params object
+    const params: Record<string, any> = { 
+      itemName: searchQuery, 
+      skip, 
+      limit
+    };
+    
+    // Add locationId to params if provided
+    if (locationId) {
+      params.locationId = locationId;
+    }
+    
+    // Add cache-busting only if forceRefresh is true
+    if (forceRefresh) {
+      params._t = Date.now();
+    }
+    
     const response = await purchaseApi.get<SearchResponse>(
-      `http://127.0.0.1:8000/purchasetestapi/rawMaterials/search-with-stock`,
-      {
-        params: { 
-          itemName: searchQuery, 
-          skip, 
-          limit,
-          _t: Date.now() // Cache-busting parameter
-        }
-      }
+      `https://yenerp.com/purchasetestapi/rawMaterials/search-with-stock`,
+      { params }
     );
     
     const items = response.data?.items || [];
-    console.log(`✅ searchPurchaseItems: Received ${items.length} items with stock`);
+    console.log(`✅ searchPurchaseItems: Received ${items.length} items with stock for location ${locationId || 'all'}`);
+    
+    // Log stock details for debugging
+    items.forEach(item => {
+      console.log(`  📦 ${item.itemName}: stock=${item.availableStock}, location=${item.locationId}`);
+    });
     
     return items;
   } catch (error) {
@@ -379,8 +411,6 @@ export const searchPurchaseItems = createAsyncThunk<
     return [];
   }
 });
-
-
 export const invalidatePurchaseItemsCache = createAsyncThunk(
   'purchaseItems/invalidateCache',
   async () => {
@@ -404,10 +434,10 @@ export const updatePurchaseItem = createAsyncThunk(
       };
       
       console.log('✏️ Updating purchase item:', purchaseToUpdate);
-      console.log('🆔 Update URL:', `http://127.0.0.1:8000/purchasetestapi/rawMaterials/${purchase.purchaseitemId}`);
+      console.log('🆔 Update URL:', `https://yenerp.com/purchasetestapi/rawMaterials/${purchase.purchaseitemId}`);
 
       const response = await purchaseApi.patch<PurchaseItem>(
-        `http://127.0.0.1:8000/purchasetestapi/rawMaterials/${purchase.purchaseitemId}`,
+        `https://yenerp.com/purchasetestapi/rawMaterials/${purchase.purchaseitemId}`,
         purchaseToUpdate,
        
       );
@@ -438,7 +468,7 @@ export const deactivatePurchaseItem = createAsyncThunk('purchaseItems/deactivate
     console.log('🔴 Deactivating item with ID:', id);
     
     const response = await purchaseApi.patch<PurchaseItem>(
-      `http://127.0.0.1:8000/purchasetestapi/rawMaterials/${id}/deactivate`,
+      `https://yenerp.com/purchasetestapi/rawMaterials/${id}/deactivate`,
       { status: 'deactivated' },
       
     );
@@ -457,7 +487,7 @@ export const activatePurchaseItem = createAsyncThunk('purchaseItems/activate', a
     const username = localStorage.getItem('username') || 'default_user';
     
     await purchaseApi.patch<PurchaseItem>(
-      `http://127.0.0.1:8000/purchasetestapi/rawMaterials/${id}/activate`,
+      `https://yenerp.com/purchasetestapi/rawMaterials/${id}/activate`,
       { status: 'active' },
       
     );
@@ -477,7 +507,7 @@ export const importPurchaseItems = createAsyncThunk(
       formData.append('mode', mode);
 
       const response = await purchaseApi.post(
-        'http://127.0.0.1:8000/purchasetestapi/rawMaterials/import_csv',
+        'https://yenerp.com/purchasetestapi/rawMaterials/import_csv',
         formData,
       
       );
@@ -537,7 +567,7 @@ export const exportPurchaseItems = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await purchaseApi.get(
-        'http://127.0.0.1:8000/purchasetestapi/rawMaterials/purchaseitemexport/export_csv',
+        'https://yenerp.com/purchasetestapi/rawMaterials/purchaseitemexport/export_csv',
         {
 
           responseType: 'blob',
@@ -927,3 +957,4 @@ export const selectTotalItems = (state: RootState) => state.purchaseItems.totalI
 export const selectPurchaseItems = (state: RootState) => state.purchaseItems;
 
 export default purchaseItemSlice.reducer;
+

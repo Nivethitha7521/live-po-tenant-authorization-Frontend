@@ -1,5 +1,4 @@
 import { createSlice, PayloadAction, createAsyncThunk, createAction } from '@reduxjs/toolkit';
-import axios from 'axios';
 import { RootState } from '@/redux/store';
 import { CalculateOverallDiscountPayload, Item, OverallDiscountResponse, PurchaseItemSearchAdd, PurchaseOrderData, PurchaseOrderState, Vendor, Freight } from '../../../Models/purchaseModel'
 import purchaseApi from "@/utils/api";
@@ -89,7 +88,8 @@ export const initialState: PurchaseOrderState = {
     totalFreightAmount: 0,
     totalFreightTaxAmount: 0,
     vendorCode: '',
-    vendorId: ''
+    vendorId: '',
+    locationId: ''
   },
   newItem: {
     itemId: '',
@@ -181,7 +181,7 @@ export const initialState: PurchaseOrderState = {
 let purchaseItemsCache: Map<string, { data: PurchaseItemSearchAdd[], timestamp: number }> = new Map();
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
-const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
+const BASE_URL = 'https://yenerp.com/purchasetestapi';
 
 // Async thunks for freight and PO calculations
 export const calculateFreightTotals = createAsyncThunk(
@@ -565,21 +565,58 @@ const purchaseOrderSlice = createSlice({
   name: 'purchaseOrder',
   initialState,
   reducers: {
-   setPurchaseOrderData(state, action: PayloadAction<Partial<PurchaseOrderData>>) {
+ setPurchaseOrderData(state, action: PayloadAction<Partial<PurchaseOrderData>>) {
   const existingItems = state.purchaseOrderData.items;
+  
+  // Create a map of existing items by randomId for quick lookup
+  const existingItemsMap = new Map();
+  if (existingItems && existingItems.length > 0) {
+    existingItems.forEach(item => {
+      if (item.randomId) {
+        existingItemsMap.set(item.randomId, {
+          availableStock: item.availableStock,
+          locationId: item.locationId
+        });
+      }
+    });
+  }
   
   const newItems = action.payload.items?.map(item => {
     const existingItem = existingItems.find(e => e.randomId === item.randomId);
     
-    // availableStock: payload-ல் இருந்தா அதை use பண்ணு, இல்லன்னா existing preserve பண்ணு
-    const stockValue = (item.availableStock !== undefined && item.availableStock !== null)
-      ? Number(item.availableStock)
-      : (existingItem?.availableStock ?? 0);
+    // Priority 1: Use stock from new payload if provided
+    // Priority 2: Use stock from existing item
+    // Priority 3: Check if we have it in the map (for cases where existingItem might not match)
+    // Priority 4: Default to 0
+    
+    let stockValue = 0;
+    let locationValue = '';
+    
+    // Check new payload first
+    if (item.availableStock !== undefined && item.availableStock !== null) {
+      stockValue = Number(item.availableStock);
+    } 
+    // Then check existing item
+    else if (existingItem?.availableStock !== undefined && existingItem?.availableStock !== null) {
+      stockValue = Number(existingItem.availableStock);
+    }
+    // Then check map
+    else if (item.randomId && existingItemsMap.has(item.randomId)) {
+      const mapItem = existingItemsMap.get(item.randomId);
+      stockValue = mapItem.availableStock;
+    }
+    
+    // Handle location similarly
+    locationValue = item.locationId || 
+                    existingItem?.locationId || 
+                    (item.randomId && existingItemsMap.has(item.randomId) 
+                      ? existingItemsMap.get(item.randomId).locationId 
+                      : '');
 
     return {
       ...item,
       availableStock: stockValue,
-      locationId: item.locationId || existingItem?.locationId || '',
+      locationId: locationValue,
     };
   });
 
@@ -608,52 +645,58 @@ const purchaseOrderSlice = createSlice({
       state.purchaseOrderData.items = state.purchaseOrderData.items.filter(item => item.itemId !== action.payload);
     },
     setItemForEditing(state, action: PayloadAction<Item>) {
-      state.newItem = {
-        ...action.payload,
-        itemId: action.payload.itemId,
-        itemName: action.payload.itemName,
-        itemCode: action.payload.itemCode,
-        pendingCount: action.payload.pendingCount,
-        pendingQuantity: action.payload.pendingQuantity,
-        pendingTotalQuantity: action.payload.pendingTotalQuantity,
-        existingPrice: action.payload.existingPrice,
-        newPrice: action.payload.newPrice,
-        priceVariance: action.payload.priceVariance,
-        taxPercentage: action.payload.taxPercentage,
-        taxType: action.payload.taxType,
-        befTaxDiscount: action.payload.befTaxDiscount,
-        afTaxDiscount: action.payload.afTaxDiscount,
-        pendingTotalPrice: action.payload.pendingTotalPrice,
-        pendingTaxAmount: action.payload.pendingTaxAmount,
-        pendingBefTaxDiscountAmount: action.payload.pendingBefTaxDiscountAmount,
-        pendingAfTaxDiscountAmount: action.payload.pendingAfTaxDiscountAmount,
-        pendingCgst: action.payload.pendingCgst,
-        pendingSgst: action.payload.pendingSgst,
-        pendingIgst: action.payload.pendingIgst,
-        pendingFinalPrice: action.payload.pendingFinalPrice,
-        purchasecategoryName: action.payload.purchasecategoryName,
-        purchasesubcategoryName: action.payload.purchasesubcategoryName,
-        hsnCode: action.payload.hsnCode,
-        status: action.payload.status,
-        receivedQuantity: action.payload.receivedQuantity,
-        damagedQuantity: action.payload.damagedQuantity,
-        discountAmount: action.payload.discountAmount,
-        taxAmount: action.payload.taxAmount,
-        cgst: action.payload.cgst,
-        sgst: action.payload.sgst,
-        igst: action.payload.igst,
-        barcode: action.payload.barcode,
-        expiryDate: action.payload.expiryDate,
-        pendingDiscountAmount: action.payload.pendingDiscountAmount,
-        quantity: action.payload.quantity,
-        poQuantity: action.payload.poQuantity,
-        eachQuantity: action.payload.eachQuantity,
-        randomId: action.payload.randomId,
-        // CRITICAL: Add stock fields
-        availableStock: action.payload.availableStock || 0,
-        locationId: action.payload.locationId || '',
-      };
-    },
+  // Find the original item in purchaseOrderData to get any missing fields
+  const originalItem = state.purchaseOrderData.items.find(
+    item => item.itemId === action.payload.itemId
+  );
+  
+  state.newItem = {
+    ...initialState.newItem,
+    ...action.payload,
+    itemId: action.payload.itemId,
+    itemName: action.payload.itemName,
+    itemCode: action.payload.itemCode,
+    pendingCount: action.payload.pendingCount,
+    pendingQuantity: action.payload.pendingQuantity,
+    pendingTotalQuantity: action.payload.pendingTotalQuantity,
+    existingPrice: action.payload.existingPrice,
+    newPrice: action.payload.newPrice,
+    priceVariance: action.payload.priceVariance,
+    taxPercentage: action.payload.taxPercentage,
+    taxType: action.payload.taxType,
+    befTaxDiscount: action.payload.befTaxDiscount,
+    afTaxDiscount: action.payload.afTaxDiscount,
+    pendingTotalPrice: action.payload.pendingTotalPrice,
+    pendingTaxAmount: action.payload.pendingTaxAmount,
+    pendingBefTaxDiscountAmount: action.payload.pendingBefTaxDiscountAmount,
+    pendingAfTaxDiscountAmount: action.payload.pendingAfTaxDiscountAmount,
+    pendingCgst: action.payload.pendingCgst,
+    pendingSgst: action.payload.pendingSgst,
+    pendingIgst: action.payload.pendingIgst,
+    pendingFinalPrice: action.payload.pendingFinalPrice,
+    purchasecategoryName: action.payload.purchasecategoryName,
+    purchasesubcategoryName: action.payload.purchasesubcategoryName,
+    hsnCode: action.payload.hsnCode,
+    status: action.payload.status,
+    receivedQuantity: action.payload.receivedQuantity,
+    damagedQuantity: action.payload.damagedQuantity,
+    discountAmount: action.payload.discountAmount,
+    taxAmount: action.payload.taxAmount,
+    cgst: action.payload.cgst,
+    sgst: action.payload.sgst,
+    igst: action.payload.igst,
+    barcode: action.payload.barcode,
+    expiryDate: action.payload.expiryDate,
+    pendingDiscountAmount: action.payload.pendingDiscountAmount,
+    quantity: action.payload.quantity,
+    poQuantity: action.payload.poQuantity,
+    eachQuantity: action.payload.eachQuantity,
+    randomId: action.payload.randomId,
+    // CRITICAL: Use payload value, fallback to original item, then default
+    availableStock: action.payload.availableStock ?? originalItem?.availableStock ?? 0,
+    locationId: action.payload.locationId ?? originalItem?.locationId ?? '',
+  };
+},
     clearItemForEditing(state) {
       state.newItem = initialState.newItem;
     },
@@ -889,26 +932,66 @@ const purchaseOrderSlice = createSlice({
     action.payload.items?.map((i: Item) => ({
       name: i.itemName,
       stock: i.availableStock,
-      type: typeof i.availableStock
+      type: typeof i.availableStock,
+      randomId: i.randomId
     }))
   );
 
   const purchaseOrderData = { ...action.payload };
 
+  // CRITICAL FIX: Preserve stock information
   if (purchaseOrderData.items && Array.isArray(purchaseOrderData.items)) {
-    purchaseOrderData.items = purchaseOrderData.items.map(item => ({
-      ...item,
-      availableStock: item.availableStock !== undefined && item.availableStock !== null
-        ? Number(item.availableStock)
-        : 0,
-      locationId: item.locationId || ''
-    }));
+    // First, create a map of existing items in state (if any) to preserve stock
+    const existingItemsMap = new Map();
+    if (state.purchaseOrderData.items && state.purchaseOrderData.items.length > 0) {
+      state.purchaseOrderData.items.forEach(item => {
+        if (item.randomId) {
+          existingItemsMap.set(item.randomId, {
+            availableStock: item.availableStock,
+            locationId: item.locationId
+          });
+        }
+      });
+    }
+
+    purchaseOrderData.items = purchaseOrderData.items.map(item => {
+      // Try to get stock from:
+      // 1. The API response first (most reliable)
+      // 2. Then from existing state if API didn't provide
+      // 3. Default to 0 if neither exists
+      
+      let stockValue = 0;
+      let locationValue = '';
+      
+      // Priority 1: Use API response if it has valid stock
+      if (item.availableStock !== undefined && item.availableStock !== null) {
+        stockValue = Number(item.availableStock);
+        console.log(`📦 Using API stock for ${item.itemName}: ${stockValue}`);
+      } 
+      // Priority 2: Use existing state stock if API didn't provide
+      else if (item.randomId && existingItemsMap.has(item.randomId)) {
+        const existing = existingItemsMap.get(item.randomId);
+        stockValue = existing.availableStock;
+        locationValue = existing.locationId;
+        console.log(`📦 Using existing stock for ${item.itemName}: ${stockValue}`);
+      }
+      
+      // Priority 3: For locationId, prefer API if available, otherwise existing
+      locationValue = item.locationId || locationValue || '';
+
+      return {
+        ...item,
+        availableStock: stockValue,
+        locationId: locationValue
+      };
+    });
   }
 
   console.log('🚨 REDUX FULFILLED - after processing:', 
     purchaseOrderData.items?.map((i: Item) => ({
       name: i.itemName,
-      stock: i.availableStock
+      stock: i.availableStock,
+      locationId: i.locationId
     }))
   );
 
