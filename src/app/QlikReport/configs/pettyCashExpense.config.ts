@@ -22,13 +22,13 @@ export const pettyCashExpenseConfig: ReportConfig<PettyCashExpenseReport> = {
     title: 'Petty Cash Expense Report',
 
     // TODO: Update this API base URL to match your actual backend route
-    apiBase: 'http://127.0.0.1:8000/reportsapi/pettycashExpense',
+    apiBase: 'https://yenerp.com/reportsapi/pettycashExpense',
 
     // TODO: Update these endpoints to match your actual backend routes
-    dateEndpoint: 'http://127.0.0.1:8000/reportsapi/pettycashExpense/date-dropdown',
+    dateEndpoint: 'https://yenerp.com/reportsapi/pettycashExpense/date-dropdown',
 
     // Reusing the global dropdowns from Production Entry
-    globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
+    globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
 
     exportFilename: 'Petty_Cash_Expense_Report',
     defaultPageSize: 30,

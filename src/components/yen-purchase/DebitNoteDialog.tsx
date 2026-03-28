@@ -155,7 +155,7 @@ const formatDate = (dateString: string | Date | undefined | null) => {
 const downloadPdf = async (url: string, filename: string) => {
   try {
     const response = await purchaseApi.get(
-      url.replace("http://127.0.0.1:8000/purchasetestapi", ""),
+      url.replace("https://yenerp.com", ""),
       { responseType: "blob" }
     );
 
@@ -267,7 +267,7 @@ useEffect(() => {
     try {
       console.log('Downloading PDF for noteId:', noteId);
       await downloadPdf(
-        `http://127.0.0.1:8000/purchasetestapi/debitnote/returnprocess/DebitCreditNote/pdf/${noteId}`,
+        `https://yenerp.com/purchasetestapi/debitnote/returnprocess/DebitCreditNote/pdf/${noteId}`,
         `DebitNote_${noteId}.pdf`
       );
     } catch (error) {

@@ -88,8 +88,6 @@ const OutgoingPaymentComponent = React.memo(() => {
   const [selectedOutgoing, setSelectedOutgoing] = useState<any>(null);
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
   const [selectedVendorName, setSelectedVendorName] = useState<VendorDetail | null>(null); // Default is null
-  // const [selectedRows, setSelectedRows] = useState<string[]>([]);
-  // const [selectedOutgoings, setSelectedOutgoings] = useState<Outgoing[]>([]);
   const [viewItemsDialogOpen, setViewItemsDialogOpen] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState<GrnResponse | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -872,20 +870,29 @@ const OutgoingPaymentComponent = React.memo(() => {
     document.body.removeChild(link);
     setOpenDialog(false);
   };
-  const handlePayClick = () => {
-    if (selectedOutgoings.length === 0) {
-      dispatch(setSnackbarMessage('Please select at least one outgoing payment to process'));
-      dispatch(setSnackbarOpen(true));
-      return;
-    }
-    console.log('Selected payments across all pages:', selectedOutgoings.length);
-    setIsBulkPaymentOpen(true);
-  };
+const handlePayClick = () => {
+  if (selectedOutgoings.length === 0) {
+    dispatch(setSnackbarMessage('Please select at least one outgoing payment to process'));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+  
+  // Check if ALL selected outgoings are verified
+  const allVerified = selectedOutgoings.every(outgoing => outgoing.isVerified === true);
+  if (!allVerified) {
+    dispatch(setSnackbarMessage('All selected payments must be verified before processing multiple payments'));
+    dispatch(setSnackbarOpen(true));
+    return;
+  }
+  
+  console.log('Selected payments across all pages:', selectedOutgoings.length);
+  setIsBulkPaymentOpen(true);
+};
   // NEW: Clear all selections across pages
   const handleClearAllSelections = () => {
     dispatch(clearSelection());
   };
- const handleDownload = async (outgoingId: string) => {
+  const handleDownload = async (outgoingId: string) => {
     const outgoingdetail = outgoings.find((outgoing) => outgoing.outgoingId === outgoingId);
     if (!outgoingdetail) {
       console.error('Outgoing not found!');
@@ -1448,14 +1455,16 @@ Description:<br />
                 </IconButton>
               </Tooltip>
             )}
+            {/* Multiple payments button - only enable if at least one selected outgoing is verified */}
+            {/* Multiple payments button - only enable if ALL selected outgoing are verified */}
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <IconButton
                 color='primary'
                 className='icon-button-outline'
-
-                onClick={handlePayClick} // Trigger the pay click
+                onClick={handlePayClick}
                 size="small"
                 sx={{ p: 0.3 }}
+                disabled={selectedOutgoings.length === 0 || !selectedOutgoings.every(outgoing => outgoing.isVerified === true)}
               >
                 <PaymentsIcon />
               </IconButton>
@@ -1545,7 +1554,7 @@ Description:<br />
                       };
                       return (
                         <TableRow key={payment.outgoingId || index}>
-                            <TableCell align="center">{(currentPage - 1) * pageSize + index + 1}</TableCell> {/* ADD align="center" */}
+                          <TableCell align="center">{(currentPage - 1) * pageSize + index + 1}</TableCell> {/* ADD align="center" */}
                           <TableCell align="center"> {/* ADD align="center" */}
                             <Checkbox
                               checked={selectedRows.includes(payment.outgoingId || '')}
@@ -1609,7 +1618,7 @@ Description:<br />
                           </TableCell>
                           <TableCell align="right">{(payment.totalPrice || 0).toFixed(2)}</TableCell> {/* ADD align="right" */}
                           <TableCell align="left"> {/* ADD align="left" */}
-                               <Tooltip
+                            <Tooltip
                               title={
                                 Array.isArray(payment.itemDetails) && payment.itemDetails.length > 0 ? (
                                   <React.Fragment>
@@ -1676,14 +1685,16 @@ Description:<br />
                           <TableCell align="center">{payment.paymentTerms}</TableCell> {/* ADD align="center" */}
                           <TableCell>
                             <Box display="flex" alignItems="center">
-                              <Tooltip title="Pay">
-                                <IconButton
-                                  color="primary"
-                                  onClick={() => handleViewDetails(payment)}
-                                  disabled={selectedRows.length > 1}
-                                >
-                                  <PaymentIcon />
-                                </IconButton>
+                              <Tooltip title={payment.isVerified ? "Pay" : "Payment not allowed - Not Verified"}>
+                                <span> {/* Wrap with span for tooltip to work when disabled */}
+                                  <IconButton
+                                    color="primary"
+                                    onClick={() => handleViewDetails(payment)}
+                                    disabled={selectedRows.length > 1 || !payment.isVerified}
+                                  >
+                                    <PaymentIcon />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
                               <Tooltip title="Download PDF">
                                 <IconButton

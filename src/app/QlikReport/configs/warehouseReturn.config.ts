@@ -36,13 +36,13 @@ export const warehouseReturnConfig: ReportConfig<WarehouseReturnReport> = {
   title: 'Warehouse Return Report',
 
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'http://127.0.0.1:8000/reportsapi/WastageReceives',
+  apiBase: 'https://yenerp.com/reportsapi/WastageReceives',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/WastageReceives/date-dropdown',
+  dateEndpoint: 'https://yenerp.com/reportsapi/WastageReceives/date-dropdown',
 
   // Reusing the global dropdowns from Production Entry
-  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Warehouse_Return_Report',
   defaultPageSize: 30,

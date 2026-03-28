@@ -39,13 +39,13 @@ export interface DispatchesReport {
 export const dispatchConfig: ReportConfig<DispatchesReport> = {
   key: 'dispatch',
   title: 'Dispatch Report',
-  apiBase: 'http://127.0.0.1:8000/reportsapi/dispatch',
+  apiBase: 'https://yenerp.com/reportsapi/dispatch',
 
   // Specific endpoint for Dispatch Date Filters
-  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/dispatch/date-dropdown',
+  dateEndpoint: 'https://yenerp.com/reportsapi/dispatch/date-dropdown',
 
   // NEW: Specific endpoint for Global Dropdowns (uses Production Entry API)
-  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Dispatch_Report',
   defaultPageSize: 30,

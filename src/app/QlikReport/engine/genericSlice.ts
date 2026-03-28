@@ -2,6 +2,8 @@
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
+import purchaseApi from "@/utils/api";
+
 import { buildDateRange } from '@/glopals/builddterange';
 import {
   ReportConfig,
@@ -32,7 +34,7 @@ export function createReportSlice<T extends Record<string, unknown> = Record<str
   >(`${key}/fetchDateFilters`, async (_, { rejectWithValue }) => {
     try {
       const endpoint = config.dateEndpoint || `${apiBase}/dates`;
-      const { data } = await axios.get(endpoint);
+      const { data } = await purchaseApi.get(endpoint);
 
       // FIX: Map the API response keys to the expected keys
       return {
@@ -63,7 +65,7 @@ export function createReportSlice<T extends Record<string, unknown> = Record<str
       // CHANGE: Use globalDropdownEndpoint if provided, else fallback to apiBase
       const endpoint = config.globalDropdownEndpoint || `${apiBase}/global-dropdowns`;
 
-      const { data } = await axios.get(endpoint, {
+      const { data } = await purchaseApi.get(endpoint, {
         params: { page, limit, search: search || undefined, type: filterType },
       });
       const items: OptionType[] = (data[filterType] ?? data.items ?? []).map(
@@ -92,7 +94,7 @@ export function createReportSlice<T extends Record<string, unknown> = Record<str
       // CHANGE: Use globalDropdownEndpoint if provided, else fallback to apiBase
       const endpoint = config.globalDropdownEndpoint || `${apiBase}/global-dropdowns`;
 
-      const { data } = await axios.get(endpoint, {
+      const { data } = await purchaseApi.get(endpoint, {
         params: { page: nextPage, limit, search: search || undefined, type: filterType },
       });
       const items: OptionType[] = (data[filterType] ?? data.items ?? []).map(
@@ -140,7 +142,7 @@ export function createReportSlice<T extends Record<string, unknown> = Record<str
         });
       });
 
-      const { data } = await axios.get<PaginatedResponse>(`${apiBase}/report`, { params: qp });
+      const { data } = await purchaseApi.get<PaginatedResponse>(`${apiBase}/report`, { params: qp });
       return { ...data, items: data.items ?? [] };
     } catch (err: unknown) {
       let msg = 'Failed to fetch report';
@@ -183,7 +185,7 @@ export function createReportSlice<T extends Record<string, unknown> = Record<str
         });
       });
 
-      const { data } = await axios.get(`${apiBase}/export`, {
+      const { data } = await purchaseApi.get(`${apiBase}/export`, {
         params: qp,
         responseType: 'blob',
       });

@@ -24,13 +24,13 @@ export const overallSalesConfig: ReportConfig<OverallSalesReport> = {
   title: 'Overall Sales Report',
   
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'http://127.0.0.1:8000/reportsapi/dayend/overallsales',
+  apiBase: 'https://yenerp.com/reportsapi/dayend/overallsales',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/dayend/date-dropdown',
+  dateEndpoint: 'https://yenerp.com/reportsapi/dayend/date-dropdown',
   
   // Reusing the global dropdowns from Production Entry (or change if Sales has its own)
-  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Overall_Sales_Report',
   defaultPageSize: 30,

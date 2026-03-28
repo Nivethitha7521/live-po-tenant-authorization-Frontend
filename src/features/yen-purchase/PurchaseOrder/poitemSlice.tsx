@@ -3,7 +3,7 @@ import { RootState } from '@/redux/store';
 import { PurchaseOrderData, Item } from '@/Models/purchaseModel';
 import purchaseApi from "@/utils/api";
 
-const API_BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
+const API_BASE_URL = 'https://yenerp.com/purchasetestapi';
 
 // Interface for item update payload
 interface ItemUpdate {

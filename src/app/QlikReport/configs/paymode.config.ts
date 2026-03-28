@@ -47,13 +47,13 @@ export const paymodeConfig: ReportConfig<PaymodeReport> = {
   title: 'Paymode Report',
 
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'http://127.0.0.1:8000/reportsapi/allrestaurants/Paymode',
+  apiBase: 'https://yenerp.com/reportsapi/allrestaurants/Paymode',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/allrestaurants/date-dropdown',
+  dateEndpoint: 'https://yenerp.com/reportsapi/allrestaurants/date-dropdown',
 
   // Reusing the global dropdowns from Production Entry
-  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Paymode_Report',
   defaultPageSize: 30,

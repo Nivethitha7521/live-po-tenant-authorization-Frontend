@@ -23,13 +23,13 @@ export const debitNoteAmountConfig: ReportConfig<DebitNoteAmountReport> = {
     title: 'Debit Note Amount Wise Report',
 
     // TODO: Update this API base URL to match your actual backend route
-    apiBase: 'http://127.0.0.1:8000/reportsapi/debitnote/amount-wise',
+    apiBase: '/debitnote-reports/amount-wise',
 
     // TODO: Update these endpoints to match your actual backend routes
-    dateEndpoint: 'http://127.0.0.1:8000/reportsapi/debitnote/date-dropdown',
+    dateEndpoint: '/debitnote-reports/date-dropdown',
 
     // Reusing the global dropdowns from Production Entry
-    globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/purchaseOrders/global-dropdowns',
+    globalDropdownEndpoint: '/purchaseOrders/global-dropdowns',
 
     exportFilename: 'Debit_Note_Amount_Report',
     defaultPageSize: 30,

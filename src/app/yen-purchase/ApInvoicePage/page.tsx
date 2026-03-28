@@ -1,9 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import InfoIcon from '@mui/icons-material/Info';
-import WarningIcon from '@mui/icons-material/Warning';
 import {
   Box, TextField, Button, Typography, Grid, Paper,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
@@ -19,21 +16,17 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Chip,Alert
+  Chip,
+  Checkbox,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
 import ClearIcon from "@mui/icons-material/Clear";
-import SearchIcon from '@mui/icons-material/Search';
+import VerifiedIcon from '@mui/icons-material/Verified';
+import LockIcon from '@mui/icons-material/Lock';
 import { AppDispatch, RootState } from '@/redux/store';
-import {
-  returnServiceInvoice,
-  selectReturnServiceLoading,
-  selectReturnServiceError,
-  clearReturnServiceState,
-} from '../ServiceOrder/Features/servicelist';
 import {
   fetchApInvoices,
   selectApinvoice,
@@ -58,12 +51,20 @@ import {
   loadMoreStatuses,
   resetAll,
   setCurrentPage,
+  // New verification imports
+  toggleVerificationSelection,
+  toggleAllVerificationSelection,
+  clearVerificationSelection,
+  verifyApInvoice,
+  bulkVerifyApInvoices,
+  selectSelectedInvoicesForVerification,
+  selectVerificationLoading,
 } from '../../../features/yen-purchase/AP/apInvoiceSlice';
+import { fetchOutgoings } from '../../../features/yen-purchase/Outgoing/outgoingPaymentSlice';
 import YenPurchasePage from '../page';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import Link from 'next/link';
 import { ApInvoice } from '@/Models/apModel';
-import DateRangeFilter from '@/components/agingFilter';
 import jsPDF from 'jspdf';
 import "jspdf-autotable";
 import { fetchBusinesses, fetchPhoto, selectBusinesses } from '@/features/account-setting/businessSlice';
@@ -73,7 +74,6 @@ import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 import DateRangeDialog from '@/components/dateRange';
-import { Vendor } from '@/Models/purchaseModel';
 import { fetchAllVendors, selectPurchaseOrderState } from '@/features/yen-purchase/PurchaseOrder/purchaseOrderSlice';
 import moment from 'moment';
 import VendorSearchAutocomplete from '@/components/vendorsearchautocomplete';
@@ -100,8 +100,6 @@ interface TaxAmounts {
   igst: { [key: string]: number };
 }
 
-
-
 const VerifiedApInvoicePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const pathname = usePathname() ?? "";
@@ -109,9 +107,6 @@ const VerifiedApInvoicePage: React.FC = () => {
     pathname.startsWith("/yen-purchase/ApInvoicePage") &&
     !pathname.startsWith("/yen-purchase/ApInvoicePage/ReturnAp");
 
-  const isReturnApActive = pathname.startsWith(
-    "/yen-purchase/ApInvoicePage/ReturnAp",
-  );
   const apPermission = useSelector(
     (state: RootState) => state.auth.permissions?.yenerp?.apinvoices,
   );
@@ -132,6 +127,11 @@ const VerifiedApInvoicePage: React.FC = () => {
       !apPermission.edit &&
       !apPermission.delete &&
       !apPermission.approve);
+
+  const userRole = useSelector((state: RootState) => state.auth.role);
+  const isAdmin = userRole === 'Admin' || userRole === 'admin';
+
+
   // State from Redux
   const {
     apInvoices,
@@ -142,6 +142,10 @@ const VerifiedApInvoicePage: React.FC = () => {
     selectedStatus,
     statusSearch
   } = useSelector(selectApinvoice);
+
+  // Verification selectors
+  const selectedInvoicesForVerification = useSelector(selectSelectedInvoicesForVerification);
+  const verificationLoading = useSelector(selectVerificationLoading);
 
   const { businesses } = useSelector(selectBusinesses);
   const statuses = useSelector(selectStatuses);
@@ -155,16 +159,15 @@ const VerifiedApInvoicePage: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<ApInvoice | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
+  const [isBulkVerification, setIsBulkVerification] = useState(false);
   const [outgoingDialogOpen, setOutgoingDialogOpen] = useState(false);
   const [loadingCenter, setLoading] = useState(false);
-  const returnServiceLoading = useSelector(selectReturnServiceLoading);
-const returnServiceError = useSelector(selectReturnServiceError);
-const [returnRemarks, setReturnRemarks] = useState('');
   const [fetchedBusinessIds, setFetchedBusinessIds] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVendorName, setSelectedVendorName] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<VendorSearch | null>(null);
-  const [filteredAp, setFilteredAp] = useState<ApInvoice[]>([]); // Explicit type declaration
+  const [filteredAp, setFilteredAp] = useState<ApInvoice[]>([]);
   const { selectedPo, poDialogOpen } = useSelector(selectPurchaseListState);
   const [selectedService, setSelectedService] = useState<ServiceData | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -197,10 +200,12 @@ const [returnRemarks, setReturnRemarks] = useState('');
       : undefined,
     [selectionRange]
   );
+
   const totalPages = useMemo(() => {
     if (totalItems === 0) return 1;
     return Math.ceil(totalItems / pageSize);
   }, [totalItems, pageSize]);
+
   // Debounced search for statuses
   const debouncedStatusSearch = useMemo(
     () =>
@@ -210,23 +215,15 @@ const [returnRemarks, setReturnRemarks] = useState('');
       }, 300),
     [dispatch]
   );
-  const initialSelectionRange = useMemo(() => ({
-    startDate: new Date(),
-    endDate: new Date(),
-    key: 'selection',
-  }), []);
-
 
   const isDateFilterActive = useMemo(() => {
-    // If you have initial/default dates, compare with them
     const defaultStartDate = new Date();
     const defaultEndDate = new Date();
-
     const isStartDifferent = selectionRange.startDate.getTime() !== defaultStartDate.getTime();
     const isEndDifferent = selectionRange.endDate.getTime() !== defaultEndDate.getTime();
-
     return isStartDifferent || isEndDifferent;
   }, [selectionRange]);
+
   // Update the initial fetch in the useEffect
   useEffect(() => {
     const initializeData = async () => {
@@ -234,11 +231,9 @@ const [returnRemarks, setReturnRemarks] = useState('');
       dispatch(fetchAllVendors());
       dispatch(fetchApStatuses({ page: 1 }));
 
-      // Fetch initial AP invoices WITHOUT date filters
       dispatch(fetchApInvoices({
         page: 1,
         limit: pageSize,
-        // Don't include date filters initially
       }));
 
       setIsInitialLoad(false);
@@ -246,42 +241,19 @@ const [returnRemarks, setReturnRemarks] = useState('');
 
     initializeData();
 
-   return () => {
-  dispatch(resetStatuses());
-  dispatch(clearReturnServiceState());
-};
-  }, [dispatch, pageSize]); // Add pageSize dependency
-  useEffect(() => {
-    // Don't fetch on initial load
-    if (isInitialLoad) return;
+    return () => {
+      dispatch(resetStatuses());
+    };
+  }, [dispatch, pageSize]);
 
-    // Debounce the fetch to avoid too many requests
+  useEffect(() => {
+    if (isInitialLoad) return;
     const timer = setTimeout(() => {
       refetchWithFilters();
     }, 300);
-
     return () => clearTimeout(timer);
-  }, [selectedStatus, dispatch]); // Watch for status changes
-  // Handle return service success
-  useEffect(() => {
-    if (!returnServiceLoading && returnServiceError === null && returnDialogOpen) {
-      // Success - close dialogs and refresh
-      setReturnDialogOpen(false);
-      setDetailsDialogOpen(false);
-      dispatch(setSnackbarMessage('Service invoice returned successfully'));
-      dispatch(setSnackbarOpen(true));
-      refetchWithFilters();
-      setReturnRemarks('');
-    }
-  }, [returnServiceLoading, returnServiceError, dispatch, returnDialogOpen]);
+  }, [selectedStatus, dispatch]);
 
-  // Handle return service error
-  useEffect(() => {
-    if (returnServiceError) {
-      dispatch(setSnackbarMessage(returnServiceError));
-      dispatch(setSnackbarOpen(true));
-    }
-  }, [returnServiceError, dispatch]);
   // Fetch business photos
   useEffect(() => {
     businesses.forEach((business) => {
@@ -291,17 +263,14 @@ const [returnRemarks, setReturnRemarks] = useState('');
       }
     });
   }, [businesses, fetchedBusinessIds, dispatch]);
+
   // Sync pagination when filters change
   useEffect(() => {
     if (totalItems > 0) {
       const calculatedTotalPages = Math.ceil(totalItems / pageSize);
-
-      // If current page is greater than total pages, reset to page 1
       if (currentPage > calculatedTotalPages) {
         console.log(`Resetting page from ${currentPage} to 1 because total pages is ${calculatedTotalPages}`);
         dispatch(setCurrentPage(1));
-
-        // Refetch data for page 1
         dispatch(fetchApInvoices({
           page: 1,
           limit: pageSize,
@@ -315,15 +284,14 @@ const [returnRemarks, setReturnRemarks] = useState('');
       }
     }
   }, [totalItems, currentPage, pageSize, dispatch, dateField, appliedFromDate, appliedToDate, selectedVendorName, invoiceTypeFilter, selectedStatus]);
-  // View Details handler
+
   // View Details handler
   const handleViewDetails = (invoice: ApInvoice) => {
     setSelectedInvoice(invoice);
     setDetailsDialogOpen(true);
-    setReturnRemarks('');
   };
-  const refetchWithFilters = useCallback((
 
+  const refetchWithFilters = useCallback((
     page: number = currentPage,
     fromDateOverride?: string,
     toDateOverride?: string
@@ -333,13 +301,11 @@ const [returnRemarks, setReturnRemarks] = useState('');
       limit: pageSize,
     };
 
-    // Use override if provided (from date picker), else use current selection
     const fromDate = fromDateOverride
       ?? (selectionRange.startDate ? moment(selectionRange.startDate).startOf('day').toISOString() : undefined);
     const toDate = toDateOverride
       ?? (selectionRange.endDate ? moment(selectionRange.endDate).endOf('day').toISOString() : undefined);
 
-    // Only add date filters if both dates exist
     if (fromDate && toDate) {
       filters.date_filter_field = dateField;
       filters.fromDate = fromDate;
@@ -365,14 +331,6 @@ const [returnRemarks, setReturnRemarks] = useState('');
       limit: pageSize,
     };
 
-    {
-      !(moment(selectionRange.startDate).isSame(moment(), 'day') &&
-        moment(selectionRange.endDate).isSame(moment(), 'day')) && (
-          <Chip label="Date Filtered" color="primary" size="small" />
-        )
-    }
-
-    // Add other filters
     if (selectedVendorName) filters.vendorName = selectedVendorName;
     if (invoiceTypeFilter !== 'all') filters.invoiceType = invoiceTypeFilter;
     if (selectedStatus && selectedStatus.trim() !== '') filters.status = selectedStatus;
@@ -381,7 +339,8 @@ const [returnRemarks, setReturnRemarks] = useState('');
 
     dispatch(setCurrentPage(newPage));
     dispatch(fetchApInvoices(filters));
-  }, [dispatch, pageSize, totalPages, loading, selectionRange, selectedVendorName, invoiceTypeFilter, selectedStatus]);
+  }, [dispatch, pageSize, totalPages, loading, selectedVendorName, invoiceTypeFilter, selectedStatus]);
+
   const handleNextPage = useCallback(() => {
     if (currentPage < totalPages) {
       handlePageChange(currentPage + 1);
@@ -394,7 +353,6 @@ const [returnRemarks, setReturnRemarks] = useState('');
     }
   }, [currentPage, handlePageChange]);
 
-
   // View Credit Notes handler
   const handleViewCreditNotes = async (invoiceId: string) => {
     console.log('Opening DebitCreditNoteDialog for AP Invoice ID:', invoiceId);
@@ -406,14 +364,10 @@ const [returnRemarks, setReturnRemarks] = useState('');
         return;
       }
 
-      // Set document details
       dispatch(setDebitCreditDocumentId(invoiceId));
       dispatch(setDebitCreditDocumentType('ap_invoice'));
-
-      // Open the dialog
       dispatch(setDebitCreditDialogOpen(true));
 
-      // Fetch data with the required document_type parameter
       dispatch(fetchAllDebitNotesForDocument({
         documentId: invoiceId,
         documentType: 'ap_invoice',
@@ -435,7 +389,6 @@ const [returnRemarks, setReturnRemarks] = useState('');
   const handleCloseDetailsDialog = () => {
     setDetailsDialogOpen(false);
     setSelectedInvoice(null);
-    setReturnRemarks('');
   };
 
   const handleOpen = () => {
@@ -458,18 +411,17 @@ const [returnRemarks, setReturnRemarks] = useState('');
     });
     return statusMap;
   }, [apInvoices, debitCreditNotes]);
+
   const handleStatusChange = (event: React.SyntheticEvent, newValue: string | null) => {
     console.log('Status changed:', newValue);
 
     if (newValue === null) {
       dispatch(clearStatus());
-      // Wait a bit before refetching to ensure state is cleared
       setTimeout(() => {
         refetchWithFilters();
       }, 100);
     } else {
       dispatch(setSelectedStatus(newValue));
-      // Immediately refetch with new status
       setTimeout(() => {
         refetchWithFilters();
       }, 100);
@@ -486,6 +438,7 @@ const [returnRemarks, setReturnRemarks] = useState('');
   const handleInvoiceTypeChange = (value: string) => {
     setInvoiceTypeFilter(value);
   };
+
   const handleFilterClick = () => {
     if (!canRead) return;
     dispatch(setCurrentPage(1));
@@ -499,6 +452,7 @@ const [returnRemarks, setReturnRemarks] = useState('');
 
     refetchWithFilters(1, fromDate, toDate);
   };
+
   const handleFilterClose = () => {
     const today = new Date();
     setSelectionRange({
@@ -511,19 +465,19 @@ const [returnRemarks, setReturnRemarks] = useState('');
     setSelectedVendorName('');
     setInvoiceTypeFilter('all');
     dispatch(clearStatus());
-
+    dispatch(clearVerificationSelection()); // Clear verification selections
     dispatch(setCurrentPage(1));
 
-    // Explicitly refetch WITHOUT date filters
     dispatch(fetchApInvoices({
       page: 1,
       limit: pageSize,
       vendorName: undefined,
       invoiceType: undefined,
       status: undefined,
-      // No date_filter_field, fromDate, toDate → backend ignores date filter
     }));
-  };  // Download handlers
+  };
+
+  // Download handlers
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorElDownload(event.currentTarget as HTMLElement);
   };
@@ -541,6 +495,81 @@ const [returnRemarks, setReturnRemarks] = useState('');
     handleOpen();
     handleCloseAnchor();
   };
+
+  // ==================== VERIFICATION HANDLERS (ADMIN ONLY) ====================
+  const handleToggleVerificationSelection = (invoiceId: string) => {
+    if (!isAdmin) {
+      dispatch(setSnackbarMessage('Only admin users can verify invoices'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    dispatch(toggleVerificationSelection(invoiceId));
+  };
+
+  const handleToggleAllVerificationSelection = () => {
+    if (!isAdmin) {
+      dispatch(setSnackbarMessage('Only admin users can verify invoices'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    const currentPageIds = verifiedApInvoices.map(inv => inv.invoiceId);
+    dispatch(toggleAllVerificationSelection(currentPageIds));
+  };
+
+  const handleClearVerificationSelection = () => {
+    if (!isAdmin) return;
+    dispatch(clearVerificationSelection());
+  };
+
+  const handleSingleVerification = (invoice: ApInvoice) => {
+    if (!isAdmin) {
+      dispatch(setSnackbarMessage('Only admin users can verify invoices'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    setSelectedInvoice(invoice);
+    setIsBulkVerification(false);
+    setVerificationDialogOpen(true);
+  };
+
+  const handleBulkVerification = () => {
+    if (!isAdmin) {
+      dispatch(setSnackbarMessage('Only admin users can verify invoices'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    if (selectedInvoicesForVerification.length === 0) {
+      dispatch(setSnackbarMessage('Please select at least one invoice to verify'));
+      dispatch(setSnackbarOpen(true));
+      return;
+    }
+    setIsBulkVerification(true);
+    setVerificationDialogOpen(true);
+  };
+
+  const confirmVerification = async () => {
+    try {
+      if (isBulkVerification) {
+        await dispatch(bulkVerifyApInvoices(selectedInvoicesForVerification)).unwrap();
+      } else if (selectedInvoice) {
+        await dispatch(verifyApInvoice(selectedInvoice.invoiceId)).unwrap();
+      }
+      setVerificationDialogOpen(false);
+      // Refresh data
+      refetchWithFilters();
+
+      dispatch(fetchApInvoices({
+        page: 1,
+        limit: pageSize,
+        vendorName: undefined,
+        invoiceType: undefined,
+        status: undefined,
+      }));
+    } catch (error) {
+      console.error('Verification failed:', error);
+    }
+  };
+  // ==================== END VERIFICATION HANDLERS ====================
 
   const handleDownload = async (apinvoiceId: string) => {
     const apinvoice = apInvoices.find((invoice: ApInvoice) => invoice.invoiceId === apinvoiceId);
@@ -637,7 +666,7 @@ const [returnRemarks, setReturnRemarks] = useState('');
       lineWidth: { top: 0, right: 0.1, bottom: 0, left: 0.1 },
     });
 
-    yOffset += 45;
+    yOffset = doc.autoTable.previous.finalY;
 
     if (apinvoice.invoiceType === 'service') {
       const serviceHeaders = ['SI No', 'Description', 'SAC Code', 'From Date', 'To Date', 'Quantity', 'Amount', 'Tax', 'Total'];
@@ -663,19 +692,19 @@ const [returnRemarks, setReturnRemarks] = useState('');
         theme: 'grid',
         styles: {
           fontSize: 8,
-          halign: 'left', // Default left alignment
+          halign: 'left',
           cellPadding: 2,
         },
         columnStyles: {
-          0: { halign: 'center' }, // SI No - center
-          1: { halign: 'left' }, // Description - left
-          2: { halign: 'center' }, // SAC Code - center
-          3: { halign: 'center' }, // From Date - center
-          4: { halign: 'center' }, // To Date - center
-          5: { halign: 'right' }, // Quantity - RIGHT ALIGNED
-          6: { halign: 'right' }, // Amount - RIGHT ALIGNED
-          7: { halign: 'right' }, // Tax - RIGHT ALIGNED
-          8: { halign: 'right' }, // Total - RIGHT ALIGNED
+          0: { halign: 'center' },
+          1: { halign: 'left' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'center' },
+          5: { halign: 'right' },
+          6: { halign: 'right' },
+          7: { halign: 'right' },
+          8: { halign: 'right' },
         },
         headStyles: {
           fillColor: [0, 0, 128],
@@ -714,19 +743,19 @@ const [returnRemarks, setReturnRemarks] = useState('');
         theme: 'grid',
         styles: {
           fontSize: 8,
-          halign: 'left', // Default left alignment
+          halign: 'left',
           cellPadding: 2,
         },
         columnStyles: {
-          0: { halign: 'center' }, // SI No - center
-          1: { halign: 'left' }, // Description - left
-          2: { halign: 'center' }, // HsnCode - center
-          3: { halign: 'center' }, // Pkt Count - center
-          4: { halign: 'left' }, // Qty - left (with UOM)
-          5: { halign: 'right' }, // Stock Qty - RIGHT ALIGNED
-          6: { halign: 'right' }, // Unit Price - RIGHT ALIGNED
-          7: { halign: 'center' }, // Tax - center
-          8: { halign: 'right' }, // Amount - RIGHT ALIGNED
+          0: { halign: 'center' },
+          1: { halign: 'left' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'left' },
+          5: { halign: 'right' },
+          6: { halign: 'right' },
+          7: { halign: 'center' },
+          8: { halign: 'right' },
         },
         headStyles: {
           fillColor: [0, 0, 128],
@@ -791,7 +820,6 @@ const [returnRemarks, setReturnRemarks] = useState('');
       [`Total Discount`, apinvoice.discountDetails?.toFixed(2) || '0'],
     ];
 
-    // Add item taxes
     taxRates.CGST.forEach((amount, rate) => {
       taxSummary.push([`CGST @${rate}%`, amount.toFixed(2)]);
     });
@@ -804,30 +832,22 @@ const [returnRemarks, setReturnRemarks] = useState('');
       taxSummary.push([`IGST @${rate}%`, amount.toFixed(2)]);
     });
 
-    // Calculate subtotal (items total with tax)
     const itemsTotalWithTax = totalWithoutTax +
       Array.from(taxRates.CGST.values()).reduce((sum, amount) => sum + amount, 0) +
       Array.from(taxRates.SGST.values()).reduce((sum, amount) => sum + amount, 0) +
       Array.from(taxRates.IGST.values()).reduce((sum, amount) => sum + amount, 0);
 
-    // Add freight charges
     const totalFreightAmount = apinvoice.totalFreightAmount || 0;
     if (totalFreightAmount > 0) {
       taxSummary.push([`Freight Charges`, totalFreightAmount.toFixed(2)]);
     }
 
-    // Add freight tax
     const totalFreightTaxAmount = apinvoice.totalFreightTaxAmount || 0;
     if (totalFreightTaxAmount > 0) {
       taxSummary.push([`Freight Tax`, totalFreightTaxAmount.toFixed(2)]);
     }
 
-    // Calculate total with tax including freight
-    const subtotalWithFreight = itemsTotalWithTax + totalFreightAmount + totalFreightTaxAmount;
-
-    // Add round off
     taxSummary.push([`Round off Amount`, apinvoice.apRoundOff?.toFixed(2) || '0']);
-
     taxSummary.push([`Total [Including Tax]`, apinvoice.invoiceAmount?.toFixed(2) || '0']);
 
     doc.autoTable({
@@ -844,8 +864,8 @@ const [returnRemarks, setReturnRemarks] = useState('');
         fontStyle: 'bold',
       },
       columnStyles: {
-        0: { halign: 'left' }, // Description - left aligned
-        1: { halign: 'right' }, // Amount - RIGHT ALIGNED
+        0: { halign: 'left' },
+        1: { halign: 'right' },
       },
       headStyles: {
         fillColor: [255, 255, 255],
@@ -883,7 +903,7 @@ const [returnRemarks, setReturnRemarks] = useState('');
     const typeLabel = apinvoice.invoiceType === 'service' ? 'Service' : '';
     doc.save(`${apinvoice.vendorName} ${apinvoice.randomId}${typeLabel ? ' ' + typeLabel : ''}.pdf`);
   };
-  
+
   const handleExportCSV = () => {
     let filteredInvoices = apInvoices;
     if (invoiceTypeFilter !== 'all') {
@@ -971,9 +991,9 @@ const [returnRemarks, setReturnRemarks] = useState('');
       totalAmount = verifiedInvoices.reduce((sum, invoice) => sum + (invoice.totalServiceFees || 0), 0);
     } else {
       totalAmount = verifiedInvoices.reduce((sum, invoice) => {
-const total = (Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [])
-  .reduce((totalItem, item) =>
-    totalItem + ((item?.stockQuantity || 0) * (item?.unitPrice || 0)), 0);        return sum + total;
+        const total = (Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [])
+          .reduce((totalItem, item) =>
+            totalItem + ((item?.stockQuantity || 0) * (item?.unitPrice || 0)), 0); return sum + total;
       }, 0);
     }
 
@@ -988,10 +1008,10 @@ const total = (Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [])
     if (invoiceTypeFilter === 'service') {
       const headers = [["S.No", "AP.No", "Vendor Name", "Service Description", "SAC Code", "From Date", "To Date", "Amount", "Tax", "Total"]];
 
-     const rows = verifiedInvoices.map((invoice, index) => {
-  const descList = Array.isArray(invoice.descriptions) ? invoice.descriptions : [];
+      const rows = verifiedInvoices.map((invoice, index) => {
+        const descList = Array.isArray(invoice.descriptions) ? invoice.descriptions : [];
 
-  return descList.map((desc, descIndex) => [
+        return descList.map((desc, descIndex) => [
           (index + 1).toString(),
           invoice.randomId.toString(),
           invoice.vendorName,
@@ -1025,35 +1045,35 @@ const total = (Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [])
           textColor: [0, 0, 0],
         },
         columnStyles: {
-          0: { halign: 'center' }, // S.No - center
-          1: { halign: 'center' }, // AP.No - center
-          2: { halign: 'left' }, // Vendor Name - left
-          3: { halign: 'left' }, // Service Description - left
-          4: { halign: 'center' }, // SAC Code - center
-          5: { halign: 'center' }, // From Date - center
-          6: { halign: 'center' }, // To Date - center
-          7: { halign: 'right' }, // Amount - RIGHT ALIGNED
-          8: { halign: 'right' }, // Tax - RIGHT ALIGNED
-          9: { halign: 'right' }, // Total - RIGHT ALIGNED
+          0: { halign: 'center' },
+          1: { halign: 'center' },
+          2: { halign: 'left' },
+          3: { halign: 'left' },
+          4: { halign: 'center' },
+          5: { halign: 'center' },
+          6: { halign: 'center' },
+          7: { halign: 'right' },
+          8: { halign: 'right' },
+          9: { halign: 'right' },
         }
       });
     } else {
       const headers = [["S.No", "AP.No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Total"]];
 
       const rows = verifiedInvoices.map((invoice, index) => {
-      const items = Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [];
+        const items = Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [];
 
-return items.map((item) => [
-  (index + 1).toString(),
-  invoice.randomId?.toString() || "",
-  invoice.vendorName || "",
-  item?.itemName || "",
-  (item?.stockQuantity || 0).toString(),
-  Number(item?.unitPrice || 0).toFixed(2),
-  `${item?.purchasetaxName || 0}%`,
-  Number(item?.discountAmount || 0).toFixed(2),
-  Number(item?.totalPrice || 0).toFixed(2),
-]);
+        return items.map((item) => [
+          (index + 1).toString(),
+          invoice.randomId?.toString() || "",
+          invoice.vendorName || "",
+          item?.itemName || "",
+          (item?.stockQuantity || 0).toString(),
+          Number(item?.unitPrice || 0).toFixed(2),
+          `${item?.purchasetaxName || 0}%`,
+          Number(item?.discountAmount || 0).toFixed(2),
+          Number(item?.totalPrice || 0).toFixed(2),
+        ]);
       }).flat();
 
       doc.autoTable({
@@ -1076,15 +1096,15 @@ return items.map((item) => [
           textColor: [0, 0, 0],
         },
         columnStyles: {
-          0: { halign: 'center' }, // S.No - center
-          1: { halign: 'center' }, // AP.No - center
-          2: { halign: 'left' }, // Vendor Name - left
-          3: { halign: 'left' }, // Item Name - left
-          4: { halign: 'right' }, // Quantity - RIGHT ALIGNED
-          5: { halign: 'right' }, // Price - RIGHT ALIGNED
-          6: { halign: 'center' }, // Tax - center
-          7: { halign: 'right' }, // Discount - RIGHT ALIGNED
-          8: { halign: 'right' }, // Total - RIGHT ALIGNED
+          0: { halign: 'center' },
+          1: { halign: 'center' },
+          2: { halign: 'left' },
+          3: { halign: 'left' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+          6: { halign: 'center' },
+          7: { halign: 'right' },
+          8: { halign: 'right' },
         }
       });
     }
@@ -1126,9 +1146,9 @@ return items.map((item) => [
       headers = ["S.No", "AP.No", "Vendor Name", "Service Description", "SAC Code", "From Date", "To Date", "Amount", "Tax", "Total"];
 
       rows = verifiedInvoices.map((invoice, index) => {
-      const descList = Array.isArray(invoice.descriptions) ? invoice.descriptions : [];
+        const descList = Array.isArray(invoice.descriptions) ? invoice.descriptions : [];
 
-return descList.map((desc, descIndex) => [
+        return descList.map((desc, descIndex) => [
           (index + 1).toString(),
           invoice.randomId.toString(),
           invoice.vendorName,
@@ -1145,9 +1165,9 @@ return descList.map((desc, descIndex) => [
       headers = ["S.No", "AP.No", "Vendor Name", "Item Name", "Quantity", "Price", "Tax", "Discount", "Total"];
 
       rows = verifiedInvoices.map((invoice, index) => {
-      const items = Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [];
+        const items = Array.isArray(invoice.itemDetails) ? invoice.itemDetails : [];
 
-return items.map((item) => [
+        return items.map((item) => [
           (index + 1).toString(),
           invoice.randomId.toString(),
           invoice.vendorName,
@@ -1175,7 +1195,7 @@ return items.map((item) => [
     document.body.removeChild(link);
     handleClose();
   };
-  
+
   const generateInvoicePDF = () => {
     const doc = new jsPDF();
     let yOffset = 7;
@@ -1283,13 +1303,13 @@ return items.map((item) => [
         textColor: [0, 0, 0]
       },
       columnStyles: {
-        0: { halign: 'center' }, // S.No - center
-        1: { halign: 'center' }, // AP.No - center
-        2: { halign: 'left' }, // Invoice Date - left
-        3: { halign: 'left' }, // InvoiceNo - left
-        4: { halign: 'left' }, // Vendor Name - left
-        5: { halign: invoiceTypeFilter === 'service' ? 'left' : 'right' }, // Service Type (left) or TotalItems (right)
-        6: { halign: 'right' }, // Total Amount - RIGHT ALIGNED
+        0: { halign: 'center' },
+        1: { halign: 'center' },
+        2: { halign: 'left' },
+        3: { halign: 'left' },
+        4: { halign: 'left' },
+        5: { halign: invoiceTypeFilter === 'service' ? 'left' : 'right' },
+        6: { halign: 'right' },
       }
     });
 
@@ -1317,6 +1337,7 @@ return items.map((item) => [
     doc.save(pdfFilename);
     setDialogDownloadOpen(false);
   };
+
   const handleGrnClick = async (grnId: string) => {
     try {
       const result = await dispatch(fetchGrnById(grnId)).unwrap();
@@ -1387,6 +1408,7 @@ return items.map((item) => [
       console.error('Failed to fetch PO details:', error);
     }
   };
+
   const handleServiceClick = async (serviceId: string) => {
     if (!serviceId) {
       dispatch(setSnackbarMessage('Invalid Service ID'));
@@ -1404,61 +1426,19 @@ return items.map((item) => [
       console.error('Service fetch error:', error);
     }
   };
+
   // Return AP handler
-  const handleReturnClick = () => {
+  const handleReturnAp = async () => {
     if (!selectedInvoice) return;
-
-    if (selectedInvoice.invoiceType === 'service') {
-      // For service invoices, open return dialog with remarks
-      setReturnDialogOpen(true);
-    } else {
-      // For goods invoices, open GRN return dialog
-      setReturnDialogOpen(true);
-    }
-  };
-  const handleConfirmReturn = async () => {
-    if (!selectedInvoice) return;
-
     setLoading(true);
     try {
-      if (selectedInvoice.invoiceType === 'service') {
-        // Use serOId which contains the service MongoDB ObjectId
-        const serviceObjectId = selectedInvoice.serOId;
-
-        if (!serviceObjectId) {
-          throw new Error('Service ID not found in invoice data');
-        }
-
-        console.log('Using service ObjectId:', serviceObjectId);
-
-        await dispatch(returnServiceInvoice({
-          serviceId: serviceObjectId,
-          remarks: returnRemarks
-        })).unwrap();
-
-        // Success - close dialogs and refresh
-        setReturnDialogOpen(false);
-        setDetailsDialogOpen(false);
-        dispatch(setSnackbarMessage('Service returned to Pending successfully'));
-        dispatch(setSnackbarOpen(true));
-        refetchWithFilters();
-        setReturnRemarks('');
-
-      } else {
-        // For goods invoices - call GRN return API
-        await dispatch(convertToGrnFromApReturned(selectedInvoice.invoiceId)).unwrap();
-
-        setReturnDialogOpen(false);
-        setDetailsDialogOpen(false);
-        dispatch(setSnackbarMessage('Goods invoice returned to GRN successfully'));
-        dispatch(setSnackbarOpen(true));
-        refetchWithFilters();
-      }
-    } catch (err: any) {
-      console.error('Error returning invoice:', err);
-      dispatch(setSnackbarMessage(err?.message || err || 'Failed to return invoice'));
-      dispatch(setSnackbarOpen(true));
+      await dispatch(convertToGrnFromApReturned(selectedInvoice.invoiceId)).unwrap();
+      refetchWithFilters();
+    } catch (err) {
+      console.error('Error converting AP to GRN:', err);
     } finally {
+      setReturnDialogOpen(false);
+      setDetailsDialogOpen(false);
       setLoading(false);
     }
   };
@@ -1467,6 +1447,7 @@ return items.map((item) => [
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
+
   // Filter for Verified status only (non-returned) and by invoice type
   const verifiedApInvoices = useMemo(() => {
     let filtered = apInvoices;
@@ -1483,22 +1464,29 @@ return items.map((item) => [
 
     return filtered;
   }, [apInvoices, invoiceTypeFilter, selectedStatus]);
-  // Add this useEffect to debug filter state
-  useEffect(() => {
-    console.log('Filter state:', {
-      currentPage,
-      appliedFromDate: appliedFromDate ? new Date(appliedFromDate).toLocaleDateString() : 'undefined',
-      appliedToDate: appliedToDate ? new Date(appliedToDate).toLocaleDateString() : 'undefined',
-      selectedVendorName,
-      invoiceTypeFilter,
-      selectedStatus,
-      isDateFilterActive,
-      selectionRange: {
-        start: selectionRange.startDate.toLocaleDateString(),
-        end: selectionRange.endDate.toLocaleDateString()
-      }
-    });
-  }, [currentPage, appliedFromDate, appliedToDate, selectedVendorName, invoiceTypeFilter, selectedStatus, isDateFilterActive, selectionRange]);
+  // Add this function inside your component, before the return statement
+  const isInvoiceEligibleForVerification = (invoice: ApInvoice): boolean => {
+    return invoice.status !== 'Verified' &&
+      invoice.status !== 'Partially Paid' &&
+      invoice.status !== 'Fully Paid';
+  };
+  // // Add this useEffect to debug filter state
+  // useEffect(() => {
+  //   console.log('Filter state:', {
+  //     currentPage,
+  //     appliedFromDate: appliedFromDate ? new Date(appliedFromDate).toLocaleDateString() : 'undefined',
+  //     appliedToDate: appliedToDate ? new Date(appliedToDate).toLocaleDateString() : 'undefined',
+  //     selectedVendorName,
+  //     invoiceTypeFilter,
+  //     selectedStatus,
+  //     isDateFilterActive,
+  //     selectionRange: {
+  //       start: selectionRange.startDate.toLocaleDateString(),
+  //       end: selectionRange.endDate.toLocaleDateString()
+  //     }
+  //   });
+  // }, [currentPage, appliedFromDate, appliedToDate, selectedVendorName, invoiceTypeFilter, selectedStatus, isDateFilterActive, selectionRange]);
+
   // Tax calculations
   const taxAmounts: TaxAmounts = selectedInvoice
     ? (selectedInvoice.invoiceType === 'service'
@@ -1546,7 +1534,9 @@ return items.map((item) => [
     ...Object.keys(taxAmounts.cgst),
     ...Object.keys(taxAmounts.igst),
   ]);
+
   const filterAp = filteredAp.length > 0 ? filteredAp : apInvoices;
+
   /* ================= HIDE MODULE ================= */
   if (isModuleHidden) return null;
 
@@ -1566,7 +1556,7 @@ return items.map((item) => [
     <Box>
       <YenPurchasePage />
       <Box sx={{ p: 1, backgroundColor: 'white' }}>
-        {/* First Row - AP Invoice List, Returned AP buttons, and Typography */}
+        {/* First Row - AP Invoice List buttons */}
         <Box display="flex" alignItems="center" mb={1} ml={1}>
           {!isModuleHidden && (
             <Link href={"/yen-purchase/ApInvoicePage"}>
@@ -1590,7 +1580,7 @@ return items.map((item) => [
           )}
         </Box>
 
-        {/* Second Row: Search Vendor, Date Range, Invoice Type Filter, Filter, Clear, and Download Icons */}
+        {/* Second Row: Filters and Actions */}
         <Grid container alignItems="center" spacing={1} wrap="nowrap" ml={0.2} sx={{ mb: 0.7 }}>
           {/* Date Range Dialog */}
           <Grid item>
@@ -1625,13 +1615,14 @@ return items.map((item) => [
               </Select>
             </FormControl>
           </Grid>
+
           <Grid item xs={2}>
             <FormControl fullWidth size="small">
               <Autocomplete
                 options={statuses}
                 loading={statusesLoading}
                 value={selectedStatus || null}
-                inputValue={selectedStatus || ''}  // KEY FIX: Show selected value as text
+                inputValue={selectedStatus || ''}
                 onChange={(event, newValue) => {
                   console.log('Status selected:', newValue);
                   if (newValue === null) {
@@ -1639,10 +1630,8 @@ return items.map((item) => [
                   } else {
                     dispatch(setSelectedStatus(newValue));
                   }
-                  // Do NOT refetch here — only on Filter button
                 }}
                 onInputChange={(event, newInputValue, reason) => {
-                  // Only update search when user types (not when selecting)
                   if (reason === 'input') {
                     dispatch(setStatusSearch(newInputValue));
                     if (newInputValue.trim() === '') {
@@ -1652,7 +1641,6 @@ return items.map((item) => [
                       debouncedStatusSearch(newInputValue);
                     }
                   }
-                  // Ignore 'reset' or 'clear' reasons here
                 }}
                 onOpen={() => {
                   if (statuses.length === 0) {
@@ -1666,18 +1654,17 @@ return items.map((item) => [
                     size="small"
                     InputProps={{
                       ...params.InputProps,
-
                     }}
                   />
                 )}
-                // Rest of your PaperComponent, renderOption, etc.
                 freeSolo={false}
                 clearOnBlur={false}
-                clearOnEscape={true} // Optional: allows Escape to clear
+                clearOnEscape={true}
                 fullWidth
               />
             </FormControl>
           </Grid>
+
           {/* Filter Icon */}
           <Grid item>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -1729,6 +1716,42 @@ return items.map((item) => [
               </Typography>
             </Box>
           </Grid>
+
+          {/* Verify Button - Only show for admin */}
+          {isAdmin && (
+            <Grid item>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Tooltip title={
+                  selectedInvoicesForVerification.length === 0
+                    ? "Select at least one invoice to verify"
+                    : "Verify selected invoices"
+                }>
+                  <span>
+                    <IconButton
+                      onClick={handleBulkVerification}
+                      color="primary"
+                      disabled={selectedInvoicesForVerification.length === 0 || loading || verificationLoading || !isAdmin}
+                      className="icon-button-outline"
+                      size="small"
+                      sx={{ p: 0.3 }}
+                    >
+                      <VerifiedIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.75rem',
+                    textAlign: 'center',
+                    mt: 0.3,
+                  }}
+                >
+                  Verify ({selectedInvoicesForVerification.length})
+                </Typography>
+              </Box>
+            </Grid>
+          )}
 
           {/* Spacer to push Download to the right */}
           <Grid item sx={{ flexGrow: 1 }} />
@@ -1784,6 +1807,24 @@ return items.map((item) => [
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
+                  {/* Checkbox column - only show for admin */}
+                  {isAdmin && (
+                    <TableCell align="center" padding="checkbox">
+                      <Checkbox
+                        indeterminate={
+                          selectedInvoicesForVerification.length > 0 &&
+                          selectedInvoicesForVerification.length < verifiedApInvoices.length &&
+                          verifiedApInvoices.length > 0
+                        }
+                        checked={
+                          verifiedApInvoices.length > 0 &&
+                          selectedInvoicesForVerification.length === verifiedApInvoices.length
+                        }
+                        onChange={handleToggleAllVerificationSelection}
+                        disabled={verifiedApInvoices.length === 0 || !isAdmin}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell align="center">S.No</TableCell>
                   <TableCell align="left">POID/SOID</TableCell>
                   <TableCell align="left">GRN ID</TableCell>
@@ -1794,13 +1835,15 @@ return items.map((item) => [
                   <TableCell align="center">Type</TableCell>
                   <TableCell align="right">Total Amount</TableCell>
                   <TableCell align="center">Status</TableCell>
+                  <TableCell align="center">Verified By</TableCell>
+                  <TableCell align="center">Verified Date</TableCell>
                   <TableCell align="center">Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={11} align="center">
+                    <TableCell colSpan={isAdmin ? 15 : 14} align="center">
                       <CircularProgress size={24} />
                       <Typography variant="body2" sx={{ ml: 2 }}>
                         Loading invoices...
@@ -1809,7 +1852,7 @@ return items.map((item) => [
                   </TableRow>
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={11} align="center" sx={{ color: 'error.main' }}>
+                    <TableCell colSpan={isAdmin ? 15 : 14} align="center" sx={{ color: 'error.main' }}>
                       <Typography variant="body2">
                         Error: {error}
                       </Typography>
@@ -1817,7 +1860,7 @@ return items.map((item) => [
                   </TableRow>
                 ) : verifiedApInvoices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} align="center">
+                    <TableCell colSpan={isAdmin ? 15 : 14} align="center">
                       No data available
                     </TableCell>
                   </TableRow>
@@ -1829,6 +1872,16 @@ return items.map((item) => [
                     };
                     return (
                       <TableRow key={invoice.randomId}>
+                        {/* Checkbox column - only show for admin */}
+                        {isAdmin && (
+                          <TableCell align="center" padding="checkbox">
+                            <Checkbox
+                              checked={selectedInvoicesForVerification.includes(invoice.invoiceId)}
+                              onChange={() => handleToggleVerificationSelection(invoice.invoiceId)}
+                              disabled={invoice.status === 'Verified' || verificationLoading || !isAdmin}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell align="center">{(currentPage - 1) * pageSize + index + 1}</TableCell>
                         <TableCell align="left">
                           {invoice.invoiceType === 'service' ? (
@@ -1882,7 +1935,11 @@ return items.map((item) => [
                           {invoice.invoiceType === 'service' ? 'Service' : 'Goods'}
                         </TableCell>
                         <TableCell align="right">{invoice.invoiceAmount.toFixed(2)}</TableCell>
-                        <TableCell align="center">{invoice.status}</TableCell>
+                        <TableCell align="center">{invoice.status || 'Pending'}</TableCell>
+                        <TableCell align="center">{invoice.verifiedByName || '-'}</TableCell>
+                        <TableCell align="center">
+                          {invoice.verifiedDate ? format(new Date(invoice.verifiedDate), 'dd-MM-yyyy HH:mm') : '-'}
+                        </TableCell>
                         <TableCell>
                           <Box display="flex" alignItems="center">
                             <Tooltip title="View Detail">
@@ -1894,6 +1951,27 @@ return items.map((item) => [
                                 <VisibilityIcon />
                               </IconButton>
                             </Tooltip>
+                            {/* Verify button - only show for admin */}
+                            {isAdmin && isInvoiceEligibleForVerification(invoice) && (
+                              <Tooltip title="Verify Invoice">
+                                <span>
+                                  <IconButton
+                                    color="primary"
+                                    onClick={() => handleSingleVerification(invoice)}
+                                    disabled={
+                                      !canEdit ||
+                                      verificationLoading ||
+                                      !isAdmin ||
+                                      // Disable individual verify button when multiple items are selected
+                                      selectedInvoicesForVerification.length > 0
+                                    }
+                                  >
+                                    <VerifiedIcon />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            )}
+
                             <Tooltip title="Download PDF">
                               <IconButton
                                 color="primary"
@@ -2082,7 +2160,7 @@ return items.map((item) => [
                     </TableHead>
                     <TableBody>
                       {selectedInvoice.invoiceType === 'service' ? (
-                       (Array.isArray(selectedInvoice.descriptions) ? selectedInvoice.descriptions : []).map((desc, index) => (
+                        (Array.isArray(selectedInvoice.descriptions) ? selectedInvoice.descriptions : []).map((desc, index) => (
                           <TableRow key={index}>
                             <TableCell>{index + 1}</TableCell>
                             <TableCell>{desc}</TableCell>
@@ -2104,7 +2182,7 @@ return items.map((item) => [
                           </TableRow>
                         ))
                       ) : (
-                       (Array.isArray(selectedInvoice.itemDetails) ? selectedInvoice.itemDetails : []).map((item, index) => (
+                        (Array.isArray(selectedInvoice.itemDetails) ? selectedInvoice.itemDetails : []).map((item, index) => (
                           <TableRow key={item.itemId}>
                             <TableCell>{index + 1}</TableCell>
                             <TableCell>{item.itemName}</TableCell>
@@ -2200,23 +2278,59 @@ return items.map((item) => [
             )}
           </DialogContent>
           <DialogActions>
-              {selectedInvoice?.status === 'Outgoing Posted' && (
-  <Tooltip title={!canEdit ? "You don't have permission to return" : ''}>
-    <span>
-      <Button
-        variant="contained"
-        color={selectedInvoice?.invoiceType === 'service' ? 'warning' : 'primary'}
-        onClick={handleReturnClick}
-        sx={{ minWidth: '150px' }}
-        startIcon={selectedInvoice?.invoiceType === 'service' ? <RefreshIcon /> : null}
-        disabled={!canEdit}
-      >
-        {selectedInvoice?.invoiceType === 'service' ? 'Return Service' : 'Return GRN'}
-      </Button>
-    </span>
-  </Tooltip>
-)}
+            {selectedInvoice?.invoiceType === 'goods' &&
+              selectedInvoice?.status === 'Outgoing Posted' && (
+                <Tooltip title={canEdit ? "Return GRN" : "You don’t have permission"}>
+                  <span>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => setReturnDialogOpen(true)}
+                      sx={{ minWidth: '150px' }}
+                      disabled={!canEdit}
+                    >
+                      Return GRN
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
             <Button variant="contained" onClick={handleCloseDetailsDialog}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Verification Confirmation Dialog */}
+        <Dialog open={verificationDialogOpen} onClose={() => !verificationLoading && setVerificationDialogOpen(false)}>
+          <DialogTitle>Confirm Verification</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              {isBulkVerification
+                ? `Are you sure you want to verify ${selectedInvoicesForVerification.length} selected AP invoice(s)? 
+           Once verified, these invoices will be available for payment in the Outgoing Payment section.`
+                : `Are you sure you want to verify AP Invoice ${selectedInvoice?.randomId}? 
+           Once verified, this invoice will be available for payment in the Outgoing Payment section.`
+              }
+            </DialogContentText>
+            {verificationLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <CircularProgress size={24} />
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => setVerificationDialogOpen(false)}
+              disabled={verificationLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmVerification}
+              color="primary"
+              variant="contained"
+              disabled={verificationLoading}
+            >
+              {verificationLoading ? 'Verifying...' : 'Confirm Verification'}
+            </Button>
           </DialogActions>
         </Dialog>
 
@@ -2229,60 +2343,17 @@ return items.map((item) => [
         />
 
         {/* Return AP Invoice Confirmation Dialog */}
-                <Dialog open={returnDialogOpen} onClose={() => !loading && setReturnDialogOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>
-            {selectedInvoice?.invoiceType === 'service' ? 'Return Service Invoice' : 'Return GRN'}
-          </DialogTitle>
+        <Dialog open={returnDialogOpen} onClose={() => setReturnDialogOpen(false)}>
+          <DialogTitle>Return AP Invoice</DialogTitle>
           <DialogContent>
-            {selectedInvoice?.invoiceType === 'service' ? (
-              <>
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2">Returning Service Invoice</Typography>
-                  <Typography variant="body2">
-                    This will mark the service invoice as returned. You can reconvert it later.
-                  </Typography>
-                </Alert>
-
-                <DialogContentText sx={{ mb: 2 }}>
-                  <strong>Service ID:</strong> {selectedInvoice?.serviceId || selectedInvoice?.invoiceId}<br />
-                  <strong>Vendor:</strong> {selectedInvoice?.vendorName}<br />
-                  <strong>Amount:</strong> ₹{selectedInvoice?.invoiceAmount.toFixed(2)}
-                </DialogContentText>
-
-                <TextField
-                  autoFocus
-                  margin="dense"
-                  label="Return Remarks"
-                  type="text"
-                  fullWidth
-                  multiline
-                  rows={3}
-                  variant="outlined"
-                  value={returnRemarks}
-                  onChange={(e) => setReturnRemarks(e.target.value)}
-                  placeholder="Enter reason for return..."
-                />
-              </>
-            ) : (
-              <DialogContentText>
-                Are you sure you want to return this GRN?
-                <br /><br />
-                <strong>GRN ID:</strong> {selectedInvoice?.grnRandomId}<br />
-                <strong>Vendor:</strong> {selectedInvoice?.vendorName}
-              </DialogContentText>
-            )}
+            <DialogContentText>
+              Are you sure you want to return the AP Invoice?
+            </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setReturnDialogOpen(false)} disabled={loading}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmReturn}
-              color="primary"
-              variant="contained"
-              disabled={loading || (selectedInvoice?.invoiceType === 'service' && !returnRemarks.trim())}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Confirm Return'}
+            <Button onClick={() => setReturnDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleReturnAp} color="primary">
+              Confirm
             </Button>
           </DialogActions>
         </Dialog>
@@ -2297,7 +2368,7 @@ return items.map((item) => [
             width: '100%',
             height: '100%',
           }}
-          open={loadingCenter || returnServiceLoading}
+          open={loadingCenter}
         >
           <CircularProgress color="inherit" />
         </Backdrop>
@@ -2364,6 +2435,7 @@ return items.map((item) => [
             </Button>
           </DialogActions>
         </Dialog>
+
         <GrnDialog
           open={viewItemsDialogOpen}
           onClose={() => setViewItemsDialogOpen(false)}
@@ -2383,7 +2455,9 @@ return items.map((item) => [
           onClose={() => setDialogOpen(false)}
           service={selectedService}
         />
+
         <DebitCreditNoteDialog />
+
         <Snackbar
           open={snackbarOpen}
           message={snackbarMessage}

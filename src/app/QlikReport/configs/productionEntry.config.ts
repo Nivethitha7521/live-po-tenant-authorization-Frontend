@@ -28,10 +28,10 @@ export interface ProductionEntryRow {
 export const productionEntryConfig: ReportConfig<ProductionEntryRow> = {
   key: 'productionEntry',
   title: 'Production Entry Report',
-  apiBase: 'http://127.0.0.1:8000/reportsapi/productionEntry',
+  apiBase: 'https://yenerp.com/reportsapi/productionEntry',
   
   // NEW: Specific endpoint for Production Entry Date Filters
-  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/date-dropdown',
+  dateEndpoint: 'https://yenerp.com/reportsapi/productionEntry/date-dropdown',
 
   exportFilename: 'ProductionEntry',
   defaultPageSize: 30,

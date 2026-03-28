@@ -5,7 +5,7 @@ import { ApInvoice, ApInvoiceRandomId, ApInvoiceState, initialState } from '@/Mo
 import purchaseApi from "@/utils/api";
 
 
-const BASE_URL = 'http://127.0.0.1:8000/purchasetestapi';
+const BASE_URL = 'https://yenerp.com/purchasetestapi';
 // Fetch AP Invoices with pagination and advanced filtering
 // Add this async thunk for loading more statuses
 export const loadMoreStatuses = createAsyncThunk(
@@ -399,6 +399,35 @@ export const updateApdiscountInvoice = createAsyncThunk(
     }
   },
 );
+export const verifyApInvoice = createAsyncThunk(
+  'apInvoice/verify',
+  async (invoiceId: string, { rejectWithValue }) => {
+    try {
+      const response = await purchaseApi.patch(`/apinvoices/verify/${invoiceId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Verify failed:', error);
+      return rejectWithValue(error.response?.data?.detail || error.message);
+    }
+  }
+);
+
+export const bulkVerifyApInvoices = createAsyncThunk(
+  'apInvoice/bulkVerify',
+  async (invoiceIds: string[], { rejectWithValue }) => {
+    try {
+      // Send IDs in the request body, not as path parameter
+      const response = await purchaseApi.patch('/apinvoices/verify-bulk/verification', {
+        invoice_ids: invoiceIds  // Send as JSON object with key 'invoice_ids'
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Bulk verify failed:', error);
+      return rejectWithValue(error.response?.data?.detail || error.message);
+    }
+  }
+);
+
 const apInvoiceSlice = createSlice({
   name: 'apInvoice',
   initialState,
@@ -508,7 +537,46 @@ const apInvoiceSlice = createSlice({
     setIsSearchActive: (state, action: PayloadAction<boolean>) => {
       state.isSearchActive = action.payload;
     },
-
+       // Add these new reducers for verification
+    toggleVerificationSelection: (state, action: PayloadAction<string>) => {
+      const invoiceId = action.payload;
+      const index = state.selectedInvoicesForVerification.indexOf(invoiceId);
+      if (index === -1) {
+        state.selectedInvoicesForVerification.push(invoiceId);
+      } else {
+        state.selectedInvoicesForVerification.splice(index, 1);
+      }
+    },
+    
+    toggleAllVerificationSelection: (state, action: PayloadAction<string[]>) => {
+      const currentPageInvoiceIds = action.payload;
+      const allSelected = currentPageInvoiceIds.every(id => 
+        state.selectedInvoicesForVerification.includes(id)
+      );
+      
+      if (allSelected) {
+        // Deselect all on current page
+        state.selectedInvoicesForVerification = state.selectedInvoicesForVerification.filter(
+          id => !currentPageInvoiceIds.includes(id)
+        );
+      } else {
+        // Select all on current page that aren't already selected
+        const newSelections = currentPageInvoiceIds.filter(id => 
+          !state.selectedInvoicesForVerification.includes(id)
+        );
+        state.selectedInvoicesForVerification.push(...newSelections);
+      }
+    },
+    
+    clearVerificationSelection: (state) => {
+      state.selectedInvoicesForVerification = [];
+    },
+    
+    // Add this if you want to clear verification state when fetching new data
+    resetVerificationState: (state) => {
+      state.selectedInvoicesForVerification = [];
+      state.verificationLoading = false;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -673,6 +741,75 @@ const apInvoiceSlice = createSlice({
       })
       .addCase(fetchItemwiseAps.rejected, (state, action) => {
         state.loading = false;
+      })
+       .addCase(verifyApInvoice.pending, (state) => {
+        state.verificationLoading = true;
+        state.error = null;
+      })
+      .addCase(verifyApInvoice.fulfilled, (state, action) => {
+        state.verificationLoading = false;
+        
+        const updatedInvoice = action.payload;
+        
+        // Update the verified invoice in the list
+        const index = state.apInvoices.findIndex(inv => inv.invoiceId === updatedInvoice.invoiceId);
+        if (index !== -1) {
+          state.apInvoices[index] = {
+            ...state.apInvoices[index],
+            status: 'Verified',
+            verifiedBy: updatedInvoice.verifiedBy,
+            verifiedDate: updatedInvoice.verifiedDate
+          };
+        }
+        
+        // Remove from selection if it was selected
+        state.selectedInvoicesForVerification = state.selectedInvoicesForVerification.filter(
+          id => id !== updatedInvoice.invoiceId
+        );
+        
+        state.snackbarMessage = 'Invoice verified successfully';
+        state.snackbarOpen = true;
+      })
+      .addCase(verifyApInvoice.rejected, (state, action) => {
+        state.verificationLoading = false;
+        state.error = action.payload as string;
+        state.snackbarMessage = action.payload as string || 'Verification failed';
+        state.snackbarOpen = true;
+      })
+      
+      // Bulk verification
+      .addCase(bulkVerifyApInvoices.pending, (state) => {
+        state.verificationLoading = true;
+        state.error = null;
+      })
+      .addCase(bulkVerifyApInvoices.fulfilled, (state, action) => {
+        state.verificationLoading = false;
+        
+        const { modifiedCount, verifiedBy, verifiedDate } = action.payload;
+        
+        // Update all verified invoices in the list
+        state.apInvoices = state.apInvoices.map(invoice => 
+          state.selectedInvoicesForVerification.includes(invoice.invoiceId)
+            ? { 
+                ...invoice, 
+                status: 'Verified',
+                verifiedBy: verifiedBy,
+                verifiedDate: verifiedDate
+              }
+            : invoice
+        );
+        
+        // Clear selections
+        state.selectedInvoicesForVerification = [];
+        
+        state.snackbarMessage = `${modifiedCount} invoices verified successfully`;
+        state.snackbarOpen = true;
+      })
+      .addCase(bulkVerifyApInvoices.rejected, (state, action) => {
+        state.verificationLoading = false;
+        state.error = action.payload as string;
+        state.snackbarMessage = action.payload as string || 'Bulk verification failed';
+        state.snackbarOpen = true;
       });
   },
 });
@@ -689,7 +826,15 @@ export const { setSearchQuery, setSelectedStatus, clearError, setSelectedinvoice
   goToFirstPage,
   goToLastPage,
   setCurrentPage,
-  resetAll, } = apInvoiceSlice.actions;
+  resetAll, toggleVerificationSelection,
+  toggleAllVerificationSelection,
+  clearVerificationSelection,
+  resetVerificationState } = apInvoiceSlice.actions;
+// Export selectors for verification state
+export const selectSelectedInvoicesForVerification = (state: RootState) => 
+  state.apInvoice.selectedInvoicesForVerification;
+export const selectVerificationLoading = (state: RootState) => 
+  state.apInvoice.verificationLoading;
 
 export const selectApinvoice = (state: RootState) => state.apInvoice;
 export const selectCurrentPage = (state: RootState) => state.apInvoice.currentPage;

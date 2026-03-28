@@ -67,6 +67,7 @@ export interface Outgoing {
   postalCode: number;
   gstNumber: string;
   contactpersonEmail: string;
+  isVerified: boolean;  // Flag only - no verifiedBy or verifiedDate
 }
 
 export interface ItemDetail {
@@ -201,6 +202,9 @@ export interface ApInvoice {
   totalServiceFees: number;
   totalServiceTax: number;
   totalServiceDiscount: number;
+  verifiedBy?: string;      // Who verified it
+  verifiedByName?:string;
+  verifiedDate?: string;    // When it was verified
 }
 
 export interface ApInvoiceRandomId {
@@ -247,6 +251,8 @@ export interface ApInvoiceState {
   // Search and load more properties
   hasMore: boolean;
   isSearchActive: boolean;
+  selectedInvoicesForVerification: string[]; // Add this
+  verificationLoading: boolean; // Add this
 }
 
 export const initialState: ApInvoiceState = {
@@ -279,5 +285,8 @@ export const initialState: ApInvoiceState = {
   // Search and load more initial state
   hasMore: false,
   isSearchActive: false,
-  statusSearch: ""
+  statusSearch: "",
+  selectedInvoicesForVerification: [],
+  verificationLoading: false,
+
 };

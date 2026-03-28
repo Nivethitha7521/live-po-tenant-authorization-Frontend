@@ -36,7 +36,7 @@
 //       }
 
 //       try {
-//         const res = await fetch('http://127.0.0.1:8000/liveapi/datetime');
+//         const res = await fetch('https://yenerp.com/liveapi/datetime');
 //         const { current_date } = await res.json();
 
 //         const [dd, mm, yyyy] = current_date

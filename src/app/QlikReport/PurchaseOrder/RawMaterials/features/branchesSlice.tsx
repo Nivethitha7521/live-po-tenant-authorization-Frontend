@@ -55,7 +55,7 @@ export const initialState: ActivitiesState = {
 
 };
 
-const branches_API_URL = 'http://127.0.0.1:8000/fastapi/storedispatches/';
+const branches_API_URL = 'https://yenerp.com/fastapi/storedispatches/';
 
 
 export const fetchActivities = createAsyncThunk<Branche[]>(

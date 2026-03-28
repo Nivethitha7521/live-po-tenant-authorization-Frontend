@@ -37,15 +37,15 @@ export interface ItemwiseSalesReport {
 export const itemwiseSalesConfig: ReportConfig<ItemwiseSalesReport> = {
   key: 'itemwiseSales', // Unique key for Redux
   title: 'Itemwise Sales Report',
-  apiBase: 'http://127.0.0.1:8000/reportsapi/itemwiseSales',
+  apiBase: 'https://yenerp.com/reportsapi/itemwiseSales',
 
   // TODO: Update these endpoints if your backend routes differ from the standard pattern
-  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/itemwiseSales/date-dropdown',
+  dateEndpoint: 'https://yenerp.com/reportsapi/itemwiseSales/date-dropdown',
 
   // Assuming global dropdowns might be shared or have a specific endpoint
   // If this report has specific dropdowns, change this URL. 
   // Otherwise, keep it consistent with other reports or remove to use apiBase.
-  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Itemwise_Sales_Report',
   defaultPageSize: 30,

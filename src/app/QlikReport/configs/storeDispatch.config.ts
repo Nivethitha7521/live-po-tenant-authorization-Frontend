@@ -34,13 +34,13 @@ export const storeDispatchConfig: ReportConfig<StoreDispatchReport> = {
   title: 'Store Dispatch Report',
   
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'http://127.0.0.1:8000/reportsapi/rawmaterial',
+  apiBase: 'https://yenerp.com/reportsapi/rawmaterial',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/rawmaterial/date-dropdown',
+  dateEndpoint: 'https://yenerp.com/reportsapi/rawmaterial/date-dropdown',
   
   // Reusing the global dropdowns from Production Entry
-  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Store_Dispatch_Report',
   defaultPageSize: 30,

@@ -47,13 +47,13 @@ export const itemDateWiseConfig: ReportConfig<ItemDateWiseReport> = {
     title: 'Item Date Wise GRN Report',
 
     // TODO: Update this API base URL to match your actual backend route
-    apiBase: 'http://127.0.0.1:8000/reportsapi/itemwisedate',
+    apiBase: '/itemwisedate',
 
     // TODO: Update these endpoints to match your actual backend routes
-    dateEndpoint: 'http://127.0.0.1:8000/reportsapi/itemwisedate/date-dropdown',
+    dateEndpoint: '/itemwisedate/date-dropdown',
 
     // Reusing the global dropdowns from Production Entry
-    globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/purchaseOrders/global-dropdowns',
+    globalDropdownEndpoint: '/purchaseOrders/global-dropdowns',
 
     exportFilename: 'Item_Date_Wise_Report',
     defaultPageSize: 30,

@@ -27,13 +27,13 @@ export const itemOrderConfig: ReportConfig<ItemOrderReport> = {
   title: 'Item Order Report',
 
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'http://127.0.0.1:8000/reportsapi/itemOrder',
+  apiBase: 'https://yenerp.com/reportsapi/itemOrder',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/itemOrder/date-dropdown',
+  dateEndpoint: 'https://yenerp.com/reportsapi/itemOrder/date-dropdown',
 
   // Reusing the global dropdowns from Production Entry (or change if Item Order has its own)
-  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Item_Order_Report',
   defaultPageSize: 30,

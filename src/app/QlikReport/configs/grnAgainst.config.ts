@@ -32,13 +32,13 @@ export const grnAgainstConfig: ReportConfig<GrnAgainstReport> = {
     title: 'GRN Against Report',
 
     // TODO: Update this API base URL to match your actual backend route
-    apiBase: 'http://127.0.0.1:8000/reportsapi/grnagainst',
+    apiBase: '/grnagainst',
 
     // TODO: Update these endpoints to match your actual backend routes
-    dateEndpoint: 'http://127.0.0.1:8000/reportsapi/grnagainst/date-dropdown',
+    dateEndpoint: '/grnagainst/date-dropdown',
 
     // Reusing the global dropdowns from Production Entry
-    globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/purchaseOrders/global-dropdowns',
+    globalDropdownEndpoint: '/purchaseOrders/global-dropdowns',
 
     exportFilename: 'GRN_Against_Report',
     defaultPageSize: 30,

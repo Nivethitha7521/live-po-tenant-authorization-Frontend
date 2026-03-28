@@ -52,13 +52,13 @@ export const purchaseConfig: ReportConfig<PurchaseReport> = {
   title: 'Purchase Report',
 
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'http://127.0.0.1:8000/reportsapi/purchaseOrders',
+  apiBase: '/purchaseOrders',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/purchaseOrders/date-dropdown',
+  dateEndpoint: '/purchaseOrders/date-dropdown',
 
   // Reusing the global dropdowns from Production Entry
-  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/purchaseOrders/global-dropdowns',
+  globalDropdownEndpoint: '/purchaseOrders/global-dropdowns',
 
   exportFilename: 'Purchase_Report',
   defaultPageSize: 30,

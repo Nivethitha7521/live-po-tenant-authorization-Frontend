@@ -13,7 +13,7 @@ export const fetchOutgoings = createAsyncThunk<
   'outgoings/fetchOutgoings',
   async (args, { rejectWithValue }) => {
     try {
-      const url = 'http://127.0.0.1:8000/purchasetestapi/outgoingpayments/';
+      const url = 'https://yenerp.com/purchasetestapi/outgoingpayments/';
       const params: any = {
         skip: (args.page - 1) * args.size,
         limit: args.size,
@@ -109,7 +109,7 @@ export const fetchBank = createAsyncThunk<Bank[], void, { dispatch: any }>(
   'outgoingPayment/fetchBanks',  // Updated path to match slice
   async (_, { dispatch }) => {
     try {
-      const response = await purchaseApi.get('http://127.0.0.1:8000/masterapi/bankmasters/');  // Fixed double slash
+      const response = await purchaseApi.get('https://yenerp.com/masterapi/bankmasters/');  // Fixed double slash
       return response.data;
     } catch (error) {
       dispatch(setSnackbarMessage('Failed to fetch banks. Please try again.'));

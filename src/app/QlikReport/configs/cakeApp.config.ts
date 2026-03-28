@@ -38,13 +38,13 @@ export const cakeAppConfig: ReportConfig<CakeAppReport> = {
   title: 'Cake App Order Report',
   
   // TODO: Update this API base URL to match your actual backend route
-  apiBase: 'http://127.0.0.1:8000/reportsapi/birthdaycake',
+  apiBase: 'https://yenerp.com/reportsapi/birthdaycake',
 
   // TODO: Update these endpoints to match your actual backend routes
-  dateEndpoint: 'http://127.0.0.1:8000/reportsapi/birthdaycake/date-dropdown',
+  dateEndpoint: 'https://yenerp.com/reportsapi/birthdaycake/date-dropdown',
   
   // Reusing the global dropdowns from Production Entry
-  globalDropdownEndpoint: 'http://127.0.0.1:8000/reportsapi/productionEntry/global-dropdowns',
+  globalDropdownEndpoint: 'https://yenerp.com/reportsapi/productionEntry/global-dropdowns',
 
   exportFilename: 'Cake_App_Report',
   defaultPageSize: 30,
