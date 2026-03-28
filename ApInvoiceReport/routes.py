@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import re
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
-from fastapi import Depends
+from fastapi import Depends,Request
 from dependencies.auth import validate_token
 from middlewares.permission_middleware import check_permission
 from excel import get_vendor_code, resolve_raw_material
@@ -15,12 +15,15 @@ from .utils import (
     str_to_int,
 )
 
-from db.collections import vendor, apInvoice, purchaseorder, rawMaterials
-
+from db.collections import (
+    vendor_collection,
+    apInvoice_collection,
+    purchaseorder_collection,
+    rawMaterials_collection
+)
 
 router = APIRouter()
 
-rawMaterials = rawMaterials
 
 
 def fmt_date(dt):
@@ -32,10 +35,11 @@ def fmt_date(dt):
 @router.get(
     "/date-dropdown", response_model=DropdownResponse, summary="Ap Invoice Report Dropdown"
 )
-async def get_apinvoice_endpoint(user=Depends(validate_token),
+async def get_apinvoice_endpoint(request:Request,user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))):
 
-    collection = apInvoice
+    tenant_id = request.state.tenant_id
+    collection = apInvoice_collection(tenant_id)
 
     # === 1. Get Years, Months, Days (fast & simple) ===
     pipeline_dates = [
@@ -66,7 +70,7 @@ async def get_apinvoice_endpoint(user=Depends(validate_token),
 @router.get(
     "/report", summary="AP Invoice Report Data (Line-Item with Scroll Compatible)"
 )
-async def get_all_apinvoices_lineitem_scroll(
+async def get_all_apinvoices_lineitem_scroll(request:Request,
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=100),
     invoiceNo: Optional[List[str]] = Query(None),
@@ -76,15 +80,17 @@ async def get_all_apinvoices_lineitem_scroll(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
-    collection = apInvoice
-    vendor_collection = vendor
-    purchaseorder_collection = purchaseorder
+    tenant_id = request.state.tenant_id
+    collection = apInvoice_collection(tenant_id)
+    vendor_col = vendor_collection(tenant_id)        # vendor_collection → vendor_col
+    po_col = purchaseorder_collection(tenant_id)     # purchaseorder_collection → po_col
+    rawMaterials_col = rawMaterials_collection(tenant_id)
 
     # ----------------------------
     # Vendor mapping
     # ----------------------------
     vendor_map = {}
-    async for v in vendor_collection.find(
+    async for v in vendor_col.find(
         {}, {"vendorName": 1, "randomId": 1, "sapVendorCode": 1, "_id": 0}
     ):
         vendor_map[v["vendorName"]] = v
@@ -93,7 +99,7 @@ async def get_all_apinvoices_lineitem_scroll(
     # PO location mapping
     # ----------------------------
     po_location_map = {}
-    async for po in purchaseorder_collection.find(
+    async for po in po_col.find(
         {}, {"randomId": 1, "locationName": 1, "_id": 0}
     ):
         po_random_id = po.get("randomId")
@@ -105,7 +111,7 @@ async def get_all_apinvoices_lineitem_scroll(
     # Raw Material mapping
     # ----------------------------
     raw_by_random, raw_by_code, raw_by_name = {}, {}, {}
-    async for raw in rawMaterials.find(
+    async for raw in rawMaterials_col.find(
         {},
         {
             "randomId": 1,
@@ -267,13 +273,14 @@ async def get_all_apinvoices_lineitem_scroll(
 
 
 @router.get("/export", summary="Export AP Invoice Report Excel")
-async def export_ap_reports_full(
+async def export_ap_reports_full(request:Request,
     startDate: Optional[datetime] = Query(None),
     endDate: Optional[datetime] = Query(None),
     vendorName: Optional[List[str]] = Query(None),
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
     query = {}
 
     # Date filter
@@ -290,10 +297,10 @@ async def export_ap_reports_full(
 
     try:
         # Collections
-        ap_collection = apInvoice
-        vendor_collection = vendor
-        raw_collection = rawMaterials
-        po_collection = purchaseorder
+        ap_collection = apInvoice_collection(tenant_id)
+        vendor_col = vendor_collection(tenant_id)
+        raw_collection = rawMaterials_collection(tenant_id)
+        po_col = purchaseorder_collection(tenant_id)
 
         # Step 1: Fetch filtered APs
         aps_task = ap_collection.find(query).to_list(length=None)
@@ -325,7 +332,7 @@ async def export_ap_reports_full(
         vendors_task = vendor_collection.find(
             {"vendorName": {"$in": list(unique_vendors)}}
         ).to_list(length=None)
-        pos_task = po_collection.find(
+        pos_task = po_col.find(
             {"randomId": {"$in": list(unique_po_ids)}}
         ).to_list(length=None)
         raws_task = raw_collection.find(

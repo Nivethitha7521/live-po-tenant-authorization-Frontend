@@ -11,7 +11,7 @@ from typing import Optional, List
 import pandas as pd
 from openpyxl.utils import get_column_letter
 import io
-from fastapi import Depends
+from fastapi import Depends,Request
 from dependencies.auth import validate_token
 from middlewares.permission_middleware import check_permission
 from fastapi.responses import StreamingResponse
@@ -20,7 +20,7 @@ import pandas as pd
 
 from ApInvoiceReport.models import DropdownResponse
 from db.collections import (
-    grn as get_grn_collection,
+    grn_collection as get_grn_collection,
 )
 from .models import (
     PaginatedReportResponse,
@@ -30,7 +30,6 @@ from .models import (
 router = APIRouter()
 
 
-collection = get_grn_collection
 
 
 # Helper function to safely get value from array
@@ -56,8 +55,10 @@ def format_datetime(dt):
 
 
 @router.get("/date-dropdown", response_model=DropdownResponse)
-async def get_dispatch_date_dropdown(user=Depends(validate_token),
+async def get_dispatch_date_dropdown(request: Request, user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))):
+    tenant_id = request.state.tenant_id   # 🔥 ADD THIS
+    collection = get_grn_collection(tenant_id) 
 
     pipeline = [
         {"$match": {"createdDate": {"$type": "date"}}},
@@ -86,7 +87,7 @@ async def get_dispatch_date_dropdown(user=Depends(validate_token),
 @router.get(
     "/report", response_model=PaginatedReportResponse, summary="GRN against Report"
 )
-async def get_grn_against_unique_grn(
+async def get_grn_against_unique_grn(request:Request,
     page: int = Query(1, ge=1),
     limit: Optional[int] = Query(30, ge=1),
     startDate: Optional[datetime] = Query(None),
@@ -94,7 +95,11 @@ async def get_grn_against_unique_grn(
     invoiceNo: Optional[List[str]] = Query(None),
     vendorName: Optional[List[str]] = Query(None),
     status: Optional[List[str]] = Query(None),
+    user=Depends(validate_token),   # 🔥 ADD
+    permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id   # 🔥 ADD THIS
+    collection = get_grn_collection(tenant_id)
     try:
         pipeline = []
 
@@ -306,7 +311,7 @@ def fmt_date(dt):
 
 
 @router.get("/export", summary="Export Grnagainst Report Excel")
-async def export_grn_against_excel(
+async def export_grn_against_excel(request:Request,
     startDate: Optional[datetime] = Query(None),
     endDate: Optional[datetime] = Query(None),
     invoiceNo: Optional[List[str]] = Query(None),
@@ -315,6 +320,8 @@ async def export_grn_against_excel(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id  
+    collection = get_grn_collection(tenant_id) 
     try:
         pipeline = []
         base_filter = {}

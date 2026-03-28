@@ -149,13 +149,39 @@ db_masteradmin = LIVE["MasterAdmin_DB"]
 
 # ------------------ COLLECTIONS ------------------
 # Purchase DB
-purchaseorder = db_purchase["purchaseorder"]
-apInvoice = db_purchase["apInvoice"]
-purchaseOrder = db_purchase["purchaseorder"]
-vendor = db_purchase["vendor"]
-rawMaterials = db_purchase["rawMaterials"]
-grn = db_purchase["grn"]
-outgoingpayment = db_purchase["outgoingpayment"]
+def purchaseorder_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["purchaseorder"]
+
+
+def apInvoice_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["apInvoice"]
+
+
+def vendor_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["vendor"]
+
+
+def rawMaterials_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["rawMaterials"]
+
+
+def grn_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["grn"]
+
+
+def outgoingpayment_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["outgoingpayment"]
+
+def grnDebitNote_collection(tenant_id: str):
+    _, db = get_tenant_database(tenant_id, use_async=True)
+    return db["grnDebitNote"]
+
 storedispatch = db_reactfluter["storeDispatch2"]
 
 
@@ -164,7 +190,7 @@ pettycash = db_master["pettycash"]
 
 # Birthday
 cakeappinvoices = db_birthday["cakeappinvoices"]
-
+rawMaterials = db_masteradmin["ItemMaster"]
 # Flutter DB
 salesorder = db_flutter["salesorder"]
 invoices = db_flutter["invoices"]
@@ -174,7 +200,7 @@ wastageEntry = db_flutter["wastageEntry"]
 warehouseReturn = db_flutter["warehouseReturn"]
 productionEntry = db_flutter["productionEntrys"]
 itemtransfer = db_flutter["itemtransfer"]
-grnDebitNote = db_purchase["grnDebitNote"]
+
 
 # NextJS DB
 ItemMaster = db_masteradmin["ItemMaster"]

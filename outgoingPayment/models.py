@@ -135,6 +135,8 @@ class Outgoing(BaseModelWithConfig):
     paymentId: Optional[str] = None  # Added PaymentID field
     totalFreightAmount: Optional[float] = 0
     totalFreightTaxAmount: Optional[float] = 0
+    isVerified: Optional[bool] = False  # Flag only - stored in outgoing
+
     class Config:
         orm_mode = True
     @field_validator('orderDate', 'grnDate', 'outgoingDate', 'createdDate', 'lastUpdatedDate', 'invoiceDate', 'poDate', 'paymentDate', 'apinvoiceDate', mode='before')
@@ -221,6 +223,8 @@ class OutgoingPost(BaseModelWithConfig):
     paymentId: Optional[str] = None  # Added PaymentID field
     totalFreightAmount: Optional[float] = 0
     totalFreightTaxAmount: Optional[float] = 0 
+    isVerified: Optional[bool] = False  # Flag only - stored in outgoing
+
     @field_validator('orderDate', 'grnDate', 'outgoingDate', 'createdDate', 'lastUpdatedDate', 'invoiceDate', 'poDate', 'paymentDate', 'apinvoiceDate', mode='before')
     def parse_datetime(cls, v):
         """Convert MongoDB date format to IST datetime"""

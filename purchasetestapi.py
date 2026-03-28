@@ -223,9 +223,15 @@ routes_info = [
     {"module": "grn.debitnote", "prefix": "/purchasetestapi/debitnote", "tags": ["debitnote"]},
     {"module": "grn.grn_to_ap_outgoing", "prefix": "/purchasetestapi/grns", "tags": ["grns"]}, 
     {"module": "grn.grn_to_po", "prefix": "/purchasetestapi/grns", "tags": ["grns"]},
+     {
+        "module": "ApInvoiceReport.routes",
+        "prefix": "/purchasetestapi/apinvoices",
+        "tags": ["AP Invoices"],
+    },
     {"module": "apinvoice.routes", "prefix": "/purchasetestapi/apinvoices", "tags": ["apinvoices"]},
     {"module": "apinvoice.ap_to_outgoing", "prefix": "/purchasetestapi/apinvoices", "tags": ["apinvoices"]},
     {"module": "apinvoice.apReturned", "prefix": "/purchasetestapi/apinvoices", "tags": ["apinvoices"]},
+        {"module": "apinvoice.verifiedap", "prefix": "/purchasetestapi/apinvoices", "tags": ["apinvoices"]},
     {"module": "outgoingPayment.routes", "prefix": "/purchasetestapi/outgoingpayments", "tags": ["outgoingpayments"]},
     {"module": "outgoingPayment.bulk_payment", "prefix": "/purchasetestapi/outgoingpayments", "tags": ["outgoingpayments"]},
     {"module": "outgoingPayment.vendor_ledger", "prefix": "/purchasetestapi/outgoingpayments", "tags": ["outgoingpayments"]},
@@ -258,11 +264,7 @@ routes_info = [
         "prefix": "/purchasetestapi/grnagainst",
         "tags": ["GRN Against"],
     },
-    {
-        "module": "ApInvoiceReport.routes",
-        "prefix": "/purchasetestapi/apinvoices",
-        "tags": ["AP Invoices"],
-    },
+   
     {
         "module": "OutgoingPaymentReport.routes",
         "prefix": "/purchasetestapi/outgoingPayment",
@@ -275,7 +277,7 @@ routes_info = [
     },
     {
         "module": "DebitnoteReport.routes",
-        "prefix": "/purchasetestapi/debitnote",
+        "prefix": "/purchasetestapi/debitnote-reports",
         "tags": ["Debit Notes"],
     },
     {
@@ -354,8 +356,11 @@ for route in routes_info:
     try:
         router = debug_module_import(route["module"])
         if router:
+            print(f"🔥 REGISTERING: {route['module']} with prefix {route['prefix']}")
             app.include_router(router, prefix=route["prefix"], tags=route["tags"])
             logger.info(f"✅ Included YEN ERP: {route['module']}")
+        else:
+            print(f"❌ ROUTER NOT FOUND: {route['module']}")
     except Exception as e:
         logger.error(f"❌ Failed to include {route['module']}: {e}")
 

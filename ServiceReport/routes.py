@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 import re
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query,Request
 from fastapi import Depends
 from dependencies.auth import validate_token
 from middlewares.permission_middleware import check_permission
@@ -21,17 +21,23 @@ from .funtions import (
     fmt_date,
 )
 
-from db.collections import apInvoice, vendor, rawMaterials
+from db.collections import (
+    apInvoice_collection,
+    vendor_collection,
+    rawMaterials_collection
+)
 
 
 router = APIRouter()
 
-collection = apInvoice
 
 
 @router.get("/date-dropdown", response_model=DropdownResponse)
-async def get_date_dropdown(user=Depends(validate_token),
+async def get_date_dropdown(request:Request,user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))):
+
+    tenant_id = request.state.tenant_id
+    collection = apInvoice_collection(tenant_id)
 
     pipeline = [
         {"$match": {"invoiceType": "service", "createdDate": {"$type": "date"}}},
@@ -59,7 +65,7 @@ async def get_date_dropdown(user=Depends(validate_token),
 
 
 @router.get("/report", response_model=ReportResponse)
-async def get_all_apinvoices(
+async def get_all_apinvoices(request:Request,
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=100),
     invoiceNo: Optional[List[str]] = Query(None),
@@ -69,12 +75,16 @@ async def get_all_apinvoices(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
-    collection = apInvoice
-    vendor_collection = vendor
+    tenant_id = request.state.tenant_id
+
+    collection = apInvoice_collection(tenant_id)
+    vendor_col = vendor_collection(tenant_id)
+    raw_col = rawMaterials_collection(tenant_id)
+
 
     # Vendor mapping
     vendor_map = {}
-    async for v in vendor_collection.find(
+    async for v in vendor_col.find(
         {}, {"vendorName": 1, "sapVendorCode": 1, "randomId": 1, "_id": 0}
     ):
         vendor_map[v["vendorName"]] = v
@@ -125,7 +135,7 @@ async def get_all_apinvoices(
             tax_amt = tax_amt_list[idx] if idx < len(tax_amt_list) else 0
             total = total_list[idx] if idx < len(total_list) else 0
 
-            raw_material_doc = await rawMaterials.find_one(
+            raw_material_doc = await raw_col.find_one(
                 {"itemName": {"$regex": f"^{re.escape(desc)}$", "$options": "i"}}
             )
 
@@ -200,13 +210,14 @@ async def get_all_apinvoices(
 
 
 @router.get("/export")
-async def export_ap_reports_service(
+async def export_ap_reports_service(request:Request,
     startDate: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     vendorName: Optional[List[str]] = Query(None),
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
     query = {"invoiceType": "service"}  # ONLY service invoices
 
     # Date filter
@@ -221,9 +232,9 @@ async def export_ap_reports_service(
         query["vendorName"] = {"$in": vendorName}
 
     try:
-        ap_collection = apInvoice
-        vendor_collection = vendor
-        raw_collection = rawMaterials
+        ap_collection = apInvoice_collection(tenant_id)
+        vendor_col = vendor_collection(tenant_id)
+        raw_col = rawMaterials_collection(tenant_id)
 
         aps = await ap_collection.find(query).to_list(length=None)
 
@@ -246,10 +257,10 @@ async def export_ap_reports_service(
         )
 
         vendors, raws = await asyncio.gather(
-            vendor_collection.find(
+            vendor_col.find(
                 {"vendorName": {"$in": list(unique_vendors)}}
             ).to_list(length=None),
-            raw_collection.find({"itemName": {"$in": list(unique_items)}}).to_list(
+            raw_col.find({"itemName": {"$in": list(unique_items)}}).to_list(
                 length=None
             ),
         )

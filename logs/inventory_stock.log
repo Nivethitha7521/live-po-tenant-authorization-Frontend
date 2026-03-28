@@ -6,3 +6,4 @@
 2026-03-17 18:12:51,133 - INVENTORY_ONLY_UPDATE|operation=REVERT (SUBTRACT)|items=1|updates=1|creates=0|not_found=0
 2026-03-24 22:41:13,833 - INVENTORY_ONLY_UPDATE|operation=REVERT (SUBTRACT)|items=1|updates=1|creates=0|not_found=0
 2026-03-24 22:51:05,368 - INVENTORY_ONLY_UPDATE|operation=REVERT (SUBTRACT)|items=1|updates=1|creates=0|not_found=0
+2026-03-28 13:15:43,514 - INVENTORY_ONLY_RETURN|items=2|updates=2|not_found=0|validation_failures=0|location=WH001

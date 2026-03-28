@@ -1,13 +1,18 @@
 from typing import Dict, Any, List
 from datetime import date, datetime, timedelta
 from io import BytesIO
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from bson import ObjectId
 from typing import Optional
 from fastapi.responses import StreamingResponse
 import pandas as pd
 from ApInvoiceReport.models import DropdownResponse
-from db.collections import grn, vendor as vendor_collection, outgoingpayment, apInvoice
+from db.collections import (
+    outgoingpayment_collection,
+    vendor_collection,
+    apInvoice_collection,
+    grn_collection
+)
 from excel import get_vendor_code
 from fastapi import Depends
 from dependencies.auth import validate_token
@@ -17,11 +22,11 @@ router = APIRouter()
 
 
 @router.get("/date-dropdown", response_model=DropdownResponse)
-async def get_apinvoice_endpoint(user=Depends(validate_token),
+async def get_apinvoice_endpoint(request:Request,user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))):
 
-    collection = outgoingpayment
-
+    tenant_id = request.state.tenant_id
+    collection = outgoingpayment_collection(tenant_id)
     # === 1. Get Years, Months, Days (fast & simple) ===
     pipeline_dates = [
         {"$match": {"createdDate": {"$type": "date"}}},
@@ -56,7 +61,7 @@ def serialize_doc(doc: dict) -> dict:
 
 
 @router.get("/report", summary="Outgoing Payment Report Data (Fast)")
-async def get_outgoing_reports_fast(
+async def get_outgoing_reports_fast(request:Request,
     invoiceNo: Optional[str] = Query(None),
     vendorName: Optional[List[str]] = Query(None),
     startDate: Optional[datetime] = Query(None),
@@ -66,8 +71,10 @@ async def get_outgoing_reports_fast(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
+    collection = outgoingpayment_collection(tenant_id)
     try:
-        collection = outgoingpayment
+       
 
         # Build query filters
         query = {"status": {"$in": ["Fully Paid", "Partially Paid"]}}
@@ -220,7 +227,7 @@ async def get_outgoing_reports_fast(
     
  
 @router.get("/export", summary="Export Outgoing Payment Report to Excel")
-async def export_outgoing_reports(
+async def export_outgoing_reports(request:Request,
     invoiceNo: Optional[str] = Query(None),
     vendorName: Optional[List[str]] = Query(None),
     startDate: Optional[datetime] = Query(None),
@@ -228,6 +235,8 @@ async def export_outgoing_reports(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
+    collection = outgoingpayment_collection(tenant_id)
     try:
         query = {"status": {"$in": ["Fully Paid", "Partially Paid"]}}
 
@@ -290,7 +299,7 @@ async def export_outgoing_reports(
             {"$sort": {"createdDate": 1}},
         ]
 
-        docs = await outgoingpayment.aggregate(pipeline).to_list(length=None)
+        docs = await collection.aggregate(pipeline).to_list(length=None)
 
         if not docs:
             raise HTTPException(status_code=404, detail="No records found for export")
@@ -412,7 +421,7 @@ async def export_outgoing_reports(
     
    
 @router.get("/Outstanding/report", summary="Outstanding Report Data (Fast)")
-async def get_outgoing_payments_fast(
+async def get_outgoing_payments_fast(request:Request,
     vendorName: Optional[List[str]] = Query(None),
     invoiceNo: Optional[str] = Query(None),
     startDate: Optional[datetime] = Query(None),
@@ -422,8 +431,10 @@ async def get_outgoing_payments_fast(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
+    payment_collection = outgoingpayment_collection(tenant_id)
     try:
-        payment_collection = outgoingpayment
+       
 
         # Build filters
         filters = {"status": {"$nin": ["Returned", "Fully Paid"]}}
@@ -566,7 +577,7 @@ async def get_outgoing_payments_fast(
 
 
 @router.get("/Outstanding/export", summary="Export Full Outstanding Report to Excel")
-async def export_outstanding_reports(
+async def export_outstanding_reports(request:Request,
     vendorName: Optional[List[str]] = Query(None, description="Filter by vendor name"),
     startDate: Optional[datetime] = Query(
         None, description="Filter from AP invoice date (start)"
@@ -577,12 +588,15 @@ async def export_outstanding_reports(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
+
     try:
         # Get collections
-        payment_collection = outgoingpayment
-        apinvoice_collection = apInvoice
-        grn_collection = grn
-
+       
+        payment_collection = outgoingpayment_collection(tenant_id)
+        apinvoice_collection = apInvoice_collection(tenant_id)
+        grn_col = grn_collection(tenant_id)
+        vendor_col = vendor_collection(tenant_id)
         # Build filters
         filters: Dict[str, Any] = {}
 
@@ -623,7 +637,7 @@ async def export_outstanding_reports(
         vendor_names = list(
             {p.get("vendorName") for p in payments if p.get("vendorName")}
         )
-        vendors = await vendor_collection.find(
+        vendors = await vendor_col.find(
             {"vendorName": {"$in": vendor_names}}
         ).to_list(length=None)
         vendor_map = {v["vendorName"]: v for v in vendors}

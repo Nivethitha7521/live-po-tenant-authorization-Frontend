@@ -3,7 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from io import BytesIO
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query,Request
 from fastapi.responses import StreamingResponse
 import pandas as pd
 from fastapi import Depends
@@ -15,15 +15,24 @@ from .models import purchase, DropdownResponse, purchaseResponse
 
 router = APIRouter()
 
-from db.collections import apInvoice, purchaseOrder, vendor, grn as grn_collection, rawMaterials
 
-
+from db.collections import (
+    apInvoice_collection,
+    purchaseorder_collection,
+    vendor_collection,
+    grn_collection,
+    rawMaterials_collection
+)
 @router.get("/global-dropdowns")
-async def global_dropdowns(
+async def global_dropdowns(request: Request,
     search: Optional[str] = Query(None), page: int = Query(1), limit: int = Query(20),
      user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
+
+    rawMaterials_db = rawMaterials_collection(tenant_id)
+    vendor_db = vendor_collection(tenant_id)
 
     skip = (page - 1) * limit
 
@@ -45,7 +54,7 @@ async def global_dropdowns(
         ]
     )
 
-    itemName = await rawMaterials.aggregate(item_pipeline).to_list(length=limit)
+    itemName = await rawMaterials_db.aggregate(item_pipeline).to_list(length=limit)
 
     # ---------------- LOCATION ----------------
     vendor_pipeline = [{"$match": {"status": "active"}}]
@@ -64,7 +73,7 @@ async def global_dropdowns(
         ]
     )
 
-    vendors = await vendor.aggregate(vendor_pipeline).to_list(length=limit)
+    vendors = await vendor_db.aggregate(vendor_pipeline).to_list(length=limit)
 
     return {"itemName": itemName, "vendor": vendors}
 
@@ -74,10 +83,10 @@ async def global_dropdowns(
     response_model=DropdownResponse,
     summary="Purchaseorder Report Dropdown",
 )
-async def get_apinvoice_endpoint( user=Depends(validate_token),
+async def get_apinvoice_endpoint( request:Request,user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))):
-    collection = purchaseOrder
-
+    tenant_id = request.state.tenant_id
+    collection = purchaseorder_collection(tenant_id)
     # === Years, Months, Days ===
     all_docs_cursor = collection.find({}, {"createdDate": 1})
     all_docs = await all_docs_cursor.to_list(length=None)
@@ -184,7 +193,7 @@ def get_db_item_status(item, po, received_qty: int):
     response_model=purchaseResponse,
     summary="Purchaseorder Report",
 )
-async def get_po_reports(
+async def get_po_reports(request:Request,
     startDate: Optional[datetime] = Query(None),
     endDate: Optional[datetime] = Query(None),
     vendorName: Optional[List[str]] = Query(None),
@@ -195,6 +204,7 @@ async def get_po_reports(
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
     
 ):
+    tenant_id = request.state.tenant_id
     query = {}
 
     # ---------------- DATE FILTER ----------------
@@ -212,11 +222,11 @@ async def get_po_reports(
         query["randomId"] = {"$in": poNo}
 
     # ---------------- COLLECTIONS ----------------
-    po_collection = purchaseOrder
-    vendor_collection = vendor
-    raw_collection = rawMaterials
-    grn_collection_db = grn_collection
-    ap_collection = apInvoice
+    po_collection = purchaseorder_collection(tenant_id)
+    vendor_db = vendor_collection(tenant_id)
+    raw_db = rawMaterials_collection(tenant_id)
+    grn_db = grn_collection(tenant_id)
+    ap_db = apInvoice_collection(tenant_id)
 
     # ---------------- AGGREGATION PIPELINE FOR ITEM-LEVEL ROWS ----------------
     # Each row = one PO item
@@ -250,11 +260,11 @@ async def get_po_reports(
 
     # ---------------- BULK FETCH RELATED DATA ----------------
     vendors, raws, grns, aps = await asyncio.gather(
-        vendor_collection.find(
+        vendor_db.find(
             {"vendorName": {"$in": [po.get("vendorName") for po in po_items]}},
             {"vendorName": 1, "vendorId": 1, "sapVendorCode": 1, "randomId": 1},
         ).to_list(None),
-        raw_collection.find(
+        raw_db.find(
             {},
             {
                 "randomId": 1,
@@ -264,7 +274,7 @@ async def get_po_reports(
                 "purchasesubcategoryName": 1,
             },
         ).to_list(None),
-        grn_collection_db.find(
+        grn_db.find(
             {"poRandomID": {"$in": po_ids}},
             {
                 "randomId": 1,
@@ -274,7 +284,7 @@ async def get_po_reports(
                 "totalReceivedAmount": 1,
             },
         ).to_list(None),
-        ap_collection.find(
+        ap_db.find(
             {"poRandomId": {"$in": po_ids}},
             {"randomId": 1, "poRandomId": 1, "grnRandomId": 1, "status": 1},
         ).to_list(None),
@@ -493,7 +503,7 @@ def fmt_date(dt):
 
 
 @router.get("/export", summary="Export Purchaseorder Report Excel")
-async def export_po_reports(
+async def export_po_reports(request:Request,
     startDate: Optional[datetime] = Query(None),
     endDate: Optional[datetime] = Query(None),
     vendorName: Optional[List[str]] = Query(None),
@@ -501,6 +511,7 @@ async def export_po_reports(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
     query = {}
 
     # ---------------- DATE FILTERS ----------------
@@ -518,10 +529,10 @@ async def export_po_reports(
         query["randomId"] = {"$in": poNo}
 
     # ---------------- COLLECTIONS ----------------
-    po_collection = purchaseOrder
-    vendor_collection = vendor
-    raw_collection = rawMaterials
-    ap_collection = apInvoice
+    po_collection = purchaseorder_collection(tenant_id)
+    vendor_db = vendor_collection(tenant_id)
+    raw_db = rawMaterials_collection(tenant_id)
+    ap_db = apInvoice_collection(tenant_id)
 
     # ---------------- FETCH POs FIRST ----------------
     pos = await po_collection.find(
@@ -541,13 +552,13 @@ async def export_po_reports(
         raise HTTPException(status_code=404, detail="No records found")
 
     po_ids = [po["randomId"] for po in pos]
-
+    grn_db = grn_collection(tenant_id)
     # ---------------- FETCH RELATED DATA ONLY ----------------
     vendors, raws, grns, aps = await asyncio.gather(
-        vendor_collection.find(
+        vendor_db.find(
             {}, {"vendorName": 1, "sapVendorCode": 1, "randomId": 1}
         ).to_list(None),
-        raw_collection.find(
+        raw_db.find(
             {},
             {
                 "itemId": 1,
@@ -558,7 +569,7 @@ async def export_po_reports(
                 "purchasesubcategoryName": 1,
             },
         ).to_list(None),
-        grn_collection.find(
+        grn_db.find(
             {"poRandomID": {"$in": po_ids}},
             {
                 "randomId": 1,
@@ -568,7 +579,7 @@ async def export_po_reports(
                 "totalReceivedAmount": 1,
             },
         ).to_list(None),
-        ap_collection.find(
+        ap_db.find(
             {"poRandomId": {"$in": po_ids}},
             {
                 "randomId": 1,

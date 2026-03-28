@@ -116,6 +116,9 @@ class Apinvoice(BaseModel):
     totalServiceFees: Optional[float] = 0
     totalServiceTax: Optional[float] = 0
     totalServiceDiscount: Optional[float] = 0
+    verifiedBy: Optional[str] = None     # Who verified it - stored in AP only
+    verifiedDate: Optional[datetime] = None  # When it was verified - stored in AP only
+    verifiedByName: Optional[str] = None  # User Name (for display)
 
 class ApinvoicePost(BaseModel):
     purchaseOrderId: Optional[str] = None
@@ -192,6 +195,8 @@ class ApinvoicePost(BaseModel):
     totalServiceFees: Optional[float] = 0
     totalServiceTax: Optional[float] = 0
     totalServiceDiscount: Optional[float] = 0
+    verifiedBy: Optional[str] = None     # Who verified it - stored in AP only
+    verifiedDate: Optional[datetime] = None  # When it was verified - stored in AP only
 
 class FrontendItemDetail(BaseModel):
     itemId: str
@@ -225,6 +230,10 @@ class FrontendApInvoiceResponse(BaseModel):
     desc_tax_amounts: List[float] = Field(default_factory=list)
     desc_totals: List[float] = Field(default_factory=list)
     remarks:List[str] = Field( default_factory=list)
+    verifiedBy: Optional[str] = None
+    verifiedByName: Optional[str] = None  # Add for display
+    verifiedDate: Optional[datetime] = None
+
 class ApRandomId(BaseModel):
     invoiceId:str
     randomId:str

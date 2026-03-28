@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from typing import Optional, List
 from datetime import datetime, timezone, time
@@ -7,7 +7,7 @@ import io
 from fastapi import Depends
 from dependencies.auth import validate_token
 from middlewares.permission_middleware import check_permission
-from db.collections import grnDebitNote
+from db.collections import grnDebitNote_collection
 from .models import (
     DateDropdownResponse,
     VendorDropdownResponse,
@@ -17,7 +17,6 @@ from .models import (
 )
 
 router = APIRouter()
-collection = grnDebitNote
 
 
 # -------------------------
@@ -69,8 +68,10 @@ def excel_response(df: pd.DataFrame, filename: str):
 
 
 @router.get("/date-dropdown", response_model=DateDropdownResponse)
-async def get_dispatch_date_dropdown(user=Depends(validate_token),
+async def get_dispatch_date_dropdown(request:Request,user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))):
+    tenant_id = request.state.tenant_id
+    collection = grnDebitNote_collection(tenant_id)
 
     pipeline = [
         {"$match": {"createdDate": {"$type": "date"}}},
@@ -100,7 +101,7 @@ async def get_dispatch_date_dropdown(user=Depends(validate_token),
 # Item-wise report
 # =====================================================
 @router.get("/item-wise/report", response_model=PaginatedResponse)
-async def debit_note_item_wise(
+async def debit_note_item_wise(request: Request,
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=100),
     startDate: Optional[datetime] = Query(None),
@@ -110,6 +111,9 @@ async def debit_note_item_wise(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
+    collection = grnDebitNote_collection(tenant_id)
+
     pipeline = []
     base_match = {"noteType": "debit"}
 
@@ -245,7 +249,7 @@ async def debit_note_item_wise(
 # EXPORT ITEM WISE
 # =====================================================
 @router.get("/item-wise/export")
-async def export_debit_note_item_wise(
+async def export_debit_note_item_wise(request: Request,
     startDate: Optional[datetime] = Query(None),
     endDate: Optional[datetime] = Query(None),
     vendorName: Optional[List[str]] = Query(None),
@@ -253,6 +257,9 @@ async def export_debit_note_item_wise(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+   
+    tenant_id = request.state.tenant_id
+    collection = grnDebitNote_collection(tenant_id)
     pipeline = []
     base_match = {"noteType": "debit"}
 
@@ -372,7 +379,7 @@ async def export_debit_note_item_wise(
 # Amount-wise report
 # =====================================================
 @router.get("/amount-wise/report", response_model=PaginatedResponse)
-async def debit_note_amount_wise(
+async def debit_note_amount_wise(request: Request,
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=100),
     startDate: Optional[datetime] = Query(None),
@@ -382,6 +389,9 @@ async def debit_note_amount_wise(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
+    collection = grnDebitNote_collection(tenant_id)
+
     pipeline = []
     base_match = {"noteType": "debit"}
 
@@ -477,7 +487,7 @@ async def debit_note_amount_wise(
 # EXPORT AMOUNT WISE
 # =====================================================
 @router.get("/amount-wise/export")
-async def export_debit_note_amount_wise(
+async def export_debit_note_amount_wise(request:Request,
     startDate: Optional[datetime] = Query(None),
     endDate: Optional[datetime] = Query(None),
     vendorName: Optional[List[str]] = Query(None),
@@ -485,6 +495,9 @@ async def export_debit_note_amount_wise(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+   
+    tenant_id = request.state.tenant_id
+    collection = grnDebitNote_collection(tenant_id)
     pipeline = []
     base_match = {"noteType": "debit"}
 

@@ -3,7 +3,7 @@ import io
 import tempfile
 import os
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query,Request
 from fastapi.responses import FileResponse, StreamingResponse
 import pandas as pd
 from fastapi import Depends
@@ -16,7 +16,7 @@ from .models import PaginatedReportResponse, ReportField
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Query
-from db.collections import grn, vendor
+from db.collections import grn_collection, vendor_collection
 
 router = APIRouter()
 
@@ -26,12 +26,13 @@ router = APIRouter()
     response_model=DropdownResponse,
     summary=" Itemwise Date Report Dropdown",
 )
-async def get_apinvoice_endpoint(user=Depends(validate_token),
+async def get_apinvoice_endpoint(request:Request,user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))):
     """
     Simple dropdown: years, months, days + searchable & paginated vendors/invoices
     """
-    collection = grn
+    tenant_id = request.state.tenant_id
+    collection = grn_collection(tenant_id)
 
     # === 1. Get Years, Months, Days (fast & simple) ===
     pipeline_dates = [
@@ -72,10 +73,9 @@ def fmt_date(dt):
     "/report",
     response_model=PaginatedReportResponse,
     summary="Get AP Invoice Reports",
-    user=Depends(validate_token),
-    permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
+   
 )
-async def get_apinvoice_reports(
+async def get_apinvoice_reports(request:Request,
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     invoiceNo: Optional[List[str]] = Query(None),
@@ -83,10 +83,13 @@ async def get_apinvoice_reports(
     status: Optional[List[str]] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=100),
+     user=Depends(validate_token),
+    permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
     try:
-        collection = grn
-        vendor_collection = vendor
+        collection = grn_collection(tenant_id)
+        vendor_db = vendor_collection(tenant_id)
 
         # ---------------- Single date handling ----------------
         if start_date and not end_date:
@@ -178,7 +181,7 @@ async def get_apinvoice_reports(
                 },
                 {
                     "$lookup": {
-                        "from": vendor_collection.name,
+                        "from": vendor_db.name,
                         "localField": "vendorName",
                         "foreignField": "vendorName",
                         "as": "vendorData",
@@ -341,7 +344,7 @@ async def get_apinvoice_reports(
 
 
 @router.get("/export", summary="Export Itemwisedate Report Excel")
-async def export_apinvoice_report_to_excel(
+async def export_apinvoice_report_to_excel(request:Request,
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     invoiceNo: Optional[List[str]] = Query(None),
@@ -350,9 +353,10 @@ async def export_apinvoice_report_to_excel(
     user=Depends(validate_token),
     permissions=Depends(check_permission("yenerp", "purchaseorderreport", "read"))
 ):
+    tenant_id = request.state.tenant_id
     try:
-        collection = grn
-        vendor_collection = vendor
+        collection = grn_collection(tenant_id)
+        vendor_collection_db = vendor_collection(tenant_id)
 
         # ---------------- Filters ----------------
 
@@ -434,7 +438,7 @@ async def export_apinvoice_report_to_excel(
                 },
                 {
                     "$lookup": {
-                        "from": vendor_collection.name,
+                        "from": vendor_collection_db.name,
                         "localField": "vendorName",
                         "foreignField": "vendorName",
                         "as": "vendorData",

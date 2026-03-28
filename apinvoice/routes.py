@@ -1,10 +1,10 @@
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import logging
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query,Request
 from bson import ObjectId
 import pytz
-
+from utils.datetime_function import get_current_date_and_time
 from utils.financial_year import get_business_alias, get_financial_year
 from .models import ApRandomId, Apinvoice, ApinvoicePost, FrontendApInvoiceResponse, FrontendItemDetail,PaginatedApInvoices
 from utils.database import get_apinvoice_collection,get_grn_collection
@@ -12,29 +12,13 @@ from dependencies.auth import validate_token
 from middlewares.permission_middleware import check_permission
 from fastapi import Depends
 from middlewares.permission_middleware import get_current_user
+from database import db
 router = APIRouter()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 # Define FrontendApInvoiceResponse for AP Invoice
-
-def get_current_date_and_time(timezone: str = "Asia/Kolkata") -> dict:
-    try:
-        
-        # 1. Get current time in specified timezone (IST by default)
-        tz = pytz.timezone(timezone)
-        localized_now = datetime.now(tz)  # Correct IST time
-        
-        # 2. Convert to UTC
-
-    except pytz.UnknownTimeZoneError:
-        raise HTTPException(status_code=400, detail="Invalid timezone")
-    
- 
-    # Return the datetime object directly (without converting it to string)
-    return {
-        "datetime": localized_now  # This is a Python `datetime` object, not a string
-    }
+       
 # Helper function to safely get values from dictionary
 def get_safe_value(data, key, default=0.0):
     """Safely get a value from a dictionary with a default if None."""
@@ -280,7 +264,7 @@ async def get_apinvoices(request: Request,
     invoiceType: Optional[str] = Query(None, description="Filter by invoice type: 'goods' or 'service'"),
     search: Optional[str] = Query(None, description="Search across PO/AP/GRN/Service ID/Invoice No/Vendor"),
     status: Optional[str] = Query(None, description="Filter by exact status (Verified, Returned, etc.)"),
-      user = Depends(validate_token),
+    user = Depends(validate_token),
     user_data = Depends(get_current_user)
 ):
     tenant_id = request.state.tenant_id
@@ -378,6 +362,24 @@ async def get_apinvoices(request: Request,
         cursor = collection.aggregate(pipeline)
         raw_docs = list(cursor)
 
+        # ========== NEW: Fetch usernames for verifiedBy IDs ==========
+        # Collect all unique verifiedBy user IDs (only ObjectId format)
+        user_ids = set()
+        for doc in raw_docs:
+            verified_by = doc.get("verifiedBy")
+            if verified_by and isinstance(verified_by, str) and len(verified_by) == 24 and all(c in '0123456789abcdefABCDEF' for c in verified_by):
+                user_ids.add(verified_by)
+        
+        # Fetch users from database
+        user_map = {}
+        if user_ids:
+            # Convert string IDs to ObjectIds
+            object_ids = [ObjectId(uid) for uid in user_ids if ObjectId.is_valid(uid)]
+            if object_ids:
+                users_cursor = await db["users"].find({"_id": {"$in": object_ids}}).to_list(None)
+                user_map = {str(user["_id"]): user.get("username", "Unknown") for user in users_cursor}
+        # ========== END NEW CODE ==========
+
         # ───────────────────────────────────────────────
         # 4. Format documents for response
         # ───────────────────────────────────────────────
@@ -386,6 +388,14 @@ async def get_apinvoices(request: Request,
         for doc in raw_docs:
             # Convert ObjectId → string
             doc["invoiceId"] = str(doc["_id"])
+            
+            # ========== NEW: Add verifiedByName ==========
+            verified_by = doc.get("verifiedBy")
+            if verified_by and verified_by in user_map:
+                doc["verifiedByName"] = user_map[verified_by]
+            else:
+                doc["verifiedByName"] = verified_by  # Fallback to ID if not found
+            # ========== END NEW CODE ==========
             
             # IMPORTANT: Keep _id for reference but don't delete it
             # The frontend might need the original _id for sorting reference
