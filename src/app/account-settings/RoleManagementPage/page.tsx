@@ -61,34 +61,6 @@ const getPermissionSummary = (
 };
 
 
-const PURCHASE_SUBMODULES = [
-  "purchasecategory",
-  "purchasesubcategory",
-  "purchaseuom",
-  "itemgroup",
-  "purchasetax",
-  "storagelocation",
-  "freight",
-  "itemtype",
-  "vendortype",
-  "vendors",
-  "purchaseitem",
-  "purchaseorders_pending",
-  "purchaseorders_approved",
-  "purchaseorders_rejected",
-  "grns",
-  "grns_return",
-  "apinvoices",
-];
-
-const BOOK_SUBMODULES = [
-  "outgoingpayment",
-  "advancepayment",
-  "partialpayment",
-  "paymentdone",
-  "ledger",
-  "purchasereturn",
-];
 
 const ROLE_OPTIONS = [
   "Admin",
@@ -124,77 +96,31 @@ const normalizePermissionsForView = (
   const result: AppPermissions[] = [];
 
   permissions.forEach((app: AppPermissions) => {
-    // 🔹 SPLIT ONLY PURCHASE
-    if (app.appName === "YEN_PURCHASE") {
-      const purchaseModules: ModuleItem[] = [];
-      const bookModules: ModuleItem[] = [];
+    const validModules: ModuleItem[] = [];
 
-      app.modules.forEach((module: ModuleItem) => {
-        const purchaseSubs: Submodule[] = [];
-        const bookSubs: Submodule[] = [];
-
-        module.submodules.forEach((sub: Submodule) => {
-          const hasVisible =
-            sub.actions.read ||
-            sub.actions.add ||
-            sub.actions.edit ||
-            sub.actions.delete ||
-            sub.actions.approve;
-
-          if (!hasVisible) return;
-
-          if (PURCHASE_SUBMODULES.includes(sub.id)) {
-            purchaseSubs.push(sub);
-          }
-
-          if (BOOK_SUBMODULES.includes(sub.id)) {
-            bookSubs.push(sub);
-          }
-        });
-
-        if (purchaseSubs.length) {
-          purchaseModules.push({ ...module, submodules: purchaseSubs });
-        }
-
-        if (bookSubs.length) {
-          bookModules.push({ ...module, submodules: bookSubs });
-        }
+    app.modules.forEach((module: ModuleItem) => {
+      const validSubs = module.submodules.filter((sub: Submodule) => {
+        return (
+          sub.actions.read ||
+          sub.actions.add ||
+          sub.actions.edit ||
+          sub.actions.delete ||
+          sub.actions.approve
+        );
       });
 
-      if (purchaseModules.length) {
-        result.push({
-          appName: "YEN_PURCHASE",
-          modules: purchaseModules,
+      if (validSubs.length > 0) {
+        validModules.push({
+          ...module,
+          submodules: validSubs,
         });
       }
+    });
 
-      if (bookModules.length) {
-        result.push({
-          appName: "YEN_BOOK",
-          modules: bookModules,
-        });
-      }
-
-      return;
-    }
-
-    // 🔹 ALL OTHER APPS
-    const visibleModules = app.modules.filter(
-      (module: ModuleItem) =>
-        module.submodules.some(
-          (sub: Submodule) =>
-            sub.actions.read ||
-            sub.actions.add ||
-            sub.actions.edit ||
-            sub.actions.delete ||
-            sub.actions.approve
-        )
-    );
-
-    if (visibleModules.length) {
+    if (validModules.length > 0) {
       result.push({
         appName: app.appName,
-        modules: visibleModules,
+        modules: validModules,
       });
     }
   });

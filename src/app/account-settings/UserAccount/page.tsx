@@ -47,6 +47,23 @@ const BOOK_SUBMODULES = [
   "ledger",
   "purchasereturn",
 ];
+const REPORT_SUBMODULES = [
+  "purchaseorderreport",
+  "posreport"
+];
+
+const INVENTORY_SUBMODULES = [
+  "physicalstockmodification",
+  "physicalstockvariancemodification",
+  "stockledger",
+  "warehousephysicalstockmodification",
+  "warehousephysicalstockvariancemodification",
+  "warehousestockledger"
+];
+
+const SETTINGS_SUBMODULES = [
+  "settings"
+];
 // ✅ Username: min 4 characters
 const USERNAME_REGEX = /^.{4,}$/;
 
@@ -200,6 +217,9 @@ const fetchRoleAppsFromPermissions = async () => {
 if (appKey === "yenerp") {
   let hasPurchase = false;
   let hasBook = false;
+  let hasReport = false;
+  let hasInventory = false;
+  let hasSettings = false;
 
   Object.entries(appPermObj || {}).forEach(([subKey, actions]: any) => {
     const hasPermission = Object.entries(actions).some(
@@ -215,23 +235,40 @@ if (appKey === "yenerp") {
     if (BOOK_SUBMODULES.includes(subKey)) {
       hasBook = true;
     }
+
+    if (REPORT_SUBMODULES.includes(subKey)) {
+      hasReport = true;
+    }
+
+    if (INVENTORY_SUBMODULES.includes(subKey)) {
+      hasInventory = true;
+    }
+
+    if (SETTINGS_SUBMODULES.includes(subKey)) {
+      hasSettings = true;
+    }
   });
 
   if (hasPurchase) apps.push("YEN_PURCHASE");
   if (hasBook) apps.push("YEN_BOOK");
+  if (hasReport) apps.push("YEN_REPORT");
+  if (hasInventory) apps.push("YEN_INVENTORY");
+  if (hasSettings) apps.push("YEN_SETTINGS");
 
-  return; // 🔴 VERY IMPORTANT – stop here for yenerp
+  return;
 }
 
 // 🔹 OTHER APPS (NORMAL)
+// 🔹 OTHER APPS (DYNAMIC - ALL MODULES)
 const submodules = Object.values(appPermObj || {});
 const appHasPermission = submodules.some((sub: any) =>
   hasAnyCheckedPermissionExceptHide(sub)
 );
 
 if (appHasPermission) {
-  if (appKey === "outlet_manager") apps.push("YEN_OUTLET_MANAGER");
-  else if (appKey === "pos") apps.push("YEN_POS");
+  // 🔥 Convert appKey → APP NAME
+  const formattedAppName = "YEN_" + appKey.toUpperCase();
+  apps.push(formattedAppName);
 }
 
         });
