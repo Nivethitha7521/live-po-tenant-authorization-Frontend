@@ -84,8 +84,14 @@ const SideMenu: React.FC<SideMenuProps> = ({
   showReportsMenu,
 }) => {
   const role = useSelector((state: RootState) => state.auth.role);
-  const isAdmin = role === "Admin";
-
+  const isSuperAdmin = role === "Super Admin";
+const permissions = useSelector((state: RootState) => state.auth.permissions?.yenerp || {});
+const hasSettingsRead = (() => {
+  const m = permissions?.['settings'];
+  if (!m) return false;
+  if (m.hide === true) return false;
+  return m.read === true;
+})();
   const [open, setOpen] = useState(false);
   const [subMenuOpen, setSubMenuOpen] = useState<number | null>(null);
   const drawerRef = useRef(null);
@@ -146,38 +152,54 @@ const SideMenu: React.FC<SideMenuProps> = ({
               if (menuItem.text === "YEN BOOK" && !showBookMenu) return false;
               if (menuItem.text === "YEN INVENTORY" && !showInventoryMenu) return false; // ✅ FIX
               if (menuItem.text === "YEN REPORTS" && !showReportsMenu) return false;
-              if (menuItem.text === "ACCOUNT SETTINGS" && !isAdmin) return false;
-              if (menuItem.text === "SETTINGS") return isAdmin;
+              //if (menuItem.text === "ACCOUNT SETTINGS" && !isSuperAdmin) return false;
+              //if (menuItem.text === "SETTINGS") return isSuperAdmin;
+              if (menuItem.text === "ACCOUNT SETTINGS" && !isSuperAdmin) return false;
+if (menuItem.text === "SETTINGS") return hasSettingsRead;
               return true;
             })
             .map((menuItem, index) => (
               <React.Fragment key={index}>
                 <ListItem
-                  button
-                  onClick={() => handleMenuItemClick(menuItem)}
-                  sx={{
-                    justifyContent: open ? 'flex-start' : 'center',
-                    px: open ? 2 : 0,
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 0, justifyContent: 'center', width: '100%' }}>
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      width: '100%',
-                      textAlign: 'center'
-                    }}>
-                      <span>{menuItem.icon}</span>
-                      {!open && (
-                        <Typography variant="caption" className="menu-text-small">
-                          {menuItem.text}
-                        </Typography>
-                      )}
-                    </div>
-                  </ListItemIcon>
-                  {open && <ListItemText primary={menuItem.text} />}
-                </ListItem>
+  button
+  onClick={() => handleMenuItemClick(menuItem)}
+  className="menu-item"
+  sx={{
+    justifyContent: open ? 'flex-start' : 'center',
+    px: open ? 2 : 0,
+  }}
+>
+ <ListItemIcon sx={{ minWidth: 0, justifyContent: 'center', width: 70 }}>
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: 70,
+    overflow: 'hidden',
+    textAlign: 'center'
+  }}>
+    <span>{menuItem.icon}</span>
+    {!open && (
+      <Typography
+        variant="caption"
+        className="menu-text-small"
+        style={{
+          fontSize: '8px',
+          lineHeight: '1.1',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          width: '60px',
+          display: 'block'
+        }}
+      >
+        {menuItem.text}
+      </Typography>
+    )}
+  </div>
+</ListItemIcon>
+  {open && <ListItemText primary={menuItem.text} />}
+</ListItem>
 
                 {open && subMenuOpen === index && menuItem.subItems && (
                   <List component="div" disablePadding>

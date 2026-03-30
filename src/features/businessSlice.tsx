@@ -5,19 +5,19 @@ import { Business, initialState, ShippingAddress } from '@/Models/businessModel'
  
 // Async thunk to fetch all Business items
 export const fetchBusinesses = createAsyncThunk('businesses/fetchBusinesses', async () => {
-  const response = await axios.get('https://yenerp.com/purchasetestapi/pobusiness/'); // Adjust API endpoint as needed
+  const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/pobusiness/'); // Adjust API endpoint as needed
   return response.data;
 });
  
 // Async thunk to add a new Business item
 export const addBusiness = createAsyncThunk<Business, Business>('businesses/addBusiness', async (businessData) => {
-  const response = await axios.post('https://yenerp.com/purchasetestapi/pobusiness/', businessData); // Adjust API endpoint as needed
+  const response = await axios.post('http://127.0.0.1:8000/purchasetestapi/pobusiness/', businessData); // Adjust API endpoint as needed
   return response.data;
 });
  
 // Async thunk to update an existing Business item
 export const updateBusiness = createAsyncThunk<Business, Business>('businesses/updateBusiness', async (businessData) => {
-  const response = await axios.patch(`https://yenerp.com/purchasetestapi/pobusiness/${businessData.businessId}`, businessData); // Adjust API endpoint as needed
+  const response = await axios.patch(`http://127.0.0.1:8000/purchasetestapi/pobusiness/${businessData.businessId}`, businessData); // Adjust API endpoint as needed
   return response.data;
 });
  
@@ -33,7 +33,7 @@ export const uploadBusinessPhoto = createAsyncThunk<
  
  
       const response = await axios.post(
-        `https://yenerp.com/purchasetestapi/pobusiness/upload?custom_id=${businessId}`, // Use the business ID in the URL
+        `http://127.0.0.1:8000/purchasetestapi/pobusiness/upload?custom_id=${businessId}`, // Use the business ID in the URL
         formData,
         {
           headers: {
@@ -61,7 +61,7 @@ export const fetchPhoto = createAsyncThunk(
   'photos/fetchPhoto',
   async (businessId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`https://yenerp.com/purchasetestapi/pobusiness/view/${businessId}`, { responseType: 'blob' });
+      const response = await axios.get(`http://127.0.0.1:8000/purchasetestapi/pobusiness/view/${businessId}`, { responseType: 'blob' });
       const imageUrl = URL.createObjectURL(response.data); // Convert blob to object URL
       return { imageUrl, businessId };
     }
@@ -78,7 +78,7 @@ export const fetchPhoto = createAsyncThunk(
  
 // Async thunk to fetch all Business items
 export const fetchShipping = createAsyncThunk('shipping/fetchShipping', async () => {
-  const response = await axios.get('https://yenerp.com/purchasetestapi/poshippingaddress/'); // Adjust API endpoint as needed
+  const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/poshippingaddress/'); // Adjust API endpoint as needed
   return response.data;
 });
  

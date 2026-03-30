@@ -20,7 +20,7 @@ export const fetchVendorTypeItems = createAsyncThunk<VendorTypeItem[], { signal?
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.get('https://yenerp.com/purchasetestapi/vendortypes/', {
+      const response = await axios.get('http://127.0.0.1:8000/purchasetestapi/vendortypes/', {
         cancelToken: source.token,
         headers: getAuthHeaders() // ✅ ADD HEADERS
       });
@@ -43,7 +43,7 @@ export const addVendorTypeItem = createAsyncThunk<VendorTypeItem, { data: Vendor
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.post('https://yenerp.com/purchasetestapi/vendortypes', data, {
+      const response = await axios.post('http://127.0.0.1:8000/purchasetestapi/vendortypes', data, {
         cancelToken: source.token,
         headers: getAuthHeaders() // ✅ ADD HEADERS
       });
@@ -69,7 +69,7 @@ export const updateVendorTypeItem = createAsyncThunk<
       signal?.addEventListener('abort', () => {
         source.cancel('Request canceled');
       });
-      const response = await axios.patch(`https://yenerp.com/purchasetestapi/vendortypes/${vendortypeId}`, vendortype, {
+      const response = await axios.patch(`http://127.0.0.1:8000/purchasetestapi/vendortypes/${vendortypeId}`, vendortype, {
         cancelToken: source.token,
         headers: getAuthHeaders() // ✅ ADD HEADERS
       });
@@ -93,7 +93,7 @@ export const deactivateVendorTypeItem = createAsyncThunk<VendorTypeItem, { vendo
         source.cancel('Request canceled');
       });
        const response = await axios.patch(
-        `https://yenerp.com/purchasetestapi/vendortypes/${vendortypeId}/deactivate`,
+        `http://127.0.0.1:8000/purchasetestapi/vendortypes/${vendortypeId}/deactivate`,
         {},
         { cancelToken: source.token,
           headers: getAuthHeaders() }
@@ -119,7 +119,7 @@ export const activateVendorTypeItem = createAsyncThunk<VendorTypeItem, { vendort
         source.cancel('Request canceled');
       });
        const response = await axios.patch(
-        `https://yenerp.com/purchasetestapi/vendortypes/${vendortypeId}/activate`,
+        `http://127.0.0.1:8000/purchasetestapi/vendortypes/${vendortypeId}/activate`,
         {},
         { cancelToken: source.token,
           headers: getAuthHeaders() }

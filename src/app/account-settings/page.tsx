@@ -20,13 +20,13 @@ const AccountSettingsPage: React.FC = () => {
 const { role, isInitialized } = useSelector(
   (state: RootState) => state.auth
 );
-const isAdmin = role === "Admin";
+const isSuperAdmin = role === "Super Admin";
 
 const [activeContent, setActiveContent] = useState<string>('user-accounts');
 
 
 const subItems = useMemo(() => {
-  if (!isAdmin) return [];
+  if (!isSuperAdmin) return [];
 
   return [
     { 
@@ -56,7 +56,7 @@ const subItems = useMemo(() => {
 },
 
   ];
-}, [isAdmin]);
+}, [isSuperAdmin]);
 
 
   const isActiveRoute = (itemPath: string) => pathname?.startsWith(itemPath);
@@ -97,7 +97,7 @@ if (!isInitialized) {
 }
 
 // ❌ After auth ready, block non-admin
-if (!isAdmin) {
+if (!isSuperAdmin) {
   return (
     <Typography color="error" align="center" mt={5}>
       ❌ You do not have permission to access Account Settings

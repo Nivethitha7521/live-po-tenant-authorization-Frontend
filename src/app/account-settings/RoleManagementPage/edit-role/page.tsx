@@ -11,7 +11,18 @@ import Tooltip from "@mui/material/Tooltip";
 
 // Types
 type ActionKeys = "read" | "add" | "edit" | "delete" | "hide" | "approve";
-type Submodule = { id: string; name: string; actions: Record<ActionKeys, boolean> };
+type EditSubActions = {
+  convert_to_ap: boolean;
+  return_grn: boolean;
+  revert_to_po: boolean;
+};
+//type Submodule = { id: string; name: string; actions: Record<ActionKeys, boolean> };
+type Submodule = { 
+  id: string; 
+  name: string; 
+  actions: Record<ActionKeys, boolean>;
+  editSubActions?: EditSubActions;
+};
 type ModuleItem = { id: string; name: string; submodules: Submodule[] };
 type AppPermissions = { appName: string; modules: ModuleItem[] };
 
@@ -93,7 +104,16 @@ const HARD_MODULES: AppPermissions[] = [
         id: "grn",
         name: "GRN Note",
         submodules: [
-          { id: "grn_list", name: "GRN List", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
+         { 
+  id: "grn_list", 
+  name: "GRN List", 
+  actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false },
+  editSubActions: {
+    convert_to_ap: false,
+    return_grn: false,
+    revert_to_po: false
+  }
+},
           { id: "grn_return", name: "Return GRN", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } }
         ]
       },
@@ -186,6 +206,22 @@ const HARD_MODULES: AppPermissions[] = [
       ]
     }
 
+  ]
+},
+{
+  appName: "YEN_SETTINGS",
+  modules: [
+    {
+      id: "yen_settings",
+      name: "Date Settings",
+      submodules: [
+        {
+          id: "settings_date",
+          name: "Date Settings",
+          actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false }
+        }
+      ]
+    }
   ]
 },
 {
@@ -618,6 +654,88 @@ const SubmoduleInfoIcon = ({ info }: { info: React.ReactNode }) => (
   </Tooltip>
 );
 
+const EditActionPopover = ({
+  submoduleId,
+  editValue,
+  editSubActions,
+  onToggleEdit,
+  onToggleSubAction,
+}: {
+  submoduleId: string;
+  editValue: boolean;
+  editSubActions?: EditSubActions;
+  onToggleEdit: () => void;
+  onToggleSubAction: (action: keyof EditSubActions) => void;
+}) => {
+  const [showPopover, setShowPopover] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setShowPopover(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // 👉 only GRN
+  if (submoduleId !== "grn_list" || !editSubActions) {
+    return (
+      <button
+        onClick={onToggleEdit}
+        className={`w-6 h-5 rounded text-xs ${
+          editValue
+            ? "bg-blue-600 text-white"
+            : "bg-gray-200 text-gray-600"
+        }`}
+      >
+        {editValue ? "✓" : "✗"}
+      </button>
+    );
+  }
+
+  const labels = {
+    convert_to_ap: "Convert to AP",
+    return_grn: "Return GRN",
+    revert_to_po: "Revert to PO",
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setShowPopover(!showPopover)}
+        className={`w-8 h-5 rounded text-xs flex items-center justify-center gap-1 ${
+          editValue
+            ? "bg-blue-600 text-white"
+            : "bg-gray-200 text-gray-600"
+        }`}
+      >
+        {editValue ? "✓" : "✗"} ▼
+      </button>
+
+      {showPopover && (
+        <div className="absolute z-50 top-6 left-1/2 -translate-x-1/2 bg-white border rounded shadow p-2 w-44">
+          <p className="text-xs font-bold mb-1">Edit Actions</p>
+
+          {(Object.keys(labels) as (keyof EditSubActions)[]).map((key) => (
+            <label key={key} className="flex gap-2 text-xs py-1">
+              <input
+                type="checkbox"
+                checked={editSubActions[key]}
+                onChange={() => onToggleSubAction(key)}
+              />
+              {labels[key]}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 
 // Snackbar interface
 interface SnackbarState {
@@ -721,7 +839,7 @@ const [confirmDialog, setConfirmDialog] = useState<{
 'oi_psm': 'physicalstockmodification',
 'oi_psvm': 'physicalstockvariancemodification',
 'oi_sl': 'stockledger',
-
+'settings_date': 'settings',
 'wi_psm': 'warehousephysicalstockmodification',
 'wi_psvm': 'warehousephysicalstockvariancemodification',
 'wi_sl': 'warehousestockledger',
@@ -801,6 +919,13 @@ const permissionSource =
             approve: Boolean(permissionData.approve || false),
           };
         }
+        if (permissionData.edit_actions) {
+  sub.editSubActions = {
+    convert_to_ap: Boolean(permissionData.edit_actions.convert_to_ap),
+    return_grn: Boolean(permissionData.edit_actions.return_grn),
+    revert_to_po: Boolean(permissionData.edit_actions.revert_to_po),
+  };
+}
       });
     });
   });
@@ -826,7 +951,7 @@ setFormPermissions(applyDefaultHide(JSON.parse(JSON.stringify(HARD_MODULES))));
 
       try {
         // Fetch role
-        const roleRes = await fetch(`https://yenerp.com/purchasetestapi/roles?name=${encodeURIComponent(roleName)}`);
+        const roleRes = await fetch(`http://127.0.0.1:8000/purchasetestapi/roles?name=${encodeURIComponent(roleName)}`);
         if (roleRes.ok) {
           const rolesData = await roleRes.json();
           const roleData = Array.isArray(rolesData) ? rolesData.find((r: any) => r.name === roleName) : rolesData;
@@ -841,7 +966,7 @@ setFormPermissions(applyDefaultHide(JSON.parse(JSON.stringify(HARD_MODULES))));
         }
 
         // Fetch permissions
-        const permRes = await fetch(`https://yenerp.com/purchasetestapi/permissions?role_name=${encodeURIComponent(roleName)}`);
+        const permRes = await fetch(`http://127.0.0.1:8000/purchasetestapi/permissions?role_name=${encodeURIComponent(roleName)}`);
         if (permRes.ok) {
           const permData = await permRes.json();
           
@@ -969,12 +1094,46 @@ const toggleAction = (ai: number, mi: number, si: number, act: ActionKeys) => {
       actions.delete = false;
       actions.approve = false;
     }
-
+if (act === "edit" && actions.edit === false) {
+  const submodule = c[ai].modules[mi].submodules[si];
+  if (submodule.editSubActions) {
+    submodule.editSubActions = {
+      convert_to_ap: false,
+      return_grn: false,
+      revert_to_po: false,
+    };
+  }
+}
     return c;
   });
 };
 
-
+const toggleEditSubAction = (ai: number, mi: number, si: number, action: keyof EditSubActions) => {
+  setFormPermissions(prev => {
+    const c = JSON.parse(JSON.stringify(prev));
+    const sub = c[ai].modules[mi].submodules[si];
+    
+    if (!sub.editSubActions) {
+      sub.editSubActions = { convert_to_ap: false, return_grn: false, revert_to_po: false };
+    }
+    
+    sub.editSubActions[action] = !sub.editSubActions[action];
+    
+    const anySubAction = Object.values(sub.editSubActions).some(v => v);
+    
+    if (anySubAction) {
+      sub.actions.edit = true;
+      sub.actions.read = true;
+      sub.actions.hide = false;
+    }
+    
+    if (!anySubAction) {
+      sub.actions.edit = false;
+    }
+    
+    return c;
+  });
+};
 
  const toggleAllSubmodules = (ai: number, mi: number, moduleId: string) => {
   setFormPermissions(prev => {
@@ -1016,7 +1175,8 @@ frontendPermissions.forEach((app: AppPermissions) => {
       app.appName === "YEN_PURCHASE" ||
       app.appName === "YEN_BOOK" ||
       app.appName === "YEN_INVENTORY" ||
-      app.appName === "YEN_REPORTS"
+      app.appName === "YEN_REPORTS" ||
+  app.appName === "YEN_SETTINGS"
     ) {
       appName = "yenerp";
     } else if (app.appName === "YEN_OUTLET_MANAGER") {
@@ -1035,13 +1195,18 @@ frontendPermissions.forEach((app: AppPermissions) => {
           // IMPORTANT: Always send ALL submodules to backend, even if all permissions are false
           // This ensures database gets updated with false values for unselected modules
           backend[appName][key] = {
-            read: sub.actions.read,
-            add: sub.actions.add,
-            edit: sub.actions.edit,
-            delete: sub.actions.delete,
-            hide: sub.actions.hide,
-            approve: sub.actions.approve || false,
-          };
+  read: sub.actions.read,
+  add: sub.actions.add,
+  edit: sub.actions.edit,
+  delete: sub.actions.delete,
+  hide: sub.actions.hide,
+  approve: sub.actions.approve || false,
+
+  ...(sub.editSubActions &&
+  Object.values(sub.editSubActions).some(v => v)
+    ? { edit_actions: sub.editSubActions }
+    : {}),
+};
         });
       });
     });
@@ -1070,7 +1235,7 @@ const backendPerms = transformPermissionsForBackend(sanitizedPermissions);
       // 2. Update role name if changed
       if (formRoleName !== roleName) {
         try {
-          const roleRes = await fetch(`https://yenerp.com/purchasetestapi/roles?name=${encodeURIComponent(roleName)}`);
+          const roleRes = await fetch(`http://127.0.0.1:8000/purchasetestapi/roles?name=${encodeURIComponent(roleName)}`);
           const roleData = await roleRes.json();
           
           let roleToUpdate = null;
@@ -1081,7 +1246,7 @@ const backendPerms = transformPermissionsForBackend(sanitizedPermissions);
           }
           
           if (roleToUpdate && roleToUpdate._id) {
-            await fetch(`https://yenerp.com/purchasetestapi/roles/${roleToUpdate._id}`, {
+            await fetch(`http://127.0.0.1:8000/purchasetestapi/roles/${roleToUpdate._id}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ 
@@ -1103,7 +1268,7 @@ const backendPerms = transformPermissionsForBackend(sanitizedPermissions);
       console.log("Sending permissions update with ALL modules...");
       
       // First try to update existing permissions
-      let response = await fetch(`https://yenerp.com/purchasetestapi/permissions/${encodeURIComponent(roleName)}`, {
+      let response = await fetch(`http://127.0.0.1:8000/purchasetestapi/permissions/${encodeURIComponent(roleName)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -1117,7 +1282,7 @@ const backendPerms = transformPermissionsForBackend(sanitizedPermissions);
           permissions: backendPerms
         };
         
-        response = await fetch("https://yenerp.com/purchasetestapi/permissions", {
+        response = await fetch("http://127.0.0.1:8000/purchasetestapi/permissions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(postPayload)
@@ -1135,7 +1300,7 @@ const backendPerms = transformPermissionsForBackend(sanitizedPermissions);
       if (formRoleName !== roleName) {
         try {
           // Try to find permissions with old name
-          const checkResponse = await fetch(`https://yenerp.com/purchasetestapi/permissions?role_name=${encodeURIComponent(formRoleName)}`);
+          const checkResponse = await fetch(`http://127.0.0.1:8000/purchasetestapi/permissions?role_name=${encodeURIComponent(formRoleName)}`);
           const checkData = await checkResponse.json();
           
           if (!checkData || (Array.isArray(checkData) && checkData.length === 0)) {
@@ -1145,14 +1310,14 @@ const backendPerms = transformPermissionsForBackend(sanitizedPermissions);
               permissions: backendPerms
             };
             
-            await fetch("https://yenerp.com/purchasetestapi/permissions", {
+            await fetch("http://127.0.0.1:8000/purchasetestapi/permissions", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(createPayload)
             });
             
             // Delete old permissions
-            await fetch(`https://yenerp.com/purchasetestapi/permissions/${encodeURIComponent(roleName)}`, {
+            await fetch(`http://127.0.0.1:8000/purchasetestapi/permissions/${encodeURIComponent(roleName)}`, {
               method: "DELETE"
             });
           }
@@ -1423,12 +1588,31 @@ const backendPerms = transformPermissionsForBackend(sanitizedPermissions);
 </div>
 
                               {(Object.keys(s.actions) as ActionKeys[]).map(a => (
-                                <div key={a} className="text-center">
-                                  <button onClick={() => toggleAction(ai, mi, si, a)} className={`w-6 h-5 rounded text-xs ${s.actions[a] ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"}`}>
-                                    {s.actions[a] ? "✓" : "✗"}
-                                  </button>
-                                </div>
-                              ))}
+  <div key={a} className="text-center relative flex justify-center">
+    {a === "edit" && s.editSubActions ? (
+      <EditActionPopover
+        submoduleId={s.id}
+        editValue={s.actions.edit}
+        editSubActions={s.editSubActions}
+        onToggleEdit={() => toggleAction(ai, mi, si, "edit")}
+        onToggleSubAction={(action) =>
+          toggleEditSubAction(ai, mi, si, action)
+        }
+      />
+    ) : (
+      <button
+        onClick={() => toggleAction(ai, mi, si, a)}
+        className={`w-6 h-5 rounded text-xs ${
+          s.actions[a]
+            ? "bg-blue-600 text-white"
+            : "bg-gray-200 text-gray-600"
+        }`}
+      >
+        {s.actions[a] ? "✓" : "✗"}
+      </button>
+    )}
+  </div>
+))}
                             </div>
                           ))}
                         </div>

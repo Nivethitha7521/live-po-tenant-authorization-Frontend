@@ -1,7 +1,7 @@
 // src/app/yen-book/page.tsx
 "use client";
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback,useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@mui/material';
 import { usePathname, useRouter } from 'next/navigation';
@@ -107,7 +107,14 @@ const showReportsMenu = isModuleVisible("posreport") || isModuleVisible("purchas
   [permissions]
 );
 
+useEffect(() => {
+  const isExactYenBook =
+    pathname === '/yen-book' || pathname === '/yen-book/';
 
+  if (isExactYenBook && permissionsLoaded && subItems.length > 0) {
+    router.replace(subItems[0].path);
+  }
+}, [pathname, permissionsLoaded, subItems, router]);
   const isActiveRoute = (itemPath: string) => (pathname || '').startsWith(itemPath);
 
   const handleMenuClick = useCallback((menuItem: { path: string }) => {

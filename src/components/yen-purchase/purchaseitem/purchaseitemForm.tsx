@@ -4,7 +4,8 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   Grid, TextField, FormControl, InputLabel, Select, MenuItem,
   FormHelperText, Stepper, Step, StepLabel, Box, IconButton,
-  InputAdornment
+  InputAdornment,
+  Typography
 } from '@mui/material';
 import { Formik, Form, FormikHelpers, useFormikContext, FormikProps } from 'formik';
 import * as yup from 'yup';
@@ -37,7 +38,8 @@ interface PurchaseItemFormProps {
   existingItems: any[];
 }
 
-const steps = ['Basic Information', 'Pricing & Inventory', 'Additional Details', 'Review'];
+// Updated steps - now only 2 steps
+const steps = ['Basic Information & Pricing', 'Additional Details & Review'];
 
 // Helper component to track form dirty state
 const FormDirtyTracker: React.FC<{ setIsDirty: (dirty: boolean) => void }> = ({ setIsDirty }) => {
@@ -160,11 +162,11 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
     if (formRef.current) {
       const formik = formRef.current;
 
+      // Updated step fields for 2-step structure
       const stepFields: { [key: number]: string[] } = {
-        0: ['itemName', 'purchasesubcategoryName', 'purchasecategoryName', 'itemgroupName', 'itemType', 'supplier'],
-        1: ['uom', 'purchasePrice', 'purchasetaxName', 'stockQuantity'],
-        2: ['reorderLevel', 'hsnCode', 'locationName', 'shelfLife'],
-        3: ['barcode', 'description'],
+        0: ['itemName', 'purchasesubcategoryName', 'purchasecategoryName', 'itemgroupName', 'itemType', 'supplier',
+          'uom', 'purchasePrice', 'purchasetaxName', 'stockQuantity'],
+        1: ['reorderLevel', 'hsnCode', 'locationName', 'shelfLife', 'barcode', 'description'],
       };
 
       const touchedFields = stepFields[activeStep].reduce((acc, field) => ({
@@ -233,6 +235,7 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
 
       const errors = await formik.validateForm();
 
+      // Touch all fields
       formik.setTouched({
         itemName: true,
         purchasesubcategoryName: true,
@@ -260,28 +263,22 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
           errors.purchasecategoryName ||
           errors.itemgroupName ||
           errors.itemType ||
-          errors.supplier
-        ) {
-          errorStep = 0;
-        } else if (
+          errors.supplier ||
           errors.uom ||
           errors.purchasePrice ||
           errors.purchasetaxName ||
           errors.stockQuantity
         ) {
-          errorStep = 1;
+          errorStep = 0;
         } else if (
           errors.reorderLevel ||
           errors.hsnCode ||
           errors.locationName ||
-          errors.shelfLife
-        ) {
-          errorStep = 2;
-        } else if (
+          errors.shelfLife ||
           errors.barcode ||
           errors.description
         ) {
-          errorStep = 3;
+          errorStep = 1;
         }
 
         setActiveStep(errorStep);
@@ -357,429 +354,568 @@ const PurchaseItemForm: React.FC<PurchaseItemFormProps> = ({
             <FormDirtyTracker setIsDirty={setIsDirty} />
             <DialogContent>
               {activeStep === 0 && (
-                <Grid container spacing={2}>
-                  {/* Item Name */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      inputRef={inputRef}
-                      fullWidth
-                      autoComplete='off'
-                      label='Item Name*'
-                      name="itemName"
-                      value={values.itemName}
-                      onChange={handleChange}
-                      onBlur={() => {
-                        if (values.itemName) {
-                          const normalizedInputName = values.itemName
-                            .trim()
-                            .toLowerCase()
-                            .replace(/\s+/g, '');
-                          const existingItem = existingItems.find(
-                            (item) =>
-                              item.itemName
+                <>
+                  {/* Basic Information Section */}
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                      Basic Information
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {/* Item Name */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextField
+                          inputRef={inputRef}
+                          fullWidth
+                          autoComplete='off'
+                          label='Item Name*'
+                          name="itemName"
+                          value={values.itemName}
+                          onChange={handleChange}
+                          onBlur={() => {
+                            if (values.itemName) {
+                              const normalizedInputName = values.itemName
                                 .trim()
                                 .toLowerCase()
-                                .replace(/\s+/g, '') === normalizedInputName &&
-                              item.purchaseitemId !== values.purchaseitemId
-                          );
-                          if (existingItem) {
-                            setFieldValue('itemName', values.itemName);
-                            formRef.current?.setFieldError('itemName', 'Item with this name already exists');
-                            setShowDuplicateDialog(true);
+                                .replace(/\s+/g, '');
+                              const existingItem = existingItems.find(
+                                (item) =>
+                                  item.itemName
+                                    .trim()
+                                    .toLowerCase()
+                                    .replace(/\s+/g, '') === normalizedInputName &&
+                                  item.purchaseitemId !== values.purchaseitemId
+                              );
+                              if (existingItem) {
+                                setFieldValue('itemName', values.itemName);
+                                formRef.current?.setFieldError('itemName', 'Item with this name already exists');
+                                setShowDuplicateDialog(true);
+                              }
+                            }
+                          }}
+                          error={touched.itemName && Boolean(errors.itemName)}
+                          helperText={touched.itemName && errors.itemName ? String(errors.itemName) : ''}
+                          required
+                          size="small"
+                        />
+                      </Grid>
+
+                      {/* Purchase Subcategory with Joined Plus Icon */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <Box sx={{
+                          display: 'inline-flex',
+                          width: '100%',
+                          border: '1px solid rgba(0, 0, 0, 0.23)',
+                          borderRadius: 1,
+                          backgroundColor: 'white',
+                          '&:hover': {
+                            borderColor: 'black',
+                          },
+                          '&:focus-within': {
+                            borderColor: '#1976d2',
+                            borderWidth: 2,
                           }
-                        }
-                      }}
-                      error={touched.itemName && Boolean(errors.itemName)}
-                      helperText={touched.itemName && errors.itemName ? String(errors.itemName) : ''}
-                      required
-                    />
-                  </Grid>
+                        }}>
+                          <FormControl
+                            fullWidth
+                            size="small"
+                            error={touched.purchasesubcategoryName && Boolean(errors.purchasesubcategoryName)}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                border: 'none',
+                                '& fieldset': {
+                                  border: 'none',
+                                },
+                              },
+                              '& .MuiInputLabel-root': {
+                                backgroundColor: 'white',
+                                px: 0.5,
+                                transform: values.purchasesubcategoryName ? 'translate(14px, -9px) scale(0.75)' : 'translate(14px, 12px) scale(1)',
+                              },
+                              '& .MuiInputLabel-shrink': {
+                                transform: 'translate(14px, -9px) scale(0.75)',
+                              }
+                            }}
+                          >
+                            <InputLabel>Purchase Subcategory*</InputLabel>
+                            <Select
+                              label="Purchase Subcategory*"
+                              name="purchasesubcategoryName"
+                              value={values.purchasesubcategoryName}
+                              onChange={(event) => {
+                                const selectedSubcategory = event.target.value as string;
+                                setFieldValue('purchasesubcategoryName', selectedSubcategory);
 
-                  {/* Purchase Subcategory Dropdown */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth error={touched.purchasesubcategoryName && Boolean(errors.purchasesubcategoryName)}>
-                      <InputLabel>Purchase Subcategory*</InputLabel>
-                      <Select
-                        label="Purchase Subcategory*"
-                        name="purchasesubcategoryName"
-                        value={values.purchasesubcategoryName}
-                        onChange={(event) => {
-                          const selectedSubcategory = event.target.value as string;
-                          setFieldValue('purchasesubcategoryName', selectedSubcategory);
+                                const foundCategory = allSubcategories.find(
+                                  sub => sub.name === selectedSubcategory
+                                );
+                                if (foundCategory) {
+                                  setFieldValue('purchasecategoryName', foundCategory.category);
+                                }
+                              }}
+                              required
+                              sx={{
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  border: 'none',
+                                },
+                                '& .MuiSelect-select': {
+                                  py: 1.5,
+                                }
+                              }}
+                            >
+                              {allSubcategories.length > 0 ? (
+                                allSubcategories.map((subcategory) => (
+                                  <MenuItem
+                                    key={subcategory.uniqueKey}
+                                    value={subcategory.name}
+                                  >
+                                    {subcategory.name}
+                                  </MenuItem>
+                                ))
+                              ) : (
+                                <MenuItem key="no-subcategories" disabled>No subcategories available</MenuItem>
+                              )}
+                            </Select>
+                          </FormControl>
 
-                          const foundCategory = allSubcategories.find(
-                            sub => sub.name === selectedSubcategory
-                          );
-                          if (foundCategory) {
-                            setFieldValue('purchasecategoryName', foundCategory.category);
+                          <IconButton
+                            onClick={() => setSubcategoryDialogOpen(true)}
+                            title="Add new subcategory"
+                            size="small"
+                            sx={{
+                              height: 'auto',
+                              width: 40,
+                              borderRadius: 0,
+                              borderLeft: '1px solid rgba(0, 0, 0, 0.23)',
+                              flexShrink: 0,
+                              '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                              }
+                            }}
+                          >
+                            <AddIcon fontSize="small" color="primary"/>
+                          </IconButton>
+                        </Box>
+                        <FormHelperText sx={{ ml: 1 }}>
+                          {touched.purchasesubcategoryName && errors.purchasesubcategoryName
+                            ? String(errors.purchasesubcategoryName)
+                            : ''}
+                        </FormHelperText>
+                      </Grid>
+
+                      {/* Purchase Category with Joined Plus Icon */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <Box sx={{
+                          display: 'inline-flex',
+                          width: '100%',
+                          border: '1px solid rgba(0, 0, 0, 0.23)',
+                          borderRadius: 1,
+                          backgroundColor: 'white',
+                          '&:hover': {
+                            borderColor: 'black',
+                          },
+                          '&:focus-within': {
+                            borderColor: '#1976d2',
+                            borderWidth: 2,
                           }
-                        }}
-                        endAdornment={
-                          <InputAdornment position="end">
-                            <IconButton
-                              onClick={() => setSubcategoryDialogOpen(true)}
-                              edge="end"
-                              title="Add new subcategory"
+                        }}>
+                          <FormControl
+                            fullWidth
+                            size="small"
+                            error={touched.purchasecategoryName && Boolean(errors.purchasecategoryName)}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                border: 'none',
+                                '& fieldset': {
+                                  border: 'none',
+                                },
+                              },
+                              '& .MuiInputLabel-root': {
+                                backgroundColor: 'white',
+                                px: 0.5,
+                                transform: values.purchasecategoryName ? 'translate(14px, -9px) scale(0.75)' : 'translate(14px, 12px) scale(1)',
+                              },
+                              '& .MuiInputLabel-shrink': {
+                                transform: 'translate(14px, -9px) scale(0.75)',
+                              }
+                            }}
+                          >
+                            <InputLabel>Purchase Category*</InputLabel>
+                            <Select
+                              label="Purchase Category*"
+                              name="purchasecategoryName"
+                              value={values.purchasecategoryName}
+                              onChange={(event) => {
+                                const selectedCategory = event.target.value as string;
+                                setFieldValue('purchasecategoryName', selectedCategory);
+                                setFieldValue('purchasesubcategoryName', '');
+                              }}
+                              required
+                              sx={{
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  border: 'none',
+                                },
+                                '& .MuiSelect-select': {
+                                  py: 1.5,
+                                }
+                              }}
                             >
-                              <AddIcon />
-                            </IconButton>
-                          </InputAdornment>
-                        }
-                        required
-                      >
-                        {allSubcategories.length > 0 ? (
-                          allSubcategories.map((subcategory) => (
-                            <MenuItem
-                              key={subcategory.uniqueKey}
-                              value={subcategory.name}
-                            >
-                              {subcategory.name}
-                            </MenuItem>
-                          ))
-                        ) : (
-                          <MenuItem key="no-subcategories" disabled>No subcategories available</MenuItem>
-                        )}
-                      </Select>
-                      <FormHelperText>
-                        {touched.purchasesubcategoryName && errors.purchasesubcategoryName
-                          ? String(errors.purchasesubcategoryName)
-                          : ''}
-                      </FormHelperText>
-                    </FormControl>
-                  </Grid>
+                              {localCategories.length > 0 ? (
+                                localCategories.map((category) => (
+                                  <MenuItem
+                                    key={category.purchasecategoryId}
+                                    value={category.purchasecategoryName}
+                                  >
+                                    {category.purchasecategoryName}
+                                  </MenuItem>
+                                ))
+                              ) : (
+                                <MenuItem key="no-categories" disabled>No categories available</MenuItem>
+                              )}
+                            </Select>
+                          </FormControl>
 
-                  {/* Purchase Category Dropdown */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth error={touched.purchasecategoryName && Boolean(errors.purchasecategoryName)}>
-                      <InputLabel>Purchase Category*</InputLabel>
-                      <Select
-                        label="Purchase Category*"
-                        name="purchasecategoryName"
-                        value={values.purchasecategoryName}
-                        onChange={(event) => {
-                          const selectedCategory = event.target.value as string;
-                          setFieldValue('purchasecategoryName', selectedCategory);
-                          setFieldValue('purchasesubcategoryName', '');
-                        }}
-                        endAdornment={
-                          <InputAdornment position="end">
-                            <IconButton
-                              onClick={() => setCategoryDialogOpen(true)}
-                              edge="end"
-                              title="Add new category"
-                            >
-                              <AddIcon />
-                            </IconButton>
-                          </InputAdornment>
-                        }
-                        required
-                      >
-                        {localCategories.length > 0 ? (
-                          localCategories.map((category) => (
-                            <MenuItem
-                              key={category.purchasecategoryId}
-                              value={category.purchasecategoryName}
-                            >
-                              {category.purchasecategoryName}
-                            </MenuItem>
-                          ))
-                        ) : (
-                          <MenuItem key="no-categories" disabled>No categories available</MenuItem>
-                        )}
-                      </Select>
-                      <FormHelperText>
-                        {touched.purchasecategoryName && errors.purchasecategoryName
-                          ? String(errors.purchasecategoryName)
-                          : ''}
-                      </FormHelperText>
-                    </FormControl>
-                  </Grid>
+                          <IconButton
+                            onClick={() => setCategoryDialogOpen(true)}
+                            title="Add new category"
+                            size="small"
+                            sx={{
+                              height: 'auto',
+                              width: 40,
+                              borderRadius: 0,
+                              borderLeft: '1px solid rgba(0, 0, 0, 0.23)',
+                              flexShrink: 0,
+                              '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                              }
+                            }}
+                          >
+                            <AddIcon fontSize="small" color="primary" />
+                          </IconButton>
+                        </Box>
+                        <FormHelperText sx={{ ml: 1 }}>
+                          {touched.purchasecategoryName && errors.purchasecategoryName
+                            ? String(errors.purchasecategoryName)
+                            : ''}
+                        </FormHelperText>
+                      </Grid>
 
-                  {/* Item Group Dropdown */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth error={touched.itemgroupName && Boolean(errors.itemgroupName)}>
-                      <InputLabel>Item Group*</InputLabel>
-                      <Select
-                        label="Item Group*"
-                        name="itemgroupName"
-                        value={values.itemgroupName}
-                        onChange={handleChange}
-                        required
-                      >
-                        {groupitems.length > 0 ? (
-                          groupitems.map((groupitem, index) => (
-                            <MenuItem
-                              key={groupitem.itemgroupId || `group-${index}`}
-                              value={groupitem.itemgroupName}
-                            >
-                              {groupitem.itemgroupName}
-                            </MenuItem>
-                          ))
-                        ) : (
-                          <MenuItem key="no-groups" disabled>No item groups available</MenuItem>
-                        )}
-                      </Select>
-                      <FormHelperText>
-                        {touched.itemgroupName && errors.itemgroupName ? String(errors.itemgroupName) : ''}
-                      </FormHelperText>
-                    </FormControl>
-                  </Grid>
+                      {/* Item Group Dropdown */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <FormControl
+                          fullWidth
+                          size="small"
+                          error={touched.itemgroupName && Boolean(errors.itemgroupName)}
+                        >
+                          <InputLabel>Item Group*</InputLabel>
+                          <Select
+                            label="Item Group*"
+                            name="itemgroupName"
+                            value={values.itemgroupName}
+                            onChange={handleChange}
+                            required
+                          >
+                            {groupitems.length > 0 ? (
+                              groupitems.map((groupitem, index) => (
+                                <MenuItem
+                                  key={groupitem.itemgroupId || `group-${index}`}
+                                  value={groupitem.itemgroupName}
+                                >
+                                  {groupitem.itemgroupName}
+                                </MenuItem>
+                              ))
+                            ) : (
+                              <MenuItem key="no-groups" disabled>No item groups available</MenuItem>
+                            )}
+                          </Select>
+                          <FormHelperText>
+                            {touched.itemgroupName && errors.itemgroupName ? String(errors.itemgroupName) : ''}
+                          </FormHelperText>
+                        </FormControl>
+                      </Grid>
 
-                  {/* Item Type Dropdown - This sets both itemType (name) and itemTypeId (randomId) */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth error={touched.itemType && Boolean(errors.itemType)}>
-                      <InputLabel id="itemType-label">Item Type*</InputLabel>
-                      <Select
-                        labelId="itemType-label"
-                        label="Item Type*"
-                        name="itemType"
-                        value={values.itemType || ''}
-                        onChange={(event) => {
-                          const selectedTypeName = event.target.value;
-                          const selectedType = itemtypes.find(
-                            (type: any) => type.itemtypeName === selectedTypeName
-                          );
+                      {/* Item Type Dropdown */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <FormControl
+                          fullWidth
+                          size="small"
+                          error={touched.itemType && Boolean(errors.itemType)}
+                        >
+                          <InputLabel id="itemType-label">Item Type*</InputLabel>
+                          <Select
+                            labelId="itemType-label"
+                            label="Item Type*"
+                            name="itemType"
+                            value={values.itemType || ''}
+                            onChange={(event) => {
+                              const selectedTypeName = event.target.value;
+                              const selectedType = itemtypes.find(
+                                (type: any) => type.itemtypeName === selectedTypeName
+                              );
 
-                          // Set both the name (for display) and randomId (for backend)
-                          setFieldValue('itemType', selectedTypeName);
-                          if (selectedType) {
-                            // Store the randomId (e.g., "IT001") in itemTypeId
-                            setFieldValue('itemTypeId', selectedType.randomId);
-                            console.log(`✅ Selected item type: ${selectedTypeName} with randomId: ${selectedType.randomId}`);
-                          }
-                        }}
-                        required
-                      >
-                        {itemtypes.length > 0 ? (
-                          itemtypes.map((type: any, index: number) => (
-                            <MenuItem
-                              key={type.randomId || `type-${index}`}
-                              value={type.itemtypeName}
-                            >
-                              {type.itemtypeName} 
-                            </MenuItem>
-                          ))
-                        ) : (
-                          <MenuItem key="no-types" disabled>No item types available</MenuItem>
-                        )}
-                      </Select>
-                      <FormHelperText>
-                        {touched.itemType && errors.itemType ? String(errors.itemType) : ''}
-                      </FormHelperText>
-                    </FormControl>
-                  </Grid>
-                  {/* Supplier */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      fullWidth
-                      label="Supplier*"
-                      name="supplier"
-                      value={values.supplier}
-                      onChange={handleChange}
-                      error={touched.supplier && Boolean(errors.supplier)}
-                      helperText={touched.supplier && errors.supplier ? String(errors.supplier) : ''}
-                      required
-                    />
-                  </Grid>
-                </Grid>
+                              setFieldValue('itemType', selectedTypeName);
+                              if (selectedType) {
+                                setFieldValue('itemTypeId', selectedType.randomId);
+                                console.log(`✅ Selected item type: ${selectedTypeName} with randomId: ${selectedType.randomId}`);
+                              }
+                            }}
+                            required
+                          >
+                            {itemtypes.length > 0 ? (
+                              itemtypes.map((type: any, index: number) => (
+                                <MenuItem
+                                  key={type.randomId || `type-${index}`}
+                                  value={type.itemtypeName}
+                                >
+                                  {type.itemtypeName}
+                                </MenuItem>
+                              ))
+                            ) : (
+                              <MenuItem key="no-types" disabled>No item types available</MenuItem>
+                            )}
+                          </Select>
+                          <FormHelperText>
+                            {touched.itemType && errors.itemType ? String(errors.itemType) : ''}
+                          </FormHelperText>
+                        </FormControl>
+                      </Grid>
+
+                      {/* Supplier */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Supplier*"
+                          name="supplier"
+                          value={values.supplier}
+                          onChange={handleChange}
+                          error={touched.supplier && Boolean(errors.supplier)}
+                          helperText={touched.supplier && errors.supplier ? String(errors.supplier) : ''}
+                          required
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+
+                  {/* Pricing & Inventory Section */}
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                      Pricing & Inventory
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {/* UOM Dropdown */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <FormControl fullWidth size="small" error={touched.uom && Boolean(errors.uom)}>
+                          <InputLabel>UOM*</InputLabel>
+                          <Select
+                            label="UOM*"
+                            name="uom"
+                            value={values.uom}
+                            onChange={handleChange}
+                            required
+                          >
+                            {uoms.length > 0 ? (
+                              uoms.map((uom, index) => (
+                                <MenuItem
+                                  key={uom.uomId || `uom-${index}`}
+                                  value={uom.uom}
+                                >
+                                  {uom.uom}
+                                </MenuItem>
+                              ))
+                            ) : (
+                              <MenuItem key="no-uoms" disabled>No UOMs available</MenuItem>
+                            )}
+                          </Select>
+                          <FormHelperText>
+                            {touched.uom && errors.uom ? String(errors.uom) : ''}
+                          </FormHelperText>
+                        </FormControl>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label='Purchase Price*'
+                          name="purchasePrice"
+                          value={values.purchasePrice}
+                          onChange={handleChange}
+                          error={touched.purchasePrice && Boolean(errors.purchasePrice)}
+                          helperText={touched.purchasePrice && errors.purchasePrice ? String(errors.purchasePrice) : ''}
+                          type="number"
+                          InputProps={{ inputProps: { step: "1" } }}
+                          required
+                        />
+                      </Grid>
+
+                      {/* Tax Percentage Dropdown */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <FormControl fullWidth size="small" error={touched.purchasetaxName && Boolean(errors.purchasetaxName)}>
+                          <InputLabel>Tax Percentage*</InputLabel>
+                          <Select
+                            label="Tax Percentage*"
+                            name="purchasetaxName"
+                            value={values.purchasetaxName}
+                            onChange={handleChange}
+                            required
+                          >
+                            {taxes.length > 0 ? (
+                              taxes.map((tax, index) => (
+                                <MenuItem
+                                  key={tax.purchasetaxId || `tax-${index}`}
+                                  value={tax.purchasetaxPercentage}
+                                >
+                                  {`${tax.purchasetaxPercentage}%`}
+                                </MenuItem>
+                              ))
+                            ) : (
+                              <MenuItem key="no-taxes" disabled>No taxes available</MenuItem>
+                            )}
+                          </Select>
+                          <FormHelperText>
+                            {touched.purchasetaxName && errors.purchasetaxName ? String(errors.purchasetaxName) : ''}
+                          </FormHelperText>
+                        </FormControl>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextField
+                          size="small"
+                          label="Stock Quantity*"
+                          name="stockQuantity"
+                          value={values.stockQuantity}
+                          onChange={handleChange}
+                          error={touched.stockQuantity && Boolean(errors.stockQuantity)}
+                          helperText={touched.stockQuantity && errors.stockQuantity ? String(errors.stockQuantity) : ''}
+                          type="number"
+                          fullWidth
+                          required
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </>
               )}
 
               {activeStep === 1 && (
-                <Grid container spacing={2}>
-                  {/* UOM Dropdown */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth error={touched.uom && Boolean(errors.uom)}>
-                      <InputLabel>UOM*</InputLabel>
-                      <Select
-                        label="UOM*"
-                        name="uom"
-                        value={values.uom}
-                        onChange={handleChange}
-                        required
-                      >
-                        {uoms.length > 0 ? (
-                          uoms.map((uom, index) => (
-                            <MenuItem
-                              key={uom.uomId || `uom-${index}`}
-                              value={uom.uom}
-                            >
-                              {uom.uom}
-                            </MenuItem>
-                          ))
-                        ) : (
-                          <MenuItem key="no-uoms" disabled>No UOMs available</MenuItem>
-                        )}
-                      </Select>
-                      <FormHelperText>
-                        {touched.uom && errors.uom ? String(errors.uom) : ''}
-                      </FormHelperText>
-                    </FormControl>
-                  </Grid>
+                <>
+                  {/* Additional Details Section */}
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                      Additional Details
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label='Reorder Level*'
+                          name="reorderLevel"
+                          value={values.reorderLevel}
+                          onChange={handleChange}
+                          error={touched.reorderLevel && Boolean(errors.reorderLevel)}
+                          helperText={touched.reorderLevel && errors.reorderLevel ? String(errors.reorderLevel) : ''}
+                          type="number"
+                          inputProps={{ min: 0 }}
+                          required
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label='HSN Code*'
+                          name="hsnCode"
+                          value={values.hsnCode}
+                          onChange={handleChange}
+                          error={touched.hsnCode && Boolean(errors.hsnCode)}
+                          helperText={touched.hsnCode && errors.hsnCode ? String(errors.hsnCode) : ''}
+                          required
+                        />
+                      </Grid>
 
-                  <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      fullWidth
-                      label='Purchase Price*'
-                      name="purchasePrice"
-                      value={values.purchasePrice}
-                      onChange={handleChange}
-                      error={touched.purchasePrice && Boolean(errors.purchasePrice)}
-                      helperText={touched.purchasePrice && errors.purchasePrice ? String(errors.purchasePrice) : ''}
-                      type="number"
-                      InputProps={{ inputProps: { step: "1" } }}
-                      required
-                    />
-                  </Grid>
+                      {/* Storage Location Dropdown */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <FormControl fullWidth size="small" error={touched.locationName && Boolean(errors.locationName)}>
+                          <InputLabel>Storage Location*</InputLabel>
+                          <Select
+                            label="Storage Location*"
+                            name="locationName"
+                            value={values.locationName || ''}
+                            onChange={handleChange}
+                            required
+                          >
+                            {locations.length > 0 ? (
+                              locations.map((location, index) => (
+                                <MenuItem
+                                  key={location.locationId || `location-${index}`}
+                                  value={location.locationName}
+                                >
+                                  {location.locationName}
+                                </MenuItem>
+                              ))
+                            ) : (
+                              <MenuItem key="no-locations" disabled>No locations available</MenuItem>
+                            )}
+                          </Select>
+                          <FormHelperText>
+                            {touched.locationName && errors.locationName ? String(errors.locationName) : ''}
+                          </FormHelperText>
+                        </FormControl>
+                      </Grid>
 
-                  {/* Tax Percentage Dropdown */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth error={touched.purchasetaxName && Boolean(errors.purchasetaxName)}>
-                      <InputLabel>Tax Percentage*</InputLabel>
-                      <Select
-                        label="Tax Percentage*"
-                        name="purchasetaxName"
-                        value={values.purchasetaxName}
-                        onChange={handleChange}
-                        required
-                      >
-                        {taxes.length > 0 ? (
-                          taxes.map((tax, index) => (
-                            <MenuItem
-                              key={tax.purchasetaxId || `tax-${index}`}
-                              value={tax.purchasetaxPercentage}
-                            >
-                              {`${tax.purchasetaxPercentage}%`}
-                            </MenuItem>
-                          ))
-                        ) : (
-                          <MenuItem key="no-taxes" disabled>No taxes available</MenuItem>
-                        )}
-                      </Select>
-                      <FormHelperText>
-                        {touched.purchasetaxName && errors.purchasetaxName ? String(errors.purchasetaxName) : ''}
-                      </FormHelperText>
-                    </FormControl>
-                  </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Shelf Life*"
+                          name="shelfLife"
+                          value={values.shelfLife}
+                          onChange={handleChange}
+                          error={touched.shelfLife && Boolean(errors.shelfLife)}
+                          helperText={touched.shelfLife && errors.shelfLife ? String(errors.shelfLife) : ''}
+                          required
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
 
-                  <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      label="Stock Quantity*"
-                      name="stockQuantity"
-                      value={values.stockQuantity}
-                      onChange={handleChange}
-                      error={touched.stockQuantity && Boolean(errors.stockQuantity)}
-                      helperText={touched.stockQuantity && errors.stockQuantity ? String(errors.stockQuantity) : ''}
-                      type="number"
-                      fullWidth
-                      required
-                    />
-                  </Grid>
-                </Grid>
-              )}
-
-              {activeStep === 2 && (
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      fullWidth
-                      label='Reorder Level*'
-                      name="reorderLevel"
-                      value={values.reorderLevel}
-                      onChange={handleChange}
-                      error={touched.reorderLevel && Boolean(errors.reorderLevel)}
-                      helperText={touched.reorderLevel && errors.reorderLevel ? String(errors.reorderLevel) : ''}
-                      type="number"
-                      inputProps={{ min: 0 }}
-                      required
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      fullWidth
-                      label='HSN Code*'
-                      name="hsnCode"
-                      value={values.hsnCode}
-                      onChange={handleChange}
-                      error={touched.hsnCode && Boolean(errors.hsnCode)}
-                      helperText={touched.hsnCode && errors.hsnCode ? String(errors.hsnCode) : ''}
-                      required
-                    />
-                  </Grid>
-
-                  {/* Storage Location Dropdown */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth error={touched.locationName && Boolean(errors.locationName)}>
-                      <InputLabel>Storage Location*</InputLabel>
-                      <Select
-                        label="Storage Location*"
-                        name="locationName"
-                        value={values.locationName || ''}
-                        onChange={handleChange}
-                        required
-                      >
-                        {locations.length > 0 ? (
-                          locations.map((location, index) => (
-                            <MenuItem
-                              key={location.locationId || `location-${index}`}
-                              value={location.locationName}
-                            >
-                              {location.locationName}
-                            </MenuItem>
-                          ))
-                        ) : (
-                          <MenuItem key="no-locations" disabled>No locations available</MenuItem>
-                        )}
-                      </Select>
-                      <FormHelperText>
-                        {touched.locationName && errors.locationName ? String(errors.locationName) : ''}
-                      </FormHelperText>
-                    </FormControl>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      fullWidth
-                      label="Shelf Life*"
-                      name="shelfLife"
-                      value={values.shelfLife}
-                      onChange={handleChange}
-                      error={touched.shelfLife && Boolean(errors.shelfLife)}
-                      helperText={touched.shelfLife && errors.shelfLife ? String(errors.shelfLife) : ''}
-                      required
-                    />
-                  </Grid>
-                </Grid>
-              )}
-
-              {activeStep === 3 && (
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      fullWidth
-                      label='Barcode*'
-                      name="barcode"
-                      value={values.barcode}
-                      onChange={handleChange}
-                      error={touched.barcode && Boolean(errors.barcode)}
-                      helperText={touched.barcode && errors.barcode ? String(errors.barcode) : ''}
-                      required
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={9}>
-                    <TextField
-                      fullWidth
-                      label='Description*'
-                      rows={4}
-                      name="description"
-                      value={values.description}
-                      onChange={handleChange}
-                      error={touched.description && Boolean(errors.description)}
-                      helperText={touched.description && errors.description ? String(errors.description) : ''}
-                      multiline
-                      required
-                    />
-                  </Grid>
-                </Grid>
+                  {/* Review Section */}
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                      Review
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label='Barcode*'
+                          name="barcode"
+                          value={values.barcode}
+                          onChange={handleChange}
+                          error={touched.barcode && Boolean(errors.barcode)}
+                          helperText={touched.barcode && errors.barcode ? String(errors.barcode) : ''}
+                          required
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={9}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label='Description*'
+                          name="description"
+                          value={values.description}
+                          onChange={handleChange}
+                          error={touched.description && Boolean(errors.description)}
+                          helperText={touched.description && errors.description ? String(errors.description) : ''}
+                          multiline
+                          required
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </>
               )}
             </DialogContent>
             <DialogActions>

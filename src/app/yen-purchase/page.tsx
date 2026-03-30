@@ -165,14 +165,22 @@ const normalizedPath = useMemo(() => {
 const hidePurchaseMenu =
   permissionsLoaded &&
   !purchaseKeys.some((key:string) => isModuleVisible(key));
+//React.useEffect(() => {
+  //if (normalizedPath === "/yen-purchase") {
+   // const firstVisible = subItems[0];
+    //if (firstVisible) router.replace(firstVisible.path);
+//  }
+//}, [normalizedPath, router, subItems]);
+
+// ✅ புதியது - YenBook-ஓட same pattern
 React.useEffect(() => {
-  if (normalizedPath === "/yen-purchase") {
-    const firstVisible = subItems[0];
-    if (firstVisible) router.replace(firstVisible.path);
+  const isExactYenPurchase =
+    pathname === '/yen-purchase' || pathname === '/yen-purchase/';
+
+  if (isExactYenPurchase && permissionsLoaded && subItems.length > 0) {
+    router.replace(subItems[0].path);
   }
-}, [normalizedPath, router, subItems]);
-
-
+}, [pathname, permissionsLoaded, subItems, router]);
 
 const isActiveRoute = (itemPath: string) =>
   pathname?.startsWith(itemPath ?? "");

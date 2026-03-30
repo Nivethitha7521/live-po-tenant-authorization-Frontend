@@ -77,7 +77,7 @@ export const fetchPaymentsById = createAsyncThunk(
       }
       params.append('page', page.toString());
       params.append('limit', limit.toString());
-      const url = `https://yenerp.com/purchasetestapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
+      const url = `http://127.0.0.1:8000/purchasetestapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
       console.log('Fetching from URL:', url);
       const response = await purchaseApi.get(
   `/outgoingpayments/payments/paymentwise?${params.toString()}`
@@ -113,7 +113,7 @@ export const exportPaymentsCSV = createAsyncThunk(
         params.append('date', date);
       }
       params.append('format', 'csv');
-      const url = `https://yenerp.com/purchasetestapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
+      const url = `http://127.0.0.1:8000/purchasetestapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
       console.log('Exporting CSV from URL:', url);
 const response = await purchaseApi.get(
   `/outgoingpayments/payments/paymentwise?${params.toString()}`,
@@ -141,7 +141,7 @@ export const exportPaymentsPDF = createAsyncThunk(
         params.append('date', date);
       }
       params.append('format', 'pdf');
-      const url = `https://yenerp.com/purchasetestapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
+      const url = `http://127.0.0.1:8000/purchasetestapi/outgoingpayments/payments/paymentwise?${params.toString()}`;
       console.log('Exporting PDF from URL:', url);
 const response = await purchaseApi.get(
   `/outgoingpayments/payments/paymentwise?${params.toString()}`,

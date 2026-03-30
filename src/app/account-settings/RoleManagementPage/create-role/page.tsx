@@ -55,7 +55,7 @@ const getBackendSubmoduleKey = (submoduleId: string, submoduleName: string): str
     'op_history': 'paymenthistory',
     'op_ledger': 'ledger',
     'op_return': 'purchasereturn',
-
+'settings_date': 'settings',
 
     // OUTLET MANAGER submodules
 'om_so': 'sale_order',
@@ -81,7 +81,19 @@ const getBackendSubmoduleKey = (submoduleId: string, submoduleName: string): str
 };
 // Types - ORDER CHANGED
 type ActionKeys = "read" | "add" | "edit" | "delete" | "hide" | "approve";
-type Submodule = { id: string; name: string; actions: Record<ActionKeys, boolean> };
+//type Submodule = { id: string; name: string; actions: Record<ActionKeys, boolean> };
+type EditSubActions = {
+  convert_to_ap: boolean;
+  return_grn: boolean;
+  revert_to_po: boolean;
+};
+
+type Submodule = { 
+  id: string; 
+  name: string; 
+  actions: Record<ActionKeys, boolean>;
+  editSubActions?: EditSubActions;
+};
 type ModuleItem = { id: string; name: string; submodules: Submodule[] };
 type AppPermissions = { appName: string; modules: ModuleItem[] };
 // Add this function right after getBackendSubmoduleKey function
@@ -99,7 +111,8 @@ if (
   app.appName === "YEN_PURCHASE" ||
   app.appName === "YEN_BOOK" ||
   app.appName === "YEN_INVENTORY" ||
-  app.appName === "YEN_REPORTS"
+  app.appName === "YEN_REPORTS" ||
+  app.appName === "YEN_SETTINGS"
 ) {
   appName = "yenerp";
 }
@@ -128,7 +141,7 @@ else if (app.appName === "YEN_OUTLET_MANAGER") {
         
         console.log(`    📄 Submodule: ${submodule.name} → ${submoduleKey}`);
         console.log(`    🔧 Actions:`, submodule.actions);
-        
+        console.log("🧠 editSubActions:", submodule.editSubActions);
         // Check if any permission is true (except hide)
         const hasAnyPermission = 
           submodule.actions.read || 
@@ -150,26 +163,35 @@ const noPermissionSelected =
   !submodule.actions.hide;
 
 // ✅ FINAL RULE:
-// if nothing selected => force hide true
 backendPermissions[appName][submoduleKey] = {
   add: submodule.actions.add,
   edit: submodule.actions.edit,
   delete: submodule.actions.delete,
   read: submodule.actions.read,
   approve: submodule.actions.approve || false,
-  hide: noPermissionSelected ? true : submodule.actions.hide
+  hide: noPermissionSelected ? true : submodule.actions.hide,
+
+  ...(submodule.editSubActions &&
+  Object.values(submodule.editSubActions).some(v => v)
+    ? { edit_actions: submodule.editSubActions }
+    : {}),
 };
 
+// ✅ move console outside
 console.log(
   `✅ Permission set for ${submoduleKey}:`,
   backendPermissions[appName][submoduleKey]
 );
 
-      });
-    });
-  });
-  
-  console.log('📤 Final Backend Permissions:', JSON.stringify(backendPermissions, null, 2));
+      }); // ✅ submodule loop CLOSE
+    });   // ✅ module loop CLOSE
+  });     // ✅ app loop CLOSE
+
+  console.log(
+    '📤 Final Backend Permissions:',
+    JSON.stringify(backendPermissions, null, 2)
+  );
+
   return backendPermissions;
 };
 // ✅ Full modules for both YEN_PURCHASE and YEN_BOOK - ORDER CHANGED
@@ -237,14 +259,23 @@ const HARD_MODULES: AppPermissions[] = [
   ]
 },
 
-      {
-        id: "grn",
-        name: "GRN Note",
-        submodules: [
-          { id: "grn_list", name: "GRN List", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } },
-          { id: "grn_return", name: "Return GRN", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } }
-        ]
-      },
+{
+  id: "grn",
+  name: "GRN Note",
+  submodules: [
+    { 
+      id: "grn_list", 
+      name: "GRN List", 
+      actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false },
+      editSubActions: {
+        convert_to_ap: false,
+        return_grn: false,
+        revert_to_po: false
+      }
+    },
+    { id: "grn_return", name: "Return GRN", actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false } }
+  ]
+},
       {
         id: "ap",
         name: "AP Invoice",
@@ -332,6 +363,22 @@ const HARD_MODULES: AppPermissions[] = [
       ]
     }
 
+  ]
+},
+{
+  appName: "YEN_SETTINGS",
+  modules: [
+    {
+      id: "yen_settings",
+      name: "Date Settings",
+      submodules: [
+        {
+          id: "settings_date",
+          name: "Date Settings",
+          actions: { read: false, add: false, edit: false, delete: false, hide: false, approve: false }
+        }
+      ]
+    }
   ]
 },
 // YEN_INVENTORY block-க்கு கீழே, YEN_OUTLET_MANAGER-க்கு மேலே இதை add பண்ணுங்க
@@ -711,7 +758,86 @@ const MODULE_INFO: Record<string, React.ReactNode> = {
     </div>
   ),
 };
+const EditActionPopover = ({
+  submoduleId,
+  editValue,
+  editSubActions,
+  onToggleEdit,
+  onToggleSubAction,
+}: {
+  submoduleId: string;
+  editValue: boolean;
+  editSubActions?: EditSubActions;
+  onToggleEdit: () => void;
+  onToggleSubAction: (action: keyof EditSubActions) => void;
+}) => {
+  const [showPopover, setShowPopover] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setShowPopover(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // 👉 only GRN
+  if (submoduleId !== "grn_list" || !editSubActions) {
+    return (
+      <button
+        onClick={onToggleEdit}
+        className={`w-6 h-5 rounded text-xs ${
+          editValue
+            ? "bg-blue-600 text-white"
+            : "bg-gray-200 text-gray-600"
+        }`}
+      >
+        {editValue ? "✓" : "✗"}
+      </button>
+    );
+  }
+
+  const labels = {
+    convert_to_ap: "Convert to AP",
+    return_grn: "Return GRN",
+    revert_to_po: "Revert to PO",
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setShowPopover(!showPopover)}
+        className={`w-8 h-5 rounded text-xs flex items-center justify-center gap-1 ${
+          editValue
+            ? "bg-blue-600 text-white"
+            : "bg-gray-200 text-gray-600"
+        }`}
+      >
+        {editValue ? "✓" : "✗"} ▼
+      </button>
+
+      {showPopover && (
+        <div className="absolute z-50 top-6 left-1/2 -translate-x-1/2 bg-white border rounded shadow p-2 w-44">
+          <p className="text-xs font-bold mb-1">Edit Actions</p>
+
+          {(Object.keys(labels) as (keyof EditSubActions)[]).map((key) => (
+            <label key={key} className="flex gap-2 text-xs py-1">
+              <input
+                type="checkbox"
+                checked={editSubActions[key]}
+                onChange={() => onToggleSubAction(key)}
+              />
+              {labels[key]}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 const HeaderWithHelp = ({ label, info }: { label: string; info: string }) => (
   <div className="flex justify-center items-center gap-1">
     <span className="text-sm font-bold text-black">{label}</span>
@@ -801,7 +927,7 @@ const [snackbar, setSnackbar] = useState({
   // UPDATED: Complete logic for hide and other fields
 const toggleAction = (ai: number, mi: number, si: number, act: ActionKeys) => {
   setFormPermissions(prev => {
-    const c = JSON.parse(JSON.stringify(prev));
+    const c = structuredClone(prev);
     const actions = c[ai].modules[mi].submodules[si].actions;
 
     const currentValue = actions[act];
@@ -835,7 +961,17 @@ const toggleAction = (ai: number, mi: number, si: number, act: ActionKeys) => {
       actions.approve = false;
       // hide stays as it is (don’t force hide)
     }
-
+// ✅ If EDIT unchecked → clear sub actions
+if (act === "edit" && actions.edit === false) {
+  const submodule = c[ai].modules[mi].submodules[si];
+  if (submodule.editSubActions) {
+    submodule.editSubActions = {
+      convert_to_ap: false,
+      return_grn: false,
+      revert_to_po: false,
+    };
+  }
+}
     return c;
   });
 };
@@ -844,7 +980,7 @@ const toggleAction = (ai: number, mi: number, si: number, act: ActionKeys) => {
   // Toggle all submodules for a module
 const toggleAllSubmodules = (ai: number, mi: number, moduleId: string) => {
   setFormPermissions(prev => {
-    const c = JSON.parse(JSON.stringify(prev));
+    const c = structuredClone(prev);
     const currentModule = c[ai].modules[mi]; // ✅ Changed to 'currentModule'
     const currentlyChecked = moduleCheckboxes[moduleId];
     
@@ -864,6 +1000,34 @@ const toggleAllSubmodules = (ai: number, mi: number, moduleId: string) => {
         submodule.actions.hide = false;
       }
     });
+    
+    return c;
+  });
+};
+const toggleEditSubAction = (ai: number, mi: number, si: number, action: keyof EditSubActions) => {
+  setFormPermissions(prev => {
+    const c = structuredClone(prev);
+    const sub = c[ai].modules[mi].submodules[si];
+    
+    if (!sub.editSubActions) {
+      sub.editSubActions = { convert_to_ap: false, return_grn: false, revert_to_po: false };
+    }
+    
+    // Toggle the sub action
+    sub.editSubActions[action] = !sub.editSubActions[action];
+    
+    // ✅ If any sub action is true → edit must be true + read true
+    const anySubAction = Object.values(sub.editSubActions).some(v => v);
+    if (anySubAction) {
+      sub.actions.edit = true;
+      sub.actions.read = true;
+      sub.actions.hide = false;
+    }
+    
+    // ✅ If all sub actions false → edit becomes false
+    if (!anySubAction) {
+      sub.actions.edit = false;
+    }
     
     return c;
   });
@@ -893,7 +1057,7 @@ return;
 
     console.log("📤 Sending role payload:", rolePayload);
 
-    const roleResponse = await fetch("https://yenerp.com/purchasetestapi/roles", {
+    const roleResponse = await fetch("http://127.0.0.1:8000/purchasetestapi/roles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(rolePayload)
@@ -922,9 +1086,11 @@ return;
     if (!roleId) {
       throw new Error("Role created but no ID returned from server");
     }
+    console.log("🔥 BEFORE TRANSFORM (formPermissions):", formPermissions);
 
     // 2️⃣ Convert permission UI → backend structure
     const backendPermissions = transformPermissionsForBackend(formPermissions);
+    console.log("🔥 AFTER TRANSFORM (backendPermissions):", backendPermissions);
     console.log("📊 Transformed permissions:", backendPermissions);
 
     // Check if any permissions selected
@@ -941,7 +1107,7 @@ return;
 
     console.log("📤 Sending permissions payload:", permissionPayload);
 
-    const permResponse = await fetch("https://yenerp.com/purchasetestapi/permissions", {
+    const permResponse = await fetch("http://127.0.0.1:8000/purchasetestapi/permissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(permissionPayload)
@@ -1068,7 +1234,7 @@ setTimeout(() => {
         </div>
 
         {/* Table Header - ORDER CHANGED: Read, Add, Edit, Delete, Hide, Approve - UPDATED: Bold and Black */}
-       <div className="grid grid-cols-[2fr_repeat(6,1fr)] items-center gap-2 px-6 py-2 text-sm flex-shrink-0 bg-gray-50">
+     <div className="grid grid-cols-[2fr,1fr,1fr,1fr,1fr,1fr,1fr] items-center gap-2 px-6 py-2 text-sm flex-shrink-0 bg-gray-50">
   <div className="text-sm font-bold text-black">Modules / Submodules</div>
 
   <HeaderWithHelp label="Read" info={PERMISSION_INFO.read} />
@@ -1150,9 +1316,9 @@ setTimeout(() => {
                         <div className="border-t border-gray-100">
                           {m.submodules.map((s, si) => (
                             <div
-                              key={s.id}
-                              className="grid grid-cols-[2fr_repeat(6,1fr)] items-center gap-2 p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 text-sm"
-                            >
+  key={s.id}
+  className="grid grid-cols-[2fr,1fr,1fr,1fr,1fr,1fr,1fr] items-center gap-2 p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 text-sm"
+>
                               {/* UPDATED: Bold and Black for Submodule Names */}
                              <div className="text-black font-medium pl-8 text-sm flex items-center">
   <span>{s.name}</span>
@@ -1163,20 +1329,32 @@ setTimeout(() => {
   )}
 </div>
 
-                              {(Object.keys(s.actions) as ActionKeys[]).map(a => (
-                                <div key={a} className="text-center">
-                                  <button
-                                    onClick={() => toggleAction(ai, mi, si, a)}
-                                    className={`w-6 h-5 rounded transition-all text-xs ${
-                                      s.actions[a]
-                                        ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
-                                        : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                                    }`}
-                                  >
-                                    {s.actions[a] ? "✓" : "✗"}
-                                  </button>
-                                </div>
-                              ))}
+{(Object.keys(s.actions) as ActionKeys[]).map(a => (
+  <div key={a} className="text-center flex justify-center">
+    {a === "edit" && s.editSubActions ? (
+      <EditActionPopover
+        submoduleId={s.id}
+        editValue={s.actions.edit}
+        editSubActions={s.editSubActions}
+        onToggleEdit={() => toggleAction(ai, mi, si, "edit")}
+        onToggleSubAction={(action) =>
+          toggleEditSubAction(ai, mi, si, action)
+        }
+      />
+    ) : (
+      <button
+        onClick={() => toggleAction(ai, mi, si, a)}
+        className={`w-6 h-5 rounded transition-all text-xs flex items-center justify-center ${
+          s.actions[a]
+            ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+        }`}
+      >
+        {s.actions[a] ? "✓" : "✗"}
+      </button>
+    )}
+  </div>
+))}
                             </div>
                           ))}
                         </div>

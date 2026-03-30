@@ -116,7 +116,26 @@ const YenInventoryPage = () => {
     },
     [router, isModuleVisible]
   );
+// ✅ Auto-redirect: exact /yen-inventory path-ல் வந்தா first visible module-க்கு போகும்
+const permissionsLoaded = Object.keys(permissions).length > 0;
 
+React.useEffect(() => {
+  const isExact =
+    pathname === '/yen-inventory' || pathname === '/yen-inventory/';
+
+  if (isExact && permissionsLoaded && visibleModules.length > 0) {
+    const firstModule = visibleModules[0];
+    let target: string;
+    if (firstModule.path.includes("Warehouse")) {
+      target = getWarehouseRedirect();
+    } else if (firstModule.path.includes("Outlets")) {
+      target = getOutletRedirect();
+    } else {
+      target = firstModule.path;
+    }
+    router.replace(target);
+  }
+}, [pathname, permissionsLoaded, visibleModules, router]);
   const isActiveRoute = (itemPath: string) => pathname?.startsWith(itemPath);
 
   return (

@@ -53,7 +53,7 @@ const DateSettingsPage = () => {
     (state: RootState) => state.purchaseDateSettings
   );
 
-  const role = useSelector((state: RootState) => state.auth.role);
+  //const role = useSelector((state: RootState) => state.auth.role);
 
  
 
@@ -63,6 +63,7 @@ const DateSettingsPage = () => {
   useEffect(() => {
     dispatch(fetchDateSettings());
   }, [dispatch]);
+  { /*
  // Block non-admin
   if (role !== "Admin") {
     return (
@@ -79,6 +80,7 @@ const DateSettingsPage = () => {
       </Box>
     );
   }
+  */ }
   // Generic handler for restriction changes
   const handleRestrictionChange = (
     restrictionType: 'order' | 'expected' | 'invoice',
@@ -171,37 +173,41 @@ const handleSave = async () => {
           />
         );
       case 'days_before':
-        return (
-          <Chip
-            icon={<EventAvailableIcon />}
-            label={`From ${format(subDays(today, daysValue), 'dd/MM/yyyy')} to today`}
-            color="info"
-            variant="outlined"
-            size="small"
-          />
-        );
-      case 'days_after':
-        return (
-          <Chip
-            icon={<EventAvailableIcon />}
-            label={`From today to ${format(addDays(today, daysValue), 'dd/MM/yyyy')}`}
-            color="info"
-            variant="outlined"
-            size="small"
-          />
-        );
-      case 'date_range':
-        return startDate && endDate ? (
-          <Chip
-            icon={<DateRangeIcon />}
-            label={`${format(new Date(startDate), 'dd/MM/yyyy')} to ${format(new Date(endDate), 'dd/MM/yyyy')}`}
-            color="info"
-            variant="outlined"
-            size="small"
-          />
-        ) : (
-          <Chip label="Select date range" color="warning" variant="outlined" size="small" />
-        );
+  return (
+    <Chip
+      icon={<EventAvailableIcon />}
+      label={`From ${format(subDays(today, daysValue || 0), 'dd/MM/yyyy')} to today`}
+      color="info"
+      variant="outlined"
+      size="small"
+    />
+  );
+case 'days_after':
+  return (
+    <Chip
+      icon={<EventAvailableIcon />}
+      label={`From today to ${format(addDays(today, daysValue || 0), 'dd/MM/yyyy')}`}
+      color="info"
+      variant="outlined"
+      size="small"
+    />
+  );
+    case 'date_range': {
+  const isValidStart = startDate && !isNaN(new Date(startDate).getTime());
+  const isValidEnd = endDate && !isNaN(new Date(endDate).getTime());
+  
+  return isValidStart && isValidEnd ? (
+    <Chip
+      icon={<DateRangeIcon />}
+      label={`${format(new Date(startDate), 'dd/MM/yyyy')} to ${format(new Date(endDate), 'dd/MM/yyyy')}`}
+      color="info"
+      variant="outlined"
+      size="small"
+    />
+  ) : (
+    <Chip label="Select date range" color="warning" variant="outlined" size="small" />
+  );
+}
       default:
         return <Chip label="No restrictions" color="default" variant="outlined" size="small" />;
     }

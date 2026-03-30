@@ -1211,22 +1211,16 @@ const RejectedPo: React.FC = () => {
               </Button>
             </Link>
                )}
-                  {isGrnConvertedVisible && (
-  <Link href={"/yen-purchase/PurchaseOrder/GRNConvertedPO"}>
-  <Button
+{isGrnConvertedVisible && (
+            <Link href={"/yen-purchase/PurchaseOrder/GRNConvertedPO"}>
+              <Button
                 variant="contained"
-                sx={{
-                  backgroundColor: 'white',
-                  color: 'black',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                  },
-                }}
+                color="primary"
               >
-               GRN Converted
+                GRN Converted
               </Button>
-  </Link>
-)}
+            </Link>
+          )}
           </Box>
           
           <Box

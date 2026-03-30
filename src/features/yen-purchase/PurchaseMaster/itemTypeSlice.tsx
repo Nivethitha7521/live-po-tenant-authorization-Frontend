@@ -18,7 +18,7 @@ const getHeaders = () => ({
 
 
 export const fetchPurchaseTypeItems = createAsyncThunk('purchaseTypeItems/fetchPurchaseTypeItems', async () => {
-  const response = await axios.get<PurchaseItemType[]>('https://yenerp.com/purchasetestapi/itemtypes/', {
+  const response = await axios.get<PurchaseItemType[]>('http://127.0.0.1:8000/purchasetestapi/itemtypes/', {
     headers: getHeaders() // ✅ ADD HEADERS
   });
   return response.data;
@@ -26,7 +26,7 @@ export const fetchPurchaseTypeItems = createAsyncThunk('purchaseTypeItems/fetchP
 
 export const addPurchaseTypeItem = createAsyncThunk<PurchaseItemType, Omit<PurchaseItemType, 'itemtypeId'>>('purchaseTypeItems/addPurchaseTypeItem', async (groupItemData, { rejectWithValue }) => {
   try {
-    const response = await axios.post('https://yenerp.com/purchasetestapi/itemtypes/', groupItemData, {
+    const response = await axios.post('http://127.0.0.1:8000/purchasetestapi/itemtypes/', groupItemData, {
       headers: getHeaders() // ✅ ADD HEADERS
     });
     return response.data;
@@ -37,7 +37,7 @@ export const addPurchaseTypeItem = createAsyncThunk<PurchaseItemType, Omit<Purch
 
 export const updatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, PurchaseItemType>('purchaseTypeItems/updatePurchaseTypeItem', async (groupItemData, { rejectWithValue }) => {
   try {
-    const response = await axios.patch(`https://yenerp.com/purchasetestapi/itemtypes/${groupItemData.itemtypeId}`, groupItemData, {
+    const response = await axios.patch(`http://127.0.0.1:8000/purchasetestapi/itemtypes/${groupItemData.itemtypeId}`, groupItemData, {
       headers: getHeaders() // ✅ ADD HEADERS
     });
     return response.data;
@@ -48,7 +48,7 @@ export const updatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, Purchas
 
 export const deactivatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, string>('purchaseTypeItems/deactivatePurchaseTypeItem', async (itemtypeId, { rejectWithValue }) => {
   try {
-    const response = await axios.delete(`https://yenerp.com/purchasetestapi/itemtypes/${itemtypeId}`, {  // ✅ USE DELETE METHOD
+    const response = await axios.delete(`http://127.0.0.1:8000/purchasetestapi/itemtypes/${itemtypeId}`, {  // ✅ USE DELETE METHOD
       headers: getHeaders()
     });
     return response.data;
@@ -59,7 +59,7 @@ export const deactivatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, str
 
 export const activatePurchaseTypeItem = createAsyncThunk<PurchaseItemType, string>('purchaseTypeItems/activatePurchaseTypeItem', async (itemtypeId, { rejectWithValue }) => {
   try {
-    const response = await axios.patch(`https://yenerp.com/purchasetestapi/itemtypes/${itemtypeId}/activate`,  // ✅ USE ACTIVATE ENDPOINT
+    const response = await axios.patch(`http://127.0.0.1:8000/purchasetestapi/itemtypes/${itemtypeId}/activate`,  // ✅ USE ACTIVATE ENDPOINT
       {}, // Empty body since we're using the specific activate endpoint
       {
         headers: getHeaders()
@@ -86,7 +86,7 @@ export const importPurchaseTypeItem = createAsyncThunk(
       };
       
       const response = await axios.post(
-        'https://yenerp.com/purchasetestapi/itemtypes/import-csv',
+        'http://127.0.0.1:8000/purchasetestapi/itemtypes/import-csv',
         formData,
         { headers }
       );
@@ -104,7 +104,7 @@ export const exportPurchaseTypeItem = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        'https://yenerp.com/purchasetestapi/itemtypes/export-itemtype/export-csv',
+        'http://127.0.0.1:8000/purchasetestapi/itemtypes/export-itemtype/export-csv',
         {
           responseType: 'blob',
           headers: getHeaders() // ✅ ADD HEADERS

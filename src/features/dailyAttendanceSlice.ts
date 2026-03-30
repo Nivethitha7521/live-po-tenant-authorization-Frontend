@@ -45,7 +45,7 @@ const initialState: DailyAttendanceState = {
 export const fetchDailyAttendance = createAsyncThunk(
   'dailyAttendance/fetchDailyAttendance',
   async (date: string) => {
-    const response = await axios.get(`https://yenerp.com/purchasetestapi/attendances`);
+    const response = await axios.get(`http://127.0.0.1:8000/purchasetestapi/attendances`);
     return response.data;
   }
 );
