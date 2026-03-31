@@ -5,7 +5,13 @@ import { useDispatch } from 'react-redux';
 import { addRoleLocally } from '@/features/account-setting/roleSlice';
 import { Snackbar, Alert } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
-
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button
+} from "@mui/material";
 const getBackendSubmoduleKey = (submoduleId: string, submoduleName: string): string => {
   const idMap: Record<string, string> = {
     // YEN_PURCHASE submodules
@@ -612,6 +618,20 @@ so_rejected: (
       </ul>
     </div>
   ),
+  ap_list: (
+  <div>
+    <div className="font-semibold mb-1">AP Invoice</div>
+    <ul className="list-disc pl-4 space-y-1">
+      <li>Used to view and manage Accounts Payable (AP) invoices.</li>
+      <li>
+        <b>Approve permission controls:</b> Verify / Approve AP invoices.
+      </li>
+      <li>
+        Once approved, invoice can be processed for payment.
+      </li>
+    </ul>
+  </div>
+),
    op_advance: (
     <div>
       <div className="font-semibold mb-1">Advance Payment</div>
@@ -875,7 +895,7 @@ const [snackbar, setSnackbar] = useState({
   message: "",
   severity: "success" as "success" | "error",
 });
-
+const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedPredefinedRole, setSelectedPredefinedRole] = useState("");
   const [customRoleName, setCustomRoleName] = useState("");
   const [formPermissions, setFormPermissions] = useState<AppPermissions[]>(cloneModules());
@@ -1164,6 +1184,11 @@ setTimeout(() => {
 
   }
 };
+const handleConfirmCreate = () => {
+  setConfirmOpen(false);
+  
+  saveRole(); // actual API call
+};
   return (
     <div className="h-screen bg-gray-50 flex flex-col"> 
       
@@ -1380,7 +1405,7 @@ setTimeout(() => {
               Cancel
             </button>
 <button 
-  onClick={saveRole}
+onClick={() => setConfirmOpen(true)}
   disabled={isSaving}
   className={`px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm font-semibold shadow-sm hover:shadow-md min-w-[110px] ${
     isSaving ? 'opacity-50 cursor-not-allowed' : ''
@@ -1414,7 +1439,34 @@ setTimeout(() => {
     {snackbar.message}
   </Alert>
 </Snackbar>
+<Dialog
+  open={confirmOpen}
+  onClose={() => setConfirmOpen(false)}
+>
+  <DialogTitle>Confirm Role Creation</DialogTitle>
 
+  <DialogContent>
+    Are you sure you want to create role "{formRoleName}"?
+  </DialogContent>
+
+  <DialogActions>
+    <Button
+      onClick={() => setConfirmOpen(false)}
+      color="secondary"
+      variant="outlined"
+    >
+      Cancel
+    </Button>
+
+    <Button
+      onClick={handleConfirmCreate}
+      color="primary"
+      variant="contained"
+    >
+      Yes, Create
+    </Button>
+  </DialogActions>
+</Dialog>
       </div>
     </div>
   );

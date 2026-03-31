@@ -198,11 +198,6 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
               <Typography variant="body1" fontWeight="medium">
                 {option.branchName}
               </Typography>
-              {option.locationId && (
-                <Typography variant="caption" color="text.secondary">
-                  ID: {option.locationId}
-                </Typography>
-              )}
             </Box>
           </li>
         );

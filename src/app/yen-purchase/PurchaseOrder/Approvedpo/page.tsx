@@ -1308,66 +1308,85 @@ const ApprovedPurchase: React.FC = () => {
 
     return !hasErrors;
   }, [updatedItems, touched]);
-  const handleQuantityChange = useCallback(
-    (itemId: string, field: "receivedQuantity", value: string | number) => {
-      console.log("Quantity Change:", { itemId, field, value });
-      const index = updatedItems.findIndex((item) => item.itemId === itemId);
-      const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
-      const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+const handleQuantityChange = useCallback(
+  (itemId: string, field: "receivedQuantity", value: string | number) => {
+    console.log("Quantity Change:", { itemId, field, value });
+    const index = updatedItems.findIndex((item) => item.itemId === itemId);
+    const originalItem = selectedOrder?.items.find((original) => original.itemId === itemId);
+    const originalPendingTotalQuantity = originalItem?.pendingTotalQuantity || 0;
+    
+    setTouched((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: true },
+    }));
+    
+    const received = Number(value) || 0;
+    
+    if (!/^\d*\.?\d*$/.test(String(value))) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "Invalid number" },
+      }));
+      return;
+    }
+    
+    if (received < 0) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "Received quantity cannot be negative" },
+      }));
+      return;
+    }
+    
+    if (originalPendingTotalQuantity === 0) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "Item is already fully received" },
+      }));
+      setExcessDialogMessage(
+        `Item "${updatedItems[index].itemName}" is already fully received (pending total quantity = 0).`
+      );
+      setExcessDialogOpen(true);
+      return;
+    }
+    
+    if (received > originalPendingTotalQuantity) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: `Cannot exceed pending quantity of ${originalPendingTotalQuantity}` },
+      }));
+      setExcessDialogMessage(
+        `Received quantity for item "${updatedItems[index].itemName}" (${received}) exceeds the pending total quantity (${originalPendingTotalQuantity}).`
+      );
+      setExcessDialogOpen(true);
+      return;
+    }
+    
+    setUpdatedItems((prevItems) =>
+      prevItems.map((item) =>
+        item.itemId === itemId ? { ...item, receivedQuantity: received } : item
+      )
+    );
+    
+    // CRITICAL FIX: Clear expiry date error and touched state when received quantity becomes 0
+    if (received === 0) {
+      setErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [field]: "", expiryDate: "" },
+      }));
       setTouched((prev) => ({
         ...prev,
-        [index]: { ...prev[index], [field]: true },
+        [index]: { ...prev[index], [field]: true, expiryDate: false },
       }));
-      const received = Number(value) || 0;
-      if (!/^\d*\.?\d*$/.test(String(value))) {
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: "Invalid number" },
-        }));
-        return;
-      }
-      if (received < 0) {
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: "Received quantity cannot be negative" },
-        }));
-        return;
-      }
-      if (originalPendingTotalQuantity === 0) {
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: "Item is already fully received" },
-        }));
-        setExcessDialogMessage(
-          `Item "${updatedItems[index].itemName}" is already fully received (pending total quantity = 0).`
-        );
-        setExcessDialogOpen(true);
-        return;
-      }
-      if (received > originalPendingTotalQuantity) {
-        setErrors((prev) => ({
-          ...prev,
-          [index]: { ...prev[index], [field]: `Cannot exceed pending quantity of ${originalPendingTotalQuantity}` },
-        }));
-        setExcessDialogMessage(
-          `Received quantity for item "${updatedItems[index].itemName}" (${received}) exceeds the pending total quantity (${originalPendingTotalQuantity}).`
-        );
-        setExcessDialogOpen(true);
-        return;
-      }
-      setUpdatedItems((prevItems) =>
-        prevItems.map((item) =>
-          item.itemId === itemId ? { ...item, receivedQuantity: received } : item
-        )
-      );
+    } else {
       setErrors((prev) => ({
         ...prev,
         [index]: { ...prev[index], [field]: "" },
       }));
-    },
-    [updatedItems, selectedOrder, setExcessDialogMessage, setExcessDialogOpen]
-  );
-
+    }
+  },
+  [updatedItems, selectedOrder, setExcessDialogMessage, setExcessDialogOpen]
+);
   const handlePriceChange = useCallback(
     (itemId: string, value: string) => {
       const index = updatedItems.findIndex((item) => item.itemId === itemId);
@@ -1421,41 +1440,61 @@ const ApprovedPurchase: React.FC = () => {
     },
     [updatedItems]
   );
-  const handleExpiryDateChange = useCallback(
-    (itemId: string, value: Date | null) => {
-      const index = updatedItems.findIndex((item) => item.itemId === itemId);
-      setTouched((prev) => ({
-        ...prev,
-        [index]: { ...prev[index], expiryDate: true },
-      }));
+const handleExpiryDateChange = useCallback(
+  (itemId: string, value: Date | null) => {
+    const index = updatedItems.findIndex((item) => item.itemId === itemId);
+    // Convert receivedQuantity to number safely
+    const receivedQuantityRaw = updatedItems[index]?.receivedQuantity || 0;
+    const receivedQuantity = typeof receivedQuantityRaw === 'string' 
+      ? parseFloat(receivedQuantityRaw) || 0 
+      : receivedQuantityRaw || 0;
+    
+    setTouched((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], expiryDate: true },
+    }));
+    
+    if (value) {
+      const utcDate = new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()));
+      setUpdatedItems((prevItems) =>
+        prevItems.map((item) =>
+          item.itemId === itemId
+            ? {
+                ...item,
+                expiryDate: utcDate
+              }
+            : item
+        )
+      );
+      // Clear error when date is set
       setErrors((prev) => ({
         ...prev,
         [index]: { ...prev[index], expiryDate: "" },
       }));
-      if (value) {
-        const utcDate = new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()));
-        setUpdatedItems((prevItems) =>
-          prevItems.map((item) =>
-            item.itemId === itemId
-              ? {
-                ...item,
-                expiryDate: utcDate
-              }
-              : item
-          )
-        );
+    } else {
+      setUpdatedItems((prevItems) =>
+        prevItems.map((item) =>
+          item.itemId === itemId
+            ? { ...item, expiryDate: null }
+            : item
+        )
+      );
+      // Only set error if received quantity > 0
+      if (receivedQuantity > 0) {
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], expiryDate: "Expiry date is required" },
+        }));
       } else {
-        setUpdatedItems((prevItems) =>
-          prevItems.map((item) =>
-            item.itemId === itemId
-              ? { ...item, expiryDate: null }
-              : item
-          )
-        );
+        setErrors((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], expiryDate: "" },
+        }));
       }
-    },
-    [updatedItems]
-  );
+    }
+  },
+  [updatedItems]
+);
   // Update handleSaveChanges to include the validation
   const handleSaveChanges = useCallback(async () => {
     console.log("Saving Changes:", { updatedItems, invoiceNumber, invoiceDate, roundOffAmount, freights });
@@ -1493,27 +1532,29 @@ const ApprovedPurchase: React.FC = () => {
       setSnackbarInvoiceOpen(true);
       return;
     }
+// In handleSaveChanges function, update the expiry date validation section:
+if (!validateExpiryDates()) {
+  // Create a more descriptive error message
+  const itemsNeedingExpiry = updatedItems.filter(item => {
+    const receivedQty = typeof item.receivedQuantity === 'string'
+      ? parseFloat(item.receivedQuantity) || 0
+      : item.receivedQuantity || 0;
+    const pendingQty = item.pendingTotalQuantity || 0;
+    // CRITICAL FIX: Only include items with received quantity > 0
+    return pendingQty > 0 && receivedQty > 0 && !item.expiryDate;
+  });
 
-    // NEW: Validate expiry dates for items with received quantity > 0
-    if (!validateExpiryDates()) {
-      // Create a more descriptive error message
-      const itemsNeedingExpiry = updatedItems.filter(item => {
-        const receivedQty = typeof item.receivedQuantity === 'string'
-          ? parseFloat(item.receivedQuantity) || 0
-          : item.receivedQuantity || 0;
-        const pendingQty = item.pendingTotalQuantity || 0;
-        return pendingQty > 0 && receivedQty > 0 && !item.expiryDate;
-      });
-
-      if (itemsNeedingExpiry.length > 0) {
-        const itemNames = itemsNeedingExpiry.map(item => item.itemName).join(', ');
-        setSnackbarInvoiceMessage(`Please provide expiry dates for: ${itemNames}`);
-      } else {
-        setSnackbarInvoiceMessage("Please provide expiry dates for all items with received quantity greater than 0.");
-      }
-      setSnackbarInvoiceOpen(true);
-      return;
-    }
+    if (itemsNeedingExpiry.length > 0) {
+    const itemNames = itemsNeedingExpiry.map(item => item.itemName).join(', ');
+    setSnackbarInvoiceMessage(`Please provide expiry dates for: ${itemNames}`);
+  } else {
+    // If no items need expiry dates but validateExpiryDates returned false,
+    // it means the errors are cleared
+    setSnackbarInvoiceMessage("");
+  }
+  setSnackbarInvoiceOpen(true);
+  return;
+}
 
     const hasErrors = Object.values(errors).some((errorObj) =>
       Object.values(errorObj).some((error) => error)

@@ -81,6 +81,7 @@ interface ReturnActionButtonProps {
         [key: string]: any;
     };
     onClick: (payment: any) => void;
+     canEdit: boolean;
 }
 const PurchaseReturnPage = React.memo(() => {
     const dispatch = useDispatch<AppDispatch>();
@@ -90,7 +91,7 @@ const PurchaseReturnPage = React.memo(() => {
     hasPermission("yenerp", "outgoingpayment", "read") ||
     hasPermission("yenerp", "partialpayment", "read") ||
     hasPermission("yenerp", "paymentdone", "read");
-
+const canEditPurchaseReturn = hasPermission("yenerp", "purchasereturn", "edit");
   // 👁️ Purchase Return VISIBLE (hide = false)
   const canShowPurchaseReturn =
     isModuleVisible("yenerp", "purchasereturn") && canReadPurchaseReturn;
@@ -472,26 +473,38 @@ const PurchaseReturnPage = React.memo(() => {
         document.body.removeChild(link);
         setOpenDownloadDialog(false);
     }, [filteredPayments, getRandomId]);
-    const ReturnActionButton = useCallback(({ payment, onClick }: ReturnActionButtonProps) => {
-        const isDisabled = !payment.totalPayableAmount || payment.totalPayableAmount <= 0;
-        const tooltipTitle = isDisabled ? "No amount available for return" : "Process Return";
+const ReturnActionButton = useCallback(
+({ payment, onClick, canEdit }: ReturnActionButtonProps) => {
 
-        const button = (
-            <IconButton
-                color="primary"
-                onClick={() => onClick(payment)}
-                disabled={isDisabled}
-            >
-                <ReturnIcon />
-            </IconButton>
-        );
+    const noAmount = !payment.totalPayableAmount || payment.totalPayableAmount <= 0;
 
-        return (
-            <Tooltip title={tooltipTitle}>
-                <span>{button}</span>
-            </Tooltip>
-        );
-    }, []);
+    // ✅ Final disable logic
+    const isDisabled = noAmount || !canEdit;
+
+    let tooltipTitle = "Process Return";
+
+    if (noAmount) {
+        tooltipTitle = "No amount available for return";
+    } else if (!canEdit) {
+        tooltipTitle = "No permission to return";
+    }
+
+    const button = (
+        <IconButton
+            color="primary"
+            onClick={() => onClick(payment)}
+            disabled={isDisabled}
+        >
+            <ReturnIcon />
+        </IconButton>
+    );
+
+    return (
+        <Tooltip title={tooltipTitle}>
+            <span>{button}</span>
+        </Tooltip>
+    );
+}, []);
  // ⛔ HIDE true → page itself block
   if (!isModuleVisible("yenerp", "purchasereturn")) {
     return (
@@ -732,10 +745,11 @@ const PurchaseReturnPage = React.memo(() => {
                                             <TableCell align="right">{(payment.totalPayableAmount || 0).toFixed(2)}</TableCell>
                                             <TableCell>
                                                 <Box display="flex" alignItems="center">
-                                                    <ReturnActionButton
-                                                        payment={payment}
-                                                        onClick={() => handleReturnProcess(payment)}
-                                                    />
+                                                  <ReturnActionButton
+    payment={payment}
+    onClick={() => handleReturnProcess(payment)}
+    canEdit={canEditPurchaseReturn}
+/>
                                                 </Box>
                                             </TableCell>
                                         </TableRow>

@@ -884,6 +884,7 @@ const convertBackendToFrontend = useCallback((backendPermissions: any): AppPermi
       app.appName !== "YEN_BOOK" &&
       app.appName !== "YEN_INVENTORY" &&
       app.appName !== "YEN_REPORTS" && 
+      app.appName !== "YEN_SETTINGS" &&
       app.appName !== "YEN_OUTLET_MANAGER" &&
       app.appName !== "YEN_POS"
     ) return;

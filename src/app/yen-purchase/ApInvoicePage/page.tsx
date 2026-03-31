@@ -110,6 +110,7 @@ const VerifiedApInvoicePage: React.FC = () => {
   const apPermission = useSelector(
     (state: RootState) => state.auth.permissions?.yenerp?.apinvoices,
   );
+  const canApprove = apPermission?.approve ?? false;
   const returnPermission = useSelector(
     (state: RootState) => state.auth.permissions?.yenerp?.apinvoices_return,
   );
@@ -129,7 +130,7 @@ const VerifiedApInvoicePage: React.FC = () => {
       !apPermission.approve);
 
   const userRole = useSelector((state: RootState) => state.auth.role);
-  const isAdmin = userRole === 'Admin' || userRole === 'admin';
+  //const isAdmin = userRole === 'Admin' || userRole === 'admin';
 
 
   // State from Redux
@@ -498,7 +499,7 @@ const VerifiedApInvoicePage: React.FC = () => {
 
   // ==================== VERIFICATION HANDLERS (ADMIN ONLY) ====================
   const handleToggleVerificationSelection = (invoiceId: string) => {
-    if (!isAdmin) {
+    if (!canApprove) {
       dispatch(setSnackbarMessage('Only admin users can verify invoices'));
       dispatch(setSnackbarOpen(true));
       return;
@@ -507,7 +508,7 @@ const VerifiedApInvoicePage: React.FC = () => {
   };
 
   const handleToggleAllVerificationSelection = () => {
-    if (!isAdmin) {
+    if (!canApprove) {
       dispatch(setSnackbarMessage('Only admin users can verify invoices'));
       dispatch(setSnackbarOpen(true));
       return;
@@ -517,12 +518,12 @@ const VerifiedApInvoicePage: React.FC = () => {
   };
 
   const handleClearVerificationSelection = () => {
-    if (!isAdmin) return;
+    if (!canApprove) return;
     dispatch(clearVerificationSelection());
   };
 
   const handleSingleVerification = (invoice: ApInvoice) => {
-    if (!isAdmin) {
+    if (!canApprove) {
       dispatch(setSnackbarMessage('Only admin users can verify invoices'));
       dispatch(setSnackbarOpen(true));
       return;
@@ -533,7 +534,7 @@ const VerifiedApInvoicePage: React.FC = () => {
   };
 
   const handleBulkVerification = () => {
-    if (!isAdmin) {
+    if (!canApprove) {
       dispatch(setSnackbarMessage('Only admin users can verify invoices'));
       dispatch(setSnackbarOpen(true));
       return;
@@ -557,14 +558,14 @@ const VerifiedApInvoicePage: React.FC = () => {
       setVerificationDialogOpen(false);
       // Refresh data
       refetchWithFilters();
-
-      dispatch(fetchApInvoices({
-        page: 1,
-        limit: pageSize,
-        vendorName: undefined,
-        invoiceType: undefined,
-        status: undefined,
-      }));
+  
+    dispatch(fetchApInvoices({
+      page: 1,
+      limit: pageSize,
+      vendorName: undefined,
+      invoiceType: undefined,
+      status: undefined,
+    }));
     } catch (error) {
       console.error('Verification failed:', error);
     }
@@ -1464,12 +1465,7 @@ const VerifiedApInvoicePage: React.FC = () => {
 
     return filtered;
   }, [apInvoices, invoiceTypeFilter, selectedStatus]);
-  // Add this function inside your component, before the return statement
-  const isInvoiceEligibleForVerification = (invoice: ApInvoice): boolean => {
-    return invoice.status !== 'Verified' &&
-      invoice.status !== 'Partially Paid' &&
-      invoice.status !== 'Fully Paid';
-  };
+
   // // Add this useEffect to debug filter state
   // useEffect(() => {
   //   console.log('Filter state:', {
@@ -1718,7 +1714,7 @@ const VerifiedApInvoicePage: React.FC = () => {
           </Grid>
 
           {/* Verify Button - Only show for admin */}
-          {isAdmin && (
+          {canApprove && (
             <Grid item>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <Tooltip title={
@@ -1730,12 +1726,16 @@ const VerifiedApInvoicePage: React.FC = () => {
                     <IconButton
                       onClick={handleBulkVerification}
                       color="primary"
-                      disabled={selectedInvoicesForVerification.length === 0 || loading || verificationLoading || !isAdmin}
-                      className="icon-button-outline"
+disabled={
+  selectedInvoicesForVerification.length === 0 ||
+  loading ||
+  verificationLoading ||
+  !canApprove
+}                      className="icon-button-outline"
                       size="small"
                       sx={{ p: 0.3 }}
                     >
-                      <VerifiedIcon fontSize="small" />
+                   <VerifiedIcon fontSize="small" />
                     </IconButton>
                   </span>
                 </Tooltip>
@@ -1808,7 +1808,7 @@ const VerifiedApInvoicePage: React.FC = () => {
               <TableHead>
                 <TableRow>
                   {/* Checkbox column - only show for admin */}
-                  {isAdmin && (
+                  {canApprove && (
                     <TableCell align="center" padding="checkbox">
                       <Checkbox
                         indeterminate={
@@ -1821,7 +1821,7 @@ const VerifiedApInvoicePage: React.FC = () => {
                           selectedInvoicesForVerification.length === verifiedApInvoices.length
                         }
                         onChange={handleToggleAllVerificationSelection}
-                        disabled={verifiedApInvoices.length === 0 || !isAdmin}
+                        disabled={verifiedApInvoices.length === 0 || !canApprove}
                       />
                     </TableCell>
                   )}
@@ -1843,7 +1843,7 @@ const VerifiedApInvoicePage: React.FC = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 15 : 14} align="center">
+                    <TableCell colSpan={canApprove ? 15 : 14} align="center">
                       <CircularProgress size={24} />
                       <Typography variant="body2" sx={{ ml: 2 }}>
                         Loading invoices...
@@ -1852,7 +1852,7 @@ const VerifiedApInvoicePage: React.FC = () => {
                   </TableRow>
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 15 : 14} align="center" sx={{ color: 'error.main' }}>
+                    <TableCell colSpan={canApprove ? 15 : 14} align="center" sx={{ color: 'error.main' }}>
                       <Typography variant="body2">
                         Error: {error}
                       </Typography>
@@ -1860,7 +1860,7 @@ const VerifiedApInvoicePage: React.FC = () => {
                   </TableRow>
                 ) : verifiedApInvoices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 15 : 14} align="center">
+                    <TableCell colSpan={canApprove ? 15 : 14} align="center">
                       No data available
                     </TableCell>
                   </TableRow>
@@ -1873,12 +1873,12 @@ const VerifiedApInvoicePage: React.FC = () => {
                     return (
                       <TableRow key={invoice.randomId}>
                         {/* Checkbox column - only show for admin */}
-                        {isAdmin && (
+                        {canApprove && (
                           <TableCell align="center" padding="checkbox">
                             <Checkbox
                               checked={selectedInvoicesForVerification.includes(invoice.invoiceId)}
                               onChange={() => handleToggleVerificationSelection(invoice.invoiceId)}
-                              disabled={invoice.status === 'Verified' || verificationLoading || !isAdmin}
+                              disabled={invoice.status === 'Verified' || verificationLoading || !canApprove}
                             />
                           </TableCell>
                         )}
@@ -1936,13 +1936,13 @@ const VerifiedApInvoicePage: React.FC = () => {
                         </TableCell>
                         <TableCell align="right">{invoice.invoiceAmount.toFixed(2)}</TableCell>
                         <TableCell align="center">{invoice.status || 'Pending'}</TableCell>
-                        <TableCell align="center">{invoice.verifiedByName || '-'}</TableCell>
+                        <TableCell align="center">{invoice.verifiedBy || '-'}</TableCell>
                         <TableCell align="center">
                           {invoice.verifiedDate ? format(new Date(invoice.verifiedDate), 'dd-MM-yyyy HH:mm') : '-'}
                         </TableCell>
                         <TableCell>
                           <Box display="flex" alignItems="center">
-                            <Tooltip title="View Detail">
+                             <Tooltip title="View Detail">
                               <IconButton
                                 color="primary"
                                 onClick={() => handleViewDetails(invoice)}
@@ -1952,26 +1952,24 @@ const VerifiedApInvoicePage: React.FC = () => {
                               </IconButton>
                             </Tooltip>
                             {/* Verify button - only show for admin */}
-                            {isAdmin && isInvoiceEligibleForVerification(invoice) && (
+                            {canApprove && invoice.status !== 'Verified' && (
                               <Tooltip title="Verify Invoice">
                                 <span>
                                   <IconButton
                                     color="primary"
                                     onClick={() => handleSingleVerification(invoice)}
-                                    disabled={
-                                      !canEdit ||
-                                      verificationLoading ||
-                                      !isAdmin ||
-                                      // Disable individual verify button when multiple items are selected
-                                      selectedInvoicesForVerification.length > 0
-                                    }
+                                   disabled={
+  !canApprove ||
+  verificationLoading ||
+  selectedInvoicesForVerification.length > 0
+}
                                   >
                                     <VerifiedIcon />
                                   </IconButton>
                                 </span>
                               </Tooltip>
                             )}
-
+                           
                             <Tooltip title="Download PDF">
                               <IconButton
                                 color="primary"
@@ -2298,41 +2296,41 @@ const VerifiedApInvoicePage: React.FC = () => {
           </DialogActions>
         </Dialog>
 
-        {/* Verification Confirmation Dialog */}
-        <Dialog open={verificationDialogOpen} onClose={() => !verificationLoading && setVerificationDialogOpen(false)}>
-          <DialogTitle>Confirm Verification</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              {isBulkVerification
-                ? `Are you sure you want to verify ${selectedInvoicesForVerification.length} selected AP invoice(s)? 
+    {/* Verification Confirmation Dialog */}
+<Dialog open={verificationDialogOpen} onClose={() => !verificationLoading && setVerificationDialogOpen(false)}>
+  <DialogTitle>Confirm Verification</DialogTitle>
+  <DialogContent>
+    <DialogContentText>
+      {isBulkVerification
+        ? `Are you sure you want to verify ${selectedInvoicesForVerification.length} selected AP invoice(s)? 
            Once verified, these invoices will be available for payment in the Outgoing Payment section.`
-                : `Are you sure you want to verify AP Invoice ${selectedInvoice?.randomId}? 
+        : `Are you sure you want to verify AP Invoice ${selectedInvoice?.randomId}? 
            Once verified, this invoice will be available for payment in the Outgoing Payment section.`
-              }
-            </DialogContentText>
-            {verificationLoading && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                <CircularProgress size={24} />
-              </Box>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button
-              onClick={() => setVerificationDialogOpen(false)}
-              disabled={verificationLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmVerification}
-              color="primary"
-              variant="contained"
-              disabled={verificationLoading}
-            >
-              {verificationLoading ? 'Verifying...' : 'Confirm Verification'}
-            </Button>
-          </DialogActions>
-        </Dialog>
+      }
+    </DialogContentText>
+    {verificationLoading && (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+        <CircularProgress size={24} />
+      </Box>
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button 
+      onClick={() => setVerificationDialogOpen(false)} 
+      disabled={verificationLoading}
+    >
+      Cancel
+    </Button>
+    <Button 
+      onClick={confirmVerification} 
+      color="primary" 
+      variant="contained"
+      disabled={verificationLoading}
+    >
+      {verificationLoading ? 'Verifying...' : 'Confirm Verification'}
+    </Button>
+  </DialogActions>
+</Dialog>
 
         {/* Snackbar for notifications */}
         <Snackbar
@@ -2401,7 +2399,7 @@ const VerifiedApInvoicePage: React.FC = () => {
               variant="outlined"
             >
               Cancel
-            </Button>
+            </Button> 
           </DialogActions>
         </Dialog>
 

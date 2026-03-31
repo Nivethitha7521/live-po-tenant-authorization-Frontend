@@ -24,6 +24,7 @@ export default function TenantPage() {
   const [tenantName, setTenantName] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [restoreId, setRestoreId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
 
 const [snackbar, setSnackbar] = useState({
@@ -58,6 +59,7 @@ const [snackbar, setSnackbar] = useState({
 
   // ✅ Create tenant
 const handleCreateTenant = async () => {
+  if (loading) return; // 🚫 prevent double click
 
   if (!tenantName.trim() || !domain.trim()) {
     setSnackbar({
@@ -69,9 +71,11 @@ const handleCreateTenant = async () => {
   }
 
   try {
+    setLoading(true); // ✅ START
+
     await axios.post(`${API}/tenants/`, {
       tenantName: tenantName.trim(),
-      domains: [domain],   // 🔥 AUTO ARRAY SAVE
+      domains: [domain],
       description: "",
       status: "active",
     });
@@ -84,15 +88,17 @@ const handleCreateTenant = async () => {
 
     setTenantModal(false);
     setTenantName("");
-    setDomain("");   // 🔥 clear field
+    setDomain("");
     fetchTenants();
 
-  } catch (err) {
+  } catch (err: any) {
     setSnackbar({
       open: true,
-      message: "Failed to create tenant",
+      message: err?.response?.data?.detail || "Failed to create tenant",
       severity: "error",
     });
+  } finally {
+    setLoading(false); // ✅ END
   }
 };
 const handleUpdateTenant = async () => {
@@ -350,11 +356,14 @@ focus:border-blue-600"
 </button>
 
               <button
-              onClick={editingTenantId ? handleUpdateTenant : handleCreateTenant}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg"
-              >
-                Save
-              </button>
+  disabled={loading}
+  onClick={editingTenantId ? handleUpdateTenant : handleCreateTenant}
+  className={`px-4 py-2 rounded-lg text-white ${
+    loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600"
+  }`}
+>
+  {loading ? "Saving..." : "Save"}
+</button>
             </div>
           </div>
 

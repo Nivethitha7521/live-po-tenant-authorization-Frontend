@@ -23,14 +23,15 @@ import {
   Card,
   CardContent,
   Container,
+  IconButton,
 } from '@mui/material';
+import { usePermissions } from "@/hooks/usePermissions";
+
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import { ClearIcon } from '@mui/x-date-pickers/icons';
-import { usePermissions } from "@/hooks/usePermissions";
-
 import {
   setSelectedVendorName,
   resetLedgerData,
@@ -49,7 +50,10 @@ import Link from 'next/link';
 import DateRangeDialog from '@/components/dateRange';
 import YenBookPage from '../../page';
 import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css'; // theme css file
 import { fetchVendorNames } from '@/features/yen-purchase/PurchaseMaster/vendorSlice';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 
 // Define the interface (assuming it's not imported; add it here or import from appropriate file)
 export interface VendorNameGet {
@@ -59,9 +63,7 @@ export interface VendorNameGet {
 
 const LedgerPage = () => {
   const dispatch = useDispatch<AppDispatch>();
-   const { hasPermission, isModuleVisible } = usePermissions();
-
- 
+  const { hasPermission, isModuleVisible } = usePermissions();
   const { ledgerData, loading, error, selectedVendorName, transactions } = useSelector(selectLedger);
   const { businesses } = useSelector(selectBusinesses);
   const [openDialog, setOpenDialog] = useState(false);
@@ -74,6 +76,7 @@ const LedgerPage = () => {
     endDate: endOfDay(today),
     key: 'selection',
   });
+  const [isTableFullScreen, setIsFullScreen] = useState(false);
 
   // Get business address dynamically
   const getBusinessAddress = () => {
@@ -119,6 +122,24 @@ const LedgerPage = () => {
       isInitialLoad.current = false;
     }
   }, [dispatch]);
+
+  // Add ESC key listener to exit fullscreen
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isTableFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscKey);
+    return () => {
+      window.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isTableFullScreen]);
+
+  const toggleTableFullScreen = () => {
+    setIsFullScreen(!isTableFullScreen);
+  };
 
   const handleVendorChange = (event: React.SyntheticEvent, newValue: VendorNameGet | null) => { // Changed type to VendorNameGet
     dispatch(setSelectedVendorName(newValue?.vendorName || null));
@@ -476,144 +497,160 @@ if (!canReadLedger) {
       <Box>
         <Box sx={{ pl: 2, mb: 2, mt: 1 }}>
           <Grid container spacing={1} alignItems="center">
-             {isModuleVisible("yenerp", "outgoingpayment") && (
-              <Grid item>
-                <Link href={"/yen-book/OutgoingPaymentPage"}>
-                  <Button variant="contained" size="small">
-                    Outgoing Payment
-                  </Button>
-                </Link>
-              </Grid>
+            {isModuleVisible("yenerp", "outgoingpayment") && (
+            <Grid item>
+              <Link href="/yen-book/OutgoingPaymentPage" passHref>
+                <Button variant="contained" size="small">
+                  Outgoing Payment
+                </Button>
+              </Link>
+            </Grid>
             )}
             <Grid item>
               {isModuleVisible("yenerp", "advancepayment") && (
-                <Link href={"/yen-book/OutgoingPaymentPage/PreOutgoing"}>
-                  <Button variant="contained" size="small">
-                    Advance Payment
-                  </Button>
-                </Link>
+              <Link href="/yen-book/OutgoingPaymentPage/PreOutgoing" passHref>
+                <Button variant="contained" size="small">
+                  Advance Payment
+                </Button>
+              </Link>
               )}
             </Grid>
             {isModuleVisible("yenerp", "partialpayment") && (
-              <Grid item>
-                <Link
-                  href={"/yen-book/OutgoingPaymentPage/PendingPayment"
-                  }
-                >
-                  <Button variant="contained" size="small">
-                    Partial Payment
-                  </Button>
-                </Link>
-              </Grid>
-            )}
-             <Grid item>
-              {isModuleVisible("yenerp", "paymentdone") && (
-                <Link href={"/yen-book/OutgoingPaymentPage/PaidPayment"}>
-                  <Button variant="contained" size="small">
-                    Payment Done
-                  </Button>
-                </Link>
-              )}
-            </Grid>
-            {isModuleVisible("yenerp", "ledger") && (
-              <Grid item>
-                
-                <Button
-                  variant="contained"
-                  size="small"
-                  sx={{
-                    backgroundColor: "white",
-                    color: "black",
-                    "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.8)" },
-                  }}
-                >
-                  Ledger
+            <Grid item>
+              <Link href="/yen-book/OutgoingPaymentPage/PendingPayment" passHref>
+                <Button variant="contained" size="small">
+                  Partial Payment
                 </Button>
-              </Grid>
+              </Link>
+              
+            </Grid>
             )}
             <Grid item>
+               {isModuleVisible("yenerp", "paymentdone") && (
+              <Link href="/yen-book/OutgoingPaymentPage/PaidPayment" passHref>
+                <Button variant="contained" size="small">
+                  Payment Done
+                </Button>
+              </Link>
+               )}
+            </Grid>
+             {isModuleVisible("yenerp", "ledger") && (
+            <Grid item>
+              <Button variant="contained" size="small" sx={{
+                backgroundColor: 'white',
+                color: 'black',
+                '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.8)' },
+              }}>
+                Ledger
+              </Button>
+            </Grid>
+             )}
+            <Grid item>
               {isModuleVisible("yenerp", "purchasereturn") && (
-                <Link
-                  href={"/yen-book/OutgoingPaymentPage/PurchaseReturn"
-                  }
-                >
-                  <Button variant="contained" size="small">
-                    Purchase Return
-                  </Button>
-                </Link>
+              <Link href="/yen-book/OutgoingPaymentPage/PurchaseReturn" passHref>
+                <Button variant="contained" size="small">
+                  Purchase Return
+                </Button>
+              </Link>
               )}
             </Grid>
           </Grid>
         </Box>
 
-        {/* Filters */}
+        {/* Filters - All in one row */}
         <Box sx={{ p: 2, mb: 2 }}>
-          <Grid container spacing={2} alignItems="center">
-            {/* Vendor Selection - Updated for VendorNameGet */}
-            <Grid item xs={12} md={4}>
-              <Autocomplete
-                value={outgoingVendor.find((v) => v.vendorName === selectedVendorName) || null}
-                onChange={handleVendorChange}
-                options={outgoingVendor}
-                getOptionLabel={(option: VendorNameGet) => option.vendorName || ''} // Updated type
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Select Vendor"
-                    variant="outlined"
-                    size="small"
-                    fullWidth
+          <Grid container spacing={2} alignItems="center" justifyContent="space-between">
+            {/* Left side: Vendor, Date Range, Filter, Clear */}
+            <Grid item xs={12} md={8}>
+              <Grid container spacing={2} alignItems="center">
+                {/* Vendor Selection */}
+                <Grid item xs={12} md={4}>
+                  <Autocomplete
+                    value={outgoingVendor.find((v) => v.vendorName === selectedVendorName) || null}
+                    onChange={handleVendorChange}
+                    options={outgoingVendor}
+                    getOptionLabel={(option: VendorNameGet) => option.vendorName || ''}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Select Vendor"
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                      />
+                    )}
                   />
-                )}
-              />
+                </Grid>
+
+                {/* Date Range */}
+                <Grid item xs={12} md={4}>
+                  <DateRangeDialog
+                    selectionRange={selectionRange}
+                    setSelectionRange={setSelectionRange}
+                    onApply={handleFilterClick}
+                  />
+                </Grid>
+
+                {/* Filter Button */}
+                <Grid item>
+                  <Button
+                    variant="contained"
+                    startIcon={<FilterAltIcon />}
+                    onClick={handleFilterClick}
+                    disabled={!selectedVendorName}
+                    size="medium"
+                  >
+                    Filter
+                  </Button>
+                </Grid>
+
+                {/* Clear Button */}
+                <Grid item>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ClearIcon />}
+                    onClick={handleFilterClose}
+                    size="medium"
+                  >
+                    Clear
+                  </Button>
+                </Grid>
+              </Grid>
             </Grid>
 
-            {/* Date Range */}
+            {/* Right side: Fullscreen and Download buttons */}
             <Grid item xs={12} md={4}>
-              <DateRangeDialog
-                selectionRange={selectionRange}
-                setSelectionRange={setSelectionRange}
-                onApply={handleFilterClick}
-              />
-            </Grid>
+              <Grid container spacing={1} justifyContent="flex-end" alignItems="center">
+                {/* Fullscreen Button */}
+                <Grid item>
+                  <Button
+                    variant="outlined"
+                    startIcon={isTableFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                    onClick={toggleTableFullScreen}
+                    size="medium"
+                    disabled={!transactions || transactions.length === 0}
+                    sx={{ 
+                      backgroundColor: isTableFullScreen ? 'rgba(25, 118, 210, 0.08)' : 'transparent'
+                    }}
+                  >
+                    {isTableFullScreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                  </Button>
+                </Grid>
 
-            {/* Filter Button */}
-            <Grid item>
-              <Button
-                variant="contained"
-                startIcon={<FilterAltIcon />}
-                onClick={handleFilterClick}
-                disabled={!selectedVendorName}
-                size="medium"
-              >
-                Filter
-              </Button>
-            </Grid>
-
-            {/* Clear Button */}
-            <Grid item>
-              <Button
-                variant="outlined"
-                startIcon={<ClearIcon />}
-                onClick={handleFilterClose}
-                size="medium"
-              >
-                Clear
-              </Button>
-            </Grid>
-
-            {/* Download Button */}
-            <Grid item sx={{ ml: 'auto' }}>
-              <Button
-                variant="contained"
-                startIcon={<DownloadIcon />}
-                onClick={() => setOpenDialog(true)}
-                disabled={!transactions || transactions.length === 0}
-                size="medium"
-                color="secondary"
-              >
-                Download
-              </Button>
+                {/* Download Button */}
+                <Grid item>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    onClick={() => setOpenDialog(true)}
+                    disabled={!transactions || transactions.length === 0}
+                    size="medium"
+                    color="secondary"
+                  >
+                    Download
+                  </Button>
+                </Grid>
+              </Grid>
             </Grid>
           </Grid>
         </Box>
@@ -682,111 +719,226 @@ if (!canReadLedger) {
         )}
 
         {/* Ledger Table - Filtered */}
-        <Paper sx={{ mb: 2,mx:1}}>
-          <TableContainer sx={{
-            maxHeight: 'calc(100vh - 370px)',
-            overflowY: 'auto',
+        <Box sx={{ 
+          position: 'relative',
+          ...(isTableFullScreen && {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9999,
+            backgroundColor: 'white',
+            padding: 0,
+            margin: 0,
+          })
+        }}>
+          {/* Floating button ONLY in fullscreen mode */}
+          {isTableFullScreen && (
+            <Box sx={{ 
+              position: 'fixed',
+              top: 16,
+              right: 16,
+              zIndex: 10,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: '50%',
+            }}>
+              <IconButton 
+                onClick={toggleTableFullScreen} 
+                color="primary"
+                size="small"
+              >
+                <FullscreenExitIcon />
+              </IconButton>
+            </Box>
+          )}
+
+          <Paper sx={{ 
+            mb: 2, 
+            mx: 1,
+            ...(isTableFullScreen && {
+              mx: 0,
+              mb: 0,
+              height: '100vh',
+              borderRadius: 0,
+              overflow: 'hidden',
+            })
           }}>
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell>S.No</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Date</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Particulars</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Status</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Debit (₹)</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Credit (₹)</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Balance (₹)</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {transactions && transactions.length > 0 ? (
-                  <>
-                    {transactions.map((transaction: Transaction, index: number) => (
-                      <TableRow
-                        key={`${transaction.reference_id}-${index}-${transaction.type}`}
-                        hover
-                        sx={{
-                          backgroundColor: transaction.type === 'opening_balance' ? '#e3f2fd' : 
-                                         transaction.type === 'invoice' ? '#f3e5f5' : 'inherit',
-                        }}
-                      >
-                      <TableCell>{index +1}</TableCell>
-                        <TableCell>{formatDate(transaction.date)}</TableCell>
-                        <TableCell>
-                          {transaction.description}
-                          {transaction.notes && (
+            <TableContainer sx={{
+              maxHeight: isTableFullScreen ? '100vh' : 'calc(100vh - 370px)',
+              height: isTableFullScreen ? '100vh' : 'auto',
+              overflowY: 'auto',
+              ...(isTableFullScreen && {
+                '& .MuiTable-root': {
+                  minWidth: '100%',
+                },
+                '& .MuiTableCell-root': {
+                  padding: '16px !important',
+                }
+              })
+            }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ 
+                      fontWeight: 'bold', 
+                      backgroundColor: '#f5f5f5',
+                      ...(isTableFullScreen && { padding: '20px 16px' })
+                    }}>S.No</TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 'bold', 
+                      backgroundColor: '#f5f5f5',
+                      ...(isTableFullScreen && { padding: '20px 16px' })
+                    }}>Date</TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 'bold', 
+                      backgroundColor: '#f5f5f5',
+                      ...(isTableFullScreen && { padding: '20px 16px' })
+                    }}>Particulars</TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 'bold', 
+                      backgroundColor: '#f5f5f5',
+                      ...(isTableFullScreen && {  padding: '20px 16px' })
+                    }}>Status</TableCell>
+                    <TableCell align="right" sx={{ 
+                      fontWeight: 'bold', 
+                      backgroundColor: '#f5f5f5',
+                      ...(isTableFullScreen && {padding: '20px 16px' })
+                    }}>Debit (₹)</TableCell>
+                    <TableCell align="right" sx={{ 
+                      fontWeight: 'bold', 
+                      backgroundColor: '#f5f5f5',
+                      ...(isTableFullScreen && { padding: '20px 16px' })
+                    }}>Credit (₹)</TableCell>
+                    <TableCell align="right" sx={{ 
+                      fontWeight: 'bold', 
+                      backgroundColor: '#f5f5f5',
+                      ...(isTableFullScreen && { padding: '20px 16px' })
+                    }}>Balance (₹)</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {transactions && transactions.length > 0 ? (
+                    <>
+                      {transactions.map((transaction: Transaction, index: number) => (
+                        <TableRow
+                          key={`${transaction.reference_id}-${index}-${transaction.type}`}
+                          hover
+                          sx={{
+                            backgroundColor: transaction.type === 'opening_balance' ? '#e3f2fd' : 
+                                           transaction.type === 'invoice' ? '#f3e5f5' : 'inherit',
+                            ...(isTableFullScreen && {
+                              '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.04) !important',
+                              }
+                            })
+                          }}
+                        >
+                          <TableCell sx={isTableFullScreen ? { padding: '16px' } : {}}>
+                            {index + 1}
+                          </TableCell>
+                          <TableCell sx={isTableFullScreen ? { padding: '16px' } : {}}>
+                            {formatDate(transaction.date)}
+                          </TableCell>
+                          <TableCell sx={isTableFullScreen ? { padding: '16px' } : {}}>
+                            {transaction.description}
+                            {transaction.notes && (
+                              <Typography variant="caption" color="textSecondary" display="block">
+                                {transaction.notes}
+                              </Typography>
+                            )}
+                            {/* FIX: Show transaction type for debugging */}
                             <Typography variant="caption" color="textSecondary" display="block">
-                              {transaction.notes}
+                              Type: {transaction.type}
                             </Typography>
-                          )}
-                          {/* FIX: Show transaction type for debugging */}
-                          <Typography variant="caption" color="textSecondary" display="block">
-                            Type: {transaction.type}
-                          </Typography>
+                          </TableCell>
+                          <TableCell sx={{ 
+                            fontWeight: 'medium',
+                            ...(isTableFullScreen && {  padding: '16px' })
+                          }}>
+                            {transaction.status || 'N/A'}
+                          </TableCell>
+                          <TableCell align="right" sx={isTableFullScreen ? { padding: '16px' } : {}}>
+                            {transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00'}
+                          </TableCell>
+                          <TableCell align="right" sx={isTableFullScreen ? { padding: '16px' } : {}}>
+                            {transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00'}
+                          </TableCell>
+                          <TableCell 
+                            align="right" 
+                            sx={{ 
+                              fontWeight: 'medium',
+                              color: transaction.balance < 0 ? '#d32f2f' : transaction.balance > 0 ? '#2e7d32' : 'inherit',
+                              ...(isTableFullScreen && { padding: '16px' })
+                            }}
+                          >
+                            {/* Show negative values properly */}
+                            {transaction.balance === 0
+                              ? '0.00'
+                              : transaction.balance < 0
+                                ? `-${formatAmount(Math.abs(transaction.balance))} Dr`
+                                : `${formatAmount(transaction.balance)} Cr`}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow sx={{ 
+                        backgroundColor: '#f8f9fa',
+                        ...(isTableFullScreen && {
+                          '& .MuiTableCell-root': {
+                            padding: '20px 16px',
+                            fontWeight: 'bold'
+                          }
+                        })
+                      }}>
+                        <TableCell colSpan={4} sx={{ fontWeight: 'bold' }}>TOTAL</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                          {formatAmount(totalDebit)}
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 'medium' }}>{transaction.status || 'N/A'}</TableCell>
-                        <TableCell align="right">
-                          {transaction.debit_amount > 0 ? formatAmount(transaction.debit_amount) : '0.00'}
-                        </TableCell>
-                        <TableCell align="right">
-                          {transaction.credit_amount > 0 ? formatAmount(transaction.credit_amount) : '0.00'}
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                          {formatAmount(totalCredit)}
                         </TableCell>
                         <TableCell 
                           align="right" 
                           sx={{ 
-                            fontWeight: 'medium',
-                            color: transaction.balance < 0 ? '#d32f2f' : transaction.balance > 0 ? '#2e7d32' : 'inherit'
+                            fontWeight: 'bold',
+                            color: finalBalance < 0 ? '#d32f2f' : finalBalance > 0 ? '#2e7d32' : 'inherit'
                           }}
                         >
-                          {/* Show negative values properly */}
-                          {transaction.balance === 0
+                          {/* Show final balance with proper negative sign */}
+                          {finalBalance === 0
                             ? '0.00'
-                            : transaction.balance < 0
-                              ? `-${formatAmount(Math.abs(transaction.balance))} Dr`
-                              : `${formatAmount(transaction.balance)} Cr`}
+                            : finalBalance < 0
+                              ? `-${formatAmount(Math.abs(finalBalance))} Dr`
+                              : `${formatAmount(finalBalance)} Cr`}
                         </TableCell>
                       </TableRow>
-                    ))}
-                    <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                      <TableCell colSpan={4} sx={{ fontWeight: 'bold' }}>TOTAL</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                        {formatAmount(totalDebit)}
-                      </TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                        {formatAmount(totalCredit)}
-                      </TableCell>
+                    </>
+                  ) : (
+                    <TableRow>
                       <TableCell 
-                        align="right" 
+                        colSpan={7} 
+                        align="center" 
                         sx={{ 
-                          fontWeight: 'bold',
-                          color: finalBalance < 0 ? '#d32f2f' : finalBalance > 0 ? '#2e7d32' : 'inherit'
+                          py: 4,
+                          ...(isTableFullScreen && {  py: 10 })
                         }}
                       >
-                        {/* Show final balance with proper negative sign */}
-                        {finalBalance === 0
-                          ? '0.00'
-                          : finalBalance < 0
-                            ? `-${formatAmount(Math.abs(finalBalance))} Dr`
-                            : `${formatAmount(finalBalance)} Cr`}
+                        <Typography 
+                          variant={isTableFullScreen ? "h5" : "h5"} 
+                          color="textSecondary"
+                        >
+                          {selectedVendorName
+                            ? 'No transactions found for this vendor in the selected date range'
+                            : 'Please select a vendor to view ledger'}
+                        </Typography>
                       </TableCell>
                     </TableRow>
-                  </>
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                      <Typography variant="h6" color="textSecondary">
-                        {selectedVendorName
-                          ? 'No transactions found for this vendor in the selected date range'
-                          : 'Please select a vendor to view ledger'}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        </Box>
 
         {/* Download Dialog */}
         <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm">
