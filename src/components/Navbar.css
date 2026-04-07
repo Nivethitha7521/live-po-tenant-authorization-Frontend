@@ -1,0 +1,115 @@
+/* Main navbar container - ensure it doesn't wrap and allows overflow if needed */
+.navbar {
+  background-color: white !important;
+  padding: 1px !important;
+  margin-left: 5px;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  color: black !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+  min-width: 0; /* Important: allows flex children to shrink properly */
+  overflow-x: auto; /* Allows horizontal scrolling if content is too wide */
+  overflow-y: hidden;
+}
+
+/* The main content wrapper inside navbar */
+.navbar-content {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-width: 0; /* Prevents layout break */
+}
+
+/* LEFT: Menu + Logo */
+.navbar-left {
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0; /* Don't let this shrink */
+  gap: 12px;
+}
+
+/* CENTER: Module Name - takes available space */
+.navbar-center {
+  flex-grow: 1 !important;
+  display: flex !important;
+  justify-content: center !important;
+  min-width: 0;
+}
+
+/* RIGHT: All right-side items in one horizontal row, no wrapping */
+.navbar-right {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;     /* CRITICAL: Prevents wrapping */
+  flex-shrink: 0 !important;        /* Don't shrink this section */
+  gap: 16px;                        /* Consistent spacing between items */
+  padding-right: 16px;
+}
+
+/* Ensure each item in navbar-right doesn't shrink or wrap */
+.navbar-right > * {
+  flex-shrink: 0 !important;
+}
+
+/* Session timer styling */
+.session-timer {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* User info */
+.user-info {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background-color: #1976d2;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Business logos container - keep them small and in row */
+.navbar-logo {
+  width: 60px !important;
+  height: 40px !important;   /* Slightly taller for better visibility */
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  flex-shrink: 0;
+}
+
+.navbar-image {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+.no-logo {
+  font-size: 10px !important;
+  color: #666 !important;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Logout button */
+.navbar-logout button {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px;
+  white-space: nowrap;
+}
