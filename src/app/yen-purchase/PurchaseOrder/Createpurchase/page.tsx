@@ -358,11 +358,11 @@ const CreatePurchasePage: React.FC = () => {
     }
   }, [isEditMode, purchaseOrderData.locationName, locations, locationSearch]);
   // NEW: Set freights in edit mode after data loads
-  useEffect(() => {
-    if (isEditMode && purchaseOrderData.freights && purchaseOrderData.freights.length > 0) {
-      setFreights(purchaseOrderData.freights);
-    }
-  }, [isEditMode, purchaseOrderData.freights]);
+  // useEffect(() => {
+  //   if (isEditMode && purchaseOrderData.freights && purchaseOrderData.freights.length > 0) {
+  //     setFreights(purchaseOrderData.freights);
+  //   }
+  // }, [isEditMode, purchaseOrderData.freights]);
   // Reset form when component mounts in create mode
   useEffect(() => {
     if (!isEditMode) {

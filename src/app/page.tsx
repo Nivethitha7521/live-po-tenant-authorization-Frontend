@@ -118,7 +118,8 @@ localStorage.setItem("userRole", result.role_name);
 dispatch(jwtLoginSuccess({
   username: result.username,
   permissions: result.permissions,
-  role: result.role_name
+  role: result.role_name,
+  token: result.access_token,
 }));
 
 toast.success(

@@ -62,7 +62,7 @@ export const importCSV = createAsyncThunk(
 // Async thunk for exporting CSV
 export const exportCSV = createAsyncThunk('csvOperations/exportCSV', async (_, { rejectWithValue }) => {
   try {
-    const response = await purchaseApi.get('/purchaseapi/itemgroups/export-csv', {
+    const response = await purchaseApi.get('/purchasetestapi/itemgroups/export-csv', {
       responseType: 'blob',
     });
 

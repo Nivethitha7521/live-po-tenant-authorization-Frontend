@@ -138,14 +138,28 @@ const hasReportsAccess = hasPurchaseReportAccess || hasPosReportAccess;
   useEffect(() => {
     if (!isLoggedIn || !token) return;
     let throttleTimer: ReturnType<typeof setTimeout> | null = null;
-    const sendPing = async () => {
-      try {
-        await fetch("http://127.0.0.1:8000/purchasetestapi/ping", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch (e) { console.log("ping error", e); }
-    };
+   const sendPing = async () => {
+  try {
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+    const browserSessionId = sessionStorage.getItem("browser_session_id") || "";
+    
+    const res = await fetch(`${API_BASE}/purchasetestapi/ping`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "x-browser-session-id": browserSessionId,
+      },
+    });
+
+    // Session expired — Redis key gone, MongoDB inactive
+    if (res.status === 401) {
+      dispatch(forceLogout());
+      router.replace("/");
+    }
+  } catch (e) {
+    console.log("ping error", e);
+  }
+};
     const events = ["mousemove", "keydown", "click", "scroll"];
     const handler = () => {
       if (!throttleTimer) {
@@ -160,7 +174,31 @@ const hasReportsAccess = hasPurchaseReportAccess || hasPosReportAccess;
       if (throttleTimer) clearTimeout(throttleTimer);
     };
   }, [isLoggedIn, token]);
+// Idle auto-logout — user touch பண்ணாம CACHE_TTL கழிஞ்சா logout
+useEffect(() => {
+  if (!isLoggedIn || !token) return;
 
+  const IDLE_TIMEOUT_MS = 120 * 1000; // .env-ல உள்ள TOKEN_CACHE_TTL-க்கு match பண்ணு
+  let idleTimer: ReturnType<typeof setTimeout>;
+
+  const resetTimer = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(async () => {
+      // Idle time exceeded — force logout
+      dispatch(forceLogout());
+      router.replace("/");
+    }, IDLE_TIMEOUT_MS);
+  };
+
+  const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+  events.forEach((e) => window.addEventListener(e, resetTimer));
+  resetTimer(); // Start timer immediately
+
+  return () => {
+    events.forEach((e) => window.removeEventListener(e, resetTimer));
+    clearTimeout(idleTimer);
+  };
+}, [isLoggedIn, token, dispatch, router]);
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
       if (event.key === "forceLogout" && event.newValue) {

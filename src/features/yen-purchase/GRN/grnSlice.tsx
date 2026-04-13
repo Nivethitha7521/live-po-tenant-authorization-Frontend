@@ -414,7 +414,7 @@ export const addReturnReason = createAsyncThunk(
   async (reason: string, { rejectWithValue }) => {
     try {
       const response = await purchaseApi.post(
-        "/purchaseapi/grns/return-reasons",
+        "/purchasetestapi/grns/return-reasons",
         { reason },
       );
       return response.data.reason;
@@ -584,7 +584,7 @@ export const updateGrnCancelStatus = createAsyncThunk(
   async (grnId: string, { rejectWithValue }) => {
     try {
       // Send the PATCH request to update the GRN status
-      const response = await purchaseApi.patch(`/purchaseapi/grns/${grnId}`, {
+      const response = await purchaseApi.patch(`/purchasetestapi/grns/${grnId}`, {
         status: "active",
       });
 

@@ -1229,9 +1229,10 @@ const handleConfirmCreate = () => {
         <div className="px-6 py-3 flex-shrink-0">
           <div className="flex gap-3">
             {/* Predefined Roles Dropdown */}
-            <div className="w-1/2">
-              <label className="block text-sm font-bold text-black mb-2">Select Predefined Roles</label>
-              <select
+           <div className="w-1/2">
+  <label className="block text-sm font-bold text-black mb-0.5">Select Predefined Roles</label>
+  <p className="text-xs text-gray-500 mb-2">Choose a ready-made role template</p>
+  <select
                 value={selectedPredefinedRole}
                 onChange={(e) => setSelectedPredefinedRole(e.target.value)}
                 className="border border-gray-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-300 focus:outline-none transition-all duration-200 w-full text-sm"
@@ -1247,8 +1248,9 @@ const handleConfirmCreate = () => {
 
             {/* Custom Role Input */}
             <div className="w-1/2">
-              <label className="block text-sm font-bold text-black mb-2">Create a New Custom Role</label>
-              <input
+  <label className="block text-sm font-bold text-black mb-0.5">Create a New Custom Role</label>
+  <p className="text-xs text-gray-500 mb-2">Type a unique name for your role</p>
+  <input
                 value={customRoleName}
                 onChange={(e) => setCustomRoleName(e.target.value)}
                 className="w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-300 focus:outline-none transition-all duration-200 text-sm"
